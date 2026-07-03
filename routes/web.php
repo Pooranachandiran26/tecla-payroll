@@ -14,21 +14,13 @@ use App\Http\Controllers\ClientController;
 use App\Http\Controllers\ClientPortalController;
 
 // Clients
-Route::middleware(['auth','role:admin,manager'])->group(function () {
-    Route::get('/clients', [ClientController::class,'index'])
-        ->middleware('can:viewAny,App\Models\Client');
-    Route::get('/clients/create', [ClientController::class,'create'])
-        ->middleware('can:create,App\Models\Client');
-    Route::post('/clients', [ClientController::class,'store']);
-    Route::get('/clients/{client}', [ClientController::class,'show'])
-        ->middleware('can:view,client');
-    Route::put('/clients/{client}', [ClientController::class,'update'])
-        ->middleware('can:update,client');
-});
+Route::get('/clients', [ClientController::class,'index']);
+Route::get('/clients/create', [ClientController::class,'create']);
+Route::post('/clients', [ClientController::class,'store']);
+Route::get('/clients/{client}', [ClientController::class,'show']);
+Route::put('/clients/{client}', [ClientController::class,'update']);
 
-Route::middleware(['auth','role:client'])->group(function () {
-    Route::get('/client/profile', [ClientPortalController::class,'show']);
-});
+Route::get('/client/profile', [ClientPortalController::class,'show']);
 
 // Employees
 Route::post('/employees/calculate-preview', [\App\Http\Controllers\EmployeeController::class, 'calculatePreview']);
