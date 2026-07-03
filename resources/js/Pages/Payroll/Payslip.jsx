@@ -117,30 +117,6 @@ export default function Payslip() {
               </div>
             </div>
 
-            {/* ESI & PF */}
-            <div className="flex gap-8 mb-8">
-              <div className="flex-1 bg-white border border-gray-200 rounded-md p-5 shadow-sm">
-                <h4 className="text-[0.95rem] text-[#1F3864] mb-3 border-b border-gray-200 pb-2 font-bold">ESI Details</h4>
-                <div className="flex flex-col gap-2 text-[0.85rem]">
-                  <div className="flex justify-between"><span className="payslip-meta-label">Employee ESI No.</span><span className="payslip-meta-val">3114589723 (Ineligible)</span></div>
-                  <div className="flex justify-between"><span className="payslip-meta-label">Employee Contribution</span><span className="payslip-meta-val">₹0</span></div>
-                  <div className="flex justify-between"><span className="payslip-meta-label">Employer Contribution</span><span className="payslip-meta-val">₹0</span></div>
-                  <hr className="border-t border-gray-200 my-1" />
-                  <div className="flex justify-between font-bold"><span className="text-[#1F3864]">Total ESI</span><span>₹0</span></div>
-                </div>
-              </div>
-              <div className="flex-1 bg-white border border-gray-200 rounded-md p-5 shadow-sm">
-                <h4 className="text-[0.95rem] text-[#1F3864] mb-3 border-b border-gray-200 pb-2 font-bold">PF Details</h4>
-                <div className="flex flex-col gap-2 text-[0.85rem]">
-                  <div className="flex justify-between"><span className="payslip-meta-label">Employee PF No.</span><span className="payslip-meta-val">100523485790</span></div>
-                  <div className="flex justify-between"><span className="payslip-meta-label">Employee Contribution</span><span className="payslip-meta-val">₹2,640</span></div>
-                  <div className="flex justify-between"><span className="payslip-meta-label">Employer Contribution</span><span className="payslip-meta-val">₹2,640</span></div>
-                  <hr className="border-t border-gray-200 my-1" />
-                  <div className="flex justify-between font-bold"><span className="text-[#1F3864]">Total PF</span><span>₹5,280</span></div>
-                </div>
-              </div>
-            </div>
-
             {/* Earnings vs Deductions */}
             <div className="flex gap-8 mb-8">
               <div className="flex-1">
@@ -201,6 +177,25 @@ export default function Payslip() {
               </div>
               <div className="text-[1.1rem] italic font-medium">
                 ({getWords(selectedEmp.net)})
+              </div>
+            </div>
+
+            {/* Employer Contributions & CTC */}
+            <div className="mt-8">
+              <h4 className="text-[1.1rem] text-[#1F3864] mb-3 border-b border-gray-200 pb-2 font-bold uppercase">Employer Contributions</h4>
+              <div className="flex gap-8">
+                <div className="flex-1 bg-white border border-gray-200 rounded-md p-5 shadow-sm">
+                  <div className="flex flex-col gap-2 text-[0.85rem]">
+                    <div className="flex justify-between"><span className="payslip-meta-label">Employer PF Contribution</span><span className="payslip-meta-val">₹2,640</span></div>
+                    <div className="flex justify-between"><span className="payslip-meta-label">Employer ESI Contribution</span><span className="payslip-meta-val">₹0</span></div>
+                    <hr className="border-t border-gray-200 my-1" />
+                    <div className="flex justify-between font-bold"><span className="text-[#1F3864]">Total Employer Cost</span><span>₹2,640</span></div>
+                  </div>
+                </div>
+                <div className="flex-1 bg-[#F8FAFC] border-2 border-dashed border-[#CBD5E1] rounded-md p-5 flex flex-col justify-center items-center">
+                  <div className="text-[0.9rem] font-bold text-gray-500 uppercase tracking-wider mb-1">Cost to Company (CTC)</div>
+                  <div className="text-[1.5rem] font-bold text-[#1F3864]">₹47,640</div>
+                </div>
               </div>
             </div>
 

@@ -97,8 +97,25 @@ export default function SalaryRevision() {
                   Total Deductions: ₹5,412.50
                 </div>
 
-                <div style={{ backgroundColor: 'var(--primary-navy)', padding: '1rem', borderRadius: 'var(--radius-sm)', fontWeight: 'bold', fontSize: '1.25rem', textAlign: 'center', color: 'white', marginBottom: '2.5rem' }}>
+                <div style={{ backgroundColor: 'var(--primary-navy)', padding: '1rem', borderRadius: 'var(--radius-sm)', fontWeight: 'bold', fontSize: '1.25rem', textAlign: 'center', color: 'white', marginBottom: '1.5rem' }}>
                   Net Pay: <span style={{ color: 'var(--accent-gold)' }}>₹29,587.50</span>
+                </div>
+
+                <h4 style={{ fontSize: '0.95rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>EMPLOYER CONTRIBUTIONS</h4>
+                <div className="form-group">
+                  <label>Employer PF</label>
+                  <input type="text" className="form-control" value="₹2,100.00" disabled/>
+                </div>
+                <div className="form-group">
+                  <label>Employer ESIC</label>
+                  <input type="text" className="form-control" value="₹612.50" disabled/>
+                </div>
+                <div style={{ backgroundColor: '#F8FAFC', border: '1px solid var(--border-color)', padding: '0.75rem', borderRadius: 'var(--radius-sm)', fontWeight: 'bold', fontSize: '1.1rem', textAlign: 'center', color: 'var(--text-main)', marginTop: '1rem', marginBottom: '1.5rem' }}>
+                  Total Employer Cost: ₹2,712.50
+                </div>
+
+                <div style={{ backgroundColor: '#F1F5F9', border: '2px dashed var(--border-color)', padding: '1rem', borderRadius: 'var(--radius-sm)', fontWeight: 'bold', fontSize: '1.25rem', textAlign: 'center', color: 'var(--primary-navy)', marginBottom: '2.5rem' }}>
+                  CTC: <span style={{ color: 'var(--text-main)' }}>₹37,712.50</span>
                 </div>
 
                 <h4 style={{ fontSize: '0.95rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>STATUTORY APPLICABILITY &amp; LOANS</h4>
@@ -195,8 +212,25 @@ export default function SalaryRevision() {
                   Total Deductions: <span id="new-deductions-display">₹7,340</span>
                 </div>
 
-                <div style={{ backgroundColor: 'var(--primary-navy)', padding: '1rem', borderRadius: 'var(--radius-sm)', fontWeight: 'bold', fontSize: '1.25rem', textAlign: 'center', color: 'white', marginBottom: '2.5rem', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
+                <div style={{ backgroundColor: 'var(--primary-navy)', padding: '1rem', borderRadius: 'var(--radius-sm)', fontWeight: 'bold', fontSize: '1.25rem', textAlign: 'center', color: 'white', marginBottom: '1.5rem', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
                   Net Pay: <span id="new-net-display" style={{ color: 'var(--accent-gold)' }}>₹37,660</span>
+                </div>
+
+                <h4 style={{ fontSize: '0.95rem', color: 'var(--primary-navy)', marginBottom: '1rem' }}>EMPLOYER CONTRIBUTIONS</h4>
+                <div className="form-group">
+                  <label htmlFor="new-employer-pf">Employer PF</label>
+                  <input type="number" id="new-employer-pf" className="form-control" value="2640" onChange="recalculateProposed()"/>
+                </div>
+                <div className="form-group">
+                  <label htmlFor="new-employer-esic">Employer ESIC</label>
+                  <input type="number" id="new-employer-esic" className="form-control" value="0" onChange="recalculateProposed()"/>
+                </div>
+                <div style={{ backgroundColor: '#F8FAFC', border: '1px solid var(--border-color)', padding: '0.75rem', borderRadius: 'var(--radius-sm)', fontWeight: 'bold', fontSize: '1.1rem', textAlign: 'center', color: 'var(--text-main)', marginTop: '1rem', marginBottom: '1.5rem' }}>
+                  Total Employer Cost: <span id="new-employer-cost-display">₹2,640</span>
+                </div>
+
+                <div style={{ backgroundColor: '#F1F5F9', border: '2px dashed var(--border-color)', padding: '1rem', borderRadius: 'var(--radius-sm)', fontWeight: 'bold', fontSize: '1.25rem', textAlign: 'center', color: 'var(--primary-navy)', marginBottom: '2.5rem', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
+                  CTC: <span id="new-ctc-display" style={{ color: 'var(--text-main)' }}>₹47,640</span>
                 </div>
 
                 <h4 style={{ fontSize: '0.95rem', color: 'var(--primary-navy)', marginBottom: '1rem' }}>STATUTORY APPLICABILITY &amp; LOANS</h4>
@@ -240,7 +274,7 @@ export default function SalaryRevision() {
             {/*  Increment comparison alert  */}
             <div style={{ backgroundColor: 'var(--status-success-bg)', border: '1px solid #C8E6C9', padding: '1rem', borderRadius: 'var(--radius-sm)', textAlign: 'center', marginBottom: '2rem' }}>
               <span style={{ fontSize: '1rem', fontWeight: 'bold', color: 'var(--status-success)' }} id="comparison-label">
-                📈 Revision Summary: ₹35,000 → ₹45,000 (+28.6% Increase)
+                📈 Revision Summary (CTC): ₹37,712.50 → ₹47,640.00 (+26.3% Increase)
               </span>
             </div>
 

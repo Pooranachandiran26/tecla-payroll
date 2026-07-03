@@ -10,12 +10,28 @@ Route::get('/', fn() => Inertia::render('Auth/Login'));
 Route::get('/dashboard', fn() => Inertia::render('Dashboard/Dashboard'));
 Route::get('/quick-access', fn() => Inertia::render('Dashboard/QuickAccess'));
 
+use App\Http\Controllers\ClientController;
+use App\Http\Controllers\ClientPortalController;
+
 // Clients
-Route::get('/clients', fn() => Inertia::render('Clients/ClientsList'));
-Route::get('/clients/create', fn() => Inertia::render('Clients/ClientForm'));
-Route::get('/clients/{id}', fn() => Inertia::render('Clients/ClientDetail'));
+Route::middleware(['auth','role:admin,manager'])->group(function () {
+    Route::get('/clients', [ClientController::class,'index'])
+        ->middleware('can:viewAny,App\Models\Client');
+    Route::get('/clients/create', [ClientController::class,'create'])
+        ->middleware('can:create,App\Models\Client');
+    Route::post('/clients', [ClientController::class,'store']);
+    Route::get('/clients/{client}', [ClientController::class,'show'])
+        ->middleware('can:view,client');
+    Route::put('/clients/{client}', [ClientController::class,'update'])
+        ->middleware('can:update,client');
+});
+
+Route::middleware(['auth','role:client'])->group(function () {
+    Route::get('/client/profile', [ClientPortalController::class,'show']);
+});
 
 // Employees
+Route::post('/employees/calculate-preview', [\App\Http\Controllers\EmployeeController::class, 'calculatePreview']);
 Route::get('/employees', fn() => Inertia::render('Employees/EmployeesList'));
 Route::get('/employees/create', fn() => Inertia::render('Employees/EmployeeForm'));
 Route::get('/employees/bulk-upload', fn() => Inertia::render('Employees/BulkUpload'));
