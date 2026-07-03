@@ -1,0 +1,153 @@
+
+    /* ── Edit Profile Panel ── */
+    .edit-panel-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 200;
+      display: none;
+      align-items: flex-start;
+      justify-content: flex-end;
+    }
+    .edit-panel-overlay.open { display: flex; }
+
+    .edit-panel {
+      background: #fff;
+      width: 520px;
+      max-width: 96vw;
+      height: 100vh;
+      overflow-y: auto;
+      box-shadow: -4px 0 24px rgba(0,0,0,0.18);
+      display: flex;
+      flex-direction: column;
+      animation: slideInRight 0.22s ease;
+    }
+    @keyframes slideInRight {
+      from { transform: translateX(40px); opacity: 0; }
+      to   { transform: translateX(0);   opacity: 1; }
+    }
+
+    .edit-panel-header {
+      background: var(--primary-navy);
+      color: #fff;
+      padding: 1.1rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .edit-panel-header h3 { color: #fff; margin: 0; font-size: 1rem; }
+    .edit-panel-header .close-btn {
+      background: none; border: none; color: rgba(255,255,255,0.8);
+      font-size: 1.4rem; cursor: pointer; line-height: 1;
+    }
+    .edit-panel-header .close-btn:hover { color: #fff; }
+
+    .edit-panel-body { padding: 1.5rem; flex: 1; }
+
+    .edit-panel-footer {
+      padding: 1rem 1.5rem;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      gap: 0.75rem;
+      justify-content: flex-end;
+      position: sticky;
+      bottom: 0;
+      background: #fff;
+    }
+
+    /* ── Locked Section Blocks inside Edit Panel ── */
+    .locked-section-block {
+      background: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 1rem;
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.6rem;
+    }
+    .locked-section-block .lock-icon { flex-shrink: 0; margin-top: 1px; opacity: 0.45; }
+    .locked-section-block .lock-body { flex: 1; }
+    .locked-section-block .lock-title {
+      font-size: 0.82rem; font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      margin-bottom: 0.2rem;
+    }
+    .locked-section-block .lock-value {
+      font-size: 0.9rem; font-weight: 600;
+      color: var(--text-main);
+      margin-bottom: 0.2rem;
+    }
+    .locked-section-block .lock-note {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+    .locked-section-block .lock-note a {
+      color: var(--primary-navy);
+      text-decoration: underline;
+      font-weight: 500;
+    }
+
+    /* Section divider inside edit panel */
+    .edit-section-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      border-top: 1px solid var(--border-color);
+      padding-top: 1rem;
+      margin-top: 1.25rem;
+      margin-bottom: 0.85rem;
+    }
+    .edit-section-label:first-of-type { border-top: none; padding-top: 0; margin-top: 0; }
+
+    /* Name change doc upload */
+    .name-doc-upload {
+      display: none;
+      margin-top: 0.5rem;
+      padding: 0.65rem 0.85rem;
+      background: var(--status-warning-bg);
+      border-left: 3px solid var(--status-warning);
+      border-radius: var(--radius-sm);
+      font-size: 0.8rem;
+      color: var(--status-warning);
+      line-height: 1.5;
+    }
+    .name-doc-upload.show { display: block; }
+    .name-doc-upload input[type="file"] {
+      display: block;
+      margin-top: 0.5rem;
+      font-size: 0.78rem;
+    }
+
+    /* Inline field msg */
+    .ep-field-msg {
+      font-size: 0.78rem;
+      margin-top: 0.25rem;
+      color: var(--status-danger);
+      display: none;
+    }
+    .ep-field-msg.show { display: block; }
+
+    /* Designation changed banner */
+    .desig-changed-note {
+      display: none;
+      margin-top: 0.4rem;
+      padding: 0.4rem 0.65rem;
+      background: var(--status-warning-bg);
+      border-left: 3px solid var(--status-warning);
+      border-radius: var(--radius-sm);
+      font-size: 0.78rem;
+      color: var(--status-warning);
+    }
+    .desig-changed-note.show { display: block; }
+
+    /* Locked value data display in overview (non-edit) */
+    .data-label { font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; }
+    .data-value { font-weight: bold; font-size: 1.05rem; }
+  

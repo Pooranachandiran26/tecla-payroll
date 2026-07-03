@@ -1,0 +1,1715 @@
+
+      <div style="margin-bottom: 1.5rem;">
+        <a href="/employees" style="font-size: 0.85rem; font-weight: 600;">← Back to Employees Directory</a>
+        <div class="flex-row-between" style="margin-top: 0.5rem; margin-bottom: 0;">
+          <div style="display: flex; align-items: center; gap: 1rem;">
+            <h2 id="page-emp-name">Aarav Sharma</h2>
+            <span class="badge badge-success">Active</span>
+          </div>
+          <div style="display: flex; gap: 0.75rem;">
+            <a href="/employees/1/salary-revision?id=88" class="btn btn-navy">📈 Revise Salary</a>
+            <a href="/employees/88&stage=1/exit" class="btn btn-danger">🚪 Initiate Exit Process</a>
+            <button class="btn btn-secondary" onclick="openEditPanel()">✏️ Edit Profile</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Container -->
+      <div class="tab-container card">
+        <ul class="tab-headers">
+          <li class="active" data-tab="overview">Overview</li>
+          <li data-tab="salary">Salary Structure &amp; History</li>
+          <li data-tab="attendance" id="tab-header-attendance">Attendance Log (June)</li>
+          <li data-tab="payslips">Generated Payslips</li>
+          <li data-tab="docs">Documents</li>
+          <li data-tab="tax">Tax Declaration</li>
+          <li data-tab="loans">Loans &amp; Advances</li>
+        </ul>
+
+        <!-- Tab 1: Overview -->
+        <div class="tab-content active" data-tab="overview">
+          <div class="grid-layout">
+
+            <!-- Left Profile Panel -->
+            <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem;">
+                <div>
+                  <h4 class="data-label">Employee Code</h4>
+                  <span class="data-value">TEC-088</span>
+                </div>
+                <div>
+                  <h4 class="data-label">Designation</h4>
+                  <span class="data-value" id="display-designation">Senior Developer</span>
+                </div>
+                <div>
+                  <h4 class="data-label">Client Assignment</h4>
+                  <span class="data-value">Mahindra Corp</span>
+                </div>
+                <div>
+                  <h4 class="data-label">Date of Joining</h4>
+                  <span class="data-value">Jan 15, 2025</span>
+                </div>
+              </div>
+
+              <hr style="border: 0; border-top: 1px solid var(--border-color);">
+
+              <!-- Contact Details (editable via Edit Profile) -->
+              <div>
+                <h4 class="data-label" style="margin-bottom: 0.75rem;">Contact Information</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                  <div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">Personal Email</div>
+                    <strong id="display-email" style="font-size: 0.9rem;">aarav.sharma@gmail.com</strong>
+                  </div>
+                  <div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">Phone Number</div>
+                    <strong id="display-phone" style="font-size: 0.9rem;">9876543210</strong>
+                  </div>
+                  <div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">Emergency Contact</div>
+                    <strong id="display-emergency" style="font-size: 0.9rem;">9876543211</strong>
+                  </div>
+                  <div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">Address</div>
+                    <strong id="display-address" style="font-size: 0.9rem;">Flat 4B, Andheri East, Mumbai</strong>
+                  </div>
+                </div>
+              </div>
+
+              <hr style="border: 0; border-top: 1px solid var(--border-color);">
+
+              <div>
+                <h4 class="data-label" style="margin-bottom: 0.75rem;">Disbursement Bank Details</h4>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; background-color: #F8FAFC; padding: 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                  <div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">Bank Name</div>
+                    <strong style="font-size: 0.9rem;">HDFC Bank</strong>
+                  </div>
+                  <div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">Account No (Masked)</div>
+                    <strong style="font-size: 0.9rem;">••••••••398571</strong>
+                  </div>
+                  <div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">IFSC Code</div>
+                    <strong style="font-size: 0.9rem;">HDFC0000060</strong>
+                  </div>
+                </div>
+                <div style="margin-top: 0.5rem; font-size: 0.75rem; color: var(--text-muted);">
+                  🔒 Bank details can only be changed via the
+                  <a href="/bank-change-requests" style="color:var(--primary-navy); font-weight:600;">Bank Change Requests</a> approval flow.
+                </div>
+              </div>
+
+              <hr style="border: 0; border-top: 1px solid var(--border-color);">
+
+              <!-- Salary Summary Card -->
+              <div>
+                <h4 class="data-label" style="margin-bottom: 0.75rem;">Salary Summary</h4>
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; background-color: #F8FAFC; padding: 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                  <div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">Basic Pay</div>
+                    <strong style="font-size: 0.95rem; color: var(--primary-navy);">₹35,000</strong>
+                  </div>
+                  <div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">HRA</div>
+                    <strong style="font-size: 0.95rem; color: var(--primary-navy);">₹14,000</strong>
+                  </div>
+                  <div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">Allowances</div>
+                    <strong style="font-size: 0.95rem; color: var(--primary-navy);">₹5,500</strong>
+                  </div>
+                  <div style="border-left: 2px solid var(--accent-gold); padding-left: 0.75rem;">
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">Total CTC / Month</div>
+                    <strong style="font-size: 1.05rem; color: var(--accent-gold);">₹54,500</strong>
+                  </div>
+                </div>
+                <div style="margin-top: 0.5rem; font-size: 0.75rem; color: var(--text-muted);">
+                  🔒 Salary structure is read-only. Use <a href="/employees/1/salary-revision?id=88" style="color:var(--primary-navy); font-weight:600;">Revise Salary</a> to apply promotions or increments.
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Statutory Profile -->
+            <div>
+              <div class="card" style="background-color: #F8FAFC; border: 1px solid var(--border-color);">
+                <h3 style="font-size: 1rem; margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">Statutory Profile</h3>
+
+                <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 0.85rem; font-weight: 500;">Provident Fund (PF):</span>
+                    <span class="badge badge-success">PF Active</span>
+                  </div>
+                  <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: -0.5rem; text-align: right;">
+                    UAN: 100523485790
+                  </div>
+
+                  <hr style="border: 0; border-top: 1px solid var(--border-color);">
+
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 0.85rem; font-weight: 500;">State Insurance (ESI):</span>
+                    <span class="badge badge-success" title="Active through current contribution period">ESI Active (Transition)</span>
+                  </div>
+                  <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: -0.5rem; text-align: right;">
+                    IP No: 3114589723 (Gross > ₹21,000)
+                  </div>
+                  <div style="margin-top: 0.5rem; background-color: #FFFBEB; border: 1px solid #FEF3C7; padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); font-size: 0.75rem; color: #92400E; display: flex; align-items: flex-start; gap: 0.5rem;">
+                    <span style="font-size: 0.9rem; margin-top: -0.1rem;">⚠️</span>
+                    <div>
+                      <strong>Contribution Period Status:</strong> ESI will auto-stop after Sep 30, since salary now exceeds the threshold.
+                    </div>
+                  </div>
+
+                  <hr style="border: 0; border-top: 1px solid var(--border-color);">
+
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 0.85rem; font-weight: 500;">Professional Tax (PT):</span>
+                    <span class="badge badge-success">PT Deducted</span>
+                  </div>
+
+                  <hr style="border: 0; border-top: 1px solid var(--border-color);">
+
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 0.85rem; font-weight: 500;">TDS &amp; Tax Setup:</span>
+                    <button class="btn btn-secondary btn-xs" onclick="switchTab('tax')">📊 View Tax Declaration Tab</button>
+                  </div>
+                  <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: -0.5rem; text-align: right;">
+                    Manage Regime &amp; Section 80C/80D Proofs
+                  </div>
+                </div>
+
+                <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-color); font-size: 0.75rem; color: var(--text-muted);">
+                  🔒 Statutory toggles (PF/ESI/PT/TDS) can only be changed via the
+                  <a href="/employees/create?id=88&amp;mode=edit-active" style="color:var(--primary-navy); font-weight:500;">Employee Configuration Form</a>
+                  — not through Edit Profile.
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Tab 2: Salary Structure -->
+        <div class="tab-content" data-tab="salary">
+          <div style="display: flex; flex-direction: column; gap: 2.5rem;">
+            
+            <!-- Net Pay Summary Card -->
+            <div style="background-color: var(--primary-navy); color: white; padding: 1.5rem; border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+              <div>
+                <h3 style="font-size: 1.25rem; margin: 0 0 0.25rem 0; color: white;">Net Pay (Monthly)</h3>
+                <div style="font-size: 0.85rem; color: #CBD5E1;">Gross Total (₹54,500) − Total Deductions (₹8,900)</div>
+              </div>
+              <div style="font-size: 2.25rem; font-weight: bold; color: var(--accent-gold);">
+                ₹45,600
+              </div>
+            </div>
+
+            <!-- Current Active Salary Structure -->
+            <div>
+              <div class="flex-row-between" style="margin-bottom: 1rem;">
+                <h3 style="font-size: 1.1rem; margin: 0;">Active Compensation Breakdown (Earnings)</h3>
+                <span class="badge badge-success" style="font-size: 0.85rem; padding: 0.35rem 0.75rem;">Effective From: April 01, 2026</span>
+              </div>
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Component Name</th>
+                    <th>Type</th>
+                    <th>Monthly Rate</th>
+                    <th>Annual Equivalent</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>1. Basic Pay</strong></td>
+                    <td>Earnings</td>
+                    <td>₹35,000</td>
+                    <td>₹4,20,000</td>
+                  </tr>
+                  <tr>
+                    <td><strong>2. HRA (House Rent Allowance)</strong></td>
+                    <td>Earnings</td>
+                    <td>₹14,000</td>
+                    <td>₹1,68,000</td>
+                  </tr>
+                  <tr>
+                    <td><strong>3. Conveyance</strong></td>
+                    <td>Earnings</td>
+                    <td>₹1,600</td>
+                    <td>₹19,200</td>
+                  </tr>
+                  <tr>
+                    <td><strong>4. DA (Dearness Allowance)</strong></td>
+                    <td>Earnings</td>
+                    <td>₹0</td>
+                    <td>₹0</td>
+                  </tr>
+                  <tr>
+                    <td><strong>5. Medical Allowance</strong></td>
+                    <td>Earnings</td>
+                    <td>₹0</td>
+                    <td>₹0</td>
+                  </tr>
+                  <tr>
+                    <td><strong>6. Special Allowance</strong></td>
+                    <td>Earnings</td>
+                    <td>₹3,900</td>
+                    <td>₹46,800</td>
+                  </tr>
+                  <tr>
+                    <td><strong>7. Other Additions</strong></td>
+                    <td>Earnings</td>
+                    <td>₹0</td>
+                    <td>₹0</td>
+                  </tr>
+                  <tr>
+                    <td><strong>8. Arrears Amount</strong></td>
+                    <td>Earnings</td>
+                    <td>₹0</td>
+                    <td>₹0</td>
+                  </tr>
+                  <tr style="background-color: var(--primary-navy-hover); color: white; font-weight: bold;">
+                    <td>Gross Total</td>
+                    <td>Total Earnings</td>
+                    <td style="color: var(--accent-gold);">₹54,500</td>
+                    <td style="color: var(--accent-gold);">₹6,54,000</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div class="flex-row-between" style="margin-top: 2.5rem; margin-bottom: 1rem;">
+                <h3 style="font-size: 1.1rem; margin: 0;">Deductions Breakdown</h3>
+                <span style="font-size: 0.85rem; color: var(--text-muted);">Monthly Statutory &amp; Compliance Deductions</span>
+              </div>
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Component Name</th>
+                    <th>Type</th>
+                    <th>Monthly Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>1. Employee PF</strong></td>
+                    <td>Deductions</td>
+                    <td>₹4,200</td>
+                  </tr>
+                  <tr>
+                    <td><strong>2. Employee ESIC</strong></td>
+                    <td>Deductions</td>
+                    <td>₹0</td>
+                  </tr>
+                  <tr>
+                    <td><strong>3. Professional Tax</strong></td>
+                    <td>Deductions</td>
+                    <td>₹200</td>
+                  </tr>
+                  <tr>
+                    <td><strong>4. Welfare Fund</strong></td>
+                    <td>Deductions</td>
+                    <td>₹0</td>
+                  </tr>
+                  <tr>
+                    <td><strong>5. LOP Deduction</strong></td>
+                    <td>Deductions</td>
+                    <td>₹0</td>
+                  </tr>
+                  <tr>
+                    <td><strong>6. TDS</strong></td>
+                    <td>Deductions</td>
+                    <td>₹4,500</td>
+                  </tr>
+                  <tr style="background-color: #F1F5F9; font-weight: bold; border-top: 2px solid var(--border-color); border-bottom: 2px solid var(--border-color);">
+                    <td>Total Deductions</td>
+                    <td>Total Deductions</td>
+                    <td style="color: var(--status-danger);">₹8,900</td>
+                  </tr>
+                  <tr style="background-color: #FFFDF0; color: #64748B;">
+                    <td><strong>Employer PF Contribution</strong></td>
+                    <td><span class="badge badge-neutral">Employer Cost — not deducted from employee</span></td>
+                    <td>₹4,200</td>
+                  </tr>
+                  <tr style="background-color: #FFFDF0; color: #64748B;">
+                    <td><strong>Employer ESIC Contribution</strong></td>
+                    <td><span class="badge badge-neutral">Employer Cost — not deducted from employee</span></td>
+                    <td>₹0</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div style="margin-top: 1rem; padding: 0.75rem 1rem; background: #F8FAFC; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 0.8rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.5rem;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.45;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                Salary structure is <strong style="color:var(--text-main);">read-only</strong> for Active employees.
+                To update compensation, use <a href="/employees/1/salary-revision?id=88" style="color:var(--primary-navy); font-weight:600;">Revise Salary →</a>
+              </div>
+            </div>
+
+            <!-- Salary History Table -->
+            <div>
+              <div class="flex-row-between" style="margin-bottom: 1rem;">
+                <h3 style="font-size: 1.1rem; margin: 0;">Salary Revision History &amp; Audit Trail</h3>
+                <span style="font-size: 0.85rem; color: var(--text-muted);">Maintained automatically via Revise Salary workflow</span>
+              </div>
+              <div class="table-responsive">
+                <table class="data-table" id="salary-history-table">
+                  <thead>
+                    <tr>
+                      <th>Old CTC</th>
+                      <th>New CTC</th>
+                      <th>% Change</th>
+                      <th>Effective Date</th>
+                      <th>Reason</th>
+                      <th>Approved By</th>
+                      <th style="text-align: right;">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>₹45,000</td>
+                      <td><strong>₹54,500</strong></td>
+                      <td><span class="badge badge-success">+21.1%</span></td>
+                      <td>April 01, 2026</td>
+                      <td>Annual Increment &amp; Performance Adjustment</td>
+                      <td><strong>Rajesh - Agency Admin</strong></td>
+                      <td style="text-align: right;">
+                        <button class="btn btn-link btn-xs" onclick="toggleBreakup('breakup-2026-04')">View Breakup ▼</button>
+                      </td>
+                    </tr>
+                    <tr id="breakup-2026-04" style="display: none; background-color: #F8FAFC;">
+                      <td colspan="7" style="padding: 1.5rem;">
+                        <div style="background: white; border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                          <h4 style="font-size: 0.95rem; color: var(--primary-navy); margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
+                            Compensation Breakup Snapshot (Effective April 01, 2026)
+                          </h4>
+                          <div style="margin-bottom: 1rem; font-size: 0.85rem; font-weight: bold; color: var(--primary-navy);">EARNINGS (Gross: ₹54,500)</div>
+                          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                            <div style="background: #F1F5F9; padding: 0.75rem; border-radius: var(--radius-sm);">
+                              <div style="font-size: 0.75rem; color: var(--text-muted);">1. Basic Pay</div>
+                              <div style="font-weight: 600; color: var(--text-main); font-size: 0.95rem;">₹35,000</div>
+                            </div>
+                            <div style="background: #F1F5F9; padding: 0.75rem; border-radius: var(--radius-sm);">
+                              <div style="font-size: 0.75rem; color: var(--text-muted);">2. HRA</div>
+                              <div style="font-weight: 600; color: var(--text-main); font-size: 0.95rem;">₹14,000</div>
+                            </div>
+                            <div style="background: #F1F5F9; padding: 0.75rem; border-radius: var(--radius-sm);">
+                              <div style="font-size: 0.75rem; color: var(--text-muted);">3. Conveyance</div>
+                              <div style="font-weight: 600; color: var(--text-main); font-size: 0.95rem;">₹1,600</div>
+                            </div>
+                            <div style="background: #F1F5F9; padding: 0.75rem; border-radius: var(--radius-sm);">
+                              <div style="font-size: 0.75rem; color: var(--text-muted);">4. DA</div>
+                              <div style="font-weight: 600; color: var(--text-main); font-size: 0.95rem;">₹0</div>
+                            </div>
+                            <div style="background: #F1F5F9; padding: 0.75rem; border-radius: var(--radius-sm);">
+                              <div style="font-size: 0.75rem; color: var(--text-muted);">5. Medical Allowance</div>
+                              <div style="font-weight: 600; color: var(--text-main); font-size: 0.95rem;">₹0</div>
+                            </div>
+                            <div style="background: #F1F5F9; padding: 0.75rem; border-radius: var(--radius-sm);">
+                              <div style="font-size: 0.75rem; color: var(--text-muted);">6. Special Allowance</div>
+                              <div style="font-weight: 600; color: var(--text-main); font-size: 0.95rem;">₹3,900</div>
+                            </div>
+                            <div style="background: #F1F5F9; padding: 0.75rem; border-radius: var(--radius-sm);">
+                              <div style="font-size: 0.75rem; color: var(--text-muted);">7. Other Additions</div>
+                              <div style="font-weight: 600; color: var(--text-main); font-size: 0.95rem;">₹0</div>
+                            </div>
+                            <div style="background: #F1F5F9; padding: 0.75rem; border-radius: var(--radius-sm);">
+                              <div style="font-size: 0.75rem; color: var(--text-muted);">8. Arrears Amount</div>
+                              <div style="font-weight: 600; color: var(--text-main); font-size: 0.95rem;">₹0</div>
+                            </div>
+                          </div>
+
+                          <div style="margin-bottom: 1rem; font-size: 0.85rem; font-weight: bold; color: var(--status-danger);">DEDUCTIONS (Total: ₹8,900)</div>
+                          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem;">
+                            <div style="background: #FFF5F5; padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid #FEB2B2;">
+                              <div style="font-size: 0.75rem; color: #991B1B;">1. Employee PF</div>
+                              <div style="font-weight: 600; color: #991B1B; font-size: 0.95rem;">₹4,200</div>
+                            </div>
+                            <div style="background: #FFF5F5; padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid #FEB2B2;">
+                              <div style="font-size: 0.75rem; color: #991B1B;">2. Employee ESIC</div>
+                              <div style="font-weight: 600; color: #991B1B; font-size: 0.95rem;">₹0</div>
+                            </div>
+                            <div style="background: #FFF5F5; padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid #FEB2B2;">
+                              <div style="font-size: 0.75rem; color: #991B1B;">3. Professional Tax</div>
+                              <div style="font-weight: 600; color: #991B1B; font-size: 0.95rem;">₹200</div>
+                            </div>
+                            <div style="background: #FFF5F5; padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid #FEB2B2;">
+                              <div style="font-size: 0.75rem; color: #991B1B;">4. Welfare Fund</div>
+                              <div style="font-weight: 600; color: #991B1B; font-size: 0.95rem;">₹0</div>
+                            </div>
+                            <div style="background: #FFF5F5; padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid #FEB2B2;">
+                              <div style="font-size: 0.75rem; color: #991B1B;">5. LOP Deduction</div>
+                              <div style="font-weight: 600; color: #991B1B; font-size: 0.95rem;">₹0</div>
+                            </div>
+                            <div style="background: #FFF5F5; padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid #FEB2B2;">
+                              <div style="font-size: 0.75rem; color: #991B1B;">6. TDS</div>
+                              <div style="font-weight: 600; color: #991B1B; font-size: 0.95rem;">₹4,500</div>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>₹38,000</td>
+                      <td><strong>₹45,000</strong></td>
+                      <td><span class="badge badge-success">+18.4%</span></td>
+                      <td>Oct 01, 2025</td>
+                      <td>Promotion (Mid-year Review)</td>
+                      <td><strong>Rajesh - Agency Admin</strong></td>
+                      <td style="text-align: right;">
+                        <button class="btn btn-link btn-xs" onclick="toggleBreakup('breakup-2025-10')">View Breakup ▼</button>
+                      </td>
+                    </tr>
+                    <tr id="breakup-2025-10" style="display: none; background-color: #F8FAFC;">
+                      <td colspan="7" style="padding: 1.5rem;">
+                        <div style="background: white; border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                          <h4 style="font-size: 0.95rem; color: var(--primary-navy); margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
+                            Compensation Breakup Snapshot (Effective Oct 01, 2025)
+                          </h4>
+                          <div style="margin-bottom: 1rem; font-size: 0.85rem; font-weight: bold; color: var(--primary-navy);">EARNINGS (Gross: ₹45,000)</div>
+                          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                            <div style="background: #F1F5F9; padding: 0.75rem; border-radius: var(--radius-sm);">
+                              <div style="font-size: 0.75rem; color: var(--text-muted);">1. Basic Pay</div>
+                              <div style="font-weight: 600; color: var(--text-main); font-size: 0.95rem;">₹22,000</div>
+                            </div>
+                            <div style="background: #F1F5F9; padding: 0.75rem; border-radius: var(--radius-sm);">
+                              <div style="font-size: 0.75rem; color: var(--text-muted);">2. HRA</div>
+                              <div style="font-weight: 600; color: var(--text-main); font-size: 0.95rem;">₹11,000</div>
+                            </div>
+                            <div style="background: #F1F5F9; padding: 0.75rem; border-radius: var(--radius-sm);">
+                              <div style="font-size: 0.75rem; color: var(--text-muted);">3. Conveyance</div>
+                              <div style="font-weight: 600; color: var(--text-main); font-size: 0.95rem;">₹1,600</div>
+                            </div>
+                            <div style="background: #F1F5F9; padding: 0.75rem; border-radius: var(--radius-sm);">
+                              <div style="font-size: 0.75rem; color: var(--text-muted);">4. DA</div>
+                              <div style="font-weight: 600; color: var(--text-main); font-size: 0.95rem;">₹0</div>
+                            </div>
+                            <div style="background: #F1F5F9; padding: 0.75rem; border-radius: var(--radius-sm);">
+                              <div style="font-size: 0.75rem; color: var(--text-muted);">5. Medical Allowance</div>
+                              <div style="font-weight: 600; color: var(--text-main); font-size: 0.95rem;">₹0</div>
+                            </div>
+                            <div style="background: #F1F5F9; padding: 0.75rem; border-radius: var(--radius-sm);">
+                              <div style="font-size: 0.75rem; color: var(--text-muted);">6. Special Allowance</div>
+                              <div style="font-weight: 600; color: var(--text-main); font-size: 0.95rem;">₹10,400</div>
+                            </div>
+                            <div style="background: #F1F5F9; padding: 0.75rem; border-radius: var(--radius-sm);">
+                              <div style="font-size: 0.75rem; color: var(--text-muted);">7. Other Additions</div>
+                              <div style="font-weight: 600; color: var(--text-main); font-size: 0.95rem;">₹0</div>
+                            </div>
+                            <div style="background: #F1F5F9; padding: 0.75rem; border-radius: var(--radius-sm);">
+                              <div style="font-size: 0.75rem; color: var(--text-muted);">8. Arrears Amount</div>
+                              <div style="font-weight: 600; color: var(--text-main); font-size: 0.95rem;">₹0</div>
+                            </div>
+                          </div>
+
+                          <div style="margin-bottom: 1rem; font-size: 0.85rem; font-weight: bold; color: var(--status-danger);">DEDUCTIONS (Total: ₹7,340)</div>
+                          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem;">
+                            <div style="background: #FFF5F5; padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid #FEB2B2;">
+                              <div style="font-size: 0.75rem; color: #991B1B;">1. Employee PF</div>
+                              <div style="font-weight: 600; color: #991B1B; font-size: 0.95rem;">₹2,640</div>
+                            </div>
+                            <div style="background: #FFF5F5; padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid #FEB2B2;">
+                              <div style="font-size: 0.75rem; color: #991B1B;">2. Employee ESIC</div>
+                              <div style="font-weight: 600; color: #991B1B; font-size: 0.95rem;">₹0</div>
+                            </div>
+                            <div style="background: #FFF5F5; padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid #FEB2B2;">
+                              <div style="font-size: 0.75rem; color: #991B1B;">3. Professional Tax</div>
+                              <div style="font-weight: 600; color: #991B1B; font-size: 0.95rem;">₹200</div>
+                            </div>
+                            <div style="background: #FFF5F5; padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid #FEB2B2;">
+                              <div style="font-size: 0.75rem; color: #991B1B;">4. Welfare Fund</div>
+                              <div style="font-weight: 600; color: #991B1B; font-size: 0.95rem;">₹0</div>
+                            </div>
+                            <div style="background: #FFF5F5; padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid #FEB2B2;">
+                              <div style="font-size: 0.75rem; color: #991B1B;">5. LOP Deduction</div>
+                              <div style="font-weight: 600; color: #991B1B; font-size: 0.95rem;">₹0</div>
+                            </div>
+                            <div style="background: #FFF5F5; padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid #FEB2B2;">
+                              <div style="font-size: 0.75rem; color: #991B1B;">6. TDS</div>
+                              <div style="font-weight: 600; color: #991B1B; font-size: 0.95rem;">₹4,500</div>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>₹35,000</td>
+                      <td><strong>₹38,000</strong></td>
+                      <td><span class="badge badge-success">+8.6%</span></td>
+                      <td>July 01, 2025</td>
+                      <td>Market Correction</td>
+                      <td><strong>Sunita - HR Manager</strong></td>
+                      <td style="text-align: right;">
+                        <button class="btn btn-link btn-xs" onclick="toggleBreakup('breakup-2025-07')">View Breakup ▼</button>
+                      </td>
+                    </tr>
+                    <tr id="breakup-2025-07" style="display: none; background-color: #F8FAFC;">
+                      <td colspan="7" style="padding: 1.5rem;">
+                        <div style="background: white; border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                          <h4 style="font-size: 0.95rem; color: var(--primary-navy); margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
+                            Compensation Breakup Snapshot (Effective July 01, 2025)
+                          </h4>
+                          <div style="margin-bottom: 1rem; font-size: 0.85rem; font-weight: bold; color: var(--primary-navy);">EARNINGS (Gross: ₹38,000)</div>
+                          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                            <div style="background: #F1F5F9; padding: 0.75rem; border-radius: var(--radius-sm);">
+                              <div style="font-size: 0.75rem; color: var(--text-muted);">1. Basic Pay</div>
+                              <div style="font-weight: 600; color: var(--text-main); font-size: 0.95rem;">₹19,000</div>
+                            </div>
+                            <div style="background: #F1F5F9; padding: 0.75rem; border-radius: var(--radius-sm);">
+                              <div style="font-size: 0.75rem; color: var(--text-muted);">2. HRA</div>
+                              <div style="font-weight: 600; color: var(--text-main); font-size: 0.95rem;">₹9,500</div>
+                            </div>
+                            <div style="background: #F1F5F9; padding: 0.75rem; border-radius: var(--radius-sm);">
+                              <div style="font-size: 0.75rem; color: var(--text-muted);">3. Conveyance</div>
+                              <div style="font-weight: 600; color: var(--text-main); font-size: 0.95rem;">₹1,600</div>
+                            </div>
+                            <div style="background: #F1F5F9; padding: 0.75rem; border-radius: var(--radius-sm);">
+                              <div style="font-size: 0.75rem; color: var(--text-muted);">4. DA</div>
+                              <div style="font-weight: 600; color: var(--text-main); font-size: 0.95rem;">₹0</div>
+                            </div>
+                            <div style="background: #F1F5F9; padding: 0.75rem; border-radius: var(--radius-sm);">
+                              <div style="font-size: 0.75rem; color: var(--text-muted);">5. Medical Allowance</div>
+                              <div style="font-weight: 600; color: var(--text-main); font-size: 0.95rem;">₹0</div>
+                            </div>
+                            <div style="background: #F1F5F9; padding: 0.75rem; border-radius: var(--radius-sm);">
+                              <div style="font-size: 0.75rem; color: var(--text-muted);">6. Special Allowance</div>
+                              <div style="font-weight: 600; color: var(--text-main); font-size: 0.95rem;">₹7,900</div>
+                            </div>
+                            <div style="background: #F1F5F9; padding: 0.75rem; border-radius: var(--radius-sm);">
+                              <div style="font-size: 0.75rem; color: var(--text-muted);">7. Other Additions</div>
+                              <div style="font-weight: 600; color: var(--text-main); font-size: 0.95rem;">₹0</div>
+                            </div>
+                            <div style="background: #F1F5F9; padding: 0.75rem; border-radius: var(--radius-sm);">
+                              <div style="font-size: 0.75rem; color: var(--text-muted);">8. Arrears Amount</div>
+                              <div style="font-weight: 600; color: var(--text-main); font-size: 0.95rem;">₹0</div>
+                            </div>
+                          </div>
+
+                          <div style="margin-bottom: 1rem; font-size: 0.85rem; font-weight: bold; color: var(--status-danger);">DEDUCTIONS (Total: ₹5,480)</div>
+                          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem;">
+                            <div style="background: #FFF5F5; padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid #FEB2B2;">
+                              <div style="font-size: 0.75rem; color: #991B1B;">1. Employee PF</div>
+                              <div style="font-weight: 600; color: #991B1B; font-size: 0.95rem;">₹2,280</div>
+                            </div>
+                            <div style="background: #FFF5F5; padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid #FEB2B2;">
+                              <div style="font-size: 0.75rem; color: #991B1B;">2. Employee ESIC</div>
+                              <div style="font-weight: 600; color: #991B1B; font-size: 0.95rem;">₹0</div>
+                            </div>
+                            <div style="background: #FFF5F5; padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid #FEB2B2;">
+                              <div style="font-size: 0.75rem; color: #991B1B;">3. Professional Tax</div>
+                              <div style="font-weight: 600; color: #991B1B; font-size: 0.95rem;">₹200</div>
+                            </div>
+                            <div style="background: #FFF5F5; padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid #FEB2B2;">
+                              <div style="font-size: 0.75rem; color: #991B1B;">4. Welfare Fund</div>
+                              <div style="font-weight: 600; color: #991B1B; font-size: 0.95rem;">₹0</div>
+                            </div>
+                            <div style="background: #FFF5F5; padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid #FEB2B2;">
+                              <div style="font-size: 0.75rem; color: #991B1B;">5. LOP Deduction</div>
+                              <div style="font-weight: 600; color: #991B1B; font-size: 0.95rem;">₹0</div>
+                            </div>
+                            <div style="background: #FFF5F5; padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid #FEB2B2;">
+                              <div style="font-size: 0.75rem; color: #991B1B;">6. TDS</div>
+                              <div style="font-weight: 600; color: #991B1B; font-size: 0.95rem;">₹3,000</div>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>—</td>
+                      <td><strong>₹35,000</strong></td>
+                      <td><span class="badge badge-neutral">Base CTC</span></td>
+                      <td>Jan 15, 2025</td>
+                      <td>Initial Onboarding Structure Setup</td>
+                      <td><strong>Rajesh - Agency Admin</strong></td>
+                      <td style="text-align: right;">
+                        <button class="btn btn-link btn-xs" onclick="toggleBreakup('breakup-2025-01')">View Breakup ▼</button>
+                      </td>
+                    </tr>
+                    <tr id="breakup-2025-01" style="display: none; background-color: #F8FAFC;">
+                      <td colspan="7" style="padding: 1.5rem;">
+                        <div style="background: white; border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                          <h4 style="font-size: 0.95rem; color: var(--primary-navy); margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
+                            Compensation Breakup Snapshot (Effective Jan 15, 2025)
+                          </h4>
+                          <div style="margin-bottom: 1rem; font-size: 0.85rem; font-weight: bold; color: var(--primary-navy);">EARNINGS (Gross: ₹35,000)</div>
+                          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                            <div style="background: #F1F5F9; padding: 0.75rem; border-radius: var(--radius-sm);">
+                              <div style="font-size: 0.75rem; color: var(--text-muted);">1. Basic Pay</div>
+                              <div style="font-weight: 600; color: var(--text-main); font-size: 0.95rem;">₹17,500</div>
+                            </div>
+                            <div style="background: #F1F5F9; padding: 0.75rem; border-radius: var(--radius-sm);">
+                              <div style="font-size: 0.75rem; color: var(--text-muted);">2. HRA</div>
+                              <div style="font-weight: 600; color: var(--text-main); font-size: 0.95rem;">₹8,750</div>
+                            </div>
+                            <div style="background: #F1F5F9; padding: 0.75rem; border-radius: var(--radius-sm);">
+                              <div style="font-size: 0.75rem; color: var(--text-muted);">3. Conveyance</div>
+                              <div style="font-weight: 600; color: var(--text-main); font-size: 0.95rem;">₹1,600</div>
+                            </div>
+                            <div style="background: #F1F5F9; padding: 0.75rem; border-radius: var(--radius-sm);">
+                              <div style="font-size: 0.75rem; color: var(--text-muted);">4. DA</div>
+                              <div style="font-weight: 600; color: var(--text-main); font-size: 0.95rem;">₹0</div>
+                            </div>
+                            <div style="background: #F1F5F9; padding: 0.75rem; border-radius: var(--radius-sm);">
+                              <div style="font-size: 0.75rem; color: var(--text-muted);">5. Medical Allowance</div>
+                              <div style="font-weight: 600; color: var(--text-main); font-size: 0.95rem;">₹0</div>
+                            </div>
+                            <div style="background: #F1F5F9; padding: 0.75rem; border-radius: var(--radius-sm);">
+                              <div style="font-size: 0.75rem; color: var(--text-muted);">6. Special Allowance</div>
+                              <div style="font-weight: 600; color: var(--text-main); font-size: 0.95rem;">₹7,150</div>
+                            </div>
+                            <div style="background: #F1F5F9; padding: 0.75rem; border-radius: var(--radius-sm);">
+                              <div style="font-size: 0.75rem; color: var(--text-muted);">7. Other Additions</div>
+                              <div style="font-weight: 600; color: var(--text-main); font-size: 0.95rem;">₹0</div>
+                            </div>
+                            <div style="background: #F1F5F9; padding: 0.75rem; border-radius: var(--radius-sm);">
+                              <div style="font-size: 0.75rem; color: var(--text-muted);">8. Arrears Amount</div>
+                              <div style="font-weight: 600; color: var(--text-main); font-size: 0.95rem;">₹0</div>
+                            </div>
+                          </div>
+
+                          <div style="margin-bottom: 1rem; font-size: 0.85rem; font-weight: bold; color: var(--status-danger);">DEDUCTIONS (Total: ₹5,412.50)</div>
+                          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem;">
+                            <div style="background: #FFF5F5; padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid #FEB2B2;">
+                              <div style="font-size: 0.75rem; color: #991B1B;">1. Employee PF</div>
+                              <div style="font-weight: 600; color: #991B1B; font-size: 0.95rem;">₹2,100</div>
+                            </div>
+                            <div style="background: #FFF5F5; padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid #FEB2B2;">
+                              <div style="font-size: 0.75rem; color: #991B1B;">2. Employee ESIC</div>
+                              <div style="font-weight: 600; color: #991B1B; font-size: 0.95rem;">₹612.50</div>
+                            </div>
+                            <div style="background: #FFF5F5; padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid #FEB2B2;">
+                              <div style="font-size: 0.75rem; color: #991B1B;">3. Professional Tax</div>
+                              <div style="font-weight: 600; color: #991B1B; font-size: 0.95rem;">₹200</div>
+                            </div>
+                            <div style="background: #FFF5F5; padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid #FEB2B2;">
+                              <div style="font-size: 0.75rem; color: #991B1B;">4. Welfare Fund</div>
+                              <div style="font-weight: 600; color: #991B1B; font-size: 0.95rem;">₹0</div>
+                            </div>
+                            <div style="background: #FFF5F5; padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid #FEB2B2;">
+                              <div style="font-size: 0.75rem; color: #991B1B;">5. LOP Deduction</div>
+                              <div style="font-weight: 600; color: #991B1B; font-size: 0.95rem;">₹0</div>
+                            </div>
+                            <div style="background: #FFF5F5; padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid #FEB2B2;">
+                              <div style="font-size: 0.75rem; color: #991B1B;">6. TDS</div>
+                              <div style="font-weight: 600; color: #991B1B; font-size: 0.95rem;">₹2,500</div>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 3: Attendance -->
+        <div class="tab-content" data-tab="attendance">
+          <div style="display: flex; flex-direction: column; gap: 2rem;">
+            <!-- Monthly Summary Strip -->
+            <div class="card" style="border: 1px solid var(--border-color); background: #F8FAFC; padding: 1.25rem;">
+              <div class="flex-row-between" style="margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem; flex-wrap: wrap; gap: 1rem;">
+                <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                  <h3 id="att-month-title" style="font-size: 1.15rem; margin: 0; color: var(--primary-navy);">Attendance Summary (June 2026)</h3>
+                  <div style="display: flex; align-items: center; background: #FFFFFF; border-radius: var(--radius-md); padding: 0.25rem; border: 1px solid var(--border-color); box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                    <button class="btn btn-xs btn-secondary" onclick="changeAttendanceMonth(-1)" style="padding: 0.25rem 0.6rem; border: none; background: #F1F5F9; font-weight: bold; cursor: pointer;">←</button>
+                    <select id="attendance-month-select" onchange="onAttendanceMonthSelect()" style="background: transparent; border: none; font-weight: 600; color: var(--primary-navy); padding: 0 0.5rem; cursor: pointer; outline: none;">
+                      <option value="0">April 2026</option>
+                      <option value="1">May 2026</option>
+                      <option value="2" selected>June 2026</option>
+                      <option value="3">July 2026</option>
+                    </select>
+                    <button class="btn btn-xs btn-secondary" onclick="changeAttendanceMonth(1)" style="padding: 0.25rem 0.6rem; border: none; background: #F1F5F9; font-weight: bold; cursor: pointer;">→</button>
+                  </div>
+                </div>
+                <span class="badge badge-navy" style="font-size: 0.85rem;">Biometric &amp; Portal Sync</span>
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; text-align: center;">
+                <div style="background: white; padding: 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                  <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Present Days</div>
+                  <div id="att-present-count" style="font-size: 1.5rem; font-weight: 700; color: var(--status-success); margin-top: 0.25rem;">19 <span style="font-size: 0.85rem; font-weight: 500; color: var(--text-muted);">(+1 Half)</span></div>
+                </div>
+                <div style="background: white; padding: 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                  <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Leave Days</div>
+                  <div id="att-leave-count" style="font-size: 1.5rem; font-weight: 700; color: var(--status-info); margin-top: 0.25rem;">1</div>
+                </div>
+                <div style="background: white; padding: 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                  <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Absent Days</div>
+                  <div id="att-absent-count" style="font-size: 1.5rem; font-weight: 700; color: var(--status-danger); margin-top: 0.25rem;">1</div>
+                </div>
+                <div style="background: white; padding: 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); border-bottom: 3px solid var(--accent-gold);">
+                  <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Total Working Days</div>
+                  <div id="att-total-count" style="font-size: 1.5rem; font-weight: 700; color: var(--primary-navy); margin-top: 0.25rem;">22</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Calendar Grid -->
+            <div>
+              <h4 style="font-size: 1rem; margin-bottom: 0.5rem; color: var(--primary-navy);">Monthly Calendar View</h4>
+              <div class="calendar-grid" id="att-calendar-grid">
+                <!-- Day Headers -->
+                <div class="calendar-day-header">Mon</div>
+                <div class="calendar-day-header">Tue</div>
+                <div class="calendar-day-header">Wed</div>
+                <div class="calendar-day-header">Thu</div>
+                <div class="calendar-day-header">Fri</div>
+                <div class="calendar-day-header">Sat</div>
+                <div class="calendar-day-header">Sun</div>
+
+                <!-- Week 1 -->
+                <div class="calendar-day-cell present"><span>1</span><span class="calendar-indicator present">Present</span></div>
+                <div class="calendar-day-cell present"><span>2</span><span class="calendar-indicator present">Present</span></div>
+                <div class="calendar-day-cell present"><span>3</span><span class="calendar-indicator present">Present</span></div>
+                <div class="calendar-day-cell present"><span>4</span><span class="calendar-indicator present">Present</span></div>
+                <div class="calendar-day-cell present"><span>5</span><span class="calendar-indicator present">Present</span></div>
+                <div class="calendar-day-cell other-month"><span>6</span><span class="calendar-indicator" style="color: #94A3B8;">Wknd</span></div>
+                <div class="calendar-day-cell other-month"><span>7</span><span class="calendar-indicator" style="color: #94A3B8;">Wknd</span></div>
+
+                <!-- Week 2 -->
+                <div class="calendar-day-cell present"><span>8</span><span class="calendar-indicator present">Present</span></div>
+                <div class="calendar-day-cell present"><span>9</span><span class="calendar-indicator present">Present</span></div>
+                <div class="calendar-day-cell present"><span>10</span><span class="calendar-indicator present">Present</span></div>
+                <div class="calendar-day-cell present"><span>11</span><span class="calendar-indicator present">Present</span></div>
+                <div class="calendar-day-cell half-day"><span>12</span><span class="calendar-indicator half-day">Half-day</span></div>
+                <div class="calendar-day-cell other-month"><span>13</span><span class="calendar-indicator" style="color: #94A3B8;">Wknd</span></div>
+                <div class="calendar-day-cell other-month"><span>14</span><span class="calendar-indicator" style="color: #94A3B8;">Wknd</span></div>
+
+                <!-- Week 3 -->
+                <div class="calendar-day-cell present"><span>15</span><span class="calendar-indicator present">Present</span></div>
+                <div class="calendar-day-cell present"><span>16</span><span class="calendar-indicator present">Present</span></div>
+                <div class="calendar-day-cell present"><span>17</span><span class="calendar-indicator present">Present</span></div>
+                <div class="calendar-day-cell present"><span>18</span><span class="calendar-indicator present">Present</span></div>
+                <div class="calendar-day-cell absent"><span>19</span><span class="calendar-indicator absent">Absent</span></div>
+                <div class="calendar-day-cell other-month"><span>20</span><span class="calendar-indicator" style="color: #94A3B8;">Wknd</span></div>
+                <div class="calendar-day-cell other-month"><span>21</span><span class="calendar-indicator" style="color: #94A3B8;">Wknd</span></div>
+
+                <!-- Week 4 -->
+                <div class="calendar-day-cell present"><span>22</span><span class="calendar-indicator present">Present</span></div>
+                <div class="calendar-day-cell leave"><span>23</span><span class="calendar-indicator leave">On Leave</span></div>
+                <div class="calendar-day-cell present"><span>24</span><span class="calendar-indicator present">Present</span></div>
+                <div class="calendar-day-cell present"><span>25</span><span class="calendar-indicator present">Present</span></div>
+                <div class="calendar-day-cell present"><span>26</span><span class="calendar-indicator present">Present</span></div>
+                <div class="calendar-day-cell other-month"><span>27</span><span class="calendar-indicator" style="color: #94A3B8;">Wknd</span></div>
+                <div class="calendar-day-cell other-month"><span>28</span><span class="calendar-indicator" style="color: #94A3B8;">Wknd</span></div>
+
+                <!-- Week 5 -->
+                <div class="calendar-day-cell present"><span>29</span><span class="calendar-indicator present">Present</span></div>
+                <div class="calendar-day-cell present"><span>30</span><span class="calendar-indicator present">Present</span></div>
+                <div class="calendar-day-cell other-month"><span>1</span><span class="calendar-indicator" style="color: #CBD5E1;">July</span></div>
+                <div class="calendar-day-cell other-month"><span>2</span><span class="calendar-indicator" style="color: #CBD5E1;">July</span></div>
+                <div class="calendar-day-cell other-month"><span>3</span><span class="calendar-indicator" style="color: #CBD5E1;">July</span></div>
+                <div class="calendar-day-cell other-month"><span>4</span><span class="calendar-indicator" style="color: #CBD5E1;">July</span></div>
+                <div class="calendar-day-cell other-month"><span>5</span><span class="calendar-indicator" style="color: #CBD5E1;">July</span></div>
+              </div>
+            </div>
+
+            <!-- Daily Attendance Table -->
+            <div>
+              <h4 style="font-size: 1rem; margin-bottom: 0.5rem; color: var(--primary-navy);">Daily Punch Logs</h4>
+              <div class="table-responsive">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Punch-In Time</th>
+                      <th>Punch-Out Time</th>
+                      <th>Hours Worked</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>June 30, 2026</td>
+                      <td>09:30 AM</td>
+                      <td>06:15 PM</td>
+                      <td>8h 45m</td>
+                      <td><span class="badge badge-success">Present</span></td>
+                    </tr>
+                    <tr>
+                      <td>June 29, 2026</td>
+                      <td>09:28 AM</td>
+                      <td>06:05 PM</td>
+                      <td>8h 37m</td>
+                      <td><span class="badge badge-success">Present</span></td>
+                    </tr>
+                    <tr>
+                      <td>June 26, 2026</td>
+                      <td>09:40 AM</td>
+                      <td>06:10 PM</td>
+                      <td>8h 30m</td>
+                      <td><span class="badge badge-success">Present</span></td>
+                    </tr>
+                    <tr>
+                      <td>June 25, 2026</td>
+                      <td>09:42 AM</td>
+                      <td>06:15 PM</td>
+                      <td>8h 33m</td>
+                      <td><span class="badge badge-success">Present</span></td>
+                    </tr>
+                    <tr>
+                      <td>June 24, 2026</td>
+                      <td>09:30 AM</td>
+                      <td>06:05 PM</td>
+                      <td>8h 35m</td>
+                      <td><span class="badge badge-success">Present</span></td>
+                    </tr>
+                    <tr>
+                      <td>June 23, 2026</td>
+                      <td>—</td>
+                      <td>—</td>
+                      <td>0h 00m</td>
+                      <td><span class="badge badge-info">On Leave (Sick)</span></td>
+                    </tr>
+                    <tr>
+                      <td>June 22, 2026</td>
+                      <td>09:35 AM</td>
+                      <td>06:10 PM</td>
+                      <td>8h 35m</td>
+                      <td><span class="badge badge-success">Present</span></td>
+                    </tr>
+                    <tr>
+                      <td>June 19, 2026</td>
+                      <td>—</td>
+                      <td>—</td>
+                      <td>0h 00m</td>
+                      <td><span class="badge badge-danger">Absent</span></td>
+                    </tr>
+                    <tr>
+                      <td>June 18, 2026</td>
+                      <td>09:25 AM</td>
+                      <td>06:00 PM</td>
+                      <td>8h 35m</td>
+                      <td><span class="badge badge-success">Present</span></td>
+                    </tr>
+                    <tr>
+                      <td>June 12, 2026</td>
+                      <td>09:30 AM</td>
+                      <td>01:30 PM</td>
+                      <td>4h 00m</td>
+                      <td><span class="badge badge-warning">Half-day</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 4: Payslips -->
+        <div class="tab-content" data-tab="payslips">
+          <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+            <div class="flex-row-between">
+              <h3 style="font-size: 1.1rem; margin: 0;">Generated Payslips Archive</h3>
+              <span style="font-size: 0.85rem; color: var(--text-muted);">Historical records compiled from active payroll runs</span>
+            </div>
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Month</th>
+                    <th>Gross Pay</th>
+                    <th>Net Pay</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>June 2026</strong></td>
+                    <td>₹54,500</td>
+                    <td><strong>₹48,000</strong> <span style="font-size:0.75rem;color:var(--status-danger);">(1 Absent Ded.)</span></td>
+                    <td><span class="badge badge-warning">Generated</span></td>
+                    <td><a href="#" class="btn btn-secondary btn-xs">📥 Download PDF</a></td>
+                  </tr>
+                  <tr>
+                    <td><strong>May 2026</strong></td>
+                    <td>₹54,500</td>
+                    <td><strong>₹50,000</strong></td>
+                    <td><span class="badge badge-success">Disbursed</span></td>
+                    <td><a href="#" class="btn btn-secondary btn-xs">📥 Download PDF</a></td>
+                  </tr>
+                  <tr>
+                    <td><strong>April 2026</strong></td>
+                    <td>₹54,500</td>
+                    <td><strong>₹50,000</strong></td>
+                    <td><span class="badge badge-success">Disbursed</span></td>
+                    <td><a href="#" class="btn btn-secondary btn-xs">📥 Download PDF</a></td>
+                  </tr>
+                  <tr>
+                    <td><strong>March 2026</strong></td>
+                    <td>₹45,000</td>
+                    <td><strong>₹41,000</strong></td>
+                    <td><span class="badge badge-success">Disbursed</span></td>
+                    <td><a href="#" class="btn btn-secondary btn-xs">📥 Download PDF</a></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 5: Documents & KYC Checklist -->
+        <div class="tab-content" data-tab="docs">
+          <div style="display: flex; flex-direction: column; gap: 2rem;">
+            
+            <!-- Overall Progress Summary -->
+            <div class="card" style="border: 1px solid var(--border-color); background: #F8FAFC;">
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                <div style="flex: 1; min-width: 300px;">
+                  <h3 style="font-size: 1.15rem; margin-bottom: 0.4rem; color: var(--primary-navy); display: flex; align-items: center; gap: 0.5rem;">
+                    <span>📂</span> Documents &amp; KYC Verification
+                  </h3>
+                  <div style="font-size: 0.95rem; font-weight: 600; color: var(--accent-gold); margin-top: 0.5rem;" id="doc-progress-text">
+                    5 of 7 mandatory documents verified
+                  </div>
+                  <div style="width: 100%; max-width: 400px; height: 8px; background-color: #E2E8F0; border-radius: 100px; margin: 0.5rem 0; overflow: hidden;">
+                    <div id="doc-progress-bar" style="width: 71.4%; height: 100%; background-color: var(--status-success); transition: width var(--transition-normal);"></div>
+                  </div>
+                  <p id="doc-progress-note" style="font-size: 0.85rem; color: var(--status-warning); font-weight: 500; margin: 0;">
+                    ⚠ Employee cannot be moved to Active status until all mandatory documents are Verified
+                  </p>
+                </div>
+                <div style="display: flex; align-items: center; gap: 1rem; background: #FFFFFF; padding: 0.75rem 1.25rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); flex-wrap: wrap;">
+                  <div style="display: flex; flex-direction: column;">
+                    <span style="font-size: 0.85rem; font-weight: 600; color: var(--primary-navy);">Prior Employment Flag</span>
+                    <span style="font-size: 0.75rem; color: var(--text-muted);">Simulate conditional documents</span>
+                  </div>
+                  <label class="toggle-container">
+                    <input type="checkbox" id="sim-prior-emp" class="toggle-input" checked onchange="togglePriorEmpSim()">
+                    <span class="toggle-switch"></span>
+                    <span id="prior-emp-label" style="font-size: 0.85rem; font-weight: 600; color: var(--primary-navy);">Yes</span>
+                  </label>
+                  <button class="btn btn-primary btn-sm" onclick="openAddDocModal()">+ Add Document</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Documents List -->
+            <div class="card" style="padding: 0; overflow: hidden; border: 1px solid var(--border-color);">
+              <div class="table-responsive">
+                <table class="data-table" style="width: 100%;">
+                  <thead>
+                    <tr>
+                      <th style="width: 35%;">Document Name</th>
+                      <th style="width: 15%;">Requirement</th>
+                      <th style="width: 20%;">Verification Status</th>
+                      <th style="width: 30%; text-align: right;">Actions / Manager Controls</th>
+                    </tr>
+                  </thead>
+                  <tbody id="docs-tbody">
+                    <!-- 1. PAN Card -->
+                    <tr>
+                      <td>
+                        <div style="font-weight: 600; color: var(--primary-navy); display: flex; align-items: center; gap: 0.5rem;">
+                          <span>📄</span> PAN Card (copy)
+                        </div>
+                      </td>
+                      <td><span class="badge badge-neutral" style="font-size: 0.75rem;">Mandatory</span></td>
+                      <td><span class="badge badge-success">Verified</span></td>
+                      <td style="text-align: right;">
+                        <button class="btn btn-secondary btn-xs" onclick="previewDocument('PAN Card')">Preview</button>
+                        <button class="btn btn-link btn-xs" style="margin-left: 0.5rem;" onclick="downloadDocument('PAN Card')">Download</button>
+                      </td>
+                    </tr>
+                    <!-- 2. Aadhaar Card -->
+                    <tr>
+                      <td>
+                        <div style="font-weight: 600; color: var(--primary-navy); display: flex; align-items: center; gap: 0.5rem;">
+                          <span>📄</span> Aadhaar Card (copy)
+                        </div>
+                      </td>
+                      <td><span class="badge badge-neutral" style="font-size: 0.75rem;">Mandatory</span></td>
+                      <td><span class="badge badge-success">Verified</span></td>
+                      <td style="text-align: right;">
+                        <button class="btn btn-secondary btn-xs" onclick="previewDocument('Aadhaar Card')">Preview</button>
+                        <button class="btn btn-link btn-xs" style="margin-left: 0.5rem;" onclick="downloadDocument('Aadhaar Card')">Download</button>
+                      </td>
+                    </tr>
+                    <!-- 3. Bank Proof -->
+                    <tr>
+                      <td>
+                        <div style="font-weight: 600; color: var(--primary-navy); display: flex; align-items: center; gap: 0.5rem;">
+                          <span>📄</span> Bank Proof (cancelled cheque / passbook page)
+                        </div>
+                      </td>
+                      <td><span class="badge badge-neutral" style="font-size: 0.75rem;">Mandatory</span></td>
+                      <td><span class="badge badge-success">Verified</span></td>
+                      <td style="text-align: right;">
+                        <button class="btn btn-secondary btn-xs" onclick="previewDocument('Bank Proof')">Preview</button>
+                        <button class="btn btn-link btn-xs" style="margin-left: 0.5rem;" onclick="downloadDocument('Bank Proof')">Download</button>
+                      </td>
+                    </tr>
+                    <!-- 4. Educational Certificates -->
+                    <tr>
+                      <td>
+                        <div style="font-weight: 600; color: var(--primary-navy); display: flex; align-items: center; gap: 0.5rem;">
+                          <span>📄</span> Educational Certificates
+                        </div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted); margin-left: 1.5rem;">B.Tech Degree &amp; Marksheets attached</div>
+                      </td>
+                      <td><span class="badge badge-neutral" style="font-size: 0.75rem;">Optional</span></td>
+                      <td><span class="badge badge-success">Verified</span></td>
+                      <td style="text-align: right;">
+                        <button class="btn btn-secondary btn-xs" onclick="previewDocument('Educational Certificates')">Preview</button>
+                        <button class="btn btn-link btn-xs" style="margin-left: 0.5rem;" onclick="downloadDocument('Educational Certificates')">Download</button>
+                      </td>
+                    </tr>
+                    <!-- 5. Signed Offer Letter -->
+                    <tr>
+                      <td>
+                        <div style="font-weight: 600; color: var(--primary-navy); display: flex; align-items: center; gap: 0.5rem;">
+                          <span>📄</span> Signed Offer Letter / Employment Contract
+                        </div>
+                      </td>
+                      <td><span class="badge badge-neutral" style="font-size: 0.75rem;">Mandatory</span></td>
+                      <td><span class="badge badge-success">Verified</span></td>
+                      <td style="text-align: right;">
+                        <button class="btn btn-secondary btn-xs" onclick="previewDocument('Signed Offer Letter')">Preview</button>
+                        <button class="btn btn-link btn-xs" style="margin-left: 0.5rem;" onclick="downloadDocument('Signed Offer Letter')">Download</button>
+                      </td>
+                    </tr>
+                    <!-- 6. Photograph -->
+                    <tr>
+                      <td>
+                        <div style="font-weight: 600; color: var(--primary-navy); display: flex; align-items: center; gap: 0.5rem;">
+                          <span>🖼</span> Photograph
+                        </div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted); margin-left: 1.5rem;">Mandatory but non-blocking (cosmetic only)</div>
+                      </td>
+                      <td><span class="badge badge-neutral" style="font-size: 0.75rem;">Mandatory (Non-blocking)</span></td>
+                      <td><span class="badge badge-success">Verified</span></td>
+                      <td style="text-align: right;">
+                        <button class="btn btn-secondary btn-xs" onclick="previewDocument('Photograph')">Preview</button>
+                        <button class="btn btn-link btn-xs" style="margin-left: 0.5rem;" onclick="downloadDocument('Photograph')">Download</button>
+                      </td>
+                    </tr>
+                    <!-- 7. Relieving Letter (Conditional) -->
+                    <tr class="cond-doc-row" id="row-relieving">
+                      <td>
+                        <div style="font-weight: 600; color: var(--primary-navy); display: flex; align-items: center; gap: 0.5rem;">
+                          <span>📄</span> Previous Employer: Relieving Letter
+                        </div>
+                      </td>
+                      <td><span class="badge badge-gold" style="font-size: 0.75rem;">Conditional</span></td>
+                      <td id="status-relieving"><span class="badge badge-warning">Pending Verification</span></td>
+                      <td style="text-align: right;">
+                        <div id="actions-relieving" style="display: flex; gap: 0.4rem; justify-content: flex-end; align-items: center;">
+                          <button class="btn btn-secondary btn-xs" onclick="previewDocument('Relieving Letter')">Preview</button>
+                          <span style="color: var(--border-color);">|</span>
+                          <button class="btn btn-xs" style="background-color: var(--status-success); color: white;" onclick="approveDocument('relieving')">✓ Approve</button>
+                          <button class="btn btn-danger btn-xs" onclick="openRejectModal('relieving', 'Previous Employer: Relieving Letter')">✕ Reject</button>
+                        </div>
+                      </td>
+                    </tr>
+                    <!-- 8. Payslips (Conditional) -->
+                    <tr class="cond-doc-row" id="row-payslips">
+                      <td>
+                        <div style="font-weight: 600; color: var(--primary-navy); display: flex; align-items: center; gap: 0.5rem;" title="Required for accurate combined-year TDS calculation.">
+                          <span>📄</span> Previous Employer: Last 3 Months' Payslips <span style="cursor: help; font-size: 0.9rem;">ℹ️</span>
+                        </div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted); margin-left: 1.5rem;">Required for accurate combined-year TDS calculation.</div>
+                      </td>
+                      <td><span class="badge badge-gold" style="font-size: 0.75rem;">Conditional</span></td>
+                      <td id="status-payslips"><span class="badge badge-warning">Pending Verification</span></td>
+                      <td style="text-align: right;">
+                        <div id="actions-payslips" style="display: flex; gap: 0.4rem; justify-content: flex-end; align-items: center;">
+                          <button class="btn btn-secondary btn-xs" onclick="previewDocument('Payslips')">Preview</button>
+                          <span style="color: var(--border-color);">|</span>
+                          <button class="btn btn-xs" style="background-color: var(--status-success); color: white;" onclick="approveDocument('payslips')">✓ Approve</button>
+                          <button class="btn btn-danger btn-xs" onclick="openRejectModal('payslips', 'Previous Employer: Last 3 Months\' Payslips')">✕ Reject</button>
+                        </div>
+                      </td>
+                    </tr>
+                    <!-- 9. Form 16 (Conditional) -->
+                    <tr class="cond-doc-row" id="row-form16">
+                      <td>
+                        <div style="font-weight: 600; color: var(--primary-navy); display: flex; align-items: center; gap: 0.5rem;">
+                          <span>📄</span> Previous Employer: Form 16
+                        </div>
+                      </td>
+                      <td><span class="badge badge-gold" style="font-size: 0.75rem;">Conditional</span></td>
+                      <td id="status-form16"><span class="badge badge-danger">Not Uploaded</span></td>
+                      <td style="text-align: right;">
+                        <div id="actions-form16">
+                          <button class="btn btn-navy btn-xs" onclick="uploadMissingDoc('form16', 'Previous Employer: Form 16')">📤 Upload Document</button>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 6: Tax Declaration -->
+        <div class="tab-content" data-tab="tax">
+          <div style="display: flex; flex-direction: column; gap: 2.5rem;">
+            
+            <!-- 1. REGIME SELECTION -->
+            <div class="card" style="border: 1px solid var(--border-color); background: #F8FAFC;">
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                <div>
+                  <h3 style="font-size: 1.1rem; margin-bottom: 0.4rem; color: var(--primary-navy);">Tax Regime Selection (FY 2025-26)</h3>
+                  <div style="display: flex; align-items: center; gap: 1rem; margin-top: 0.75rem;">
+                    <span id="tax-regime-badge" class="badge badge-gold" style="font-size: 1rem; padding: 0.4rem 1rem;">Current Regime: New Tax Regime</span>
+                    <span style="font-size: 0.82rem; color: var(--text-muted);">Declared On: April 02, 2025</span>
+                  </div>
+                </div>
+                <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.75rem;">
+                  <div style="background: #FFF; padding: 0.4rem 0.8rem; border: 1px solid #CBD5E1; border-radius: var(--radius-sm); font-size: 0.8rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <strong style="color: var(--primary-navy);">⚙️ Simulation Control:</strong>
+                    <label style="display: flex; align-items: center; gap: 0.3rem; margin: 0; cursor: pointer;">
+                      <input type="checkbox" id="sim-payroll-run" onchange="togglePayrollRunSim()"> First Payroll Already Processed
+                    </label>
+                  </div>
+                  <button class="btn btn-navy" onclick="openRegimeModal()">🔄 Change Regime</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 2. INVESTMENT DECLARATION -->
+            <div class="card" style="border: 1px solid var(--border-color);">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem;">
+                <h3 style="font-size: 1.1rem; color: var(--primary-navy);">Investment &amp; Exemption Declaration</h3>
+                <span id="inv-regime-status" class="badge badge-info">Disabled (New Regime Active)</span>
+              </div>
+
+              <!-- Collapsed / Hidden state note for New Regime -->
+              <div id="new-regime-note" style="background: #F1F5F9; border: 1px solid #CBD5E1; padding: 2rem; text-align: center; border-radius: var(--radius-md);">
+                <span style="font-size: 2rem; display: block; margin-bottom: 0.5rem;">ℹ️</span>
+                <h4 style="color: var(--primary-navy); font-size: 1.05rem; margin-bottom: 0.4rem;">Investment Declarations Not Applicable</h4>
+                <p style="color: var(--text-muted); font-size: 0.9rem; max-width: 500px; margin: 0 auto;">
+                  Investment declarations (Section 80C, 80D, HRA, Sec 24b) are not applicable under the <strong>New Tax Regime</strong>. Switch to the Old Tax Regime above to enable itemized deduction entries.
+                </p>
+              </div>
+
+              <!-- Enabled state form for Old Regime -->
+              <div id="old-regime-form" style="display: none; display: flex; flex-direction: column; gap: 2.5rem;">
+                
+                <!-- Section 80C -->
+                <div>
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h4 style="font-size: 1rem; color: var(--primary-navy);">Section 80C Investments</h4>
+                    <div style="font-size: 0.85rem; font-weight: 600; background: #F1F5F9; padding: 0.4rem 0.8rem; border-radius: var(--radius-sm);">
+                      Running Total: <span id="sec80c-total">₹1,35,000</span> / <span style="color: var(--text-muted);">₹1,50,000 Cap</span>
+                    </div>
+                  </div>
+                  <div id="sec80c-excess-note" class="alert-banner amber" style="display: none; margin-bottom: 1rem;">
+                    ⚠ <strong>Cap Exceeded:</strong> Amount above ₹1,50,000 cap is recorded but not eligible for tax deduction.
+                  </div>
+                  <table class="data-table" style="width: 100%;">
+                    <thead>
+                      <tr>
+                        <th>Investment Type</th>
+                        <th>Description / Notes</th>
+                        <th style="width: 200px;">Declared Amount (₹)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td><strong>PF Contribution (Employee)</strong></td>
+                        <td>Auto-calculated from monthly payroll deductions</td>
+                        <td><input type="number" id="val-80c-pf" class="form-control" value="21600" oninput="calc80C()"></td>
+                      </tr>
+                      <tr>
+                        <td><strong>ELSS (Equity Linked Savings Scheme)</strong></td>
+                        <td>Mutual fund tax saver scheme</td>
+                        <td><input type="number" id="val-80c-elss" class="form-control" value="50000" oninput="calc80C()"></td>
+                      </tr>
+                      <tr>
+                        <td><strong>Life Insurance Premium</strong></td>
+                        <td>Self, spouse, or dependent children premium</td>
+                        <td><input type="number" id="val-80c-lic" class="form-control" value="38400" oninput="calc80C()"></td>
+                      </tr>
+                      <tr>
+                        <td><strong>PPF (Public Provident Fund)</strong></td>
+                        <td>Long-term statutory savings scheme</td>
+                        <td><input type="number" id="val-80c-ppf" class="form-control" value="25000" oninput="calc80C()"></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid var(--border-color);">
+
+                <!-- Section 80D -->
+                <div>
+                  <h4 style="font-size: 1rem; color: var(--primary-navy); margin-bottom: 1rem;">Section 80D (Medical Insurance Premium)</h4>
+                  <div class="grid-layout" style="grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                    <div style="background: #F8FAFC; padding: 1.25rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
+                      <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                        <label for="val-80d-self" style="font-weight: 600; font-size: 0.88rem;">Self / Family Premium</label>
+                        <span id="cap-80d-self" class="badge badge-success">Cap: ₹25,000</span>
+                      </div>
+                      <input type="number" id="val-80d-self" class="form-control" value="18500" oninput="calc80D()">
+                      <div id="note-80d-self" style="font-size: 0.78rem; color: var(--status-warning); margin-top: 0.4rem; display: none;">
+                        Amount exceeds ₹25,000 cap. Deduction restricted to ₹25,000.
+                      </div>
+                    </div>
+
+                    <div style="background: #F8FAFC; padding: 1.25rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
+                      <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                        <label for="val-80d-parents" style="font-weight: 600; font-size: 0.88rem;">Parents (Senior Citizen) Premium</label>
+                        <span id="cap-80d-parents" class="badge badge-success">Cap: ₹50,000</span>
+                      </div>
+                      <input type="number" id="val-80d-parents" class="form-control" value="32000" oninput="calc80D()">
+                      <div id="note-80d-parents" style="font-size: 0.78rem; color: var(--status-warning); margin-top: 0.4rem; display: none;">
+                        Amount exceeds ₹50,000 cap. Deduction restricted to ₹50,000.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid var(--border-color);">
+
+                <!-- HRA Exemption Claim -->
+                <div>
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h4 style="font-size: 1rem; color: var(--primary-navy);">HRA (House Rent Allowance) Exemption Claim</h4>
+                    <div style="background: #FFF; padding: 0.3rem 0.8rem; border: 1px solid #CBD5E1; border-radius: var(--radius-sm); font-size: 0.8rem; display: flex; align-items: center; gap: 0.5rem;">
+                      <strong style="color: var(--primary-navy);">⚙️ Simulation Control:</strong>
+                      <select id="sim-hra-val" class="form-control" style="padding: 0.1rem 0.4rem; font-size: 0.8rem; width: 150px;" onchange="toggleHraSim()">
+                        <option value="11000">HRA Active (₹11,000)</option>
+                        <option value="0">HRA Component ₹0</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <!-- HRA Disabled Note -->
+                  <div id="hra-disabled-note" class="alert-banner red" style="display: none; margin-bottom: 1rem;">
+                    ⛔ <strong>HRA Exemption Cannot Be Claimed:</strong> No HRA component in active salary structure (₹0 HRA).
+                  </div>
+
+                  <div id="hra-active-fields" class="grid-layout" style="grid-template-columns: 1fr 1fr; gap: 1.5rem; background: #F8FAFC; padding: 1.25rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
+                    <div class="form-group">
+                      <label for="hra-rent">Monthly Rent Paid (₹)</label>
+                      <input type="number" id="hra-rent" class="form-control" value="12000" oninput="calcHRA()">
+                      <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.3rem;">
+                        Annualized Rent: <strong id="hra-annual-rent">₹1,44,000</strong>
+                      </div>
+                    </div>
+                    <div class="form-group">
+                      <label for="hra-pan">Landlord PAN <span id="hra-pan-asterisk" style="color: var(--status-danger);">*</span></label>
+                      <input type="text" id="hra-pan" class="form-control" value="ABCDE1234F" oninput="calcHRA()">
+                      <div id="hra-pan-req-note" style="font-size: 0.78rem; color: var(--status-warning); margin-top: 0.3rem;">
+                        ⚠ Mandatory since annualized rent exceeds ₹1,00,000.
+                      </div>
+                      <div id="hra-pan-err" style="font-size: 0.78rem; color: var(--status-danger); margin-top: 0.3rem; display: none;">
+                        ⛔ Landlord PAN is required for rent > ₹1,00,000/yr.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid var(--border-color);">
+
+                <!-- Home Loan Interest (Section 24b) -->
+                <div>
+                  <h4 style="font-size: 1rem; color: var(--primary-navy); margin-bottom: 0.5rem;">Home Loan Interest (Section 24b)</h4>
+                  <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
+                    ℹ️ Note: The statutory cap of <strong>₹2,00,000</strong> applies to self-occupied property only.
+                  </p>
+                  <div style="background: #F8FAFC; padding: 1.25rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); max-width: 400px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                      <label for="val-sec24b" style="font-weight: 600; font-size: 0.88rem;">Annual Interest Paid</label>
+                      <span id="cap-sec24b" class="badge badge-success">Cap: ₹2,00,000</span>
+                    </div>
+                    <input type="number" id="val-sec24b" class="form-control" value="150000" oninput="calcSec24b()">
+                    <div id="note-sec24b" style="font-size: 0.78rem; color: var(--status-warning); margin-top: 0.4rem; display: none;">
+                      Amount exceeds ₹2,00,000 cap. Deduction restricted to ₹2,00,000.
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <button class="btn btn-primary" onclick="alert('Investment declarations saved successfully.')">💾 Save Declarations</button>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- 3. PROOF SUBMISSION TRACKER -->
+            <div class="card" style="border: 1px solid var(--border-color);">
+              <h3 style="font-size: 1.1rem; color: var(--primary-navy); margin-bottom: 1rem;">Proof Submission Tracker</h3>
+              
+              <div class="alert-banner amber" style="margin-bottom: 1.5rem;">
+                ⚠ <strong>Proof Verification Deadline:</strong> February 28, 2026. Unverified declarations will be reversed in the final TDS calculation.
+              </div>
+
+              <table class="data-table" style="width: 100%;">
+                <thead>
+                  <tr>
+                    <th>Declaration Item</th>
+                    <th>Declared Amount</th>
+                    <th>Proof Document Status</th>
+                    <th>Verification Status</th>
+                    <th style="text-align: right;">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>PF Contribution (Employee)</strong></td>
+                    <td>₹21,600</td>
+                    <td><span style="color: var(--text-muted);">Auto-Verified via Payroll</span></td>
+                    <td><span class="badge badge-success">Verified</span></td>
+                    <td style="text-align: right;"><button class="btn btn-secondary btn-xs" disabled>Auto Uploaded</button></td>
+                  </tr>
+                  <tr>
+                    <td><strong>ELSS (Mutual Funds)</strong></td>
+                    <td>₹50,000</td>
+                    <td id="proof-doc-elss">ELSS_Statement_2025.pdf</td>
+                    <td id="proof-status-elss"><span class="badge badge-warning">Proof Submitted</span></td>
+                    <td style="text-align: right;"><button class="btn btn-secondary btn-xs" onclick="openProofModal('ELSS (Mutual Funds)', 'proof-doc-elss', 'proof-status-elss')">Upload Proof</button></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Life Insurance Premium</strong></td>
+                    <td>₹38,400</td>
+                    <td id="proof-doc-lic"><span style="color: var(--text-muted);">No document uploaded</span></td>
+                    <td id="proof-status-lic"><span class="badge badge-neutral">Declared</span></td>
+                    <td style="text-align: right;"><button class="btn btn-secondary btn-xs" onclick="openProofModal('Life Insurance Premium', 'proof-doc-lic', 'proof-status-lic')">Upload Proof</button></td>
+                  </tr>
+                  <tr>
+                    <td><strong>PPF (Public Provident Fund)</strong></td>
+                    <td>₹25,000</td>
+                    <td id="proof-doc-ppf">PPF_Passbook_Challan.pdf</td>
+                    <td id="proof-status-ppf"><span class="badge badge-success">Verified</span></td>
+                    <td style="text-align: right;"><button class="btn btn-secondary btn-xs" onclick="openProofModal('PPF (Public Provident Fund)', 'proof-doc-ppf', 'proof-status-ppf')">Upload Proof</button></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Sec 80D - Self/Family Premium</strong></td>
+                    <td>₹18,500</td>
+                    <td id="proof-doc-80d-self">Health_Policy_2025.pdf</td>
+                    <td id="proof-status-80d-self"><span class="badge badge-danger">Rejected</span></td>
+                    <td style="text-align: right;"><button class="btn btn-secondary btn-xs" onclick="openProofModal('Sec 80D - Self/Family Premium', 'proof-doc-80d-self', 'proof-status-80d-self')">Upload Proof</button></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Sec 80D - Parents Premium</strong></td>
+                    <td>₹32,000</td>
+                    <td id="proof-doc-80d-parents"><span style="color: var(--text-muted);">No document uploaded</span></td>
+                    <td id="proof-status-80d-parents"><span class="badge badge-neutral">Declared</span></td>
+                    <td style="text-align: right;"><button class="btn btn-secondary btn-xs" onclick="openProofModal('Sec 80D - Parents Premium', 'proof-doc-80d-parents', 'proof-status-80d-parents')">Upload Proof</button></td>
+                  </tr>
+                  <tr>
+                    <td><strong>HRA Exemption Claim</strong></td>
+                    <td>₹1,44,000 / yr</td>
+                    <td id="proof-doc-hra">Rent_Receipts_Q1_Q2.pdf</td>
+                    <td id="proof-status-hra"><span class="badge badge-warning">Proof Submitted</span></td>
+                    <td style="text-align: right;"><button class="btn btn-secondary btn-xs" onclick="openProofModal('HRA Exemption Claim', 'proof-doc-hra', 'proof-status-hra')">Upload Proof</button></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Home Loan Interest (Sec 24b)</strong></td>
+                    <td>₹1,50,000</td>
+                    <td id="proof-doc-24b">Interest_Certificate_HDFC.pdf</td>
+                    <td id="proof-status-24b"><span class="badge badge-success">Verified</span></td>
+                    <td style="text-align: right;"><button class="btn btn-secondary btn-xs" onclick="openProofModal('Home Loan Interest (Sec 24b)', 'proof-doc-24b', 'proof-status-24b')">Upload Proof</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- 4. TDS CALCULATION SUMMARY -->
+            <div class="card" style="border: 1px solid var(--border-color);">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h3 style="font-size: 1.1rem; color: var(--primary-navy);">TDS Calculation Summary &amp; Monthly Projection</h3>
+                <div style="display: flex; gap: 1rem; align-items: center;">
+                  <div style="background: #F1F5F9; padding: 0.3rem 0.8rem; border-radius: var(--radius-sm); font-size: 0.85rem;">
+                    <strong>Standard Deduction:</strong> <span id="summary-std-ded">₹75,000</span>
+                  </div>
+                  <div style="background: #F1F5F9; padding: 0.3rem 0.8rem; border-radius: var(--radius-sm); font-size: 0.85rem;">
+                    <strong>Employer NPS Cap:</strong> <span id="summary-nps-cap">14% of Basic</span>
+                  </div>
+                </div>
+              </div>
+
+              <div style="margin-bottom: 1.5rem; background: #F8FAFC; padding: 1.25rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); display: flex; align-items: center; gap: 1.5rem;">
+                <div style="width: 280px;">
+                  <label for="val-nps-contrib" style="font-weight: 600; font-size: 0.88rem; display: block; margin-bottom: 0.3rem;">Employer NPS Contribution (₹/yr)</label>
+                  <input type="number" id="val-nps-contrib" class="form-control" value="25000">
+                </div>
+                <div style="font-size: 0.85rem; color: var(--text-muted); flex: 1;">
+                  ℹ️ Applicable under Section 80CCD(2). Cap automatically aligns to <strong id="nps-cap-note" style="color: var(--primary-navy);">14% of Basic Salary (New Tax Regime)</strong>.
+                </div>
+                <div>
+                  <button class="btn btn-secondary btn-xs" onclick="toggleTrueUpSim()">⚙️ Toggle True-Up Scenario</button>
+                </div>
+              </div>
+
+              <table class="data-table" style="width: 100%;">
+                <thead>
+                  <tr>
+                    <th>Month</th>
+                    <th>Gross Salary</th>
+                    <th>Exemptions &amp; Deductions</th>
+                    <th>Projected Taxable Basis</th>
+                    <th style="text-align: right;">Monthly TDS Deducted (₹)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td>April 2025</td><td>₹45,000</td><td>₹6,250</td><td>₹38,750</td><td style="text-align: right;">₹3,100</td></tr>
+                  <tr><td>May 2025</td><td>₹45,000</td><td>₹6,250</td><td>₹38,750</td><td style="text-align: right;">₹3,100</td></tr>
+                  <tr style="background: #FFFBEB; font-weight: 600;"><td>June 2025 (Current)</td><td>₹45,000</td><td>₹6,250</td><td>₹38,750</td><td style="text-align: right; color: var(--primary-navy);">₹3,100</td></tr>
+                  <tr><td>July 2025</td><td>₹45,000</td><td>₹6,250</td><td>₹38,750</td><td style="text-align: right;">₹3,100</td></tr>
+                  <tr><td>August 2025</td><td>₹45,000</td><td>₹6,250</td><td>₹38,750</td><td style="text-align: right;">₹3,100</td></tr>
+                  <tr><td>September 2025</td><td>₹45,000</td><td>₹6,250</td><td>₹38,750</td><td style="text-align: right;">₹3,100</td></tr>
+                  <tr><td>October 2025</td><td>₹45,000</td><td>₹6,250</td><td>₹38,750</td><td style="text-align: right;">₹3,100</td></tr>
+                  <tr><td>November 2025</td><td>₹45,000</td><td>₹6,250</td><td>₹38,750</td><td style="text-align: right;">₹3,100</td></tr>
+                  <tr><td>December 2025</td><td>₹45,000</td><td>₹6,250</td><td>₹38,750</td><td style="text-align: right;">₹3,100</td></tr>
+                  <tr><td>January 2026</td><td>₹45,000</td><td>₹6,250</td><td>₹38,750</td><td style="text-align: right;">₹3,100</td></tr>
+                  <tr><td>February 2026</td><td>₹45,000</td><td>₹6,250</td><td>₹38,750</td><td style="text-align: right;">₹3,100</td></tr>
+                  <tr><td>March 2026</td><td>₹45,000</td><td>₹6,250</td><td>₹38,750</td><td style="text-align: right;">₹3,100</td></tr>
+                  
+                  <!-- Final Month True-Up Row -->
+                  <tr id="trueup-recovery-row" style="background: #FEF2F2; border-top: 2px solid #FCA5A5;">
+                    <td colspan="4"><strong>Final Month True-Up (March 2026 / Exit Payout)</strong> — Recalculated against verified proofs</td>
+                    <td style="text-align: right; color: var(--status-danger); font-weight: 700;">Additional TDS Recovery: ₹4,250</td>
+                  </tr>
+                  <tr id="trueup-refund-row" style="background: #F0FDF4; border-top: 2px solid #86EFAC; display: none;">
+                    <td colspan="4"><strong>Final Month True-Up (March 2026 / Exit Payout)</strong> — Recalculated against verified proofs</td>
+                    <td style="text-align: right; color: var(--status-success); font-weight: 700;">TDS Refund Adjustment: ₹2,800</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- 5. FORM 16 -->
+            <div class="card" style="border: 1px solid var(--border-color);">
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                <div style="display: flex; align-items: center; gap: 1.5rem;">
+                  <span style="font-size: 2.5rem;">🏛️</span>
+                  <div>
+                    <h3 style="font-size: 1.1rem; color: var(--primary-navy); margin-bottom: 0.3rem;">Form 16 (Part A &amp; B) — FY 2025-26</h3>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0;">Official statutory certificate of tax deduction at source issued by employer.</p>
+                  </div>
+                </div>
+                <div style="display: flex; gap: 1rem;">
+                  <button class="btn btn-secondary" onclick="previewForm16()">👁️ Preview</button>
+                  <button class="btn btn-navy" onclick="downloadForm16()">📥 Download PDF</button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Tab 7: Loans & Advances -->
+        <div class="tab-content" data-tab="loans">
+          <div style="display: flex; flex-direction: column; gap: 2.5rem;">
+            <div class="card">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+                <div>
+                  <h3 style="font-size: 1.1rem; color: var(--primary-navy); margin-bottom: 0.3rem;">Agency-Issued Salary Advances</h3>
+                  <p style="color: var(--text-muted); font-size: 0.85rem; margin: 0;">
+                    Advances or short-term assistance provided directly by Tecla Payroll. Repayments are deducted from monthly net pay.
+                  </p>
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="toggleNewLoanForm()">+ Issue New Salary Advance</button>
+              </div>
+
+              <!-- Active Advance Summary Table -->
+              <div class="table-responsive">
+                <table class="data-table" id="agency-loans-table" style="width: 100%;">
+                  <thead>
+                    <tr>
+                      <th>Advance ID</th>
+                      <th>Purpose</th>
+                      <th>Total Amount</th>
+                      <th>Monthly EMI</th>
+                      <th>Start Month</th>
+                      <th>Balance Remaining</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="agency-loans-tbody">
+                    <tr>
+                      <td>ADV-2026-041</td>
+                      <td>Emergency Medical Advance</td>
+                      <td>₹15,000</td>
+                      <td>₹2,500 / mo</td>
+                      <td>April 2026</td>
+                      <td><strong style="color: var(--primary-navy);">₹7,500</strong></td>
+                      <td><span class="badge badge-warning">Active Deduction</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Cross Reference Note -->
+              <div style="margin-top: 1.5rem; padding: 1rem; background-color: #F8FAFC; border: 1px solid var(--border-color); border-left: 4px solid var(--accent-gold); border-radius: var(--radius-sm); font-size: 0.85rem; color: var(--text-main);">
+                🔗 <strong>Statutory Cross-Reference:</strong> This active monthly deduction (₹2,500) is directly cross-referenced in the <a href="/employees/1/salary-revision?id=88" style="color: var(--primary-navy); font-weight: 600; text-decoration: underline;">Salary Revision Screen</a> and automatically factored into the monthly payslip generation calculation.
+              </div>
+
+              <!-- Issue New Loan Form Card (hidden by default) -->
+              <div id="new-loan-form-card" style="display: none; margin-top: 2rem; border-top: 1px solid var(--border-color); padding-top: 1.5rem;">
+                <h4 style="margin-bottom: 1.25rem; color: var(--primary-navy); font-size: 1.05rem;">Issue New Salary Advance</h4>
+                <form onsubmit="event.preventDefault(); submitNewAdvance();">
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="adv-amount">Total Advance Amount (₹) <span style="color: var(--status-danger);">*</span></label>
+                      <input type="number" id="adv-amount" class="form-control" placeholder="e.g. 20000" required>
+                    </div>
+                    <div class="form-group">
+                      <label for="adv-emi">Monthly Deduction EMI (₹) <span style="color: var(--status-danger);">*</span></label>
+                      <input type="number" id="adv-emi" class="form-control" placeholder="e.g. 4000" required>
+                    </div>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="adv-start">Deduction Start Month <span style="color: var(--status-danger);">*</span></label>
+                      <input type="month" id="adv-start" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                      <label for="adv-purpose">Purpose of Advance <span style="color: var(--status-danger);">*</span></label>
+                      <input type="text" id="adv-purpose" class="form-control" placeholder="e.g. Personal Emergency, Education" required>
+                    </div>
+                  </div>
+                  <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1rem;">
+                    <button type="button" class="btn btn-secondary" onclick="toggleNewLoanForm()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Authorize Advance</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+
+            <!-- External Personal Loans / Garnishments -->
+            <div class="card">
+              <h3 style="font-size: 1.1rem; color: var(--primary-navy); margin-bottom: 0.3rem;">External Personal Loans &amp; Garnishments</h3>
+              <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.5rem;">
+                Third-party attachments (e.g. court-ordered garnishments, bank loan direct attachments). Deducted post-tax per statutory guidelines.
+              </p>
+
+              <div class="table-responsive">
+                <table class="data-table" style="width: 100%;">
+                  <thead>
+                    <tr>
+                      <th>Attachment ID</th>
+                      <th>Authority / Institution</th>
+                      <th>Type</th>
+                      <th>Monthly Deduction</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>GARN-2025-012</td>
+                      <td>Family Court Order (Mumbai)</td>
+                      <td>Statutory Maintenance</td>
+                      <td>₹0 / mo (Satisfied)</td>
+                      <td><span class="badge badge-success">Completed</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- end tab-container -->
+    
+<div class="modal-overlay" id="regime-change-modal">
+    <div class="modal-box" style="width: 520px;">
+      <div class="modal-header">
+        <h3>🔄 Change Tax Regime</h3>
+        <button class="modal-close" onclick="closeRegimeModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <!-- Blocking message when payroll has already run -->
+        <div id="regime-block-msg" style="display: none; background: #FFF5F5; border: 1px solid #FEB2B2; border-left: 6px solid var(--status-danger); padding: 1.5rem; border-radius: var(--radius-sm);">
+          <h4 style="font-size: 1.05rem; color: var(--status-danger); margin-bottom: 0.5rem;">⛔ Regime Change Locked</h4>
+          <p style="color: #7F1D1D; font-size: 0.9rem; line-height: 1.5; margin: 0;">
+            Regime can only be changed at the start of a financial year, before the first payroll run. Current selection is locked until April 2027.
+          </p>
+        </div>
+
+        <!-- Normal change form -->
+        <div id="regime-form-box">
+          <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1.25rem;">
+            Select your preferred tax regime for FY 2025-26. Note that switching to the New Tax Regime will disable itemized Chapter VI-A investment declarations.
+          </p>
+          <div class="form-group">
+            <label for="regime-select-dropdown">Select Tax Regime</label>
+            <select id="regime-select-dropdown" class="form-control">
+              <option value="new">New Tax Regime (Default, Lower Slabs, No Deductions)</option>
+              <option value="old">Old Tax Regime (Higher Slabs, Eligible for 80C/80D/HRA)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+<div class="modal-overlay" id="proof-upload-modal">
+    <div class="modal-box" style="width: 480px;">
+      <div class="modal-header">
+        <h3 id="proof-modal-title">Upload Proof Document</h3>
+        <button class="modal-close" onclick="closeProofModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1.25rem;">
+          Attach a clear PDF, JPG, or PNG copy of your investment receipt or policy statement for statutory verification.
+        </p>
+        <div class="form-group">
+          <label for="proof-file-input">Select File <span style="color: var(--status-danger);">*</span></label>
+          <input type="file" id="proof-file-input" class="form-control" accept=".pdf,.jpg,.jpeg,.png">
+        </div>
+        <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.5rem;">
+          Maximum file size: 5MB. All submissions are subject to manual verification by payroll compliance officers.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeProofModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="submitProofUpload()">Upload &amp; Submit</button>
+      </div>
+    </div>
+  </div>
+<div class="modal-overlay" id="doc-reject-modal">
+    <div class="modal-box" style="width: 500px;">
+      <div class="modal-header">
+        <h3 id="reject-doc-title">Reject Document</h3>
+        <button class="modal-close" onclick="closeRejectModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1.25rem;">
+          Please provide a specific reason for rejecting this document. This reason will be displayed directly to the employee in the Candidate/Employee Portal.
+        </p>
+        <div class="form-group">
+          <label for="reject-reason-input">Rejection Reason <span style="color: var(--status-danger);">*</span></label>
+          <textarea id="reject-reason-input" class="form-control" rows="3" placeholder="e.g. Image blurred and unreadable. Please re-upload a clear scanned copy."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeRejectModal()">Cancel</button>
+        <button class="btn btn-danger" onclick="confirmRejectDoc()">Confirm Rejection</button>
+      </div>
+    </div>
+  </div>
+<div class="modal-overlay" id="add-doc-modal">
+    <div class="modal-box" style="width: 500px;">
+      <div class="modal-header">
+        <h3>+ Add Document Type</h3>
+        <button class="modal-close" onclick="closeAddDocModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1.25rem;">
+          Add a new document requirement for this employee. Once submitted, it will appear in the verification checklist.
+        </p>
+        <div class="form-group">
+          <label for="add-doc-name">Document Name <span style="color: var(--status-danger);">*</span></label>
+          <input type="text" id="add-doc-name" class="form-control" placeholder="e.g. Previous Experience Letter">
+        </div>
+        <div class="form-group">
+          <label for="add-doc-req">Requirement</label>
+          <select id="add-doc-req" class="form-control">
+            <option value="Mandatory">Mandatory</option>
+            <option value="Optional">Optional</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="add-doc-file">Upload File <span style="color: var(--status-danger);">*</span></label>
+          <input type="file" id="add-doc-file" class="form-control">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeAddDocModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="submitAddDoc()">Add Document</button>
+      </div>
+    </div>
+  </div>

@@ -1,0 +1,621 @@
+
+      <div style="margin-bottom: 1.5rem;">
+        <a href="/employees" style="font-size: 0.85rem; font-weight: 600;">← Back to Employees Directory</a>
+        <h2 id="form-page-title" style="margin-top: 0.5rem;">Employee Configuration Form</h2>
+        <p id="form-page-subtitle" style="color: var(--text-muted); font-size: 0.9rem;">Configure personal profile, sensitive banking, custom salary breakdown, and statutory applicability overrides.</p>
+      </div>
+
+
+
+      <div class="grid-layout">
+        <!-- Main Form Column -->
+        <div class="card">
+          <form id="emp-form" onsubmit="handleFormSubmit(event)">
+
+            <!-- ══════════════════════════════════════════
+                 SECTION 1: PERSONAL DETAILS
+            ══════════════════════════════════════════ -->
+            <h3 style="border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; margin-bottom: 1.25rem; font-size: 1.05rem;">
+              Personal &amp; Employment Profile
+            </h3>
+
+            <div class="form-row">
+              <!-- Full Name -->
+              <div class="form-group">
+                <label for="emp-name">Full Name</label>
+                <input type="text" id="emp-name" class="form-control" placeholder="As on PAN card" value="Aarav Sharma"
+                  onblur="validateFullName()" oninput="syncNameFields(); validateFullName()">
+                <div class="field-msg" id="msg-emp-name"></div>
+                <div id="name-change-upload-container" style="display:none; margin-top: 0.75rem; padding: 0.75rem 1rem; background: var(--status-warning-bg); border-left: 3px solid var(--status-warning); border-radius: var(--radius-sm);">
+                  <div style="font-size: 0.85rem; color: var(--status-warning); font-weight: 600; margin-bottom: 0.5rem;">
+                    Name changes require a supporting document (e.g. marriage certificate, legal name change order). Upload before saving.
+                  </div>
+                  <input type="file" id="name-change-file" class="form-control" style="font-size: 0.8rem; padding: 0.25rem;" onchange="validateFullName()">
+                </div>
+              </div>
+              <!-- Employee Code -->
+              <div class="form-group hide-in-edit">
+                <label for="emp-code">Employee Code</label>
+                <input type="text" id="emp-code" class="form-control read-only-field" value="TEC-089 (auto-assigned on save)" readonly>
+                <div class="field-msg info show" id="msg-emp-code" style="display:block;">🔒 Auto-generated on save. Cannot be manually set.</div>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <!-- Date of Birth -->
+              <div class="form-group hide-in-edit">
+                <label for="dob">Date of Birth</label>
+                <input type="date" id="dob" class="form-control" value="1998-04-12"
+                  onchange="validateAgeAtJoining()">
+                <div class="field-msg" id="msg-dob"></div>
+              </div>
+              <!-- Personal Email -->
+              <div class="form-group">
+                <label for="personal-email">Personal Email <span style="color:var(--status-danger);">*</span></label>
+                <input type="email" id="personal-email" class="form-control" value="aarav.sharma@gmail.com"
+                  onblur="validatePersonalEmail()" oninput="clearMsg('msg-personal-email','personal-email'); validatePersonalEmail()">
+                <div class="field-msg" id="msg-personal-email"></div>
+                <div id="msg-personal-email-notice" style="display:none; margin-top: 0.4rem; font-size: 0.8rem; color: #64748B; font-style: italic;">
+                  A notification will be sent to the previous email address confirming this change.
+                </div>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <!-- Phone Number -->
+              <div class="form-group">
+                <label for="phone">Phone Number <span style="color:var(--status-danger);">*</span></label>
+                <input type="text" id="phone" class="form-control" value="9876543210" maxlength="10"
+                  onblur="validatePhone()" oninput="clearMsg('msg-phone','phone'); validateEmergencyConflict()">
+                <div class="field-msg" id="msg-phone"></div>
+                <div class="inline-choice" id="phone-dup-choice" style="display:none; margin-top: 0.5rem; gap: 0.5rem;">
+                  <button type="button" class="btn btn-primary btn-xs" onclick="acceptDuplicatePhone()">Yes, Continue</button>
+                  <button type="button" class="btn btn-secondary btn-xs" onclick="rejectDuplicatePhone()">Cancel</button>
+                </div>
+              </div>
+              <!-- Emergency Contact -->
+              <div class="form-group">
+                <label for="emergency-contact">Emergency Contact Number</label>
+                <input type="text" id="emergency-contact" class="form-control" value="9876543211" maxlength="10"
+                  oninput="validateEmergencyConflict()" onblur="validateEmergencyConflict()">
+                <div class="field-msg" id="msg-emergency-contact"></div>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group hide-in-edit">
+                <label for="client-partner">Client Partner</label>
+                <select id="client-partner" class="form-control" onchange="onClientChange()">
+                  <option value="mahindra" selected>Mahindra Corp</option>
+                  <option value="tcs">Tata Consultancy Services — EOR</option>
+                  <option value="tcs_agency">Tata Consultancy Services — Agency</option>
+                  <option value="reliance">Reliance Digital</option>
+                  <option value="wipro">Wipro Ltd</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="designation">Designation</label>
+                <input type="text" id="designation" class="form-control" value="Senior Developer" required oninput="checkDesignationChange()">
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group hide-in-edit">
+                <label for="emp-branch">Work Location / Branch <span style="color:var(--status-danger);">*</span></label>
+                <select id="emp-branch" class="form-control" disabled onchange="onBranchChange()">
+                  <option value="">— Select a client first —</option>
+                </select>
+                <div class="field-msg" id="msg-emp-branch"></div>
+                <div id="branch-info-line" style="display:none; margin-top:0.4rem; font-size:0.75rem; color:#64748B;"></div>
+              </div>
+            </div>
+
+            <div class="form-row hide-in-edit">
+              <!-- Date of Joining -->
+              <div class="form-group">
+                <label for="doj">Date of Joining</label>
+                <input type="date" id="doj" class="form-control" value="2025-01-15"
+                  onchange="validateDoj(); validateAgeAtJoining()">
+                <div class="field-msg" id="msg-doj"></div>
+              </div>
+              <!-- Employment Type -->
+              <div class="form-group">
+                <label for="emp-type">Employment Model</label>
+                <select id="emp-type" class="form-control" onchange="onEmpTypeChange()">
+                  <option value="eor" selected>Pass-through EOR</option>
+                  <option value="contract">Agency Contract</option>
+                  <option value="internal">Internal Staff</option>
+                </select>
+                <div class="field-msg" id="msg-emp-type"></div>
+                <div id="emp-type-banner" style="display: none; margin-top: 0.5rem; padding: 0.75rem; background: #F8FAFC; border-left: 3px solid var(--primary-navy); border-radius: var(--radius-sm); font-size: 0.8rem; color: var(--text-dark);"></div>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <!-- Prior Employment Flag -->
+              <div class="form-group hide-in-edit" style="flex: 1;">
+                <label>Prior Employment Flag <span style="font-size: 0.75rem; color: var(--text-muted);">(Required for Previous Employer KYC docs)</span></label>
+                <div style="margin-top: 0.5rem;">
+                  <label class="toggle-container">
+                    <input type="checkbox" id="prior-employment-flag" class="toggle-input" checked onchange="document.getElementById('prior-emp-form-label').textContent = this.checked ? 'Yes' : 'No'">
+                    <span class="toggle-switch"></span>
+                    <span id="prior-emp-form-label" style="font-weight: 600; color: var(--primary-navy);">Yes</span>
+                  </label>
+                </div>
+              </div>
+              <!-- Address -->
+              <div class="form-group" style="flex: 1;">
+                <label for="address">Residential Address</label>
+                <input type="text" id="address" class="form-control" value="Flat 4B, Andheri East, Mumbai">
+              </div>
+            </div>
+
+            <div class="hide-in-edit">
+              <!-- ══════════════════════════════════════════
+                   SECTION 2: BANK DETAILS
+              ══════════════════════════════════════════ -->
+              <h3 id="bank-section-title" style="border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; margin-top: 2rem; margin-bottom: 0.75rem; font-size: 1.05rem;">
+                Secure Disbursement Details
+              </h3>
+
+              <!-- Info banner: always visible -->
+              <div class="section-banner info" id="bank-info-banner">
+                🏦 <strong>Bank details can only be set here during initial employee creation.</strong>
+                Once the employee is <em>Active</em>, bank changes must go through the
+                <a href="/bank-change-requests" style="color:var(--status-info); font-weight:600;">Bank Change Requests approval flow</a>.
+              </div>
+
+              <!-- EDIT-ACTIVE locked state -->
+              <div id="bank-locked-section" style="display:none; margin-bottom: 1.5rem;">
+                <div style="padding: 0.75rem 1rem; background: #F8FAFC; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 0.85rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.5rem;">
+                  <span style="font-weight: 500; color: var(--text-main);">🔒 Locked — use <a href="/bank-change-requests" style="color:var(--primary-navy); font-weight:600; text-decoration:underline;">Bank Change Requests</a> to update</span>
+                </div>
+              </div>
+
+              <!-- Bank form fields (shown for Add / Edit-Onboarding) -->
+              <div id="bank-fields-section">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="account-no">Account Number <span style="color:var(--status-danger);">*</span></label>
+                    <input type="text" id="account-no" class="form-control" value="50100452398571"
+                      onblur="validateAccountMatch()" oninput="clearMsg('msg-account-no','account-no')">
+                    <div class="field-msg" id="msg-account-no"></div>
+                  </div>
+                  <div class="form-group">
+                    <label for="account-no-confirm">Confirm Account Number <span style="color:var(--status-danger);">*</span></label>
+                    <input type="text" id="account-no-confirm" class="form-control" value="50100452398571"
+                      onblur="validateAccountMatch()" oninput="clearMsg('msg-account-no-confirm','account-no-confirm')">
+                    <div class="field-msg" id="msg-account-no-confirm"></div>
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="ifsc">IFSC Code <span style="color:var(--status-danger);">*</span></label>
+                    <input type="text" id="ifsc" class="form-control" value="HDFC0000060"
+                      oninput="autoPopulateBank()" onblur="validateIFSC()">
+                    <div class="field-msg" id="msg-ifsc"></div>
+                  </div>
+                  <div class="form-group">
+                    <label>Bank Name <span style="font-size:0.75rem;color:var(--text-muted);">(auto-populated)</span></label>
+                    <input type="text" id="bank-name-display" class="form-control read-only-field" value="HDFC Bank" readonly>
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Branch <span style="font-size:0.75rem;color:var(--text-muted);">(auto-populated)</span></label>
+                    <input type="text" id="bank-branch-display" class="form-control read-only-field" value="Andheri East, Mumbai" readonly>
+                  </div>
+                  <div class="form-group">
+                    <label for="account-holder">Account Holder Name</label>
+                    <input type="text" id="account-holder" class="form-control" value="Aarav Sharma"
+                      onblur="validateAccountHolderName()" oninput="clearMsg('msg-account-holder','account-holder')">
+                    <div class="field-msg" id="msg-account-holder"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- ══════════════════════════════════════════
+                   SECTION 3: STATUTORY IDs
+              ══════════════════════════════════════════ -->
+              <h3 style="border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; margin-top: 2rem; margin-bottom: 1.25rem; font-size: 1.05rem;">
+                Statutory Credentials
+              </h3>
+
+              <div class="form-row">
+                <!-- PAN -->
+                <div class="form-group">
+                  <label for="pan">Permanent Account Number (PAN)</label>
+                  <input type="text" id="pan" class="form-control" value="ABCDE1234F"
+                    oninput="this.value=this.value.toUpperCase(); clearMsg('msg-pan','pan'); validateFullName();"
+                    onblur="validatePAN()">
+                  <div class="field-msg" id="msg-pan"></div>
+                </div>
+                <!-- Aadhaar -->
+                <div class="form-group">
+                  <label for="aadhaar">Aadhaar Number</label>
+                  <input type="text" id="aadhaar" class="form-control" value=""
+                    placeholder="12-digit Aadhaar"
+                    onfocus="showAadhaarClear()" onblur="maskAadhaar()" oninput="clearMsg('msg-aadhaar','aadhaar')">
+                  <div class="aadhaar-masked" id="aadhaar-masked">••••••••7890</div>
+                  <div class="field-msg" id="msg-aadhaar"></div>
+                </div>
+              </div>
+
+              <!-- UAN -->
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Provident Fund UAN</label>
+                  <div class="radio-row">
+                    <label>
+                      <input type="radio" name="uan-mode" value="prior" id="uan-mode-prior" onchange="onUanModeChange()" checked>
+                      Has Prior PF (enter existing UAN)
+                    </label>
+                    <label>
+                      <input type="radio" name="uan-mode" value="new" id="uan-mode-new" onchange="onUanModeChange()">
+                      Generate New UAN
+                    </label>
+                  </div>
+                  <input type="text" id="uan" class="form-control" value="100523485790" placeholder="Universal Account Number"
+                    oninput="clearMsg('msg-uan','uan')">
+                  <div class="field-msg" id="msg-uan"></div>
+                </div>
+                <!-- ESI Number (conditional) -->
+                <div class="form-group" id="esi-no-group">
+                  <label for="esi-no">ESI IP Number</label>
+                  <input type="text" id="esi-no" class="form-control" value="3114589723" placeholder="ESI Insurance IP No">
+                  <div class="field-msg info show" id="msg-esi-no" style="display:block;">Visible only when ESI Applicable is ON.</div>
+                </div>
+              </div>
+
+              <!-- ══════════════════════════════════════════
+                   SECTION 4: SALARY STRUCTURE
+              ══════════════════════════════════════════ -->
+              <h3 id="salary-section-title" style="border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; margin-top: 2rem; margin-bottom: 1.25rem; font-size: 1.05rem;">
+                Salary Structure &amp; Compensation (Monthly)
+              </h3>
+
+              <!-- Locked state for Active employees -->
+              <div id="salary-locked-msg" style="display:none; margin-bottom: 1.5rem;">
+                <div style="padding: 0.75rem 1rem; background: #F8FAFC; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-size: 0.85rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.5rem;">
+                  <span style="font-weight: 500; color: var(--text-main);">🔒 Locked — use <a href="/employees/1/salary-revision" style="color:var(--primary-navy); font-weight:600; text-decoration:underline;">Revise Salary</a> to update</span>
+                </div>
+              </div>
+
+              <div id="salary-fields-section">
+                <h4 style="font-size: 0.95rem; color: var(--primary-navy); margin-bottom: 1rem;">Earnings Breakdown</h4>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="basic-sal">1. Basic Pay (₹)</label>
+                    <input type="number" id="basic-sal" class="form-control" value="22000"
+                      oninput="calculateGross(); validateBasicPct()">
+                    <div class="field-msg" id="msg-basic-sal"></div>
+                  </div>
+                  <div class="form-group">
+                    <label for="hra-sal">2. HRA (House Rent Allowance) (₹)</label>
+                    <input type="number" id="hra-sal" class="form-control" value="11000" oninput="calculateGross()">
+                  </div>
+                  <div class="form-group">
+                    <label for="conveyance-sal">3. Conveyance (₹)</label>
+                    <input type="number" id="conveyance-sal" class="form-control" value="1600" oninput="calculateGross()">
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="da-sal">4. DA (Dearness Allowance) (₹)</label>
+                    <input type="number" id="da-sal" class="form-control" value="0" oninput="calculateGross()">
+                  </div>
+                  <div class="form-group">
+                    <label for="medical-sal">5. Medical Allowance (₹)</label>
+                    <input type="number" id="medical-sal" class="form-control" value="0" oninput="calculateGross()">
+                  </div>
+                  <div class="form-group">
+                    <label for="special-sal">6. Special Allowance (₹)</label>
+                    <input type="number" id="special-sal" class="form-control" value="10400" oninput="calculateGross()">
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="other-sal">7. Other Additions (₹)</label>
+                    <input type="number" id="other-sal" class="form-control" value="0" oninput="calculateGross()">
+                  </div>
+                  <div class="form-group">
+                    <label for="arrears-sal">8. Arrears Amount (₹)</label>
+                    <input type="number" id="arrears-sal" class="form-control" value="0" oninput="calculateGross()">
+                  </div>
+                </div>
+
+                <div style="background-color: var(--primary-navy); color: white; padding: 1rem; border-radius: var(--radius-sm); display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                  <span style="font-weight: 500;">Calculated Monthly Gross CTC:</span>
+                  <span id="gross-display" style="font-size: 1.5rem; font-weight: bold; color: var(--accent-gold);">₹45,000</span>
+                </div>
+
+                <h4 style="font-size: 0.95rem; color: var(--primary-navy); margin-bottom: 1rem;">Setup-Time Deductions</h4>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="pt-deduction">Professional Tax (₹)</label>
+                    <input type="number" id="pt-deduction" class="form-control" value="200">
+                  </div>
+                  <div class="form-group">
+                    <label for="welfare-fund">Welfare Fund (₹)</label>
+                    <input type="number" id="welfare-fund" class="form-control" value="0">
+                  </div>
+                </div>
+              </div>
+
+              <!-- ══════════════════════════════════════════
+                   SECTION 5: STATUTORY APPLICABILITY
+              ══════════════════════════════════════════ -->
+              <h3 style="border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; margin-top: 2rem; margin-bottom: 0.5rem; font-size: 1.05rem;">
+                Statutory Applicability for This Employee
+              </h3>
+              <p style="color: var(--text-muted); font-size: 0.75rem; margin-bottom: 1.25rem;">
+                ⚙️ <span id="inheritance-source-line" style="font-weight: 500; color: var(--primary-navy);">Defaults inherited from client...</span> Toggling any setting below creates a per-employee override.
+              </p>
+
+              <div style="display: flex; flex-direction: column; gap: 1rem; background-color: #F8FAFC; padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); margin-bottom: 1.5rem;">
+
+                <!-- PF Toggle -->
+                <div>
+                  <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <div>
+                      <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <strong style="font-size: 0.85rem;">PF Contribution</strong>
+                        <span class="badge badge-neutral" id="pf-tag">Inherited</span>
+                      </div>
+                      <span style="font-size: 0.75rem; color: var(--text-muted);">Standard 12% Provident Fund deductions.</span>
+                    </div>
+                    <label class="toggle-container">
+                      <input type="checkbox" class="toggle-input" checked id="pf-toggle" onchange="onPfToggleChange()">
+                      <span class="toggle-switch"></span>
+                    </label>
+                  </div>
+                  <div class="field-msg" id="msg-pf"></div>
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid var(--border-color);">
+
+                <!-- ESI Toggle -->
+                <div>
+                  <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <div>
+                      <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <strong style="font-size: 0.85rem;">ESI Contribution</strong>
+                        <span class="badge badge-neutral" id="esi-tag">Inherited</span>
+                        <!-- Tooltip -->
+                        <span class="tooltip-wrap">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted);vertical-align:middle;" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                          <span class="tooltip-text">ESI auto-disables only at the start of a new contribution period (Apr–Sep or Oct–Mar) — not instantly mid-cycle, per ESI Act rules.</span>
+                        </span>
+                      </div>
+                      <span style="font-size: 0.75rem; color: var(--text-muted); display: block;" id="esi-subtext">Standard ESI Medical benefits deductions.</span>
+                      <span class="badge badge-danger" id="esi-warning" style="display: none; margin-top: 0.25rem;">
+                        ⚠ Gross salary exceeds ESI threshold (₹21,000) — ESI does not apply.
+                      </span>
+                    </div>
+                    <label class="toggle-container">
+                      <input type="checkbox" class="toggle-input" id="esi-toggle" onchange="onEsiToggleChange()">
+                      <span class="toggle-switch"></span>
+                    </label>
+                  </div>
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid var(--border-color);">
+
+                <!-- TDS Toggle -->
+                <div>
+                  <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <div>
+                      <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <strong style="font-size: 0.85rem;">TDS (Tax Deducted at Source)</strong>
+                        <span class="badge badge-gold" id="tds-tag">Overridden (TDS Custom)</span>
+                      </div>
+                      <span style="font-size: 0.75rem; color: var(--text-muted);">Enable Monthly Tax calculations based on income declarations.</span>
+                    </div>
+                    <label class="toggle-container">
+                      <input type="checkbox" class="toggle-input" checked id="tds-toggle" onchange="onTdsToggleChange()">
+                      <span class="toggle-switch"></span>
+                    </label>
+                  </div>
+                  <div class="field-msg" id="msg-tds"></div>
+
+                  <!-- TDS Sub Fields -->
+                  <div id="tds-sub-fields" style="background-color: #FFFFFF; padding: 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-top: 0.5rem;">
+                    <div class="form-row">
+                      <div class="form-group" style="margin-bottom: 0;">
+                        <label for="tax-regime">Income Tax Regime</label>
+                        <select id="tax-regime" class="form-control" onchange="markOverride('tds')">
+                          <option value="old">Old Tax Regime</option>
+                          <option value="new" selected>New Tax Regime (Section 115BAC)</option>
+                          <option value="employee_choice">Employee Choice</option>
+                        </select>
+                      </div>
+                      <div class="form-group" style="margin-bottom: 0;">
+                        <label for="declarations">Investment Declarations Submitted?</label>
+                        <select id="declarations" class="form-control">
+                          <option value="yes" selected>Yes, Verified on File</option>
+                          <option value="no">No Declarations Received</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div class="suggestion-chip" style="margin-top:0.75rem; padding: 0.5rem 0.75rem; background: #FEF9C3; border-radius: var(--radius-sm); font-size: 0.8rem;">
+                      <span>💡 Based on declared CTC, New Regime may result in lower TDS.</span>
+                      <span class="suggestion-action" onclick="applyRegimeSuggestion()" style="margin-left:0.5rem; cursor:pointer; text-decoration:underline; color:var(--primary-navy);">[Apply Suggestion]</span>
+                    </div>
+                  </div>
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid var(--border-color);">
+
+                <!-- PT Toggle -->
+                <div>
+                  <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <div>
+                      <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <strong style="font-size: 0.85rem;">Professional Tax (PT)</strong>
+                        <span class="badge badge-neutral" id="pt-tag">Inherited</span>
+                      </div>
+                      <span style="font-size: 0.75rem; color: var(--text-muted);">State-level tax based on location.</span>
+                    </div>
+                    <label class="toggle-container">
+                      <input type="checkbox" class="toggle-input" id="pt-toggle" onchange="markOverride('pt')">
+                      <span class="toggle-switch"></span>
+                    </label>
+                  </div>
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid var(--border-color);">
+
+                <!-- LWF Toggle -->
+                <div>
+                  <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <div>
+                      <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <strong style="font-size: 0.85rem;">Labour Welfare Fund (LWF)</strong>
+                        <span class="badge badge-neutral" id="lwf-tag">Inherited</span>
+                      </div>
+                      <span style="font-size: 0.75rem; color: var(--text-muted);">State welfare fund contribution.</span>
+                    </div>
+                    <label class="toggle-container">
+                      <input type="checkbox" class="toggle-input" id="lwf-toggle" onchange="markOverride('lwf')">
+                      <span class="toggle-switch"></span>
+                    </label>
+                  </div>
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid var(--border-color);">
+
+                <!-- Statutory Bonus Toggle -->
+                <div>
+                  <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <div>
+                      <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <strong style="font-size: 0.85rem;">Statutory Bonus</strong>
+                        <span class="badge badge-neutral" id="bonus-tag">Inherited</span>
+                      </div>
+                      <span style="font-size: 0.75rem; color: var(--text-muted);">Payment of Bonus Act compliance.</span>
+                    </div>
+                    <label class="toggle-container">
+                      <input type="checkbox" class="toggle-input" id="bonus-toggle" onchange="markOverride('bonus')">
+                      <span class="toggle-switch"></span>
+                    </label>
+                  </div>
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid var(--border-color);">
+
+                <!-- Gratuity Mode Select -->
+                <div>
+                  <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <div>
+                      <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <strong style="font-size: 0.85rem;">Gratuity Mode</strong>
+                        <span class="badge badge-neutral" id="gratuity-tag">Inherited</span>
+                      </div>
+                      <span style="font-size: 0.75rem; color: var(--text-muted);">How gratuity is accrued in CTC.</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                      <select id="gratuity-select" class="form-control" style="width: auto; padding: 0.2rem 0.5rem; font-size: 0.8rem;" onchange="markOverride('gratuity')">
+                        <option value="part_of_ctc">Part of CTC</option>
+                        <option value="over_and_above">Over and Above</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid var(--border-color);">
+
+                <!-- LOP Basis Select -->
+                <div>
+                  <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <div>
+                      <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <strong style="font-size: 0.85rem;">LOP Basis</strong>
+                        <span class="badge badge-neutral" id="lop-tag">Inherited</span>
+                      </div>
+                      <span style="font-size: 0.75rem; color: var(--text-muted);">Days used to calculate per-day wage.</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                      <select id="lop-select" class="form-control" style="width: auto; padding: 0.2rem 0.5rem; font-size: 0.8rem;" onchange="markOverride('lop')">
+                        <option value="inherit_global">Global Default</option>
+                        <option value="26_days">26 Days</option>
+                        <option value="30_days">30 Days</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div><!-- end statutory toggles -->
+            </div><!-- end hide-in-edit wrapper -->
+
+            <!-- ── Form Submit Row ── -->
+            <div id="edit-footer-note" style="display: none; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-color); text-align: center; font-size: 0.85rem; color: var(--text-muted);">
+              Looking to update bank details, salary, or statutory settings? Go to: <a href="/bank-change-requests" style="color: var(--primary-navy); font-weight: 600; text-decoration: underline;">Bank Change Requests</a> · <a href="/employees/1/salary-revision?id=88" style="color: var(--primary-navy); font-weight: 600; text-decoration: underline;">Revise Salary</a> · <a href="/employees/create?id=88&amp;mode=add" style="color: var(--primary-navy); font-weight: 600; text-decoration: underline;">Employee Configuration Form</a>
+            </div>
+
+            <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem;">
+              <a href="/employees" class="btn btn-secondary">Cancel</a>
+              <button type="submit" class="btn btn-primary" id="save-btn">Save Employee Configuration</button>
+            </div>
+
+          </form>
+        </div><!-- end main form card -->
+
+        <!-- Sidebar Guidelines -->
+        <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+          <div class="card" style="background-color: var(--primary-navy); color: white;">
+            <h4 style="color: white; margin-bottom: 0.5rem;">Statutory Overrides Guide</h4>
+            <p style="font-size: 0.8rem; line-height: 1.4; opacity: 0.9; margin-bottom: 0.75rem;">
+              <strong>Inherited badge:</strong> The employee is following the default statutory configuration set at the client contract level.
+            </p>
+            <p style="font-size: 0.8rem; line-height: 1.4; opacity: 0.9;">
+              <strong>Overridden badge:</strong> The setting has been changed manually. This override will stick even if the client-level settings change in the future.
+            </p>
+          </div>
+
+          <!-- Validation Summary Card -->
+          <div class="card" id="validation-summary-card" style="display:none;">
+            <h4 style="color:var(--status-danger); margin-bottom:0.75rem;">⛔ Blocking Errors</h4>
+            <ul id="validation-summary-list" style="font-size:0.82rem; color:var(--status-danger); padding-left:1.1rem; margin:0; line-height:1.8;"></ul>
+          </div>
+
+          <div class="card">
+            <h4 style="margin-bottom: 0.75rem; font-size: 0.95rem;">Validation Legend</h4>
+            <div style="display:flex; flex-direction:column; gap:0.5rem; font-size:0.8rem;">
+              <div style="display:flex; align-items:center; gap:0.5rem;">
+                <div style="width:10px; height:10px; border-radius:50%; background:var(--status-danger);"></div>
+                <span>Red — blocking error, save disabled</span>
+              </div>
+              <div style="display:flex; align-items:center; gap:0.5rem;">
+                <div style="width:10px; height:10px; border-radius:50%; background:var(--status-warning);"></div>
+                <span>Amber — non-blocking warning, confirm before saving</span>
+              </div>
+              <div style="display:flex; align-items:center; gap:0.5rem;">
+                <div style="width:10px; height:10px; border-radius:50%; background:#CBD5E1;"></div>
+                <span>Grey — informational note</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div><!-- end grid-layout -->
+    
+<div class="modal-overlay" id="emp-type-modal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>⚠ Confirm Employment Type Change</h3>
+        <button class="modal-close" onclick="cancelEmpTypeChange()">×</button>
+      </div>
+      <div>
+        <p style="font-size:0.9rem; margin-bottom:1rem;">
+          Changing employment type after payroll history exists <strong>only applies going forward</strong> — past months' filings are not affected. Confirm?
+        </p>
+        <div class="section-banner warn">
+          Statutory filings (PF, ESI, TDS) for previous months remain under the old employment type classification. This change is prospective only.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="cancelEmpTypeChange()">Cancel</button>
+        <button class="btn btn-primary" onclick="confirmEmpTypeChange()">Yes, Change Going Forward</button>
+      </div>
+    </div>
+  </div>

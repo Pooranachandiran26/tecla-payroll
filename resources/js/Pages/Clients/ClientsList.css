@@ -1,0 +1,122 @@
+
+    /* Table Enhancements */
+    .client-name-cell {
+      display: flex;
+      flex-direction: column;
+      gap: 0.1rem;
+    }
+
+    .client-name-cell .name {
+      font-weight: 600;
+      color: var(--primary-navy);
+      font-size: 0.95rem;
+    }
+
+    .client-name-cell .meta {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .client-name-cell .meta span {
+      display: inline-block;
+      margin-right: 0.5rem;
+    }
+
+    /* Onboarding Progress */
+    .onboarding-progress {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.75rem;
+    }
+
+    .progress-bar-bg {
+      width: 60px;
+      height: 6px;
+      background: #E2E8F0;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: var(--accent-gold);
+    }
+
+    .progress-bar-fill.complete {
+      background: var(--status-success);
+    }
+
+    /* Bulk Actions Bar */
+    .bulk-actions-bar {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--primary-navy);
+      color: white;
+      padding: 0.75rem 1.5rem;
+      border-radius: var(--radius-md);
+      margin-bottom: 1rem;
+      animation: slideDown 0.2s ease-out;
+    }
+
+    .bulk-actions-bar.active {
+      display: flex;
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Pagination */
+    .pagination {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 1.5rem;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .page-info {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .page-controls {
+      display: flex;
+      gap: 0.25rem;
+    }
+
+    .page-btn {
+      border: 1px solid var(--border-color);
+      background: white;
+      color: var(--text-main);
+      padding: 0.4rem 0.75rem;
+      font-size: 0.85rem;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+    }
+
+    .page-btn:hover {
+      background: #FAFBFC;
+    }
+
+    .page-btn.active {
+      background: var(--primary-navy);
+      color: white;
+      border-color: var(--primary-navy);
+    }
+
+    .page-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  

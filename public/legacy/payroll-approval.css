@@ -1,0 +1,8 @@
+
+    /* Table styles for breakdown */
+    .table-scroll-wrapper { width: 100%; overflow-x: auto; }
+    .extended-table th, .extended-table td { white-space: nowrap; padding: 0.5rem; font-size: 0.8rem; }
+    .col-group-earn { background-color: #F8FAFC; }
+    .col-group-deduct { background-color: #FEF2F2; }
+    .col-group-total { background-color: #F0FDF4; font-weight: bold; }
+  

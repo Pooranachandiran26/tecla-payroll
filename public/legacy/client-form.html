@@ -1,0 +1,1452 @@
+
+      <!-- Page Header -->
+      <div style="margin-bottom: 1.5rem;">
+        <a href="/clients" style="font-size: 0.85rem; font-weight: 600;">← Back to Clients Directory</a>
+        <div style="display:flex; align-items:flex-end; justify-content:space-between; margin-top:0.5rem;">
+          <div>
+            <h2 style="margin-bottom: 0.2rem;" id="form-page-title">Add New Client</h2>
+            <p style="color: var(--text-muted); font-size: 0.9rem;">
+              Complete all sections for full compliance. Fields marked <span
+                style="color:var(--status-danger);">*</span> are mandatory.
+            </p>
+          </div>
+          <div style="display:flex; gap:0.5rem;">
+            <button type="button" class="btn btn-secondary" onclick="saveDraft()">💾 Save Draft</button>
+            <button type="button" class="btn btn-primary" onclick="submitForm()">✅ Save & Activate Client</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Progress Bar -->
+      <div class="form-progress" id="form-progress">
+        <div class="progress-step active" onclick="goToStep(1)" style="cursor: pointer;">① Identity</div>
+        <div class="progress-step" onclick="goToStep(2)" style="cursor: pointer;">② Address</div>
+        <div class="progress-step" onclick="goToStep(3)" style="cursor: pointer;">③ Contacts</div>
+        <div class="progress-step" onclick="goToStep(4)" style="cursor: pointer;">④ Contract</div>
+        <div class="progress-step" onclick="goToStep(5)" style="cursor: pointer;">⑤ Statutory</div>
+        <div class="progress-step" onclick="goToStep(6)" style="cursor: pointer;">⑥ Documents</div>
+        <div class="progress-step" onclick="goToStep(7)" style="cursor: pointer;">⑦ Portal</div>
+        <div class="progress-step" onclick="goToStep(8)" style="cursor: pointer;">⑧ SLA</div>
+      </div>
+
+      <div class="grid-layout">
+        <!-- ═══════════════ MAIN FORM ═══════════════ -->
+        <div class="card">
+          <form id="client-form" onsubmit="event.preventDefault();">
+
+            <div class="form-step-section active" id="step-section-1">
+              <!-- ══ SECTION 1: Company Identity ══ -->
+            <div class="section-header">
+              <div class="section-icon">🏢</div>
+              <h3>Company Identity</h3>
+              <span class="section-badge">MANDATORY</span>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group" style="flex:2;">
+                <label for="company-name">Legal Company Name <span style="color:var(--status-danger);">*</span></label>
+                <input type="text" id="company-name" class="form-control" placeholder="e.g. Mahindra & Mahindra Limited"
+                  required oninput="markProgress(1)">
+                <div class="field-hint" id="company-name-hint">Enter the exact legal name as per MCA registration.</div>
+              </div>
+              <div class="form-group">
+                <label for="company-type">Company Type <span style="color:var(--status-danger);">*</span></label>
+                <select id="company-type" class="form-control" required onchange="handleCompanyType(this.value); markProgress(1);">
+                  <option value="">-- Select --</option>
+                  <option value="pvt_ltd">Private Limited (Pvt. Ltd.)</option>
+                  <option value="pub_ltd">Public Limited (Ltd.)</option>
+                  <option value="llp">Limited Liability Partnership (LLP)</option>
+                  <option value="opc">One Person Company (OPC)</option>
+                  <option value="partnership">Partnership Firm</option>
+                  <option value="proprietorship">Sole Proprietorship</option>
+                  <option value="trust">Trust / Society / NGO</option>
+                  <option value="govt">Government / PSU</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Trust / NGO registration number -->
+            <div class="form-group" id="trust-reg-field" style="display:none; margin-bottom: 1rem;">
+              <label for="trust-reg-no">Trust/NGO Registration Number <span style="color:var(--status-danger);">*</span></label>
+              <input type="text" id="trust-reg-no" class="form-control" placeholder="e.g. REG/1234/2026">
+              <div class="field-hint">Required for tax-exempt verification.</div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="gstin">GSTIN <span style="color:var(--status-danger);">*</span></label>
+                <input type="text" id="gstin" class="form-control" placeholder="e.g. 27AAACM1234A1Z1" maxlength="15"
+                  style="text-transform:uppercase;" oninput="validateGSTIN(this)" required>
+                <div class="field-hint" id="gstin-hint">15-character alphanumeric GST Identification Number.</div>
+              </div>
+              <div class="form-group">
+                <label for="gst-type">GST Registration Type</label>
+                <select id="gst-type" class="form-control">
+                  <option value="regular">Regular Taxpayer</option>
+                  <option value="composition">Composition Scheme</option>
+                  <option value="unregistered">Unregistered (Exempt)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="pan">Company PAN <span style="color:var(--status-danger);">*</span></label>
+                <input type="text" id="pan" class="form-control" placeholder="e.g. AAACM1234A" maxlength="10"
+                  style="text-transform:uppercase;" oninput="validatePAN(this)" required>
+                <div class="field-hint" id="pan-hint">10-character PAN as per Income Tax.</div>
+              </div>
+              <div class="form-group">
+                <label for="tan">TAN (Tax Deduction Account No.)</label>
+                <input type="text" id="tan" class="form-control" placeholder="e.g. MUMD12345A" maxlength="10"
+                  style="text-transform:uppercase;" oninput="validateTAN(this)">
+                <div class="field-hint" id="tan-hint">Required for TDS deduction filing.</div>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="cin">CIN / LLPIN <span id="cin-required-label"
+                    style="color:var(--text-muted); font-weight:400;">(if applicable)</span></label>
+                <input type="text" id="cin" class="form-control" placeholder="e.g. U72900MH2010PTC123456"
+                  style="text-transform:uppercase;" oninput="validateCIN(this)">
+                <div class="field-hint" id="cin-hint">21-character Corporate Identity Number from MCA.</div>
+              </div>
+              <div class="form-group">
+                <label for="incorporation-date">Date of Incorporation</label>
+                <input type="date" id="incorporation-date" class="form-control" onchange="checkIncorporation(this)">
+                <div class="field-hint">Must be in the past. Used for gratuity eligibility calculations.</div>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="client-code">Client Code (Internal) <span style="color:var(--status-danger);">*</span></label>
+              <div style="display:flex; gap:0.5rem; align-items:center;">
+                <input type="text" id="client-code" class="form-control" placeholder="e.g. MAH-012" required
+                  style="max-width:200px;">
+                <button type="button" class="btn btn-secondary" onclick="autoGenerateCode()"
+                  style="white-space:nowrap;">
+                  ⚡ Auto-Generate
+                </button>
+                <span style="font-size:0.78rem; color:var(--text-muted);">Unique internal reference code for payroll
+                  processing.</span>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="industry">Industry / Sector</label>
+                <select id="industry" class="form-control" onchange="handleIndustryChange(this.value)">
+                  <option value="">-- Select Industry --</option>
+                  <option>Information Technology (IT)</option>
+                  <option>Banking, Financial Services & Insurance (BFSI)</option>
+                  <option>Manufacturing</option>
+                  <option>Healthcare & Pharmaceuticals</option>
+                  <option>Retail & E-Commerce</option>
+                  <option>Real Estate & Construction</option>
+                  <option>Logistics & Supply Chain</option>
+                  <option>Education & EdTech</option>
+                  <option>Automobile</option>
+                  <option>FMCG</option>
+                  <option>Telecom</option>
+                  <option>Other</option>
+                </select>
+                <div class="form-group" id="sub-industry-group" style="display:none; margin-top: 0.5rem;">
+                  <label for="sub-industry">Sub-Industry / Specialization</label>
+                  <input type="text" id="sub-industry" class="form-control" placeholder="e.g. IT Staffing, Tech Consulting">
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="client-status">Client Status</label>
+                <select id="client-status" class="form-control">
+                  <option value="onboarding">Onboarding (Draft)</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                  <option value="suspended">Suspended</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Work Locations & Group Company -->
+            <div class="form-row" style="margin-top: 1rem;">
+              <div class="form-group">
+                <label for="work-locations-count">Number of Work Locations</label>
+                <input type="number" id="work-locations-count" class="form-control" min="1" value="1">
+                <div class="field-hint">If > 1, Professional Tax will be computed per candidate work state.</div>
+              </div>
+              <div class="form-group">
+                <label style="display:block; margin-bottom: 0.5rem;">Group / Holding Company</label>
+                <div style="display:flex; align-items:center; gap:0.75rem; margin-top: 0.5rem;">
+                  <label class="toggle-container" style="margin:0;">
+                    <input type="checkbox" class="toggle-input" id="is-group-company" onchange="toggleGroupCompany(this)">
+                    <span class="toggle-switch"></span>
+                  </label>
+                  <span style="font-size:0.875rem;">Is part of a Group Company</span>
+                </div>
+              </div>
+            </div>
+            <div class="form-group" id="parent-company-group" style="display:none; margin-top:1rem;">
+              <label for="parent-company">Parent Company</label>
+              <input type="text" id="parent-company" class="form-control" placeholder="Type parent company name...">
+              <div class="field-hint">Links this client under a parent for consolidated billing reports.</div>
+            </div>
+            </div><!-- end step-section-1 -->
+
+            <div class="form-step-section" id="step-section-2">
+              <!-- ══ SECTION 2: Address ══ -->
+            <div class="section-header">
+              <div class="section-icon">📍</div>
+              <h3>Registered & Billing Address</h3>
+            </div>
+
+            <div class="form-group">
+              <label for="reg-address-line1">Registered Office Address Line 1 <span
+                  style="color:var(--status-danger);">*</span></label>
+              <input type="text" id="reg-address-line1" class="form-control" placeholder="Building Name, Street"
+                required>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="reg-address-line2">Address Line 2</label>
+                <input type="text" id="reg-address-line2" class="form-control" placeholder="Area, Locality">
+              </div>
+              <div class="form-group">
+                <label for="reg-city">City <span style="color:var(--status-danger);">*</span></label>
+                <input type="text" id="reg-city" class="form-control" placeholder="e.g. Mumbai" required>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="reg-state">State <span style="color:var(--status-danger);">*</span></label>
+                <select id="reg-state" class="form-control" required onchange="syncBillingState()">
+                  <option value="">-- Select State --</option>
+                  <option>Andhra Pradesh</option>
+                  <option>Arunachal Pradesh</option>
+                  <option>Assam</option>
+                  <option>Bihar</option>
+                  <option>Chhattisgarh</option>
+                  <option>Goa</option>
+                  <option>Gujarat</option>
+                  <option>Haryana</option>
+                  <option>Himachal Pradesh</option>
+                  <option>Jharkhand</option>
+                  <option>Karnataka</option>
+                  <option>Kerala</option>
+                  <option>Madhya Pradesh</option>
+                  <option selected>Maharashtra</option>
+                  <option>Manipur</option>
+                  <option>Meghalaya</option>
+                  <option>Mizoram</option>
+                  <option>Nagaland</option>
+                  <option>Odisha</option>
+                  <option>Punjab</option>
+                  <option>Rajasthan</option>
+                  <option>Sikkim</option>
+                  <option>Tamil Nadu</option>
+                  <option>Telangana</option>
+                  <option>Tripura</option>
+                  <option>Uttar Pradesh</option>
+                  <option>Uttarakhand</option>
+                  <option>West Bengal</option>
+                  <option>Delhi (NCT)</option>
+                  <option>Chandigarh</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="reg-pin">PIN Code <span style="color:var(--status-danger);">*</span></label>
+                <input type="text" id="reg-pin" class="form-control" placeholder="e.g. 400018" maxlength="6"
+                  oninput="validatePIN(this)" required>
+              </div>
+              <div class="form-group">
+                <label for="country">Country</label>
+                <select id="country" class="form-control" onchange="handleCountryChange(this.value)">
+                  <option value="India" selected>India</option>
+                  <option value="USA">USA</option>
+                  <option value="UAE">UAE</option>
+                  <option value="UK">UK</option>
+                  <option value="Singapore">Singapore</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Generic Tax ID / Registration number row (shown only for non-India) -->
+            <div class="form-row" id="generic-tax-id-row" style="display:none; margin-top: 1rem;">
+              <div class="form-group">
+                <label for="tax-id">Tax ID (Generic) <span style="color:var(--status-danger);">*</span></label>
+                <input type="text" id="tax-id" class="form-control" placeholder="e.g. EIN-12345678">
+              </div>
+              <div class="form-group">
+                <label for="reg-no">Registration Number <span style="color:var(--status-danger);">*</span></label>
+                <input type="text" id="reg-no" class="form-control" placeholder="e.g. REG-87654321">
+              </div>
+            </div>
+
+            <!-- Billing Address Toggle -->
+            <div
+              style="display:flex; align-items:center; gap:0.75rem; margin-bottom:1rem; padding:0.75rem 1rem; background:#F0F9FF; border-radius:var(--radius-sm); border:1px solid #BAE6FD;">
+              <label class="toggle-container" style="margin:0;">
+                <input type="checkbox" class="toggle-input" id="same-as-registered" checked
+                  onchange="toggleBillingAddress(this)">
+                <span class="toggle-switch"></span>
+              </label>
+              <span style="font-size:0.875rem; font-weight:500;">Billing address is same as Registered address</span>
+            </div>
+
+            <div id="billing-address-section" style="display:none;">
+              <h4 style="font-size:0.9rem; color:var(--primary-navy); margin-bottom:1rem;">Billing Address (for Invoice)
+              </h4>
+              <div class="form-group">
+                <label for="bill-address-line1">Billing Address Line 1</label>
+                <input type="text" id="bill-address-line1" class="form-control" placeholder="Building Name, Street">
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="bill-city">City</label>
+                  <input type="text" id="bill-city" class="form-control">
+                </div>
+                <div class="form-group">
+                  <label for="bill-state">State</label>
+                  <select id="bill-state" class="form-control">
+                    <option value="">-- Select State --</option>
+                    <option>Maharashtra</option>
+                    <option>Karnataka</option>
+                    <option>Delhi (NCT)</option>
+                    <option>Tamil Nadu</option>
+                    <option>Gujarat</option>
+                    <option>Telangana</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="bill-pin">PIN Code</label>
+                  <input type="text" id="bill-pin" class="form-control" maxlength="6">
+                </div>
+              </div>
+            </div>
+
+            <!-- Client Branches / Work Locations Section -->
+            <div id="client-branches-main-section" style="margin-top: 2rem; border-top: 1px dashed var(--border-color); padding-top: 1.5rem; margin-bottom: 1.5rem;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                <div>
+                  <h4 style="font-size:1.1rem; color:var(--primary-navy); margin:0;">Branch / Work Locations</h4>
+                </div>
+                <button type="button" class="btn btn-secondary btn-outline" onclick="addClientBranch()" style="border: 1px solid var(--border-color);">➕ Add New Branch</button>
+              </div>
+              <div class="info-box" style="margin-bottom: 1rem; border-left-color: #0284c7; background: #f0f9ff; color: #0c4a6e;">
+                💡 Each branch is treated as a separate billing entity. Invoices are raised branch-wise using that branch's GSTIN and billed to its Finance POC. Employees are assigned to a specific branch when they are onboarded.
+              </div>
+              
+              <div id="client-branches-container" style="display: flex; flex-direction: column; gap: 1rem;">
+                <!-- Branch Cards Appended Here -->
+              </div>
+            </div>
+
+            </div><!-- end step-section-2 -->
+
+            <div class="form-step-section" id="step-section-3">
+              <!-- ══ SECTION 3: Contact Persons ══ -->
+            <div class="section-header">
+              <div class="section-icon">👥</div>
+              <h3>Contact Persons</h3>
+              <span class="section-badge">MULTI-CONTACT</span>
+            </div>
+
+            <div class="info-box" style="margin-bottom:1rem;">
+              💡 Add all contact persons with their roles. The <strong>Primary POC</strong> receives all payroll
+              communications.
+              <strong>Finance Contact</strong> receives invoices. <strong>HR Contact</strong> receives onboarding and
+              exit emails.
+            </div>
+
+            <!-- Primary POC -->
+            <div
+              style="background:#FAFBFC; border:1px solid var(--border-color); border-radius:var(--radius-md); padding:1rem; margin-bottom:1rem;">
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.75rem;">
+                <strong style="font-size:0.875rem; color:var(--primary-navy);">👤 Primary Point of Contact
+                  (POC)</strong>
+                <span class="badge badge-info">Receives All Comms</span>
+              </div>
+              <div class="form-row">
+                <div class="form-group"><label>Full Name <span style="color:var(--status-danger);">*</span></label>
+                  <input type="text" id="poc1-name" class="form-control" placeholder="e.g. Vikas Mehta" required>
+                </div>
+                <div class="form-group"><label>Designation</label>
+                  <input type="text" id="poc1-designation" class="form-control" placeholder="e.g. HR Manager">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group"><label>Email <span style="color:var(--status-danger);">*</span></label>
+                  <input type="email" id="poc1-email" class="form-control" placeholder="e.g. vikas@mahindra.com"
+                    required oninput="validateEmail(this)">
+                </div>
+                <div class="form-group"><label>Phone <span style="color:var(--status-danger);">*</span></label>
+                  <input type="tel" id="poc1-phone" class="form-control" placeholder="10-digit mobile" maxlength="10"
+                    oninput="validatePhone(this)" required>
+                </div>
+              </div>
+              <div class="form-row" style="margin-top:0.75rem; align-items:center; gap: 1.5rem;">
+                <div class="form-group" style="display:flex; align-items:center; gap:0.5rem; margin:0;">
+                  <label class="toggle-container" style="margin:0;">
+                    <input type="checkbox" class="toggle-input" id="poc1-whatsapp-same" checked>
+                    <span class="toggle-switch"></span>
+                  </label>
+                  <span style="font-size:0.8rem;">WhatsApp same as Phone</span>
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label style="font-size:0.8rem; display:block; margin-bottom:0.25rem;">Communication Preferences</label>
+                  <div style="display:flex; gap:0.75rem;">
+                    <label style="font-size:0.78rem; display:flex; align-items:center; gap:0.25rem; cursor:pointer; user-select:none;">
+                      <input type="checkbox" id="poc1-pref-email" checked> ✉️ Email
+                    </label>
+                    <label style="font-size:0.78rem; display:flex; align-items:center; gap:0.25rem; cursor:pointer; user-select:none;">
+                      <input type="checkbox" id="poc1-pref-sms" checked> 📱 SMS
+                    </label>
+                    <label style="font-size:0.78rem; display:flex; align-items:center; gap:0.25rem; cursor:pointer; user-select:none;">
+                      <input type="checkbox" id="poc1-pref-wa" checked> 💬 WhatsApp
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Finance POC -->
+            <div
+              style="background:#FAFBFC; border:1px solid var(--border-color); border-radius:var(--radius-md); padding:1rem; margin-bottom:1rem;">
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.75rem;">
+                <strong style="font-size:0.875rem; color:var(--primary-navy);">💼 Finance / Accounts Contact</strong>
+                <span class="badge badge-warning">Receives Invoices</span>
+              </div>
+              <div class="form-row">
+                <div class="form-group"><label>Full Name</label>
+                  <input type="text" id="poc2-name" class="form-control" placeholder="e.g. Ravi Joshi">
+                </div>
+                <div class="form-group"><label>Designation</label>
+                  <input type="text" id="poc2-designation" class="form-control" placeholder="e.g. Accounts Manager">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group"><label>Email</label>
+                  <input type="email" id="poc2-email" class="form-control" placeholder="e.g. accounts@mahindra.com"
+                    oninput="validateEmail(this)">
+                </div>
+                <div class="form-group"><label>Phone</label>
+                  <input type="tel" id="poc2-phone" class="form-control" placeholder="10-digit mobile" maxlength="10"
+                    oninput="validatePhone(this)">
+                </div>
+              </div>
+              <div class="form-row" style="margin-top:0.75rem; align-items:center; gap:1.5rem;">
+                <div class="form-group" style="display:flex; align-items:center; gap:0.5rem; margin:0;">
+                  <label class="toggle-container" style="margin:0;">
+                    <input type="checkbox" class="toggle-input" id="poc2-whatsapp-same" checked>
+                    <span class="toggle-switch"></span>
+                  </label>
+                  <span style="font-size:0.8rem;">WhatsApp same as Phone</span>
+                </div>
+                <div class="form-group" style="display:flex; align-items:center; gap:0.5rem; margin:0;">
+                  <label class="toggle-container" style="margin:0;">
+                    <input type="checkbox" class="toggle-input" id="poc2-cc-invoice" checked>
+                    <span class="toggle-switch"></span>
+                  </label>
+                  <span style="font-size:0.8rem; font-weight: 500;">CC on Invoice Email</span>
+                </div>
+              </div>
+              <div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.5rem;">
+                Communication Preferences:
+                <label style="margin-left:0.5rem; font-size:0.75rem; cursor:pointer;"><input type="checkbox" id="poc2-pref-email" checked> ✉️ Email</label>
+                <label style="margin-left:0.5rem; font-size:0.75rem; cursor:pointer;"><input type="checkbox" id="poc2-pref-sms"> 📱 SMS</label>
+                <label style="margin-left:0.5rem; font-size:0.75rem; cursor:pointer;"><input type="checkbox" id="poc2-pref-wa"> 💬 WhatsApp</label>
+              </div>
+            </div>
+
+            <!-- HR POC -->
+            <div
+              style="background:#FAFBFC; border:1px solid var(--border-color); border-radius:var(--radius-md); padding:1rem; margin-bottom:1rem;">
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.75rem;">
+                <strong style="font-size:0.875rem; color:var(--primary-navy);">🏷️ HR / Onboarding Contact</strong>
+                <span class="badge badge-success">Receives HR Notifications</span>
+              </div>
+              <div class="form-row">
+                <div class="form-group"><label>Full Name</label>
+                  <input type="text" id="poc3-name" class="form-control" placeholder="e.g. Priya Nair">
+                </div>
+                <div class="form-group"><label>Email</label>
+                  <input type="email" id="poc3-email" class="form-control" placeholder="e.g. hr@mahindra.com"
+                    oninput="validateEmail(this)">
+                </div>
+              </div>
+              <div class="form-row" style="margin-top:0.75rem; align-items:center; gap:1.5rem;">
+                <div class="form-group" style="display:flex; align-items:center; gap:0.5rem; margin:0;">
+                  <label class="toggle-container" style="margin:0;">
+                    <input type="checkbox" class="toggle-input" id="poc3-whatsapp-same" checked>
+                    <span class="toggle-switch"></span>
+                  </label>
+                  <span style="font-size:0.8rem;">WhatsApp same as Phone</span>
+                </div>
+                <div class="form-group" style="display:flex; align-items:center; gap:0.5rem; margin:0;">
+                  <label class="toggle-container" style="margin:0;">
+                    <input type="checkbox" class="toggle-input" id="poc3-onboarding-kits" checked>
+                    <span class="toggle-switch"></span>
+                  </label>
+                  <span style="font-size:0.8rem; font-weight: 500;">Receives Onboarding Kits</span>
+                </div>
+              </div>
+              <div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.5rem;">
+                Communication Preferences:
+                <label style="margin-left:0.5rem; font-size:0.75rem; cursor:pointer;"><input type="checkbox" id="poc3-pref-email" checked> ✉️ Email</label>
+                <label style="margin-left:0.5rem; font-size:0.75rem; cursor:pointer;"><input type="checkbox" id="poc3-pref-sms"> 📱 SMS</label>
+                <label style="margin-left:0.5rem; font-size:0.75rem; cursor:pointer;"><input type="checkbox" id="poc3-pref-wa"> 💬 WhatsApp</label>
+              </div>
+            </div>
+
+            <!-- Dynamic Additional Contacts -->
+            <div id="extra-contacts-container"></div>
+            <button type="button" class="btn btn-secondary btn-xs" onclick="addExtraContact()" style="margin-top:0.75rem; margin-bottom: 1.5rem;">
+              ➕ Add Another Contact
+            </button>
+            </div><!-- end step-section-3 -->
+
+            <div class="form-step-section" id="step-section-4">
+              <!-- ══ SECTION 4: Contract & Billing ══ -->
+            <div class="section-header">
+              <div class="section-icon">📄</div>
+              <h3>Contract Terms & Billing Configuration</h3>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="contract-type">Contract Type <span style="color:var(--status-danger);">*</span></label>
+                <select id="contract-type" class="form-control" required onchange="handleContractTypeChange(this)">
+                  <option value="">-- Select --</option>
+                  <option value="agency">Agency Payroll (Staffing Model)</option>
+                  <option value="eor">Employer of Record (EOR / Pass-through)</option>
+                  <option value="hybrid">Hybrid (Agency + EOR)</option>
+                  <option value="consulting">Consulting / Project Based</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="billing-model">Billing Model <span style="color:var(--status-danger);">*</span></label>
+                <select id="billing-model" class="form-control" required onchange="handleBillingModelChange(this)">
+                  <option value="">-- Select --</option>
+                  <option value="markup">CTC + Markup Percentage (%)</option>
+                  <option value="fixed_per_candidate">Fixed Fee Per Candidate (₹/candidate)</option>
+                  <option value="fixed_per_month">Fixed Monthly Retainer (₹/month)</option>
+                  <option value="lumpsum">Lump Sum Project Billing</option>
+                  <option value="hourly">Hourly Rate Billing</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Dynamic billing fields -->
+            <div id="billing-markup-fields" class="conditional-field hidden">
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="markup-pct">Markup / Commission Percentage (%) <span
+                      style="color:var(--status-danger);">*</span></label>
+                  <input type="number" id="markup-pct" class="form-control" placeholder="e.g. 8.5" step="0.1" min="0"
+                    max="100">
+                  <div class="field-hint">Applied on total CTC. Invoice = CTC × (1 + markup%).</div>
+                </div>
+                <div class="form-group">
+                  <label for="markup-base">Markup Applied On</label>
+                  <select id="markup-base" class="form-control">
+                    <option value="gross">Gross Salary (CTC)</option>
+                    <option value="basic">Basic Salary Only</option>
+                    <option value="ctc_minus_statutory">CTC minus Statutory Employer Contributions</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div id="billing-fixed-candidate-fields" class="conditional-field hidden">
+              <div class="form-group" style="max-width:300px;">
+                <label for="fixed-fee-candidate">Fixed Fee Per Candidate (₹) <span
+                    style="color:var(--status-danger);">*</span></label>
+                <input type="number" id="fixed-fee-candidate" class="form-control" placeholder="e.g. 1500" min="0">
+                <div class="field-hint">Charged per active candidate per billing cycle.</div>
+              </div>
+            </div>
+
+            <div id="billing-fixed-monthly-fields" class="conditional-field hidden">
+              <div class="form-group" style="max-width:300px;">
+                <label for="fixed-monthly-retainer">Monthly Retainer Amount (₹) <span
+                    style="color:var(--status-danger);">*</span></label>
+                <input type="number" id="fixed-monthly-retainer" class="form-control" placeholder="e.g. 50000" min="0">
+              </div>
+            </div>
+
+            <div id="billing-hourly-fields" class="conditional-field hidden">
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="hourly-rate">Hourly Rate (₹/hr)</label>
+                  <input type="number" id="hourly-rate" class="form-control" placeholder="e.g. 850" min="0">
+                </div>
+                <div class="form-group">
+                  <label for="standard-hours">Standard Working Hours / Month</label>
+                  <input type="number" id="standard-hours" class="form-control" placeholder="e.g. 160" min="0">
+                </div>
+              </div>
+            </div>
+
+            <!-- OT Billing Rules -->
+            <div class="form-row" style="margin-top:1rem; margin-bottom:1rem; padding-top:1rem; border-top:1px solid var(--border-color);">
+              <div class="form-group">
+                <label for="ot-billing">Overtime (OT) Billing Rule <span style="color:var(--status-danger);">*</span></label>
+                <select id="ot-billing" class="form-control" required>
+                  <option value="not_applicable">Not Applicable (No OT Billed)</option>
+                  <option value="standard">Standard Rate (1.0x hourly rate)</option>
+                  <option value="1_5x">1.5x Hourly Rate</option>
+                  <option value="double">Double Time (2.0x hourly rate)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="ot-approval">OT Approval Workflow</label>
+                <select id="ot-approval" class="form-control">
+                  <option value="timesheet">Auto-approve via Timesheet</option>
+                  <option value="manager">Client Manager Approval Required</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="invoice-cycle">Invoice Generation Cycle</label>
+                <select id="invoice-cycle" class="form-control">
+                  <option value="monthly">Monthly (Last working day of month)</option>
+                  <option value="biweekly">Bi-Weekly (Every 2 weeks)</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="quarterly">Quarterly</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="payment-terms">Payment Net Terms <span style="color:var(--status-danger);">*</span></label>
+                <select id="payment-terms" class="form-control" required>
+                  <option value="immediate">Due on Receipt (Immediate)</option>
+                  <option value="net7">Net 7 Days</option>
+                  <option value="net15" selected>Net 15 Days</option>
+                  <option value="net30">Net 30 Days</option>
+                  <option value="net45">Net 45 Days</option>
+                  <option value="net60">Net 60 Days</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="contract-start">Contract Start Date <span
+                    style="color:var(--status-danger);">*</span></label>
+                <input type="date" id="contract-start" class="form-control" required onchange="validateContractDates()">
+              </div>
+              <div class="form-group">
+                <label for="contract-end">Contract End Date</label>
+                <input type="date" id="contract-end" class="form-control" onchange="validateContractDates()">
+                <div class="field-hint" id="contract-end-hint">Leave blank for open-ended contracts.</div>
+              </div>
+            </div>
+
+            <div
+              style="display:flex; gap:1.5rem; flex-wrap:wrap; padding:0.75rem 1rem; background:#F8FAFC; border:1px solid var(--border-color); border-radius:var(--radius-md); margin-bottom:1.25rem;">
+              <label style="display:flex; align-items:center; gap:0.5rem; font-size:0.875rem; cursor:pointer;">
+                <input type="checkbox" id="auto-renewal" style="width:16px; height:16px;">
+                <span>Auto-Renewal (renew for same period if not terminated)</span>
+              </label>
+              <label style="display:flex; align-items:center; gap:0.5rem; font-size:0.875rem; cursor:pointer;">
+                <input type="checkbox" id="po-required" style="width:16px; height:16px;" onchange="togglePOFields(this)">
+                <span>Purchase Order (PO) Required before invoicing</span>
+              </label>
+            </div>
+
+            <!-- PO Fields (conditional) -->
+            <div id="po-fields" style="display:none; background:#FAFBFC; border:1px dashed var(--border-color); border-radius:var(--radius-md); padding:1rem; margin-bottom:1.25rem;">
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="po-number">PO Number <span style="color:var(--status-danger);">*</span></label>
+                  <input type="text" id="po-number" class="form-control" placeholder="e.g. PO/2026/00142">
+                  <div class="field-hint">Invoice held as Draft until PO number is entered here.</div>
+                </div>
+                <div class="form-group">
+                  <label for="po-value">PO Value (₹)</label>
+                  <input type="number" id="po-value" class="form-control" placeholder="e.g. 500000">
+                  <div class="field-hint">Invoice generation blocked if cumulative invoices exceed this amount.</div>
+                </div>
+              </div>
+              <div class="form-group" style="max-width:300px; margin-bottom:0;">
+                <label for="po-validity">PO Validity Date</label>
+                <input type="date" id="po-validity" class="form-control">
+                <div class="field-hint">Invoice generation blocked after this date.</div>
+              </div>
+            </div>
+
+            <!-- Additional Contract / GST / TDS Preferences -->
+            <div class="form-row">
+              <div class="form-group">
+                <label for="gst-rate">Applicable GST Rate <span style="color:var(--status-danger);">*</span></label>
+                <select id="gst-rate" class="form-control" onchange="handleGSTRateChange(this.value)">
+                  <option value="18" selected>18% (Standard)</option>
+                  <option value="12">40%</option>
+                  <option value="5">5%</option>
+                  <option value="0_exempt">0% (Exempt/SEZ)</option>
+                  <option value="0_lut">0% + LUT Filed</option>
+                </select>
+              </div>
+              <div class="form-group" id="lut-ref-group" style="display:none;">
+                <label for="lut-ref-no">LUT/Bond Reference No. <span style="color:var(--status-danger);">*</span></label>
+                <input type="text" id="lut-ref-no" class="form-control" placeholder="e.g. LUT/2026-27/123">
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label style="display:block; margin-bottom: 0.5rem;">Reverse Charge Applicable</label>
+                <div style="display:flex; align-items:center; gap:0.75rem; margin-top: 0.5rem;">
+                  <label class="toggle-container" style="margin:0;">
+                    <input type="checkbox" class="toggle-input" id="reverse-charge">
+                    <span class="toggle-switch"></span>
+                  </label>
+                  <span style="font-size:0.875rem;">Shift GST liability to client</span>
+                </div>
+                <div class="field-hint">If active, invoice will bear 'Reverse Charge Applicable' note.</div>
+              </div>
+              <div class="form-group">
+                <label for="tds-applicable-agency">TDS Applicable on Agency Invoice</label>
+                <select id="tds-applicable-agency" class="form-control" onchange="handleTDSChange(this.value)">
+                  <option value="na" selected>Not Applicable</option>
+                  <option value="1">1% — Sec 194C (Contractor)</option>
+                  <option value="2">2% — Sec 194J (Professional)</option>
+                  <option value="10">10% — Sec 194J (Professional)</option>
+                  <option value="other">Other</option>
+                </select>
+                <div class="field-hint" id="tds-preview-hint">Net receivable = Invoice Amount</div>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Invoice Format Preference</label>
+              <div style="display:flex; gap:1.5rem; margin-top:0.25rem;">
+                <label style="display:flex; align-items:center; gap:0.4rem; cursor:pointer;">
+                  <input type="checkbox" id="pref-format-pdf" checked> PDF Format
+                </label>
+                <label style="display:flex; align-items:center; gap:0.4rem; cursor:pointer;">
+                  <input type="checkbox" id="pref-format-xlsx"> XLSX Format
+                </label>
+              </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom:1.5rem;">
+              <label for="invoice-footer-notes">Invoice Footer Notes</label>
+              <textarea id="invoice-footer-notes" class="form-control" rows="3" placeholder="e.g. Please include PO number in payment reference. NEFT preferred."></textarea>
+              <div class="field-hint">Appears at the bottom of every invoice sent to this client.</div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="notice-period">Contract Notice Period (days)</label>
+                <input type="number" id="notice-period" class="form-control" placeholder="e.g. 30" min="0" value="30">
+                <div class="field-hint">Days notice required to terminate the contract.</div>
+              </div>
+              <div class="form-group">
+                <label for="credit-limit">Credit Limit (₹)</label>
+                <input type="number" id="credit-limit" class="form-control" placeholder="e.g. 1000000" min="0">
+                <div class="field-hint">Maximum outstanding receivable allowed.</div>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="late-penalty">Late Payment Penalty (%)</label>
+                <input type="number" id="late-penalty" class="form-control" placeholder="e.g. 1.5" step="0.1" min="0"
+                  max="36">
+                <div class="field-hint">% per month applied after due date. Standard: 1.5%/month.</div>
+              </div>
+              <div class="form-group">
+                <label for="billing-currency">Billing Currency</label>
+                <select id="billing-currency" class="form-control">
+                  <option value="INR" selected>₹ INR (Indian Rupee)</option>
+                  <option value="USD">$ USD (US Dollar)</option>
+                  <option value="EUR">€ EUR (Euro)</option>
+                  <option value="GBP">£ GBP (British Pound)</option>
+                  <option value="SGD">S$ SGD (Singapore Dollar)</option>
+                  <option value="AED">AED (UAE Dirham)</option>
+                </select>
+              </div>
+            </div>
+            </div><!-- end step-section-4 -->
+
+            <div class="form-step-section" id="step-section-5">
+              <!-- ══ SECTION 5: Statutory Defaults ══ -->
+            <div class="section-header">
+              <div class="section-icon">⚖️</div>
+              <h3>Statutory Defaults for This Client</h3>
+              <span class="section-badge">INHERITED BY CANDIDATES</span>
+            </div>
+
+            <div class="warn-box" style="margin-bottom:1rem;">
+              ⚠️ These are <strong>default settings</strong> applied to ALL new candidates registered under this client.
+              Individual overrides can be done on each candidate's profile page.
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:0.75rem;">
+
+              <!-- PF -->
+              <div class="stat-row">
+                <div class="stat-info">
+                  <strong>Provident Fund (PF) — EPFO</strong>
+                  <span>Employee: 12% of Basic. Employer: 12% (3.67% EPF + 8.33% EPS). Applicable on Basic up to
+                    ₹15,000.</span>
+                </div>
+                <div class="stat-rate">
+                  <div style="font-size:0.7rem; color:var(--text-muted); margin-bottom:0.2rem;">Wage Ceiling Override
+                    (₹)</div>
+                  <input type="number" class="stat-rate-input" id="pf-ceiling" placeholder="15000" value="15000" onchange="handlePFCeiling(this.value)">
+                  <div class="field-hint" id="pf-ceiling-hint" style="font-size: 0.65rem; margin-top: 0.2rem; color: var(--text-muted);">Standard EPFO statutory wage ceiling is ₹15,000.</div>
+                </div>
+                <div class="stat-toggle">
+                  <label class="toggle-container">
+                    <input type="checkbox" class="toggle-input" id="pf-applicable" checked>
+                    <span class="toggle-switch"></span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- EPF Admin Charges -->
+              <div class="stat-row" style="background: #F8FAFC; border: 1px dashed var(--border-color);">
+                <div class="stat-info">
+                  <strong>EPF Admin Charges</strong>
+                  <span style="font-size: 0.75rem; color: var(--text-muted);">0.5% on EPF wages (minimum ₹500/month). Paid by employer to EPFO.</span>
+                </div>
+                <div class="stat-rate"></div>
+                <div><span class="badge badge-neutral" style="font-size: 0.65rem; background: var(--border-color); color: var(--text-main);">Auto-Computed</span></div>
+              </div>
+
+              <!-- EDLI -->
+              <div class="stat-row" style="background: #F8FAFC; border: 1px dashed var(--border-color);">
+                <div class="stat-info">
+                  <strong>EDLI (Employees' Deposit Linked Insurance)</strong>
+                  <span style="font-size: 0.75rem; color: var(--text-muted);">0.5% on wages up to ₹15,000. Employer contribution only.</span>
+                </div>
+                <div class="stat-rate"></div>
+                <div><span class="badge badge-neutral" style="font-size: 0.65rem; background: var(--border-color); color: var(--text-main);">Auto-Computed</span></div>
+              </div>
+
+              <!-- ESI -->
+              <div class="stat-row">
+                <div class="stat-info">
+                  <strong>Employee State Insurance (ESI) — ESIC</strong>
+                  <span>Employee: 0.75% of Gross. Employer: 3.25% of Gross. Applicable if Gross ≤ ₹21,000/month.</span>
+                </div>
+                <div class="stat-rate">
+                  <div style="font-size:0.7rem; color:var(--text-muted); margin-bottom:0.2rem;">Gross Limit Override (₹)
+                  </div>
+                  <input type="number" class="stat-rate-input" id="esi-limit" placeholder="21000" value="21000" onchange="handleESILimit(this.value)">
+                  <div class="field-hint" id="esi-limit-hint" style="font-size: 0.65rem; margin-top: 0.2rem; color: var(--text-muted);">Standard ESIC statutory gross wage ceiling is ₹21,000.</div>
+                </div>
+                <div class="stat-toggle">
+                  <label class="toggle-container">
+                    <input type="checkbox" class="toggle-input" id="esi-applicable" checked>
+                    <span class="toggle-switch"></span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- PT -->
+              <div class="stat-row">
+                <div class="stat-info">
+                  <strong>Professional Tax (PT) — State Govt.</strong>
+                  <span>Deducted per state-specific slabs. Maharashtra: Max ₹200/month. Computed from candidate work
+                    location.</span>
+                </div>
+                <div class="stat-rate">
+                  <div style="font-size:0.7rem; color:var(--text-muted); margin-bottom:0.2rem;">Override State Slab
+                  </div>
+                  <select class="stat-rate-input" id="pt-state">
+                    <option value="auto">Auto (from location)</option>
+                    <option value="MH">Maharashtra</option>
+                    <option value="KA">Karnataka</option>
+                    <option value="WB">West Bengal</option>
+                    <option value="TN">Tamil Nadu</option>
+                    <option value="AP">Andhra Pradesh</option>
+                    <option value="TS">Telangana</option>
+                    <option value="NA">Not Applicable</option>
+                  </select>
+                </div>
+                <div class="stat-toggle">
+                  <label class="toggle-container">
+                    <input type="checkbox" class="toggle-input" id="pt-applicable" checked>
+                    <span class="toggle-switch"></span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- LWF -->
+              <div class="stat-row">
+                <div class="stat-info">
+                  <strong>Labour Welfare Fund (LWF) — State Govt.</strong>
+                  <span>Bi-annual or annual deduction. Amount varies by state (e.g. Maharashtra: ₹6 employee + ₹12
+                    employer per June & Dec).</span>
+                </div>
+                <div class="stat-rate">
+                  <div style="font-size:0.7rem; color:var(--text-muted); margin-bottom:0.2rem;">LWF Frequency</div>
+                  <select class="stat-rate-input" id="lwf-frequency">
+                    <option value="biannual">Bi-Annual (Jun & Dec)</option>
+                    <option value="annual">Annual (Dec only)</option>
+                    <option value="monthly">Monthly</option>
+                  </select>
+                </div>
+                <div class="stat-toggle">
+                  <label class="toggle-container">
+                    <input type="checkbox" class="toggle-input" id="lwf-applicable">
+                    <span class="toggle-switch"></span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- TDS -->
+              <div class="stat-row">
+                <div class="stat-info">
+                  <strong>TDS (Tax Deducted at Source) — Income Tax Act</strong>
+                  <span>Deducted under Sec 192. New Regime is default since FY 2023-24. Employee can opt for Old Regime
+                    via declaration.</span>
+                </div>
+                <div class="stat-rate">
+                  <div style="font-size:0.7rem; color:var(--text-muted); margin-bottom:0.2rem;">Default Tax Regime</div>
+                  <select class="stat-rate-input" id="tds-regime">
+                    <option value="new">New Regime (Default)</option>
+                    <option value="old">Old Regime</option>
+                    <option value="employee_choice">Employee's Choice</option>
+                  </select>
+                </div>
+                <div class="stat-toggle">
+                  <label class="toggle-container">
+                    <input type="checkbox" class="toggle-input" id="tds-applicable" checked>
+                    <span class="toggle-switch"></span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Gratuity -->
+              <div class="stat-row">
+                <div class="stat-info">
+                  <strong>Gratuity — Payment of Gratuity Act, 1972</strong>
+                  <span>Applicable after 5 years of continuous service. Formula: (Last Basic × 15/26) × Years of
+                    Service.</span>
+                </div>
+                <div class="stat-rate">
+                  <div style="font-size:0.7rem; color:var(--text-muted); margin-bottom:0.2rem;">CTC Inclusion</div>
+                  <select class="stat-rate-input" id="gratuity-mode">
+                    <option value="ctc_included">Part of CTC</option>
+                    <option value="over_ctc">Over & Above CTC</option>
+                    <option value="na">Not in CTC</option>
+                  </select>
+                </div>
+                <div class="stat-toggle">
+                  <label class="toggle-container">
+                    <input type="checkbox" class="toggle-input" id="gratuity-applicable" checked>
+                    <span class="toggle-switch"></span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Bonus -->
+              <div class="stat-row">
+                <div class="stat-info">
+                  <strong>Statutory Bonus — Payment of Bonus Act, 1965</strong>
+                  <span>Applicable if salary ≤ ₹21,000. Minimum 8.33%, Maximum 20% of basic wages per year.</span>
+                </div>
+                <div class="stat-rate">
+                  <div style="font-size:0.7rem; color:var(--text-muted); margin-bottom:0.2rem;">Bonus Rate (%)</div>
+                  <input type="number" class="stat-rate-input" id="bonus-pct" placeholder="8.33" value="8.33"
+                    step="0.01" min="8.33" max="20">
+                </div>
+                <div class="stat-toggle">
+                  <label class="toggle-container">
+                    <input type="checkbox" class="toggle-input" id="bonus-applicable">
+                    <span class="toggle-switch"></span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- LOP Basis Override -->
+              <div class="stat-row">
+                <div class="stat-info">
+                  <strong>Loss of Pay (LOP) Calculation Basis</strong>
+                  <span>Determines the denominator for daily rate calculations during unapproved absences.</span>
+                </div>
+                <div class="stat-rate" style="width: 220px;">
+                  <div style="font-size:0.7rem; color:var(--text-muted); margin-bottom:0.2rem;">Client Specific Basis</div>
+                  <select class="stat-rate-input" id="client-lop-basis" style="width:100%;">
+                    <option value="inherit" selected>Inherit from Global Settings</option>
+                    <option value="26">26 Working Days (excludes Sundays)</option>
+                    <option value="30">30 Calendar Days</option>
+                  </select>
+                </div>
+                <div class="stat-toggle">
+                  <!-- No toggle needed -->
+                </div>
+              </div>
+
+              <!-- State-Wise PT & LWF Registrations -->
+              <div style="margin-top: 1rem; padding-top: 1.5rem; border-top: 1px dashed var(--border-color);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                  <div>
+                    <strong style="color:var(--primary-navy); font-size:0.95rem;">📍 State-wise PT & LWF Registrations</strong>
+                    <p style="margin:0; font-size:0.75rem; color:var(--text-muted);">Configure registration details for states where candidates are deployed.</p>
+                  </div>
+                  <button type="button" class="btn btn-secondary btn-xs" onclick="addStateRegistration()">➕ Add State</button>
+                </div>
+                <div id="state-registrations-container" style="display:flex; flex-direction:column; gap:0.75rem;">
+                  <!-- Initial row -->
+                  <div class="form-row" style="background:#FAFBFC; padding:0.75rem; border:1px solid var(--border-color); border-radius:var(--radius-md); align-items:center;">
+                    <div class="form-group" style="margin-bottom:0; flex:1;">
+                      <label style="font-size:0.75rem;">State</label>
+                      <select class="form-control" style="font-size:0.8rem; padding:0.25rem;">
+                        <option value="MH">Maharashtra</option>
+                        <option value="KA">Karnataka</option>
+                        <option value="DL">Delhi</option>
+                        <option value="TN">Tamil Nadu</option>
+                        <option value="TS">Telangana</option>
+                      </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0; flex:1.5;">
+                      <label style="font-size:0.75rem;">PT Registration No.</label>
+                      <input type="text" class="form-control" style="font-size:0.8rem; padding:0.25rem;" placeholder="PT EC/RC number">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0; flex:1.5;">
+                      <label style="font-size:0.75rem;">LWF Registration No.</label>
+                      <input type="text" class="form-control" style="font-size:0.8rem; padding:0.25rem;" placeholder="LWF Est. code">
+                    </div>
+                    <button type="button" class="btn" style="background:none; border:none; color:var(--status-danger); cursor:pointer; padding:0 0.5rem;" onclick="this.parentElement.remove()" title="Remove">🗑️</button>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+            </div><!-- end step-section-5 -->
+
+            <script>
+              function addStateRegistration() {
+                const container = document.getElementById('state-registrations-container');
+                const row = document.createElement('div');
+                row.className = 'form-row';
+                row.style.cssText = 'background:#FAFBFC; padding:0.75rem; border:1px solid var(--border-color); border-radius:var(--radius-md); align-items:center;';
+                row.innerHTML = `
+                  <div class="form-group" style="margin-bottom:0; flex:1;">
+                    <label style="font-size:0.75rem;">State</label>
+                    <select class="form-control" style="font-size:0.8rem; padding:0.25rem;">
+                      <option value="">--Select--</option>
+                      <option value="MH">Maharashtra</option>
+                      <option value="KA">Karnataka</option>
+                      <option value="DL">Delhi</option>
+                      <option value="TN">Tamil Nadu</option>
+                      <option value="TS">Telangana</option>
+                      <option value="WB">West Bengal</option>
+                    </select>
+                  </div>
+                  <div class="form-group" style="margin-bottom:0; flex:1.5;">
+                    <label style="font-size:0.75rem;">PT Registration No.</label>
+                    <input type="text" class="form-control" style="font-size:0.8rem; padding:0.25rem;" placeholder="PT EC/RC number">
+                  </div>
+                  <div class="form-group" style="margin-bottom:0; flex:1.5;">
+                    <label style="font-size:0.75rem;">LWF Registration No.</label>
+                    <input type="text" class="form-control" style="font-size:0.8rem; padding:0.25rem;" placeholder="LWF Est. code">
+                  </div>
+                  <button type="button" class="btn" style="background:none; border:none; color:var(--status-danger); cursor:pointer; padding:0 0.5rem;" onclick="this.parentElement.remove()" title="Remove">🗑️</button>
+                `;
+                container.appendChild(row);
+              }
+            </script>
+
+            <div class="form-step-section" id="step-section-6">
+              <!-- ══ SECTION 6: Document Upload ══ -->
+            <div class="section-header">
+              <div class="section-icon">📁</div>
+              <h3>Compliance Documents</h3>
+              <span class="section-badge">REQUIRED FOR ACTIVATION</span>
+            </div>
+
+            <div class="info-box" style="margin-bottom:1rem;">
+              📋 Upload all required compliance documents. Supported formats: <strong>PDF, JPG, PNG, XLSX</strong>. Max
+              size per file: <strong>10 MB</strong>.
+              Documents are encrypted and stored securely.
+            </div>
+
+            <!-- Quick upload buttons for specific doc types -->
+            <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom:1rem;">
+              <button type="button" class="btn btn-secondary" style="font-size:0.8rem; padding:0.4rem 0.75rem;"
+                onclick="triggerDocUpload('agent_client_agreement')">🤝 Agent & Client Agreement</button>
+              <button type="button" class="btn btn-secondary" style="font-size:0.8rem; padding:0.4rem 0.75rem;"
+                onclick="triggerDocUpload('msa')">📜 Upload MSA</button>
+              <button type="button" class="btn btn-secondary" style="font-size:0.8rem; padding:0.4rem 0.75rem;"
+                onclick="triggerDocUpload('nda')">🔒 Upload NDA</button>
+              <button type="button" class="btn btn-secondary" style="font-size:0.8rem; padding:0.4rem 0.75rem;"
+                onclick="triggerDocUpload('work_order')">📋 Work Order</button>
+              <button type="button" class="btn btn-secondary" style="font-size:0.8rem; padding:0.4rem 0.75rem;"
+                onclick="triggerDocUpload('gst_cert')">🏛️ GST Certificate</button>
+              <button type="button" class="btn btn-secondary" style="font-size:0.8rem; padding:0.4rem 0.75rem;"
+                onclick="triggerDocUpload('pan_card')">💳 PAN Card</button>
+              <button type="button" class="btn btn-secondary" style="font-size:0.8rem; padding:0.4rem 0.75rem;"
+                onclick="triggerDocUpload('tan_doc')">📄 TAN Letter</button>
+              <button type="button" class="btn btn-secondary" style="font-size:0.8rem; padding:0.4rem 0.75rem;"
+                onclick="triggerDocUpload('other')">📎 Other Document</button>
+            </div>
+
+            <!-- Drag & Drop Upload Zone -->
+            <div class="doc-upload-zone" id="upload-zone"
+              ondragover="event.preventDefault(); this.classList.add('dragover');"
+              ondragleave="this.classList.remove('dragover');" ondrop="handleFileDrop(event);"
+              onclick="document.getElementById('file-input').click()">
+              <div class="upload-icon">☁️</div>
+              <p><strong>Drag & drop files here</strong></p>
+              <p>or click to browse from your computer</p>
+              <p style="margin-top:0.5rem; font-size:0.72rem; color:#94A3B8;">PDF, JPG, PNG, XLSX — Max 10 MB per file
+              </p>
+            </div>
+            <input type="file" id="file-input" multiple accept=".pdf,.jpg,.jpeg,.png,.xlsx,.xls" style="display:none;"
+              onchange="handleFileSelect(event)">
+            <input type="hidden" id="pending-doc-type" value="other">
+
+            <!-- Uploaded documents list -->
+            <div class="doc-list" id="doc-list">
+              <!-- Populated dynamically -->
+            </div>
+
+            <!-- Required documents checklist -->
+            <div
+              style="margin-top:1rem; background:#F8FAFC; border:1px solid var(--border-color); border-radius:var(--radius-sm); padding:0.75rem;">
+              <div style="font-size:0.8rem; font-weight:600; margin-bottom:0.5rem; color:var(--primary-navy);">📌
+                Required Documents Checklist</div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.25rem;">
+                <div class="checklist-item" id="chk-agent_client_agreement"><span class="check-icon">⬜</span> Agent & Client Agreement</div>
+                <div class="checklist-item" id="chk-msa"><span class="check-icon">⬜</span> Master Service Agreement (MSA)</div>
+                <div class="checklist-item" id="chk-pan_card"><span class="check-icon">⬜</span> Company PAN Card</div>
+                <div class="checklist-item" id="chk-gst_cert"><span class="check-icon">⬜</span> GST Registration Certificate</div>
+                <div class="checklist-item" id="chk-work_order"><span class="check-icon">⬜</span> Work Order / Purchase Order</div>
+                <div class="checklist-item" id="chk-nda"><span class="check-icon">⬜</span> Non-Disclosure Agreement (NDA)</div>
+                <div class="checklist-item" id="chk-tan_doc"><span class="check-icon">⬜</span> TAN Allotment Letter <span id="tan-doc-status" style="font-size:0.7rem; color:var(--text-muted);">(Optional)</span></div>
+              </div>
+            </div>
+            </div><!-- end step-section-6 -->
+
+            <div class="form-step-section" id="step-section-7">
+              <!-- ══ SECTION 7: Portal Access ══ -->
+            <div class="section-header">
+              <div class="section-icon">🔐</div>
+              <h3>Client Portal Access</h3>
+            </div>
+
+            <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:1rem;">
+              <label class="toggle-container">
+                <input type="checkbox" class="toggle-input" id="portal-access" onchange="togglePortalFields(this)">
+                <span class="toggle-switch"></span>
+              </label>
+              <div>
+                <strong style="font-size:0.875rem; display:block;">Enable Client Self-Service Portal</strong>
+                <span style="font-size:0.75rem; color:var(--text-muted);">Client can log in to view candidates,
+                  timesheets, invoices, and raise requests.</span>
+              </div>
+            </div>
+
+            <div id="portal-fields"
+              style="display:none; background:#FAFBFC; border:1px solid var(--border-color); border-radius:var(--radius-md); padding:1rem;">
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="portal-email">Portal Login Email</label>
+                  <input type="email" id="portal-email" class="form-control" placeholder="admin@mahindra.com">
+                  <div class="field-hint">Invitation email will be sent to this address.</div>
+                </div>
+                <div class="form-group">
+                  <label for="portal-access-level">Access Level</label>
+                  <select id="portal-access-level" class="form-control" onchange="handleAccessLevel(this.value)">
+                    <option value="view_only">View Only (Read-only)</option>
+                    <option value="approver" selected>Approver (Can approve attendance)</option>
+                    <option value="full">Full Access (Manage candidates + invoices)</option>
+                  </select>
+                </div>
+              </div>
+              <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom: 1rem;">
+                <label style="display:flex; align-items:center; gap:0.4rem; font-size:0.8rem; cursor:pointer;">
+                  <input type="checkbox" id="portal-view-salary" checked style="width:14px; height:14px;"> View Salary
+                  Data
+                </label>
+                <label style="display:flex; align-items:center; gap:0.4rem; font-size:0.8rem; cursor:pointer;">
+                  <input type="checkbox" id="portal-view-invoices" checked style="width:14px; height:14px;"> View
+                  Invoices
+                </label>
+                <label style="display:flex; align-items:center; gap:0.4rem; font-size:0.8rem; cursor:pointer;">
+                  <input type="checkbox" id="portal-view-payslips" style="width:14px; height:14px;"> Download Payslips
+                </label>
+                <label style="display:flex; align-items:center; gap:0.4rem; font-size:0.8rem; cursor:pointer;">
+                  <input type="checkbox" id="portal-raise-requests" checked style="width:14px; height:14px;"> Raise
+                  Support Requests
+                </label>
+              </div>
+
+              <!-- New Portal Fields -->
+              <div class="form-row" style="margin-top: 1rem; border-top: 1px dashed var(--border-color); padding-top: 1rem;">
+                <div class="form-group">
+                  <label style="display:block; margin-bottom:0.5rem;">Two-Factor Authentication (2FA)</label>
+                  <div style="display:flex; align-items:center; gap:0.5rem; margin-top: 0.5rem;">
+                    <label class="toggle-container" style="margin:0;">
+                      <input type="checkbox" class="toggle-input" id="portal-2fa" checked>
+                      <span class="toggle-switch"></span>
+                    </label>
+                    <span style="font-size:0.85rem;">Enforce 2FA for all client logins</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="session-timeout">Session Timeout (minutes)</label>
+                  <input type="number" id="session-timeout" class="form-control" min="15" max="480" value="60">
+                  <div class="field-hint">User is logged out after this period of inactivity. Min: 15, Max: 480.</div>
+                </div>
+              </div>
+
+              <div class="form-group" style="margin-top:1rem;">
+                <label for="ip-whitelist">IP Whitelist</label>
+                <textarea id="ip-whitelist" class="form-control" rows="2" placeholder="e.g. 192.168.1.0/24, 10.0.0.1"></textarea>
+                <div class="field-hint">Leave blank for no IP restriction. Separate multiple CIDRs with commas.</div>
+              </div>
+
+              <div class="form-group" style="margin-top:1rem;">
+                <label>Client Logo Upload (for Portal Branding)</label>
+                <div class="doc-upload-zone" style="padding:1.5rem;" onclick="document.getElementById('logo-file-input').click()">
+                  <div class="upload-icon" style="font-size: 1.5rem; margin-bottom:0.25rem;">🖼️</div>
+                  <p style="font-weight: 600;">Click to upload logo</p>
+                  <p style="font-size: 0.72rem; color: var(--text-muted);">PNG, JPG, SVG — Max 2MB</p>
+                  <div class="field-hint" id="logo-upload-hint" style="margin-top: 0.25rem;">No logo selected</div>
+                </div>
+                <input type="file" id="logo-file-input" style="display:none;" accept="image/png, image/jpeg, image/svg+xml" onchange="handleLogoSelect(this)">
+              </div>
+            </div>
+            </div><!-- end step-section-7 -->
+
+            <div class="form-step-section" id="step-section-8">
+              <!-- ══ SECTION 8: SLA & Payroll Calendar ══ -->
+            <div class="section-header">
+              <div class="section-icon">📅</div>
+              <h3>SLA & Payroll Calendar</h3>
+            </div>
+
+            <div class="info-box" style="margin-bottom:1rem;">
+              📆 Define the payroll processing timeline for this client. These dates drive automated reminders and
+              lock-outs.
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="attendance-cutoff">Attendance Cut-off Day (of month)</label>
+                <select id="attendance-cutoff" class="form-control">
+                  <option value="25">25th of month</option>
+                  <option value="26">26th of month</option>
+                  <option value="27">27th of month</option>
+                  <option value="28" selected>28th of month</option>
+                  <option value="eom">Last day of month</option>
+                </select>
+                <div class="field-hint">Attendance submitted after this date will be counted in next month.</div>
+              </div>
+              <div class="form-group">
+                <label for="payroll-lock-day">Payroll Lock / Processing Day</label>
+                <select id="payroll-lock-day" class="form-control">
+                  <option value="1">1st of next month</option>
+                  <option value="2">2nd of next month</option>
+                  <option value="3" selected>3rd of next month</option>
+                  <option value="4">4th of next month</option>
+                  <option value="5">5th of next month</option>
+                </select>
+                <div class="field-hint">Payroll is locked and finalized by this date.</div>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="salary-credit-day">Salary Credit Day</label>
+                <select id="salary-credit-day" class="form-control">
+                  <option value="1">1st of month</option>
+                  <option value="5">5th of month</option>
+                  <option value="7" selected>7th of month</option>
+                  <option value="10">10th of month</option>
+                  <option value="eom">Last working day</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="invoice-dispute-days">Invoice Dispute Window (days)</label>
+                <input type="number" id="invoice-dispute-days" class="form-control" placeholder="e.g. 7" value="7"
+                  min="1" max="30">
+                <div class="field-hint">Days client can raise a dispute after invoice is raised.</div>
+              </div>
+            </div>
+
+            <div class="form-row" style="margin-top:1rem;">
+              <div class="form-group">
+                <label for="invoice-raise-day">Invoice Raise Day <span style="color:var(--status-danger);">*</span></label>
+                <select id="invoice-raise-day" class="form-control" onchange="updateInvoiceDuePreview()">
+                  <option value="Same as Payroll Lock Day">Same as Payroll Lock Day</option>
+                  <option value="+1 Day">+1 Day</option>
+                  <option value="+2 Days">+2 Days</option>
+                  <option value="+3 Days">+3 Days</option>
+                </select>
+                <div class="field-hint">Invoice is generated this many days after payroll is locked.</div>
+              </div>
+              <div class="form-group">
+                <label for="payroll-month-convention">Payroll Month Convention</label>
+                <select id="payroll-month-convention" class="form-control" onchange="handlePayrollConvention(this.value)">
+                  <option value="calendar" selected>Calendar Month (1st–last day)</option>
+                  <option value="custom">Custom Cycle</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row" id="custom-cycle-row" style="display:none; margin-top:1rem;">
+              <div class="form-group">
+                <label for="cycle-start-day">Cycle Start Day</label>
+                <input type="number" id="cycle-start-day" class="form-control" min="1" max="28" value="1">
+              </div>
+              <div class="form-group">
+                <label for="cycle-end-day">Cycle End Day</label>
+                <input type="number" id="cycle-end-day" class="form-control" min="1" max="28" value="28">
+              </div>
+            </div>
+
+            <div class="form-row" style="margin-top:1rem;">
+              <div class="form-group">
+                <label for="account-manager">Assigned Account Manager (Internal)</label>
+                <select id="account-manager" class="form-control" onchange="updateBackupAMOptions(this.value)">
+                  <option value="">-- Assign Account Manager --</option>
+                  <option value="sunita">Sunita Verma</option>
+                  <option value="rahul">Rahul Desai</option>
+                  <option value="priya">Priya Kapoor</option>
+                  <option value="amit">Amit Singh</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="backup-account-manager">Backup Account Manager</label>
+                <select id="backup-account-manager" class="form-control">
+                  <option value="">-- Select Backup AM --</option>
+                  <option value="sunita">Sunita Verma</option>
+                  <option value="rahul">Rahul Desai</option>
+                  <option value="priya">Priya Kapoor</option>
+                  <option value="amit">Amit Singh</option>
+                </select>
+                <div class="field-hint">Backup CC'd on communications when primary AM is unavailable.</div>
+              </div>
+            </div>
+
+            <div class="form-row" style="margin-top:1rem; align-items: center;">
+              <div class="form-group" style="margin-bottom:0;">
+                <label style="display:block; margin-bottom:0.5rem;">Auto-Reminder Schedule</label>
+                <div style="display:flex; align-items:center; gap:0.5rem;">
+                  <label class="toggle-container" style="margin:0;">
+                    <input type="checkbox" class="toggle-input" id="auto-reminders" checked onchange="toggleReminderInfo(this)">
+                    <span class="toggle-switch"></span>
+                  </label>
+                  <span style="font-size:0.85rem;">Enable Automated Email Alerts</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="info-box" id="reminder-info-box" style="margin-top:1rem; background: #FFFBF0; border-color: var(--accent-gold);">
+              ℹ️ <strong>System will auto-send:</strong> Attendance reminder 3 days before cut-off | Invoice reminder 2 days before due date | Overdue alert on Day 1, 7, 15 after due date
+            </div>
+
+            <div class="suggestion-chip" id="invoice-due-preview" style="margin-top:1rem; display:block; padding:0.5rem 0.75rem; background:#F0FDF4; border:1px solid #BBF7D0; border-radius:var(--radius-sm); font-size:0.8rem; color:#166534;">
+              Preview: Invoice raised on 3rd of month → Due on 18th (Net 15 days)
+            </div>
+
+            <div class="form-group">
+              <label for="client-notes">Internal Notes / Special Instructions</label>
+              <textarea id="client-notes" class="form-control" rows="3"
+                placeholder="e.g. Client requires separate salary breakup for contract vs permanent staff. Invoice to be sent in both PDF and XLSX format."></textarea>
+            </div>
+            </div><!-- end step-section-8 -->
+
+            <!-- ══ FORM ACTIONS ══ -->
+            <div
+              style="display:flex; gap:0.75rem; justify-content:flex-end; align-items:center; margin-top:2.5rem; padding-top:1.5rem; border-top:2px solid var(--border-color);">
+              <span id="autosave-indicator" style="font-size:0.75rem;color:var(--text-muted);margin-right:auto;transition:opacity 0.5s;opacity:0;"></span>
+              <a href="/clients" class="btn btn-secondary" style="margin-right: auto;">Cancel</a>
+              <button type="button" class="btn btn-secondary" onclick="saveDraft()">💾 Save as Draft</button>
+              <button type="button" class="btn btn-secondary" id="btn-prev-step" onclick="prevStep()">← Previous Step</button>
+              <button type="button" class="btn btn-primary" id="btn-next-step" onclick="nextStep()">Next Step →</button>
+              <button type="button" class="btn btn-primary" id="btn-submit-form" onclick="submitForm()" style="display:none;">✅ Save & Activate Client</button>
+            </div>
+
+          </form>
+        </div>
+
+        <!-- ═══════════════ SIDEBAR ═══════════════ -->
+        <div style="display:flex; flex-direction:column; gap:1.25rem;">
+
+          <!-- Onboarding Completion Checklist -->
+          <div class="card">
+            <h4 style="margin-bottom:1rem; font-size:0.95rem;">📋 Onboarding Checklist</h4>
+            <div id="onboarding-checklist" style="display:flex; flex-direction:column; gap:0.25rem;">
+              <div class="checklist-item" id="ob-identity" onclick="goToStep(1)" style="cursor: pointer;"><span class="check-icon">⬜</span> Company Identity</div>
+              <div class="checklist-item" id="ob-address" onclick="goToStep(2)" style="cursor: pointer;"><span class="check-icon">⬜</span> Address Details</div>
+              <div class="checklist-item" id="ob-contacts" onclick="goToStep(3)" style="cursor: pointer;"><span class="check-icon">⬜</span> Contact Persons</div>
+              <div class="checklist-item" id="ob-contract" onclick="goToStep(4)" style="cursor: pointer;"><span class="check-icon">⬜</span> Contract & Billing</div>
+              <div class="checklist-item" id="ob-statutory" onclick="goToStep(5)" style="cursor: pointer;"><span class="check-icon">⬜</span> Statutory Config</div>
+              <div class="checklist-item" id="ob-documents" onclick="goToStep(6)" style="cursor: pointer;"><span class="check-icon">⬜</span> Key Documents</div>
+              <div class="checklist-item" id="ob-portal" onclick="goToStep(7)" style="cursor: pointer;"><span class="check-icon">⬜</span> Portal & Access</div>
+              <div class="checklist-item" id="ob-sla" onclick="goToStep(8)" style="cursor: pointer;"><span class="check-icon">⬜</span> SLA & Calendar</div>
+            </div>
+            <div style="margin-top:1rem;">
+              <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:0.35rem;">Completion Progress</div>
+              <div style="background:#E2E8F0; border-radius:50px; height:8px; overflow:hidden;">
+                <div id="progress-bar"
+                  style="height:100%; width:0%; background:var(--accent-gold); transition:width 0.4s; border-radius:50px;">
+                </div>
+              </div>
+              <div id="progress-label" style="font-size:0.75rem; color:var(--text-muted); margin-top:0.3rem;">0%
+                complete</div>
+            </div>
+          </div>
+
+          <!-- Statutory Rule Note -->
+          <div class="card" style="background:var(--primary-navy); color:white;">
+            <h4 style="color:white; margin-bottom:0.75rem;">⚖️ Statutory Inheritance</h4>
+            <p style="font-size:0.78rem; opacity:0.9; line-height:1.6;">
+              All statutory defaults you set here are <strong style="color:#FDD835;">automatically inherited</strong> by
+              every new candidate onboarded under this client.
+              Individual candidates can still be overridden on their profile page.
+            </p>
+          </div>
+
+          <!-- Document Guidelines -->
+          <div class="card">
+            <h4 style="margin-bottom:0.75rem; font-size:0.95rem;">📎 Document Guidelines</h4>
+            <div style="display:flex; flex-direction:column; gap:0.5rem; font-size:0.78rem; color:var(--text-muted);">
+              <div>📜 <strong>MSA</strong> — Governs entire engagement. Mandatory before first invoice.</div>
+              <div>🔒 <strong>NDA</strong> — Required before sharing candidate data.</div>
+              <div>📋 <strong>Work Order</strong> — Scope of each deployment. Renew annually.</div>
+              <div>🏛️ <strong>GST Certificate</strong> — Required for GST-compliant invoicing.</div>
+              <div>💳 <strong>PAN Card</strong> — Required for TDS compliance.</div>
+            </div>
+          </div>
+
+          <!-- Quick Stats -->
+          <div class="card" style="background:#F0FDF4; border:1px solid #86EFAC;">
+            <h4 style="margin-bottom:0.75rem; font-size:0.9rem; color:#166534;">💡 Billing Model Guide</h4>
+            <div style="font-size:0.78rem; color:#14532D; line-height:1.7;">
+              <div><strong>CTC + Markup:</strong> You bill CTC × (1 + markup%). Best for agency model.</div>
+              <div><strong>Fixed/Candidate:</strong> Flat fee per head per month. Predictable for client.</div>
+              <div><strong>Monthly Retainer:</strong> Flat monthly fee regardless of headcount. Best for managed
+                services.</div>
+              <div><strong>Hourly:</strong> Bill per hour worked. Common for consulting engagements.</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    
+
+  </div>
+
+  <!-- ══ Toast Notification ══ -->
+  <div id="toast" style="
+    position: fixed; bottom: 1.5rem; right: 1.5rem;
+    background: var(--primary-navy); color: white;
+    padding: 0.75rem 1.25rem; border-radius: var(--radius-md);
+    font-size: 0.875rem; font-weight: 500;
+    box-shadow: var(--shadow-lg);
+    transform: translateY(100px); opacity: 0;
+    transition: all 0.3s; z-index: 9999;
+  ">✅ Changes saved!</div>
+
+  

@@ -1,0 +1,93 @@
+
+    /* ── Inline Validation Message Styles ── */
+    .field-msg {
+      font-size: 0.78rem;
+      margin-top: 0.3rem;
+      padding: 0.45rem 0.65rem 0.45rem 0.85rem;
+      border-radius: var(--radius-sm);
+      border-left: 3px solid transparent;
+      display: none;
+      line-height: 1.45;
+    }
+    .field-msg.show  { display: block; }
+    .field-msg.error { border-left-color: var(--status-danger);  background: var(--status-danger-bg);  color: var(--status-danger); }
+    .field-msg.warn  { border-left-color: var(--status-warning); background: var(--status-warning-bg); color: var(--status-warning); }
+    .field-msg.info  { color: var(--text-muted); font-style: italic; background: transparent; border-left-color: #CBD5E1; }
+
+    .form-control.is-error { border-color: var(--status-danger) !important; }
+    .form-control.is-warn  { border-color: var(--status-warning) !important; }
+
+    /* Duplicate phone inline choice */
+    .inline-choice { display: inline-flex; gap: 0.5rem; margin-top: 0.4rem; }
+    .inline-choice button {
+      padding: 0.2rem 0.6rem; font-size: 0.75rem; font-weight: 600;
+      border-radius: var(--radius-sm); cursor: pointer; border: 1px solid;
+    }
+    .inline-choice .yes-btn { background: var(--status-warning-bg); color: var(--status-warning); border-color: var(--status-warning); }
+    .inline-choice .cancel-btn { background: #fff; color: var(--text-muted); border-color: var(--border-color); }
+
+    /* Section info banner */
+    .section-banner {
+      font-size: 0.8rem;
+      padding: 0.6rem 0.9rem;
+      border-radius: var(--radius-sm);
+      border-left: 3px solid;
+      margin-bottom: 1rem;
+      line-height: 1.5;
+    }
+    .section-banner.info { border-left-color: var(--status-info); background: var(--status-info-bg); color: var(--status-info); }
+    .section-banner.warn { border-left-color: var(--status-warning); background: var(--status-warning-bg); color: var(--status-warning); }
+    .section-banner.error { border-left-color: var(--status-danger); background: var(--status-danger-bg); color: var(--status-danger); }
+
+    /* Read-only overlay for locked sections */
+    .section-locked {
+      background: #F1F5F9;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 1.25rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .section-locked p { margin: 0; font-size: 0.875rem; color: var(--text-muted); flex: 1; }
+
+    /* Tooltip icon */
+    .tooltip-wrap { position: relative; display: inline-block; cursor: help; }
+    .tooltip-wrap .tooltip-text {
+      visibility: hidden; opacity: 0;
+      background: #1F2937; color: #fff;
+      font-size: 0.75rem; line-height: 1.4;
+      border-radius: var(--radius-sm);
+      padding: 0.5rem 0.75rem;
+      position: absolute; left: 50%; transform: translateX(-50%);
+      bottom: calc(100% + 6px);
+      width: 240px;
+      pointer-events: none;
+      transition: opacity 0.15s ease;
+      z-index: 50;
+    }
+    .tooltip-wrap:hover .tooltip-text { visibility: visible; opacity: 1; }
+
+    /* UAN mode radio row */
+    .radio-row { display: flex; gap: 1.5rem; align-items: center; font-size: 0.875rem; margin-bottom: 0.5rem; }
+    .radio-row label { display: flex; align-items: center; gap: 0.35rem; cursor: pointer; font-weight: 500; }
+
+    /* Salary locked placeholder */
+    #salary-locked-msg { display: none; }
+
+    /* Modal for employment type change confirm */
+    #emp-type-modal .modal-box { width: 440px; }
+
+    /* Aadhaar masked display */
+    .aadhaar-masked { font-family: monospace; letter-spacing: 0.1em; font-size: 0.875rem; color: var(--text-muted); display: none; margin-top: 0.25rem; }
+
+
+
+    .read-only-field {
+      background: #F1F5F9 !important;
+      cursor: not-allowed !important;
+      color: #64748B !important;
+    }
+  

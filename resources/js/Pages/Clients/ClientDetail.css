@@ -1,0 +1,155 @@
+
+    .client-header-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-top: 1rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .client-title-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .client-title-row h2 {
+      margin: 0;
+      font-size: 1.5rem;
+    }
+
+    .badge-status-lg {
+      font-size: 0.85rem;
+      padding: 0.35rem 0.75rem;
+      border-radius: 50px;
+      font-weight: 600;
+    }
+
+    .quick-meta {
+      display: flex;
+      gap: 1.5rem;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      margin-top: 0.5rem;
+    }
+
+    .doc-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1.25rem;
+    }
+
+    .doc-card {
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 1.25rem;
+      background: white;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .doc-card:hover {
+      border-color: var(--accent-gold);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .doc-icon-title {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .doc-icon-title span:first-child {
+      font-size: 1.5rem;
+    }
+
+    .doc-meta {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 0.25rem;
+    }
+
+    .doc-actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: auto;
+      border-top: 1px solid var(--border-color);
+      padding-top: 0.75rem;
+    }
+
+    .contact-card {
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 1.25rem;
+      background: #FAFBFC;
+    }
+
+    .contact-role-badge {
+      font-size: 0.7rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+      display: inline-block;
+    }
+
+    .contact-detail {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+      margin-bottom: 0.5rem;
+      color: var(--text-main);
+    }
+
+    .activity-timeline {
+      position: relative;
+      padding-left: 1.5rem;
+    }
+
+    .activity-timeline::before {
+      content: '';
+      position: absolute;
+      left: 0.4rem;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: var(--border-color);
+    }
+
+    .activity-item {
+      position: relative;
+      margin-bottom: 1.5rem;
+    }
+
+    .activity-item::before {
+      content: '';
+      position: absolute;
+      left: -1.45rem;
+      top: 0.3rem;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--primary-navy);
+      border: 2px solid white;
+    }
+
+    .activity-time {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-bottom: 0.25rem;
+    }
+
+    .activity-desc {
+      font-size: 0.9rem;
+      color: var(--text-main);
+    }
+
+    .activity-user {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 0.25rem;
+    }
+  

@@ -1,0 +1,37 @@
+
+    /* ── Category badge overrides for new action types ── */
+    .badge-profile-edit {
+      background-color: #EDE9FE;
+      color: #5B21B6;
+      border: 1px solid #DDD6FE;
+    }
+    .badge-desig-warn {
+      background-color: #FFF7ED;
+      color: #C2410C;
+      border: 1px solid #FED7AA;
+    }
+    .badge-lock-breach {
+      background-color: #FEF2F2;
+      color: #991B1B;
+      border: 1px solid #FECACA;
+    }
+
+    /* ── Action description highlights ── */
+    .action-cell { line-height: 1.5; }
+    .action-cell .action-employee { font-weight: 600; color: var(--primary-navy); }
+    .action-cell .action-detail   { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.15rem; }
+    .action-cell .action-flag     { font-size: 0.75rem; color: var(--status-warning); font-weight: 500; margin-top: 0.15rem; }
+
+    /* Row highlight for warning rows */
+    tr.row-warn { background-color: #FFFBF5 !important; }
+    tr.row-warn:hover { background-color: #FFF3E0 !important; }
+    tr.row-danger { background-color: #FEF2F2 !important; }
+    tr.row-danger:hover { background-color: #FEE2E2 !important; }
+
+    /* Category legend strip */
+    .cat-legend {
+      display: flex; flex-wrap: wrap; gap: 0.5rem;
+      margin-bottom: 1rem; font-size: 0.78rem; align-items: center;
+    }
+    .cat-legend span { opacity: 0.65; margin-right: 0.1rem; }
+  

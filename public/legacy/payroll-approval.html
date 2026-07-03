@@ -1,0 +1,224 @@
+
+      <div style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: flex-end;">
+        <div>
+          <h2 style="margin-top: 0.5rem;">Approve & Lock Payroll Batch</h2>
+          <p id="page-subtitle" style="color: var(--text-muted); font-size: 0.9rem;">Review consolidated totals for Mahindra Corp (June 2026) and authorize bank file disbursements.</p>
+        </div>
+        <div id="partial-batch-banner" style="background-color: #FFFBEB; border: 1px solid #FEF3C7; padding: 0.5rem 1rem; border-radius: var(--radius-sm); font-size: 0.85rem; color: #92400E; display: flex; flex-direction: column; align-items: flex-end; gap: 0.25rem;">
+          <strong>Partial Batch: 38 of 42 active employees covered.</strong>
+          <span>4 employees excluded — click 'Create Supplementary Run' to see reasons and fix them.</span>
+          <button class="btn btn-secondary btn-xs" style="margin-top: 0.25rem;" onclick="openSupplementaryModal()">Create Supplementary Run for 4 Excluded</button>
+        </div>
+      </div>
+
+      <!-- Client Selector -->
+      <div class="card" style="padding: 1rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem;">
+        <label for="select-client" style="font-weight: 500; margin-bottom: 0;">Select Client Batch:</label>
+        <select id="select-client" class="form-control" style="width: 300px;" onchange="loadApprovalData()">
+          <option value="mahindra" selected>Mahindra Corp</option>
+          <option value="tcs">Tata Consultancy Services</option>
+          <option value="reliance">Reliance Digital</option>
+        </select>
+        <span style="color: var(--text-muted); font-size: 0.85rem; margin-left: auto;">Payroll Period: June 2026</span>
+      </div>
+
+      <!-- Batch Overview Grid -->
+      <div class="grid-cols-4" style="margin-bottom: 1.5rem;" id="summary-grid">
+        <!-- Rendered by JS -->
+      </div>
+
+      <!-- Two Column Detail Layout -->
+      <div class="grid-layout">
+        <!-- Details Column -->
+        <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+          
+          <!-- Breakdown Card -->
+          <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; margin-bottom: 1rem;">
+              <h3 class="card-title" style="margin: 0;">Employee Totals & Full Breakdown</h3>
+              <button class="btn btn-secondary btn-xs" onclick="toggleBreakdown()">Toggle Full Breakdown</button>
+            </div>
+            
+            <div id="breakdown-table-container" style="display: none; margin-bottom: 1.5rem;">
+              <div class="table-scroll-wrapper">
+                <table class="data-table extended-table" id="payroll-table">
+                  <thead>
+                    <tr>
+                      <th rowspan="2">Emp Code</th>
+                      <th rowspan="2">Employee Name</th>
+                      <th colspan="8" class="col-group-earn">Earnings</th>
+                      <th rowspan="2" class="col-group-total">Gross Total</th>
+                      <th colspan="7" class="col-group-deduct">Employee Deductions</th>
+                      <th rowspan="2" class="col-group-total">Total Deduct.</th>
+                      <th colspan="2" style="background: #FFF7ED;">Employer Cost</th>
+                      <th rowspan="2" class="col-group-total" style="color: var(--primary-navy);">Net Pay</th>
+                    </tr>
+                    <tr>
+                      <th class="col-group-earn">Basic</th>
+                      <th class="col-group-earn">HRA</th>
+                      <th class="col-group-earn">Conv.</th>
+                      <th class="col-group-earn">DA</th>
+                      <th class="col-group-earn">Med.</th>
+                      <th class="col-group-earn">Special</th>
+                      <th class="col-group-earn">Other</th>
+                      <th class="col-group-earn">Arrears</th>
+                      
+                      <th class="col-group-deduct">PF</th>
+                      <th class="col-group-deduct">ESI</th>
+                      <th class="col-group-deduct">PT</th>
+                      <th class="col-group-deduct">Welfare</th>
+                      <th class="col-group-deduct">LOP</th>
+                      <th class="col-group-deduct">TDS</th>
+                      <th class="col-group-deduct">Loan EMI</th>
+                      
+                      <th style="background: #FFF7ED;">Er PF</th>
+                      <th style="background: #FFF7ED;">Er ESI</th>
+                    </tr>
+                  </thead>
+                  <tbody id="payroll-table-body">
+                    <!-- JS Populated -->
+                  </tbody>
+                  <tfoot id="payroll-table-foot">
+                    <!-- JS Populated Totals -->
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.9rem;" id="aggregate-liabilities">
+              <!-- JS Populated -->
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Sidebar / Action Controls -->
+        <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+          
+          <!-- Profit/Margin Card (Visibility Bound to role) -->
+          <div class="card locked-card" id="approval-margin-card">
+            <div id="approval-margin-content">
+              <h3 class="card-title">Agency Profit Margin</h3>
+              <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">Calculated as Invoiced Amount minus Gross Earnings and True Employer-Side Cost.</p>
+              
+              <div style="display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.85rem;" id="margin-breakdown">
+                <!-- JS Populated -->
+              </div>
+            </div>
+            
+            <div class="locked-overlay" id="approval-margin-overlay" style="display: none;">
+              <div class="locked-badge">🔒 Margin Lock</div>
+              <span style="font-size: 0.8rem; font-weight: 600; text-align: center; color: var(--text-main);">Margin Data Protected</span>
+              <span style="font-size: 0.7rem; color: var(--text-muted); text-align: center; margin-top: 0.25rem;">Requires Administrator role to view margin metrics.</span>
+            </div>
+          </div>
+
+          <!-- Approval Action Card -->
+          <div class="card">
+            <h3 class="card-title" style="margin-bottom: 0.5rem;">Lock Action</h3>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1.25rem;">
+              Approving locks this run. Net salary records are compiled into a bank-ready format and payslips are made downloadable.
+            </p>
+            
+            <div id="approval-controls">
+              <button class="btn btn-primary" style="width: 100%; padding: 0.6rem;" onclick="preDisbursementCheck()" id="btn-approve-lock">
+                ✓ Approve & Lock Batch
+              </button>
+              <a href="/payroll/processing" class="btn btn-secondary" style="width: 100%; margin-top: 0.5rem; padding: 0.6rem;">
+                Return to Calculations
+              </a>
+            </div>
+            
+            <div id="executive-lock-warning" style="display: none; background-color: var(--status-danger-bg); border-radius: var(--radius-sm); padding: 0.75rem; border: 1px solid #FFCDD2; margin-top: 0.5rem;">
+              <span style="font-size: 0.75rem; font-weight: 600; color: var(--status-danger);">
+                🔒 Manager: You do not have permissions to lock this payroll run. Please notify the Administrator.
+              </span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    
+
+  </div>
+
+  <!-- Pre-Disbursement Bank Verification Modal -->
+  <div class="modal-overlay" id="disbursement-modal">
+    <div class="modal-box">
+      <h3 style="margin-top: 0; color: var(--status-danger); display: flex; align-items: center; gap: 0.5rem;">⚠️ Post-Approval Data Change Detected</h3>
+      <p style="font-size: 0.9rem; color: var(--text-main); margin-bottom: 1.5rem;">
+        <strong>Neha Patil's</strong> bank details were updated after this batch was processed but before final disbursement. Do not proceed until you confirm which account receives this transfer.
+      </p>
+      
+      <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
+        <div style="flex: 1; padding: 1rem; border: 1px solid var(--border-color); border-radius: var(--radius-md); cursor: pointer;" onclick="selectAccount(this)">
+          <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: bold; text-transform: uppercase;">Account Active at Processing</div>
+          <div style="font-size: 0.95rem; font-weight: 600; margin-top: 0.5rem;">SBI Bank</div>
+          <div style="font-size: 0.85rem; font-family: monospace;">••••••••125432</div>
+        </div>
+        <div style="flex: 1; padding: 1rem; border: 2px solid var(--primary-navy); border-radius: var(--radius-md); background-color: #F8FAFC; cursor: pointer;" onclick="selectAccount(this)">
+          <div style="font-size: 0.75rem; color: var(--primary-navy); font-weight: bold; text-transform: uppercase;">Currently Active Account</div>
+          <div style="font-size: 0.95rem; font-weight: 600; margin-top: 0.5rem;">HDFC Bank</div>
+          <div style="font-size: 0.85rem; font-family: monospace;">••••••••993821</div>
+        </div>
+      </div>
+      
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('disbursement-modal')">Cancel Lock</button>
+        <button type="button" class="btn btn-primary" onclick="finalizeLock()">Confirm & Finalize Disbursement</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Supplementary Run Modal -->
+  <div class="modal-overlay" id="supplementary-modal">
+    <div class="modal-box" style="max-width: 650px;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
+        <h3 style="color: var(--primary-navy);">Create Supplementary Payroll Run</h3>
+        <button class="btn btn-secondary btn-xs" style="border: none; background: transparent; font-size: 1.25rem; padding: 0;" onclick="closeModal('supplementary-modal')">×</button>
+      </div>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem; line-height: 1.5;">
+        A supplementary run processes the excluded employees separately, once their blocking issues are resolved. It is treated as part of the same payroll period (June 2026) for statutory filing purposes.
+      </p>
+      
+      <div class="table-responsive" style="margin-bottom: 1rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
+        <table class="data-table" style="font-size: 0.85rem; margin-bottom: 0;">
+          <thead>
+            <tr>
+              <th>Employee</th>
+              <th>Blocking Reason</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Vikram Rao</strong> (TEC-168)</td>
+              <td><span style="color: var(--status-danger); font-weight: 500;">Attendance data missing</span> (no punch records, no uploaded sheet)</td>
+            </tr>
+            <tr>
+              <td><strong>Priya Nair</strong> (TEC-177)</td>
+              <td><span style="color: var(--status-danger); font-weight: 500;">Bank account details incomplete</span></td>
+            </tr>
+            <tr>
+              <td><strong>Arjun Das</strong> (TEC-183)</td>
+              <td><span style="color: var(--status-danger); font-weight: 500;">Attendance data missing</span></td>
+            </tr>
+            <tr>
+              <td><strong>Sneha Iyer</strong> (TEC-201)</td>
+              <td><span style="color: var(--status-danger); font-weight: 500;">PAN not verified</span> — TDS cannot be computed</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      
+      <p style="font-size: 0.85rem; font-weight: 500; margin-bottom: 1.5rem; color: var(--text-main); background-color: #F8FAFC; padding: 0.75rem; border-radius: var(--radius-sm); border-left: 3px solid var(--primary-blue);">
+        Fix these issues in the Employee module, then return here to process the supplementary run. The main batch (38 employees) is unaffected.
+      </p>
+      
+      <div class="modal-footer" style="margin-top: 0;">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('supplementary-modal')">Close</button>
+        <a href="/employees" class="btn btn-secondary" style="text-decoration: none;">Go to Employee Module</a>
+      </div>
+    </div>
+  </div>
+
+  

@@ -1,0 +1,158 @@
+
+      <div class="flex-row-between">
+        <div>
+          <h2>Clients Directory</h2>
+          <p style="color: var(--text-muted); font-size: 0.9rem;">Manage all client profiles, contracts, and view
+            high-level payroll metrics.</p>
+        </div>
+        <a href="/clients/create" class="btn btn-primary">➕ Add New Client</a>
+      </div>
+
+      <!-- Advanced Filters Row -->
+      <div class="card"
+        style="padding: 1rem; margin-bottom: 1.5rem; display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+        <div style="font-size: 0.85rem; font-weight: 600; color: var(--primary-navy);">Filters:</div>
+
+        <div style="flex: 1; min-width: 200px;">
+          <input type="text" id="search-input" class="form-control" placeholder="Search by Client Name, Code, GSTIN or PAN..."
+            style="padding: 0.4rem 0.75rem;" oninput="applyFilters()">
+        </div>
+
+        <div>
+          <select id="contract-type-filter" class="form-control" style="padding: 0.4rem 0.75rem;" title="Contract Type" onchange="applyFilters()">
+            <option value="">All Contract Types</option>
+            <option value="agency">Agency / Staffing</option>
+            <option value="eor">EOR / Pass-through</option>
+            <option value="hybrid">Hybrid</option>
+          </select>
+        </div>
+
+        <div>
+          <select id="onboarding-filter" class="form-control" style="padding: 0.4rem 0.75rem;" title="Onboarding Status" onchange="applyFilters()">
+            <option value="">All Onboarding Status</option>
+            <option value="complete">100% Complete</option>
+            <option value="pending">Pending Configuration</option>
+          </select>
+        </div>
+
+        <div>
+          <select id="status-filter" class="form-control" style="padding: 0.4rem 0.75rem;" title="Status" onchange="applyFilters()">
+            <option value="all">All Statuses</option>
+            <option value="active" selected>Active Clients</option>
+            <option value="inactive">Inactive / Offboarded</option>
+            <option value="suspended">Suspended</option>
+          </select>
+        </div>
+
+        <div>
+          <select id="industry-filter" class="form-control" style="padding: 0.4rem 0.75rem;" title="Industry" onchange="applyFilters()">
+            <option value="">All Industries</option>
+            <option value="Information Technology (IT)">IT</option>
+            <option value="Banking, Financial Services & Insurance (BFSI)">BFSI</option>
+            <option value="Manufacturing">Manufacturing</option>
+            <option value="Healthcare & Pharmaceuticals">Healthcare</option>
+            <option value="Retail & E-Commerce">Retail</option>
+            <option value="Automobile">Automobile</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+
+        <div>
+          <select id="am-filter" class="form-control" style="padding: 0.4rem 0.75rem;" title="Account Manager" onchange="applyFilters()">
+            <option value="">All Account Managers</option>
+            <option value="sunita">Sunita Verma</option>
+            <option value="rahul">Rahul Desai</option>
+            <option value="priya">Priya Kapoor</option>
+            <option value="amit">Amit Singh</option>
+          </select>
+        </div>
+
+        <div>
+          <select id="expiry-filter" class="form-control" style="padding: 0.4rem 0.75rem;" title="Contract Expiry" onchange="applyFilters()">
+            <option value="">All Contract Expiries</option>
+            <option value="30">Expiring in 30 days</option>
+            <option value="60">Expiring in 60 days</option>
+            <option value="90">Expiring in 90 days</option>
+            <option value="expired">Already Expired</option>
+          </select>
+        </div>
+
+        <label style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; cursor: pointer; user-select: none;">
+          <input type="checkbox" id="overdue-filter" style="width: 16px; height: 16px;" onchange="applyFilters()">
+          <span>Show Only Overdue</span>
+        </label>
+
+        <button class="btn btn-secondary" style="padding: 0.4rem 1rem; border:none; color:var(--text-muted);" onclick="clearFilters()">Clear Filters</button>
+      </div>
+
+      <!-- Summary Strip -->
+      <div class="card" style="padding: 0.75rem 1.25rem; margin-bottom: 1.5rem;">
+        <div class="banner-info" id="summary-strip" style="margin: 0; font-size: 0.85rem; font-weight: 500; border-left: 4px solid var(--primary-navy);">
+          Total: <span id="summary-total" style="font-weight:700;">0</span> | 
+          Active: <span id="summary-active" style="font-weight:700; color:var(--status-success);">0</span> | 
+          Onboarding: <span id="summary-onboarding" style="font-weight:700; color:var(--status-warning);">0</span> | 
+          Total Outstanding: <span id="summary-outstanding" style="font-weight:700; color:var(--status-danger);">₹0</span> | 
+          Total Deployed: <span id="summary-deployed" style="font-weight:700;">0</span> candidates
+        </div>
+      </div>
+
+      <!-- Bulk Actions Bar -->
+      <div class="bulk-actions-bar" id="bulk-actions">
+        <div style="font-size:0.9rem; font-weight:500;">
+          <span id="selected-count">0</span> clients selected
+        </div>
+        <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+          <button class="btn btn-secondary btn-xs" style="background:white; color:var(--primary-navy); border:none;"
+            onclick="exportCSV()">⬇️ Export CSV</button>
+          <button class="btn btn-secondary btn-xs" style="background:white; color:var(--primary-navy); border:none;"
+            onclick="bulkChangeStatus()">🔄 Change Status</button>
+          <button class="btn btn-secondary btn-xs" style="background:white; color:var(--primary-navy); border:none;"
+            onclick="bulkAssignAM()">👤 Assign AM</button>
+          <button class="btn btn-secondary btn-xs" style="background:white; color:var(--primary-navy); border:none;"
+            onclick="bulkSendReminder()">📧 Send Reminder</button>
+          <button class="btn btn-danger btn-xs" style="border:none;"
+            onclick="bulkDelete()">🗑️ Delete Selected</button>
+        </div>
+      </div>
+
+      <!-- Clients Table Card -->
+      <div class="card" style="padding:0;">
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width: 40px; text-align: center;">
+                  <input type="checkbox" id="select-all" onchange="toggleAllCheckboxes(this)">
+                </th>
+                <th>Client Details</th>
+                <th>Contract & Billing</th>
+                <th>Onboarding</th>
+                <th>Client Since</th>
+                <th>Last Invoice</th>
+                <th>Outstanding (₹)</th>
+                <th style="text-align: center;">Active Candidates</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="clients-table-body">
+              <!-- Rendered Dynamically -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination">
+          <div class="page-info" id="pagination-info">Showing 0 to 0 of 0 Clients</div>
+          <div class="page-controls" id="pagination-controls">
+            <!-- Rendered Dynamically -->
+          </div>
+        </div>
+      </div>
+    
+
+  </div>
+
+  <div id="toast" style="position:fixed;bottom:1.5rem;right:1.5rem;background:var(--primary-navy);color:white;padding:0.75rem 1.25rem;border-radius:var(--radius-md);font-size:0.875rem;font-weight:500;box-shadow:var(--shadow-lg);transform:translateY(100px);opacity:0;transition:all 0.3s;z-index:9999;"></div>
+
+  

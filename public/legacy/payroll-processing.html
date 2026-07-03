@@ -1,0 +1,131 @@
+
+      <div style="margin-bottom: 1.5rem;">
+        <h2 style="margin-top: 0.5rem;">Payroll Run & Calculations</h2>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">Review statutory deductions, check for onboarding blockers, and process payslip calculations.</p>
+      </div>
+      
+      <!-- Source Transparency Banner -->
+      <div id="source-banner" style="background-color: #F3F4F6; border: 1px solid #E5E7EB; border-left: 4px solid var(--primary-navy); padding: 1rem 1.25rem; border-radius: var(--radius-md); margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+          <span style="font-size: 1.25rem;">ℹ️</span>
+          <span style="font-size: 0.9rem; color: #374151;">
+            Attendance is pulled automatically. Live punch from the Employee Portal takes priority. If an employee doesn't use punch-in, their client's uploaded timesheet is used instead. Approved leave days are never counted as Loss of Pay.
+          </span>
+        </div>
+        <button class="btn btn-secondary btn-xs" onclick="document.getElementById('source-banner').style.display='none'">Dismiss</button>
+      </div>
+
+      <!-- Pre-flight Auto Check Banner -->
+      <div class="card" style="margin-bottom: 1.5rem;">
+        <div class="card-header" style="background-color: #F8FAFC; border-bottom: 1px solid var(--border-color);">
+          <h3 class="card-title" style="margin: 0; font-size: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+            <span>✈️ Pre-Flight Validation Gates</span>
+            <span id="preflight-status-badge" class="badge">Checking...</span>
+          </h3>
+        </div>
+        <div style="padding: 1rem;" id="preflight-checks-container">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+
+      <!-- Select filters -->
+      <div style="display: flex; justify-content: flex-end; margin-bottom: 0.5rem;">
+        <button class="btn btn-secondary btn-xs" onclick="useLastMonthSettings()">🔄 Use Last Month's Settings</button>
+      </div>
+      <div class="card" style="padding: 1rem; margin-bottom: 1.5rem; display: flex; gap: 1.5rem; align-items: center; flex-wrap: wrap;">
+        <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 250px;">
+          <label for="select-client" style="margin-bottom: 0.25rem;">Target Client Contract</label>
+          <select id="select-client" class="form-control" onchange="runPayrollEngine()">
+            <option value="mahindra" selected>Mahindra Corp (42 Employees)</option>
+            <option value="tcs">Tata Consultancy Services (90 Employees)</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 200px;">
+          <label for="select-month" style="margin-bottom: 0.25rem;">Select Payout Month</label>
+          <select id="select-month" class="form-control" onchange="runPayrollEngine()">
+            <option value="june" selected>June 2026</option>
+            <option value="may">May 2026</option>
+          </select>
+        </div>
+        <div style="margin-top: 1rem;">
+          <button class="btn btn-navy" onclick="runPayrollEngine()">Recalculate Sheet</button>
+        </div>
+      </div>
+
+      <!-- Processing Grid Table -->
+      <div class="card">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; align-items: center; gap: 1rem;">
+            <div>
+              <h3 class="card-title">Calculation Summary</h3>
+              <span style="font-size: 0.75rem; color: var(--text-muted);" id="lop-basis-display">Loading LOP Basis...</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.5rem; background: #F0FDF4; border: 1px solid #BBF7D0; padding: 0.25rem 0.75rem; border-radius: 50px; font-size: 0.8rem; color: #166534; font-weight: 600;" title="Processing Confidence Score: percentage of employees passing without blockers or warnings">
+              <span style="width: 8px; height: 8px; background-color: #166534; border-radius: 50%;"></span>
+              <span id="confidence-score-val">Checking...</span>
+            </div>
+            <span id="confidence-score-detail" style="font-size: 0.75rem; color: var(--text-muted);"></span>
+          </div>
+          <div>
+            <button class="btn btn-secondary btn-xs" onclick="toggleColumns('earn')">Toggle Earnings</button>
+            <button class="btn btn-secondary btn-xs" onclick="toggleColumns('deduct')">Toggle Deductions</button>
+          </div>
+        </div>
+
+        <div class="table-scroll-wrapper">
+          <table class="data-table extended-table" id="payroll-table">
+            <thead>
+              <tr>
+                <th rowspan="2">Emp Code</th>
+                <th rowspan="2">Employee Name</th>
+                <th rowspan="2">Paid Days</th>
+                <th colspan="8" class="col-group-earn col-earn">Earnings</th>
+                <th rowspan="2" class="col-group-total">Gross Total</th>
+                <th colspan="7" class="col-group-deduct col-deduct">Deductions</th>
+                <th rowspan="2" class="col-group-total">Total Deduct.</th>
+                <th rowspan="2" class="col-group-total" style="color: var(--primary-navy);">Net Pay</th>
+                <th rowspan="2">Flags</th>
+              </tr>
+              <tr>
+                <th class="col-group-earn col-earn">Basic</th>
+                <th class="col-group-earn col-earn">HRA</th>
+                <th class="col-group-earn col-earn">Conv.</th>
+                <th class="col-group-earn col-earn">DA</th>
+                <th class="col-group-earn col-earn">Med.</th>
+                <th class="col-group-earn col-earn">Special</th>
+                <th class="col-group-earn col-earn">Other</th>
+                <th class="col-group-earn col-earn">Arrears</th>
+                
+                <th class="col-group-deduct col-deduct" title="Provident Fund (PF) — Employee contribution towards retirement, calculated at 12% of basic pay (capped at ₹15,000).">PF ℹ️</th>
+                <th class="col-group-deduct col-deduct" title="Employee State Insurance (ESI) — Health insurance contribution (0.75%) for employees earning up to ₹21,000 gross.">ESI ℹ️</th>
+                <th class="col-group-deduct col-deduct" title="Professional Tax (PT) — State-level tax levied on salaried employees, slab-based.">PT ℹ️</th>
+                <th class="col-group-deduct col-deduct">Welfare</th>
+                <th class="col-group-deduct col-deduct" title="Loss of Pay (LOP) — Salary deducted for days the employee didn't work and wasn't on approved leave.">LOP ℹ️</th>
+                <th class="col-group-deduct col-deduct" title="Tax Deducted at Source (TDS) — Income tax deducted per month based on the employee's declared tax regime and investment proofs.">TDS ℹ️</th>
+                <th class="col-group-deduct col-deduct">Loan EMI</th>
+              </tr>
+            </thead>
+            <tbody id="payroll-table-body">
+              <!-- JS Populated -->
+            </tbody>
+            <tfoot id="payroll-table-foot">
+              <!-- JS Populated Totals -->
+            </tfoot>
+          </table>
+        </div>
+
+        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem; display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <strong>Legend:</strong> <code>—</code> = Component Not Applicable. Red flags exclude employees.
+          </div>
+          <div>
+            <a href="/employees" class="btn btn-secondary">Cancel</a>
+            <button id="process-btn" class="btn btn-primary" style="padding: 0.6rem 1.5rem;" onclick="alert('Payroll processed successfully!')">Process & Generate Batch Run</button>
+          </div>
+        </div>
+      </div>
+    
+
+  </div>
+
+  

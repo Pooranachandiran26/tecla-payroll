@@ -1,0 +1,394 @@
+
+      <div style="margin-bottom: 1.5rem;">
+        <a href="/clients" style="font-size: 0.85rem; font-weight: 600;">← Back to Clients Directory</a>
+
+        <div class="client-header-container">
+          <div>
+            <div class="client-title-row">
+              <h2>Mahindra & Mahindra Limited</h2>
+              <span class="badge badge-success badge-status-lg" id="current-status-badge">● Active</span>
+            </div>
+            <div class="quick-meta">
+              <span><strong>Client Code:</strong> MAH-012</span>
+              <span><strong>Type:</strong> Pass-through EOR</span>
+              <span><strong>Industry:</strong> Automobile</span>
+              <span><strong>Client Since:</strong> Jan 01, 2024</span>
+            </div>
+          </div>
+          <div style="display:flex; gap:0.75rem; align-items:center;">
+            <button class="btn btn-secondary" onclick="openStatusModal()">🔄 Change Status</button>
+            <a href="/clients/create?id=1" class="btn btn-secondary">✏️ Edit Client</a>
+            <a href="#" class="btn btn-primary">🧾 Generate Invoice</a>
+          </div>
+        </div>
+        
+        <!-- Alert Banners -->
+        <div id="alert-banner-container" style="display:flex; flex-direction:column; gap:0.5rem; margin-top:1rem; margin-bottom:1rem;"></div>
+      </div>
+
+      <!-- Tab Container -->
+      <div class="tab-container card" style="padding-top: 0;">
+        <ul class="tab-headers"
+          style="padding: 0 1.5rem; background: #FAFBFC; border-radius: var(--radius-md) var(--radius-md) 0 0; margin: 0 -1.5rem 1.5rem -1.5rem;">
+          <li class="active" data-tab="overview">Overview</li>
+          <li data-tab="candidates">Deployed Candidates (42)</li>
+          <li data-tab="invoices">Invoices & Payments</li>
+          <li data-tab="documents">Documents (5)</li>
+          <li data-tab="contacts">Contacts</li>
+          <li data-tab="sla">SLA & Settings</li>
+          <li data-tab="activity">Activity Log</li>
+        </ul>
+
+        <!-- Tab 1: Overview -->
+        <div class="tab-content active" data-tab="overview">
+
+          <div class="grid-cols-4" style="margin-bottom: 2rem;">
+            <div class="card metric-card" style="background:#FAFBFC; border:none;">
+              <span class="metric-label">Outstanding Dues</span>
+              <span class="metric-value" style="color:var(--status-danger);" id="metric-outstanding">₹4,20,000</span>
+              <span class="metric-trend" id="metric-credit-limit">Credit Limit: ₹10,00,000</span>
+            </div>
+            <div class="card metric-card" style="background:#FAFBFC; border:none;">
+              <span class="metric-label">Active Candidates</span>
+              <span class="metric-value" id="metric-active-candidates">42</span>
+              <span class="metric-trend trend-up" id="metric-active-trend">▲ 2 added this month</span>
+            </div>
+            <div class="card metric-card" style="background:#FAFBFC; border:none;">
+              <span class="metric-label">Credit Utilization</span>
+              <span class="metric-value" id="metric-credit-utilization">42%</span>
+              <span class="metric-trend" id="metric-credit-util-bar" style="display:block; background:#E2E8F0; border-radius:4px; height:6px; margin-top:0.4rem; overflow:hidden;"><span id="metric-credit-util-fill" style="display:block; background:var(--accent-gold); height:100%; width:42%;"></span></span>
+            </div>
+            <div class="card metric-card" style="background:#FAFBFC; border:none;">
+              <span class="metric-label">YTD Invoiced (2026)</span>
+              <span class="metric-value" id="metric-ytd-invoiced">₹8,15,000</span>
+              <span class="metric-trend"><span class="badge badge-success" id="metric-contract-expiry" style="font-size: 0.72rem; padding: 0.2rem 0.4rem;">Contract: Dec 31, 2026</span></span>
+            </div>
+          </div>
+
+          <div class="grid-layout">
+            <!-- Left Col -->
+            <div style="display:flex; flex-direction:column; gap:1.5rem;">
+              <div class="card">
+                <h3
+                  style="font-size:1.05rem; border-bottom:1px solid var(--border-color); padding-bottom:0.5rem; margin-bottom:1rem;">
+                  Company Profile Snapshot</h3>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; font-size:0.875rem;" id="profile-snapshot-grid">
+                  <!-- Dynamically populated -->
+                </div>
+              </div>
+
+              <!-- PO Utilization Tracker -->
+              <div class="card" id="po-tracker-card" style="display:none; border-left: 3px solid var(--accent-gold);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                  <h3 style="font-size:1.05rem; margin:0;">Purchase Order (PO) Utilization</h3>
+                  <span class="badge badge-warning" id="po-status-badge">Active</span>
+                </div>
+                <div style="margin-bottom: 0.5rem; display:flex; justify-content:space-between; font-size:0.85rem;">
+                  <span><strong>PO No:</strong> <span id="tracker-po-number"></span></span>
+                  <span><strong>Valid Till:</strong> <span id="tracker-po-validity"></span></span>
+                </div>
+                
+                <div style="background:#F8FAFC; padding:1rem; border-radius:var(--radius-md); border:1px solid var(--border-color);">
+                  <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem; font-size:0.85rem;">
+                    <span>Utilized: <strong id="tracker-po-utilized" style="color:var(--primary-navy);">₹0</strong></span>
+                    <span>Total Value: <strong id="tracker-po-value">₹0</strong></span>
+                  </div>
+                  <div style="background:#E2E8F0; border-radius:4px; height:8px; width:100%; overflow:hidden; margin-bottom:0.5rem;">
+                    <div id="tracker-po-bar" style="background:var(--accent-gold); height:100%; width:0%; transition: width 0.3s ease;"></div>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-muted);">
+                    <span id="tracker-po-percentage">0% Consumed</span>
+                    <span id="tracker-po-remaining">₹0 Remaining</span>
+                  </div>
+                </div>
+                <div id="po-warning-alert" style="display:none; margin-top:1rem; padding:0.75rem; background:#FFF5F5; border:1px solid #FEB2B2; border-radius:var(--radius-sm); color:#C53030; font-size:0.8rem; display:flex; gap:0.5rem; align-items:center;">
+                  <span>⚠️</span>
+                  <span><strong>Warning:</strong> PO Value is critically low or exhausted. Invoicing may be blocked.</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Col -->
+            <div style="display:flex; flex-direction:column; gap:1.5rem;">
+              <div class="card" style="border-left: 3px solid var(--status-success);">
+                <h3 style="font-size:1.05rem; margin-bottom:1rem;">Onboarding Status</h3>
+                <div style="display:flex; flex-direction:column; gap:0.5rem; font-size:0.85rem;">
+                  <div style="display:flex; align-items:center; gap:0.5rem;"><span
+                      style="color:var(--status-success);">✅</span> Company Identity Configured</div>
+                  <div style="display:flex; align-items:center; gap:0.5rem;"><span
+                      style="color:var(--status-success);">✅</span> Contacts Added</div>
+                  <div style="display:flex; align-items:center; gap:0.5rem;"><span
+                      style="color:var(--status-success);">✅</span> Billing Terms Agreed</div>
+                  <div style="display:flex; align-items:center; gap:0.5rem;"><span
+                      style="color:var(--status-success);">✅</span> Statutory Defaults Set</div>
+                  <div style="display:flex; align-items:center; gap:0.5rem;"><span
+                      style="color:var(--status-success);">✅</span> Critical Documents Uploaded</div>
+                </div>
+                <div
+                  style="margin-top:1rem; padding-top:0.75rem; border-top:1px solid var(--border-color); font-size:0.8rem;">
+                  <strong>Portal Access:</strong> Enabled (Approver role)
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Deployed Candidates -->
+        <div class="tab-content" data-tab="candidates">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+            <div style="display:flex; gap:0.5rem;">
+              <input type="text" class="form-control" placeholder="Search employee..."
+                style="width:250px; padding:0.4rem 0.75rem;">
+              <select class="form-control" style="width:150px; padding:0.4rem 0.75rem;">
+                <option value="all">All Statuses</option>
+                <option value="active" selected>Active</option>
+                <option value="resigned">Resigned</option>
+              </select>
+            </div>
+            <a href="/employees/create" class="btn btn-primary btn-xs" style="padding:0.4rem 0.75rem;">➕ Add
+              Candidate</a>
+          </div>
+
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Emp Code</th>
+                  <th>Candidate Name</th>
+                  <th>Designation</th>
+                  <th>Gross Salary</th>
+                  <th>Statutory Profile</th>
+                  <th>Date Joined</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>TEC-088</td>
+                  <td><strong>Aarav Sharma</strong></td>
+                  <td>Senior Developer</td>
+                  <td>₹45,000</td>
+                  <td>
+                    <span class="badge badge-success">PF</span>
+                    <span class="badge badge-danger" title="Gross exceeds 21k limit">ESI Limit</span>
+                    <span class="badge badge-success">TDS</span>
+                  </td>
+                  <td>Jan 15, 2025</td>
+                  <td><span class="badge badge-success">Active</span></td>
+                  <td><a href="/employees/1" class="btn btn-secondary btn-xs">View Profile</a></td>
+                </tr>
+                <tr>
+                  <td>TEC-121</td>
+                  <td><strong>Neha Patil</strong></td>
+                  <td>QA Lead</td>
+                  <td>₹32,000</td>
+                  <td>
+                    <span class="badge badge-success">PF</span>
+                    <span class="badge badge-danger">ESI Limit</span>
+                    <span class="badge badge-neutral">TDS Off</span>
+                  </td>
+                  <td>Mar 10, 2025</td>
+                  <td><span class="badge badge-success">Active</span></td>
+                  <td><a href="/employees/1" class="btn btn-secondary btn-xs">View Profile</a></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Tab 3: Invoices & Payments -->
+        <div class="tab-content" data-tab="invoices">
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Invoice No</th>
+                  <th>Billing Month</th>
+                  <th>Issue Date</th>
+                  <th>Due Date</th>
+                  <th>Total Amount</th>
+                  <th>Margin / Fee</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="invoice-table-body">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Tab 4: Documents -->
+        <div class="tab-content" data-tab="documents">
+          <div style="display:flex; justify-content:flex-end; margin-bottom:1.5rem;">
+            <button class="btn btn-primary btn-xs" style="padding:0.4rem 0.75rem;"
+              onclick="document.getElementById('doc-upload-input').click()">➕ Upload Document</button>
+            <input type="file" id="doc-upload-input" style="display:none;" onchange="alert('Upload successful!')">
+          </div>
+
+          <div class="doc-grid" id="document-grid-container">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
+        <!-- Tab 5: Contacts -->
+        <div class="tab-content" data-tab="contacts">
+          <div class="grid-cols-3" id="contacts-grid-container">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
+        <!-- Tab 6: Activity Log -->
+        <div class="tab-content" data-tab="activity">
+          <div style="display:flex; gap:0.75rem; margin-bottom:1.5rem; flex-wrap:wrap; background:#F8FAFC; padding:0.75rem; border-radius:var(--radius-sm); border:1px solid var(--border-color);">
+            <div style="flex:1; min-width:150px;">
+              <label style="font-size:0.75rem; font-weight:600; display:block; margin-bottom:0.25rem;">Log Type</label>
+              <select id="log-filter-type" class="form-control" style="padding:0.35rem 0.5rem; height: auto;" onchange="filterActivityLogs()">
+                <option value="all">All Types</option>
+                <option value="System">System</option>
+                <option value="Billing">Billing</option>
+                <option value="Compliance">Compliance</option>
+                <option value="Portal">Portal</option>
+                <option value="Account Manager">Account Manager</option>
+              </select>
+            </div>
+            <div style="flex:1; min-width:150px;">
+              <label style="font-size:0.75rem; font-weight:600; display:block; margin-bottom:0.25rem;">Start Date</label>
+              <input type="date" id="log-filter-start" class="form-control" style="padding:0.35rem 0.5rem; height: auto;" onchange="filterActivityLogs()">
+            </div>
+            <div style="flex:1; min-width:150px;">
+              <label style="font-size:0.75rem; font-weight:600; display:block; margin-bottom:0.25rem;">End Date</label>
+              <input type="date" id="log-filter-end" class="form-control" style="padding:0.35rem 0.5rem; height: auto;" onchange="filterActivityLogs()">
+            </div>
+          </div>
+          
+          <div class="activity-timeline" id="activity-timeline-container">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
+        <!-- Tab 7: Settings & SLA -->
+        <div class="tab-content" data-tab="sla">
+          <div class="grid-layout" id="sla-grid-container">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
+      </div>
+    
+
+  </div>
+
+  <!-- Status Change Modal -->
+  <div class="modal-overlay" id="status-modal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 style="margin:0; font-size:1.15rem;">Change Client Status</h3>
+        <button class="modal-close" onclick="closeStatusModal()">×</button>
+      </div>
+      <div>
+        <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1rem;">
+          Updating the client status will affect billing and payroll processing for all associated candidates.
+        </p>
+
+        <div class="form-group">
+          <label>New Status</label>
+          <select id="new-status-select" class="form-control">
+            <option value="active">Active</option>
+            <option value="inactive">Inactive (Offboarded)</option>
+            <option value="suspended">Suspended (Payment Default)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Reason / Notes</label>
+          <textarea class="form-control" rows="3" placeholder="Enter reason for status change..."></textarea>
+        </div>
+
+        <div class="form-group">
+          <label
+            style="display:flex; align-items:center; gap:0.5rem; font-size:0.85rem; font-weight:normal; cursor:pointer;">
+            <input type="checkbox" checked style="width:16px; height:16px;">
+            Halt payroll processing for all candidates under this client?
+          </label>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeStatusModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="confirmStatusChange()">Confirm Update</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Record Payment Modal -->
+  <div class="modal-overlay" id="payment-modal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 style="margin:0; font-size:1.15rem;">💰 Record Invoice Payment</h3>
+        <button class="modal-close" onclick="closePaymentModal()">×</button>
+      </div>
+      <div class="modal-body" style="padding-top: 1rem; max-height: 70vh; overflow-y: auto;">
+        <input type="hidden" id="pay-invoice-no">
+        
+        <div style="display:flex; justify-content:space-between; margin-bottom:1rem; background:#F8FAFC; padding:0.75rem; border-radius:var(--radius-sm);">
+          <div>
+            <span style="font-size:0.75rem; color:var(--text-muted); display:block;">Invoice Amount</span>
+            <strong style="font-size:1rem; color:var(--primary-navy);" id="pay-invoice-amount">₹0</strong>
+          </div>
+          <div>
+            <span style="font-size:0.75rem; color:var(--text-muted); display:block;">Pending Balance</span>
+            <strong style="font-size:1rem; color:var(--status-danger);" id="pay-invoice-pending">₹0</strong>
+          </div>
+        </div>
+
+        <div class="form-row" style="margin-bottom:0.75rem;">
+          <div class="form-group">
+            <label for="pay-mode">Payment Mode <span style="color:var(--status-danger);">*</span></label>
+            <select id="pay-mode" class="form-control">
+              <option value="NEFT">NEFT / RTGS</option>
+              <option value="UPI">UPI</option>
+              <option value="Cheque">Cheque</option>
+              <option value="Cash">Cash</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="pay-ref">Reference / UTR Number <span style="color:var(--status-danger);">*</span></label>
+            <input type="text" id="pay-ref" class="form-control" placeholder="e.g. UTR123456789">
+          </div>
+        </div>
+
+        <div class="form-row" style="margin-bottom:0.75rem;">
+          <div class="form-group">
+            <label for="pay-date">Transaction Date <span style="color:var(--status-danger);">*</span></label>
+            <input type="date" id="pay-date" class="form-control">
+          </div>
+          <div class="form-group">
+            <label for="pay-amount">Amount Paid (₹) <span style="color:var(--status-danger);">*</span></label>
+            <input type="number" id="pay-amount" class="form-control" placeholder="e.g. 420000">
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom:0.75rem;">
+          <label for="pay-receipt">Upload Receipt / Proof</label>
+          <input type="file" id="pay-receipt" class="form-control">
+          <div class="field-hint">PDF or Image of bank confirmation. Max 2MB.</div>
+        </div>
+
+        <div class="form-group" style="margin-bottom:0;">
+          <label style="display:flex; align-items:center; gap:0.5rem; font-size:0.85rem; font-weight:normal; cursor:pointer;">
+            <input type="checkbox" id="pay-deduct-tds">
+            Deduct TDS at Source? (outstanding will be cleared assuming TDS withholding)
+          </label>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closePaymentModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="confirmPaymentRecord()">Record Payment</button>
+      </div>
+    </div>
+  </div>
+  

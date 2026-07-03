@@ -1,0 +1,250 @@
+
+      <div style="margin-bottom: 1.5rem;">
+        <h2 style="margin-top: 0.5rem;">System Security Activity Log</h2>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">Audit history of all operational events, salary modifications, profile edits, banking detail changes, and role assignments.</p>
+      </div>
+
+      <!-- Category Legend -->
+      <div class="cat-legend">
+        <span style="font-size:0.78rem; font-weight:600; color:var(--text-muted);">Categories:</span>
+        <span class="badge badge-success">Payroll Lock</span>
+        <span class="badge badge-gold">Salary Revision</span>
+        <span class="badge badge-profile-edit">Profile Edit</span>
+        <span class="badge badge-desig-warn">Designation Flag</span>
+        <span class="badge badge-danger">Bank Approve</span>
+        <span class="badge badge-lock-breach">Security Flag</span>
+        <span class="badge badge-warning">Profile Request</span>
+        <span class="badge badge-info">Attendance Sync</span>
+        <span class="badge badge-neutral">Auto-Threshold</span>
+        <span class="badge badge-secondary" style="background:#E2E8F0;color:#334155;border:1px solid #CBD5E1;">Exit Cancelled</span>
+        <span class="badge badge-success" style="background:#F0FDF4;color:#166534;border:1px solid #BBF7D0;">Compliance Sync</span>
+      </div>
+
+      <!-- Filters -->
+      <div class="card" style="padding: 1rem; margin-bottom: 1.5rem; display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+        <div style="font-size: 0.85rem; font-weight: 600; color: var(--primary-navy);">Filters:</div>
+        <div>
+          <input type="text" class="form-control" id="log-search" placeholder="Search by user or action..." style="padding: 0.4rem 0.75rem; min-width: 220px;" oninput="filterLog()">
+        </div>
+        <div>
+          <select class="form-control" id="log-category" style="padding: 0.4rem 0.75rem;" onchange="filterLog()">
+            <option value="">All Categories</option>
+            <option value="Payroll Lock">Payroll Lock</option>
+            <option value="Salary Revision">Salary Revision</option>
+            <option value="Profile Edit">Profile Edit</option>
+            <option value="Designation Flag">Designation Flag</option>
+            <option value="Bank Approve">Bank Approve</option>
+            <option value="Security Flag">Security Flag</option>
+            <option value="Profile Request">Profile Request</option>
+            <option value="Attendance Sync">Attendance Sync</option>
+            <option value="Auto-Threshold">Auto-Threshold</option>
+            <option value="Exit Cancelled">Exit Cancelled</option>
+            <option value="Compliance Sync">Compliance Sync</option>
+            <option value="Tax Adjustment">Tax Adjustment</option>
+          </select>
+        </div>
+        <button class="btn btn-navy" style="padding: 0.4rem 1rem;" onclick="filterLog()">Apply Filter</button>
+        <button class="btn btn-secondary" style="padding: 0.4rem 0.75rem;" onclick="resetFilter()">Reset</button>
+      </div>
+
+      <!-- Logs Table Card -->
+      <div class="card">
+        <div class="table-responsive">
+          <table class="data-table" id="log-table">
+            <thead>
+              <tr>
+                <th>User Account</th>
+                <th>Category</th>
+                <th>Action Description</th>
+                <th>Client Scope</th>
+                <th>IP Address</th>
+                <th>Timestamp</th>
+              </tr>
+            </thead>
+            <tbody id="log-tbody">
+
+              <!-- ── NEW: Lock Breach Entry (Phase 2) ── -->
+              <tr class="row-danger" data-category="Security Flag">
+                <td><strong>System Alert</strong></td>
+                <td><span class="badge badge-lock-breach">Security Flag</span></td>
+                <td class="action-cell">
+                  <div><strong style="color:var(--status-danger);">CRITICAL: Lock Integrity Breach Detected</strong></div>
+                  <div class="action-detail">Bank Account for <span class="action-employee">Neha Patil (TEC-121)</span> was modified by <em>Rajesh (Admin)</em> <strong>AFTER</strong> Payroll Batch #PR-0626 was Approved & Locked, but before final disbursement.</div>
+                </td>
+                <td>Mahindra Corp</td>
+                <td style="font-family: monospace;">192.168.1.42</td>
+                <td>Today, 10:15 AM</td>
+              </tr>
+
+              <!-- ── NEW: Compliance Draft Auto-Population (Phase 3) ── -->
+              <tr data-category="Compliance Sync">
+                <td><strong>System Job</strong></td>
+                <td><span class="badge badge-success" style="background:#F0FDF4;color:#166534;border:1px solid #BBF7D0;">Compliance Sync</span></td>
+                <td class="action-cell">
+                  <div>Auto-populated Draft Statutory Returns (PF ECR, ESI, PT)</div>
+                  <div class="action-detail">Triggered by approval of Payroll Batch #PR-0626. Drafts ready for Admin review.</div>
+                </td>
+                <td>Mahindra Corp</td>
+                <td style="font-family: monospace;">Cloud Engine</td>
+                <td>Today, 02:41 PM</td>
+              </tr>
+
+              <!-- ── NEW: TDS True-Up (Phase 3) ── -->
+              <tr data-category="Tax Adjustment">
+                <td><strong>System Job</strong></td>
+                <td><span class="badge badge-info">Tax Adjustment</span></td>
+                <td class="action-cell">
+                  <div>Year-End TDS True-Up calculated for <span class="action-employee">Aarav Sharma (TEC-088)</span></div>
+                  <div class="action-detail">Adjustment of +₹3,200 applied to current payroll run based on final investment declarations.</div>
+                </td>
+                <td>Mahindra Corp</td>
+                <td style="font-family: monospace;">Cloud Engine</td>
+                <td>Today, 09:15 AM</td>
+              </tr>
+
+              <!-- ── Existing: Cancelled Exit Process ── -->
+              <tr data-category="Exit Cancelled">
+                <td><strong>Rajesh (Admin)</strong></td>
+                <td><span class="badge badge-secondary" style="background:#E2E8F0;color:#334155;border:1px solid #CBD5E1;">Exit Cancelled</span></td>
+                <td class="action-cell">
+                  <div>Cancelled exit process for <span class="action-employee">Aarav Sharma (TEC-088)</span></div>
+                  <div class="action-detail">Exit attempt aborted during active workflow. Employee status restored to Active.</div>
+                </td>
+                <td>Mahindra Corp</td>
+                <td style="font-family: monospace;">192.168.1.45</td>
+                <td>June 26, 2026 02:15 PM</td>
+              </tr>
+
+              <!-- ── Existing: Designation changed without salary revision ── -->
+              <tr class="row-warn" data-category="Designation Flag">
+                <td><strong>Rajesh (Admin)</strong></td>
+                <td><span class="badge badge-desig-warn">Designation Flag</span></td>
+                <td class="action-cell">
+                  <div>Rajesh (Admin) changed designation for <span class="action-employee">Aarav Sharma (TEC-088)</span> without a salary revision — verify if a pay change is also needed.</div>
+                  <div class="action-flag">⚠ Action required: <a href="/employees/1/salary-revision" style="color:var(--status-warning);text-decoration:underline;font-weight:600;">Review Revise Salary</a></div>
+                </td>
+                <td>Mahindra Corp</td>
+                <td style="font-family: monospace;">192.168.1.45</td>
+                <td>June 26, 2026 01:05 PM</td>
+              </tr>
+
+              <!-- ── Existing: Contact details edit ── -->
+              <tr data-category="Profile Edit">
+                <td><strong>Rajesh (Admin)</strong></td>
+                <td><span class="badge badge-profile-edit">Profile Edit</span></td>
+                <td class="action-cell">
+                  <div>Edited contact details for <span class="action-employee">Aarav Sharma (TEC-088)</span></div>
+                  <div class="action-detail">Fields changed: Personal Email, Phone Number — via Edit Profile panel</div>
+                </td>
+                <td>Mahindra Corp</td>
+                <td style="font-family: monospace;">192.168.1.45</td>
+                <td>June 26, 2026 12:50 PM</td>
+              </tr>
+
+              <!-- ── Existing: Salary Revision ── -->
+              <tr data-category="Salary Revision">
+                <td><strong>Rajesh (Admin)</strong></td>
+                <td><span class="badge badge-gold">Salary Revision</span></td>
+                <td class="action-cell">
+                  <div>Submitted salary revision approval for <span class="action-employee">Aarav Sharma (TEC-088)</span></div>
+                  <div class="action-detail">₹35,000 → ₹45,000 · Reason: Annual Appraisal Increment · Effective April 2026</div>
+                </td>
+                <td>Mahindra Corp</td>
+                <td style="font-family: monospace;">192.168.1.45</td>
+                <td>June 25, 2026 01:15 PM</td>
+              </tr>
+
+              <!-- ── Existing: Payroll Lock ── -->
+              <tr data-category="Payroll Lock">
+                <td><strong>Rajesh (Admin)</strong></td>
+                <td><span class="badge badge-success">Payroll Lock</span></td>
+                <td class="action-cell">
+                  <div>Approved and locked June 2026 payroll run for Mahindra Corp</div>
+                  <div class="action-detail">42 employees processed · Total disbursement: ₹18,90,000</div>
+                </td>
+                <td>Mahindra Corp</td>
+                <td style="font-family: monospace;">192.168.1.45</td>
+                <td>June 25, 2026 02:40 PM</td>
+              </tr>
+
+              <!-- ── Existing: Attendance Sync ── -->
+              <tr data-category="Attendance Sync">
+                <td><strong>Sunita (Manager)</strong></td>
+                <td><span class="badge badge-info">Attendance Sync</span></td>
+                <td class="action-cell">
+                  <div>Validated and uploaded biometric attendance sheet for June period</div>
+                  <div class="action-detail">Coverage: 22 working days · 42 employees</div>
+                </td>
+                <td>Mahindra Corp</td>
+                <td style="font-family: monospace;">192.168.1.68</td>
+                <td>June 25, 2026 10:30 AM</td>
+              </tr>
+
+              <!-- ── UPDATED: ESI Mid-Year Transition (Phase 3) ── -->
+              <tr data-category="Auto-Threshold">
+                <td><strong>System Job</strong></td>
+                <td><span class="badge badge-neutral">Auto-Threshold</span></td>
+                <td class="action-cell">
+                  <div>ESI Contribution Period Active (Mid-Year Transition) for <span class="action-employee">Aarav Sharma (TEC-088)</span></div>
+                  <div class="action-detail">Gross ₹45,000 exceeds ESI limit, but deductions continue until Sep 30 under Contribution Period rules.</div>
+                </td>
+                <td>Mahindra Corp</td>
+                <td style="font-family: monospace;">Cloud Engine</td>
+                <td>June 25, 2026 09:00 AM</td>
+              </tr>
+
+              <!-- ── Existing: Bank Approve ── -->
+              <tr data-category="Bank Approve">
+                <td><strong>Rajesh (Admin)</strong></td>
+                <td><span class="badge badge-danger">Bank Approve</span></td>
+                <td class="action-cell">
+                  <div>Authorized secure disbursement account update for <span class="action-employee">Neha Patil (TEC-121)</span></div>
+                  <div class="action-detail">SBI ••••••••125432 → HDFC ••••••••993821 · IFSC verified</div>
+                </td>
+                <td>Mahindra Corp</td>
+                <td style="font-family: monospace;">192.168.1.45</td>
+                <td>June 24, 2026 04:30 PM</td>
+              </tr>
+
+              <!-- ── Existing: Profile Request ── -->
+              <tr data-category="Profile Request">
+                <td><strong>Aarav Sharma</strong></td>
+                <td><span class="badge badge-warning">Profile Request</span></td>
+                <td class="action-cell">
+                  <div>Submitted banking details update request via Employee Portal</div>
+                  <div class="action-detail">Pending admin review in Bank Change Requests queue</div>
+                </td>
+                <td>Mahindra Corp</td>
+                <td style="font-family: monospace;">103.45.20.12</td>
+                <td>June 24, 2026 03:10 PM</td>
+              </tr>
+
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Empty state -->
+        <div id="log-empty" style="display:none; text-align:center; padding:2.5rem; color:var(--text-muted); font-size:0.875rem;">
+          No log entries match the selected filters.
+        </div>
+
+        <!-- Pagination Container -->
+        <div class="pagination-container" id="log-pagination">
+          <div class="pagination-info">
+            Showing <strong>1</strong> to <strong>12</strong> of <strong>87</strong> activity logs
+          </div>
+          <ul class="pagination">
+            <li class="page-item disabled"><a class="page-link" href="#">Prev</a></li>
+            <li class="page-item active"><a class="page-link" href="#">1</a></li>
+            <li class="page-item"><a class="page-link" href="#" onclick="alert('Loading page 2...'); return false;">2</a></li>
+            <li class="page-item"><a class="page-link" href="#" onclick="alert('Loading page 3...'); return false;">3</a></li>
+            <li class="page-item"><a class="page-link" href="#" onclick="alert('Loading page 4...'); return false;">4</a></li>
+            <li class="page-item"><a class="page-link" href="#" onclick="alert('Loading next page...'); return false;">Next</a></li>
+          </ul>
+        </div>
+      </div>
+    
+
+  </div>
+
+  
