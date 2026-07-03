@@ -347,15 +347,25 @@ export default function EmployeeDetail() {
                     <td>Total Deductions</td>
                     <td style={{"color":"var(--status-danger)"}}>₹8,900</td>
                   </tr>
+                  <tr style={{"backgroundColor":"var(--primary-navy)","color":"white","fontWeight":"bold"}}>
+                    <td>NET TAKE HOME</td>
+                    <td>Gross Earnings − Total Deductions</td>
+                    <td style={{"color":"var(--accent-gold)"}}>₹45,600</td>
+                  </tr>
                   <tr style={{"backgroundColor":"#FFFDF0","color":"#64748B"}}>
                     <td><strong>Employer PF Contribution</strong></td>
-                    <td><span className="badge badge-neutral">Employer Cost — not deducted from employee</span></td>
+                    <td><span className="badge badge-neutral">Employer Cost</span></td>
                     <td>₹4,200</td>
                   </tr>
                   <tr style={{"backgroundColor":"#FFFDF0","color":"#64748B"}}>
                     <td><strong>Employer ESIC Contribution</strong></td>
-                    <td><span className="badge badge-neutral">Employer Cost — not deducted from employee</span></td>
+                    <td><span className="badge badge-neutral">Employer Cost</span></td>
                     <td>₹0</td>
+                  </tr>
+                  <tr style={{"backgroundColor":"#F1F5F9","fontWeight":"bold","borderTop":"2px solid var(--border-color)","borderBottom":"2px solid var(--border-color)","fontSize":"1.1rem"}}>
+                    <td>COST TO COMPANY (CTC)</td>
+                    <td>Gross Earnings + Employer Contributions</td>
+                    <td style={{"color":"var(--primary-navy)"}}>₹58,700</td>
                   </tr>
                 </tbody>
               </table>
@@ -467,6 +477,28 @@ export default function EmployeeDetail() {
                               <div style={{"fontWeight":"600","color":"#991B1B","fontSize":"0.95rem"}}>₹4,500</div>
                             </div>
                           </div>
+
+                          <div style={{"marginTop":"1.5rem","padding":"1rem","background":"var(--primary-navy)","color":"white","borderRadius":"var(--radius-sm)","display":"flex","justifyContent":"space-between","fontWeight":"bold","fontSize":"1.1rem"}}>
+                            <span>NET TAKE HOME</span>
+                            <span style={{"color":"var(--accent-gold)"}}>₹45,600</span>
+                          </div>
+
+                          <div style={{"marginTop":"1.5rem","marginBottom":"1rem","fontSize":"0.85rem","fontWeight":"bold","color":"#64748B"}}>EMPLOYER CONTRIBUTIONS (Total: ₹4,200)</div>
+                          <div style={{"display":"grid","gridTemplateColumns":"repeat(auto-fit, minmax(140px, 1fr))","gap":"1rem"}}>
+                            <div style={{"background":"#FFFDF0","padding":"0.75rem","borderRadius":"var(--radius-sm)","border":"1px solid #FEF08A"}}>
+                              <div style={{"fontSize":"0.75rem","color":"#854D0E"}}>1. Employer PF</div>
+                              <div style={{"fontWeight":"600","color":"#854D0E","fontSize":"0.95rem"}}>₹4,200</div>
+                            </div>
+                            <div style={{"background":"#FFFDF0","padding":"0.75rem","borderRadius":"var(--radius-sm)","border":"1px solid #FEF08A"}}>
+                              <div style={{"fontSize":"0.75rem","color":"#854D0E"}}>2. Employer ESIC</div>
+                              <div style={{"fontWeight":"600","color":"#854D0E","fontSize":"0.95rem"}}>₹0</div>
+                            </div>
+                          </div>
+
+                          <div style={{"marginTop":"1.5rem","padding":"1rem","background":"#F1F5F9","border":"2px dashed var(--border-color)","borderRadius":"var(--radius-sm)","display":"flex","justifyContent":"space-between","fontWeight":"bold","fontSize":"1.1rem","color":"var(--primary-navy)"}}>
+                            <span>COST TO COMPANY (CTC)</span>
+                            <span>₹58,700</span>
+                          </div>
                         </div>
                       </td>
                     </tr>
@@ -549,6 +581,28 @@ export default function EmployeeDetail() {
                               <div style={{"fontSize":"0.75rem","color":"#991B1B"}}>6. TDS</div>
                               <div style={{"fontWeight":"600","color":"#991B1B","fontSize":"0.95rem"}}>₹4,500</div>
                             </div>
+                          </div>
+
+                          <div style={{"marginTop":"1.5rem","padding":"1rem","background":"var(--primary-navy)","color":"white","borderRadius":"var(--radius-sm)","display":"flex","justifyContent":"space-between","fontWeight":"bold","fontSize":"1.1rem"}}>
+                            <span>NET TAKE HOME</span>
+                            <span style={{"color":"var(--accent-gold)"}}>₹37,660</span>
+                          </div>
+
+                          <div style={{"marginTop":"1.5rem","marginBottom":"1rem","fontSize":"0.85rem","fontWeight":"bold","color":"#64748B"}}>EMPLOYER CONTRIBUTIONS (Total: ₹2,640)</div>
+                          <div style={{"display":"grid","gridTemplateColumns":"repeat(auto-fit, minmax(140px, 1fr))","gap":"1rem"}}>
+                            <div style={{"background":"#FFFDF0","padding":"0.75rem","borderRadius":"var(--radius-sm)","border":"1px solid #FEF08A"}}>
+                              <div style={{"fontSize":"0.75rem","color":"#854D0E"}}>1. Employer PF</div>
+                              <div style={{"fontWeight":"600","color":"#854D0E","fontSize":"0.95rem"}}>₹2,640</div>
+                            </div>
+                            <div style={{"background":"#FFFDF0","padding":"0.75rem","borderRadius":"var(--radius-sm)","border":"1px solid #FEF08A"}}>
+                              <div style={{"fontSize":"0.75rem","color":"#854D0E"}}>2. Employer ESIC</div>
+                              <div style={{"fontWeight":"600","color":"#854D0E","fontSize":"0.95rem"}}>₹0</div>
+                            </div>
+                          </div>
+
+                          <div style={{"marginTop":"1.5rem","padding":"1rem","background":"#F1F5F9","border":"2px dashed var(--border-color)","borderRadius":"var(--radius-sm)","display":"flex","justifyContent":"space-between","fontWeight":"bold","fontSize":"1.1rem","color":"var(--primary-navy)"}}>
+                            <span>COST TO COMPANY (CTC)</span>
+                            <span>₹47,640</span>
                           </div>
                         </div>
                       </td>
@@ -633,6 +687,28 @@ export default function EmployeeDetail() {
                               <div style={{"fontWeight":"600","color":"#991B1B","fontSize":"0.95rem"}}>₹3,000</div>
                             </div>
                           </div>
+
+                          <div style={{"marginTop":"1.5rem","padding":"1rem","background":"var(--primary-navy)","color":"white","borderRadius":"var(--radius-sm)","display":"flex","justifyContent":"space-between","fontWeight":"bold","fontSize":"1.1rem"}}>
+                            <span>NET TAKE HOME</span>
+                            <span style={{"color":"var(--accent-gold)"}}>₹32,520</span>
+                          </div>
+
+                          <div style={{"marginTop":"1.5rem","marginBottom":"1rem","fontSize":"0.85rem","fontWeight":"bold","color":"#64748B"}}>EMPLOYER CONTRIBUTIONS (Total: ₹2,280)</div>
+                          <div style={{"display":"grid","gridTemplateColumns":"repeat(auto-fit, minmax(140px, 1fr))","gap":"1rem"}}>
+                            <div style={{"background":"#FFFDF0","padding":"0.75rem","borderRadius":"var(--radius-sm)","border":"1px solid #FEF08A"}}>
+                              <div style={{"fontSize":"0.75rem","color":"#854D0E"}}>1. Employer PF</div>
+                              <div style={{"fontWeight":"600","color":"#854D0E","fontSize":"0.95rem"}}>₹2,280</div>
+                            </div>
+                            <div style={{"background":"#FFFDF0","padding":"0.75rem","borderRadius":"var(--radius-sm)","border":"1px solid #FEF08A"}}>
+                              <div style={{"fontSize":"0.75rem","color":"#854D0E"}}>2. Employer ESIC</div>
+                              <div style={{"fontWeight":"600","color":"#854D0E","fontSize":"0.95rem"}}>₹0</div>
+                            </div>
+                          </div>
+
+                          <div style={{"marginTop":"1.5rem","padding":"1rem","background":"#F1F5F9","border":"2px dashed var(--border-color)","borderRadius":"var(--radius-sm)","display":"flex","justifyContent":"space-between","fontWeight":"bold","fontSize":"1.1rem","color":"var(--primary-navy)"}}>
+                            <span>COST TO COMPANY (CTC)</span>
+                            <span>₹40,280</span>
+                          </div>
                         </div>
                       </td>
                     </tr>
@@ -715,6 +791,28 @@ export default function EmployeeDetail() {
                               <div style={{"fontSize":"0.75rem","color":"#991B1B"}}>6. TDS</div>
                               <div style={{"fontWeight":"600","color":"#991B1B","fontSize":"0.95rem"}}>₹2,500</div>
                             </div>
+                          </div>
+
+                          <div style={{"marginTop":"1.5rem","padding":"1rem","background":"var(--primary-navy)","color":"white","borderRadius":"var(--radius-sm)","display":"flex","justifyContent":"space-between","fontWeight":"bold","fontSize":"1.1rem"}}>
+                            <span>NET TAKE HOME</span>
+                            <span style={{"color":"var(--accent-gold)"}}>₹29,587.50</span>
+                          </div>
+
+                          <div style={{"marginTop":"1.5rem","marginBottom":"1rem","fontSize":"0.85rem","fontWeight":"bold","color":"#64748B"}}>EMPLOYER CONTRIBUTIONS (Total: ₹2,712.50)</div>
+                          <div style={{"display":"grid","gridTemplateColumns":"repeat(auto-fit, minmax(140px, 1fr))","gap":"1rem"}}>
+                            <div style={{"background":"#FFFDF0","padding":"0.75rem","borderRadius":"var(--radius-sm)","border":"1px solid #FEF08A"}}>
+                              <div style={{"fontSize":"0.75rem","color":"#854D0E"}}>1. Employer PF</div>
+                              <div style={{"fontWeight":"600","color":"#854D0E","fontSize":"0.95rem"}}>₹2,100</div>
+                            </div>
+                            <div style={{"background":"#FFFDF0","padding":"0.75rem","borderRadius":"var(--radius-sm)","border":"1px solid #FEF08A"}}>
+                              <div style={{"fontSize":"0.75rem","color":"#854D0E"}}>2. Employer ESIC</div>
+                              <div style={{"fontWeight":"600","color":"#854D0E","fontSize":"0.95rem"}}>₹612.50</div>
+                            </div>
+                          </div>
+
+                          <div style={{"marginTop":"1.5rem","padding":"1rem","background":"#F1F5F9","border":"2px dashed var(--border-color)","borderRadius":"var(--radius-sm)","display":"flex","justifyContent":"space-between","fontWeight":"bold","fontSize":"1.1rem","color":"var(--primary-navy)"}}>
+                            <span>COST TO COMPANY (CTC)</span>
+                            <span>₹37,712.50</span>
                           </div>
                         </div>
                       </td>
