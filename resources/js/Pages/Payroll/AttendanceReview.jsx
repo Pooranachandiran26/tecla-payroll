@@ -185,7 +185,7 @@ export default function AttendanceReview() {
   ];
 
   return (
-    <RoleGuard allowedRoles={['admin', 'executive']}>
+    <RoleGuard allowedRoles={['admin', 'manager']}>
     <AuthenticatedLayout>
       <Head title="Attendance Review" />
 

@@ -5,7 +5,7 @@ import { Head, Link } from '@inertiajs/react';
 import RoleGuard from '../../Components/RoleGuard.jsx';
 export default function SalaryRevision() {
     return (
-        <RoleGuard allowedRoles={['admin', 'executive']}>
+        <RoleGuard allowedRoles={['admin', 'manager']}>
     <AuthenticatedLayout>
             <Head title="SalaryRevision" />
             <div className="main-content">

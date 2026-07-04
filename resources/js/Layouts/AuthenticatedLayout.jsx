@@ -75,7 +75,7 @@ export default function AuthenticatedLayout({ children }) {
               {dropdownOpen && (
                 <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '0.5rem', background: 'white', borderRadius: '4px', boxShadow: '0 2px 10px rgba(0,0,0,0.1)', minWidth: '150px', zIndex: 100 }}>
                   <Link href="/account/sessions" style={{ display: 'block', padding: '0.5rem 1rem', color: '#333', textDecoration: 'none', borderBottom: '1px solid #eee' }}>My Sessions</Link>
-                  <Link href="/logout" method="post" as="button" style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.5rem 1rem', color: 'var(--danger-red)', textDecoration: 'none', background: 'none', border: 'none', cursor: 'pointer' }}>Sign Out</Link>
+                  <Link href="/logout" method="post" as="button" style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.5rem 1rem', color: '#dc2626', textDecoration: 'none', background: 'none', border: 'none', cursor: 'pointer' }}>Sign Out</Link>
                 </div>
               )}
             </div>

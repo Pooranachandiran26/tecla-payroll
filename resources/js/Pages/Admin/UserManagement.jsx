@@ -8,7 +8,7 @@ import Select from '../../Components/ui/Select';
 import DataTable from '../../Components/ui/DataTable';
 import Modal from '../../Components/ui/Modal';
 
-export default function UserManagement({ users }) {
+export default function UserManagement({ users, unlinkedEmployees = [], unlinkedClients = [] }) {
   const [showInviteModal, setShowInviteModal] = useState(false);
 
   const { data, setData, post, processing, errors, reset } = useForm({
@@ -30,10 +30,10 @@ export default function UserManagement({ users }) {
   };
 
   const columns = [
-    { header: 'Name', accessor: 'name' },
-    { header: 'Email', accessor: 'email' },
-    { header: 'Role', accessor: 'role', render: (row) => <span style={{ textTransform: 'capitalize' }}>{row.role}</span> },
-    { header: 'Status', accessor: 'status', render: (row) => (
+    { label: 'Name', key: 'name' },
+    { label: 'Email', key: 'email' },
+    { label: 'Role', key: 'role', render: (_, row) => <span style={{ textTransform: 'capitalize' }}>{row.role}</span> },
+    { label: 'Status', key: 'status', render: (_, row) => (
       <span style={{ 
         padding: '0.25rem 0.5rem', 
         borderRadius: '4px', 
@@ -44,8 +44,8 @@ export default function UserManagement({ users }) {
         {row.status}
       </span>
     )},
-    { header: 'Linked Profile', accessor: 'profile', render: (row) => {
-      if (row.role === 'employee' && row.employee) return `${row.employee.first_name} ${row.employee.last_name}`;
+    { label: 'Linked Profile', key: 'profile', render: (_, row) => {
+      if (row.role === 'employee' && row.employee) return row.employee.full_name;
       if (row.role === 'client' && row.client) return row.client.company_name;
       return '-';
     }}
@@ -89,11 +89,33 @@ export default function UserManagement({ users }) {
           />
 
           {data.role === 'employee' && (
-            <Input label="Employee ID (Internal)" name="employee_id" type="text" value={data.employee_id} onChange={e => setData('employee_id', e.target.value)} error={errors.employee_id} required />
+            <Select 
+              label="Link to Employee Profile *"
+              name="employee_id" 
+              value={data.employee_id} 
+              onChange={e => setData('employee_id', e.target.value)} 
+              error={errors.employee_id} 
+              required
+              options={[
+                { value: '', label: '-- Select Employee --' },
+                ...unlinkedEmployees.map(emp => ({ value: emp.id, label: `${emp.full_name} (${emp.code})` }))
+              ]}
+            />
           )}
 
           {data.role === 'client' && (
-            <Input label="Client ID (Internal)" name="client_id" type="text" value={data.client_id} onChange={e => setData('client_id', e.target.value)} error={errors.client_id} required />
+            <Select 
+              label="Link to Client Profile *"
+              name="client_id" 
+              value={data.client_id} 
+              onChange={e => setData('client_id', e.target.value)} 
+              error={errors.client_id} 
+              required
+              options={[
+                { value: '', label: '-- Select Client --' },
+                ...unlinkedClients.map(client => ({ value: client.id, label: `${client.company_name} (${client.code})` }))
+              ]}
+            />
           )}
 
           <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>

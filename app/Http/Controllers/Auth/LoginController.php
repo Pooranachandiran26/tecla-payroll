@@ -54,9 +54,13 @@ class LoginController extends Controller
         }
 
         if ($this->settings->getAuthSecurity('otp_enabled', true)) {
-            $this->authService->generateOtp($user, 'login', $ip);
-            session(['login_user_id' => $user->id]);
-            return redirect('/login/verify-otp');
+            try {
+                $this->authService->generateOtp($user, 'login', $ip);
+                session(['login_user_id' => $user->id]);
+                return redirect('/login/verify-otp');
+            } catch (\App\Exceptions\OtpDeliveryException $e) {
+                return back()->withErrors(['email' => $e->getMessage()]);
+            }
         }
 
         return $this->completeLogin($user, $request);
@@ -99,9 +103,12 @@ class LoginController extends Controller
         $user = User::find($userId);
         if (!$user) return redirect('/login');
 
-        $this->authService->generateOtp($user, 'login', $request->ip());
-
-        return back()->with('message', 'A new code has been sent.');
+        try {
+            $this->authService->generateOtp($user, 'login', $request->ip());
+            return back()->with('message', 'A new code has been sent.');
+        } catch (\App\Exceptions\OtpDeliveryException $e) {
+            return back()->withErrors(['code' => $e->getMessage()]);
+        }
     }
 
     protected function completeLogin(User $user, Request $request)

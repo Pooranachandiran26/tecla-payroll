@@ -28,11 +28,15 @@ class PasswordResetController extends Controller
         $user = User::where('email', $request->email)->first();
 
         if ($user) {
-            $this->authService->generateOtp($user, 'password_reset', $request->ip());
-            session(['reset_email' => $user->email]);
+            try {
+                $this->authService->generateOtp($user, 'password_reset', $request->ip());
+                session(['reset_email' => $user->email]);
+            } catch (\App\Exceptions\OtpDeliveryException $e) {
+                return back()->withErrors(['email' => $e->getMessage()]);
+            }
         }
 
-        // Always return success to prevent email enumeration
+        // Always return success to prevent email enumeration (except on total email failure)
         return redirect('/reset-password/verify-otp');
     }
 

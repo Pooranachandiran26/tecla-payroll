@@ -44,7 +44,7 @@ export default function InvoicesList() {
   ];
 
   return (
-    <RoleGuard allowedRoles={['admin', 'executive']}>
+    <RoleGuard allowedRoles={['admin', 'manager']}>
     <AuthenticatedLayout>
       <Head title="Invoices List" />
 
@@ -67,7 +67,7 @@ export default function InvoicesList() {
                 <th className="p-3 font-semibold text-gray-700 border-b border-gray-200">Client Partner</th>
                 <th className="p-3 font-semibold text-gray-700 border-b border-gray-200">Total Value (CTC+Fee)</th>
                 <th className="p-3 font-semibold text-gray-700 border-b border-gray-200">Due Date</th>
-                {role !== 'executive' && (
+                {role !== 'manager' && (
                   <th className="p-3 font-semibold text-gray-700 border-b border-gray-200">Agency Margin (Profit)</th>
                 )}
                 <th className="p-3 font-semibold text-gray-700 border-b border-gray-200">Status</th>
@@ -81,7 +81,7 @@ export default function InvoicesList() {
                   <td className="p-3">{inv.client}</td>
                   <td className="p-3 font-bold">{inv.value}</td>
                   <td className="p-3">{inv.date}</td>
-                  {role !== 'executive' && (
+                  {role !== 'manager' && (
                     <td className="p-3 text-green-600 font-semibold">{inv.margin}</td>
                   )}
                   <td className="p-3">

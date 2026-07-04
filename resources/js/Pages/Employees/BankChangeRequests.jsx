@@ -154,7 +154,7 @@ export default function BankChangeRequests() {
   ];
 
   return (
-    <RoleGuard allowedRoles={['admin', 'executive']}>
+    <RoleGuard allowedRoles={['admin', 'manager']}>
     <AuthenticatedLayout>
       <Head title="Bank Change Requests" />
       
