@@ -15,6 +15,85 @@ class UpdateClientRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation()
+    {
+        $mapped = [
+            'company_name' => $this->name,
+            'company_type' => $this->type,
+            'client_code' => $this->code,
+            'trust_registration_number' => $this->trustRegNo,
+            'pan_number' => $this->pan,
+            'cin_number' => $this->cin,
+            'incorporation_date' => $this->incorporationDate,
+            'registered_address_line_1' => $this->regAddressLine1,
+            'registered_address_line_2' => $this->regAddressLine2,
+            'registered_city' => $this->regCity,
+            'registered_state' => $this->regState,
+            'registered_pin' => $this->regPin,
+            'tax_id' => $this->taxId,
+            'registration_number' => $this->regNo,
+            'contract_type' => $this->contractType,
+            'billing_model' => $this->billingModel,
+            'markup_percentage' => $this->markupPct,
+            'fixed_fee_amount' => $this->fixedFeeCandidate,
+            'contract_start_date' => $this->contractStart,
+            'contract_end_date' => $this->contractEnd,
+        ];
+
+        $contacts = [];
+        if ($this->has('poc1') && (isset($this->poc1['name']) || isset($this->poc1['email']))) {
+            $contacts[] = array_merge($this->poc1, ['contact_type' => 'primary']);
+        }
+        if ($this->has('poc2') && (isset($this->poc2['name']) || isset($this->poc2['email']))) {
+            $contacts[] = array_merge($this->poc2, ['contact_type' => 'finance']);
+        }
+        if ($this->has('poc3') && (isset($this->poc3['name']) || isset($this->poc3['email']))) {
+            $contacts[] = array_merge($this->poc3, ['contact_type' => 'hr']);
+        }
+        if ($this->has('extraContacts') && is_array($this->extraContacts)) {
+            foreach ($this->extraContacts as $extra) {
+                $role = $extra['role'] ?? 'operations';
+                $contacts[] = array_merge($extra, ['contact_type' => $role]);
+            }
+        }
+        if (!empty($contacts)) {
+            $mapped['contacts'] = $contacts;
+        }
+
+        if ($this->has('branches') && is_array($this->branches)) {
+            $mappedBranches = [];
+            $stateCodeMap = [
+                'Jammu and Kashmir' => '01', 'Himachal Pradesh' => '02', 'Punjab' => '03', 'Chandigarh' => '04',
+                'Uttarakhand' => '05', 'Haryana' => '06', 'Delhi' => '07', 'Rajasthan' => '08', 'Uttar Pradesh' => '09',
+                'Bihar' => '10', 'Sikkim' => '11', 'Arunachal Pradesh' => '12', 'Nagaland' => '13', 'Manipur' => '14',
+                'Mizoram' => '15', 'Tripura' => '16', 'Meghalaya' => '17', 'Assam' => '18', 'West Bengal' => '19',
+                'Jharkhand' => '20', 'Odisha' => '21', 'Chhattisgarh' => '22', 'Madhya Pradesh' => '23', 'Gujarat' => '24',
+                'Daman and Diu' => '25', 'Dadra and Nagar Haveli' => '26', 'Maharashtra' => '27', 'Andhra Pradesh (Old)' => '28', 
+                'Karnataka' => '29', 'Goa' => '30', 'Lakshadweep' => '31', 'Kerala' => '32', 'Tamil Nadu' => '33', 'Puducherry' => '34',
+                'Andaman and Nicobar Islands' => '35', 'Telangana' => '36', 'Andhra Pradesh' => '37', 'Ladakh' => '38'
+            ];
+
+            foreach ($this->branches as $branch) {
+                $stateName = $branch['state'] ?? null;
+                $mappedBranches[] = [
+                    'branch_name' => $branch['name'] ?? null,
+                    'location' => trim(($branch['addr1'] ?? '') . ' ' . ($branch['city'] ?? '')),
+                    'state' => $stateName,
+                    'is_head_office' => $branch['isPrimary'] ?? false,
+                    'gstin' => $branch['gstin'] ?? null,
+                    'gst_registration_type' => $branch['gstType'] ?? null,
+                    'finance_poc_name' => $branch['pocName'] ?? null,
+                    'finance_poc_email' => $branch['pocEmail'] ?? null,
+                    'finance_poc_phone' => $branch['pocPhone'] ?? null,
+                    'state_code' => $stateName ? ($stateCodeMap[$stateName] ?? null) : null,
+                ];
+            }
+            $mapped['branches'] = $mappedBranches;
+        }
+
+        $this->merge($mapped);
+    }
+
     public function rules(): array
     {
         $clientId = $this->route('client') ? $this->route('client')->id : null;
@@ -53,6 +132,7 @@ class UpdateClientRequest extends FormRequest
             ],
             'contacts.*.email' => 'required|email',
             'contacts.*.phone' => ['required', 'regex:/^[6-9][0-9]{9}$/'],
+            'branches.*.gstin' => ['nullable', 'string', 'size:15', 'regex:/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/'],
         ];
     }
 
