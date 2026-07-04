@@ -1,0 +1,55 @@
+.preflight-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border-color);
+}
+.preflight-item:last-child {
+    border-bottom: none;
+}
+.preflight-icon {
+    font-size: 1.2rem;
+    line-height: 1;
+}
+.preflight-content {
+    flex: 1;
+    font-size: 0.85rem;
+}
+.status-red { color: var(--status-danger); }
+.status-amber { color: var(--status-warning); }
+.status-green { color: var(--status-success); }
+
+.table-scroll-wrapper {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.extended-table th, .extended-table td {
+    white-space: nowrap;
+    padding: 0.5rem;
+    font-size: 0.8rem;
+}
+
+.col-group-earn { background-color: #F8FAFC; }
+.col-group-deduct { background-color: #FEF2F2; }
+.col-group-total { background-color: #F0FDF4; font-weight: bold; }
+
+.arrears-input {
+    width: 80px;
+    padding: 0.2rem;
+    font-size: 0.8rem;
+}
+.arrears-reason {
+    width: 120px;
+    padding: 0.2rem;
+    font-size: 0.8rem;
+}
+.split-row {
+    background-color: #FFFBEB;
+    font-size: 0.75rem;
+}
+.split-row td {
+    padding: 0.25rem 0.5rem;
+    color: #92400E;
+}

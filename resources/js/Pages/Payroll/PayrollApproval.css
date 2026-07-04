@@ -1,0 +1,64 @@
+.metric-card {
+    display: flex;
+    flex-direction: column;
+    padding: 1rem;
+    gap: 0.25rem;
+}
+.metric-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-color);
+    text-transform: uppercase;
+}
+.metric-value {
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+.metric-trend {
+    font-size: 0.75rem;
+    margin-top: 0.25rem;
+}
+
+.table-scroll-wrapper {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.extended-table th, .extended-table td {
+    white-space: nowrap;
+    padding: 0.5rem;
+    font-size: 0.8rem;
+}
+
+.col-group-earn { background-color: #F8FAFC; }
+.col-group-deduct { background-color: #FEF2F2; }
+.col-group-total { background-color: #F0FDF4; font-weight: bold; }
+
+.locked-card {
+    position: relative;
+    overflow: hidden;
+}
+.locked-blur {
+    filter: blur(4px);
+    pointer-events: none;
+    user-select: none;
+}
+.locked-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: rgba(255, 255, 255, 0.7);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+}
+.locked-badge {
+    background-color: var(--primary-navy);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 50px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}

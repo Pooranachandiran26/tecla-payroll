@@ -298,7 +298,7 @@ window.countText = countText;
           </td>
           <td>
             <div class="client-name-cell">
-              <a href="client-detail.html?code=${c.code}" class="name">${c.name}</a>
+              <a href="/clients/${c.code}" class="name">${c.name}</a>
               <div class="meta">
                 <span><strong>Code:</strong> ${c.code}</span>
                 <span><strong>GSTIN:</strong> ${c.gstin || '—'}</span>
@@ -436,11 +436,11 @@ window.countText = countText;
       if (!action) return;
       
       if (action === 'view') {
-        window.location.href = `client-detail.html?code=${clientCode}`;
+        window.location.href = `/clients/${clientCode}`;
       } else if (action === 'edit') {
-        window.location.href = `client-form.html?id=1&code=${clientCode}`;
+        window.location.href = `/clients/create?id=1&code=${clientCode}`;
       } else if (action === 'invoice') {
-        window.location.href = `invoice-generate.html?client=${clientCode}`;
+        window.location.href = `/invoices/generate?client=${clientCode}`;
       } else if (action === 'reminder') {
         showToast(`📧 Invoice reminder successfully queued and sent to ${clientCode}!`);
       } else if (action === 'report') {
