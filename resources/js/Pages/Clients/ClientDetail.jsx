@@ -17,7 +17,7 @@ export default function ClientDetail() {
     }, []);
 
     return (
-        <RoleGuard allowedRoles={['admin', 'executive']}>
+        <RoleGuard allowedRoles={['admin', 'manager']}>
     <AuthenticatedLayout>
             <Head title="Client Detail" />
             <div className="legacy-react-wrapper">
