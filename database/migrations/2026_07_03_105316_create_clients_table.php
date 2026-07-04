@@ -33,9 +33,9 @@ return new class extends Migration
             // Step 1: Identity
             $table->enum('company_type', ['pvt_ltd', 'pub_ltd', 'llp', 'opc', 'partnership', 'proprietorship', 'trust', 'govt']);
             $table->string('country')->default('India');
-            $table->string('pan_number', 10)->nullable();
+            $table->text('pan_number')->nullable();
             $table->string('tax_id')->nullable();
-            $table->string('gstin', 15)->nullable();
+            $table->text('gstin')->nullable();
             $table->string('trust_registration_number')->nullable();
             $table->string('registration_number')->nullable();
             $table->string('cin_number')->nullable();

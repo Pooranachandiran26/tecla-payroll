@@ -19,17 +19,7 @@ export default function ClientDashboard() {
               deployed employees, timesheets, and invoices.</p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <div
-              style={{ fontSize: '0.85rem', backgroundColor: 'var(--bg-page)', padding: '0.4rem 0.75rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <label htmlFor="role-simulator" style={{ margin: '0', fontWeight: '600' }}>Simulate Role:</label>
-              <select id="role-simulator" className="form-control"
-                style={{ padding: '0.2rem 0.5rem', height: 'auto', width: 'auto', fontSize: '0.8rem' }}
-                >
-                <option value="admin">Super Admin (All Access)</option>
-                <option value="operations">HR / Operations</option>
-                <option value="finance">Finance / Accounts</option>
-              </select>
-            </div>
+
             <div
               style={{ fontSize: '0.85rem', backgroundColor: 'var(--bg-card)', padding: '0.5rem 1rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', fontWeight: '500' }}>
               🏢 Client Code: <span id="dashboard-client-code"
