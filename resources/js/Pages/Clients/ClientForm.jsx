@@ -40,7 +40,7 @@ export default function ClientForm() {
   }, [saveDraft]);
 
   return (
-    <RoleGuard allowedRoles={['admin', 'executive']}>
+    <RoleGuard allowedRoles={['admin', 'manager']}>
       <AuthenticatedLayout>
         <Head title="Add / Edit Client — Tecla Payroll" />
         

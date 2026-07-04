@@ -20,6 +20,7 @@ export default function Settings() {
 
   const tabs = [
     { key: 'company', label: 'Company Profile' },
+    { key: 'email', label: 'Email Delivery' },
     { key: 'slabs', label: 'Statutory Slab Configurations' },
     { key: 'notif', label: 'Notification Setup' },
     { key: 'onboarding', label: 'Onboarding Policy' },
@@ -36,11 +37,17 @@ export default function Settings() {
   // Auth & Security State
   const [authSettings, setAuthSettings] = useState({});
   const [authLoading, setAuthLoading] = useState(false);
+  const [emailSettings, setEmailSettings] = useState({});
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [testingEmail, setTestingEmail] = useState(false);
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, key: null, newValue: null, reason: '', confirmText: '' });
 
   useEffect(() => {
     if (activeTab === 'auth_security' && Object.keys(authSettings).length === 0) {
       fetchAuthSettings();
+    }
+    if (activeTab === 'email' && Object.keys(emailSettings).length === 0) {
+      fetchEmailSettings();
     }
   }, [activeTab]);
 
@@ -56,6 +63,63 @@ export default function Settings() {
       showToast({ type: 'error', title: 'Error', message: e.message || 'Failed to load auth settings' });
     } finally {
       setAuthLoading(false);
+    }
+  };
+
+  
+  const fetchEmailSettings = async () => {
+    setEmailLoading(true);
+    try {
+      const res = await axios.get('/admin/settings/email');
+      setEmailSettings(res.data);
+    } catch (e) {
+      showToast({ type: 'error', title: 'Error', message: 'Failed to load email settings' });
+    } finally {
+      setEmailLoading(false);
+    }
+  };
+
+  const handleEmailChange = (key, value) => {
+    setEmailSettings(prev => ({ ...prev, [key]: value }));
+  };
+
+  const saveEmailSettings = async () => {
+    setConfirmModal({
+      isOpen: true,
+      type: 'email',
+      key: 'email',
+      newValue: emailSettings,
+      reason: 'email_restart',
+      confirmText: ''
+    });
+  };
+
+  const confirmEmailUpdate = async () => {
+    try {
+      await axios.put('/admin/settings/email', emailSettings);
+      showToast({ type: 'success', title: 'Success', message: 'Email settings saved successfully. Workers are restarting.' });
+      setConfirmModal({ isOpen: false, key: null, newValue: null, reason: '', confirmText: '', type: null });
+    } catch (e) {
+      showToast({ type: 'error', title: 'Error', message: e.response?.data?.message || 'Failed to update email settings' });
+    }
+  };
+
+  const testEmailConnection = async () => {
+    setTestingEmail(true);
+    try {
+      await axios.post('/admin/settings/email/test', emailSettings);
+      showToast({ type: 'success', title: 'Success', message: 'Test email sent successfully!' });
+    } catch (e) {
+      const errorReason = e.response?.data?.error;
+      const details = e.response?.data?.details || e.message;
+      let msg = 'Failed to send test email.';
+      if (errorReason === 'host_unreachable') msg = 'Could not reach the SMTP server. Check Host and Port.';
+      if (errorReason === 'auth_failed') msg = 'SMTP Authentication failed. Check Username and Password.';
+      if (errorReason === 'timeout') msg = 'Connection timed out.';
+      if (errorReason === 'invalid_from') msg = 'Sender address was rejected by the server.';
+      showToast({ type: 'error', title: 'Test Failed', message: msg + ' (' + details + ')' });
+    } finally {
+      setTestingEmail(false);
     }
   };
 
@@ -97,6 +161,14 @@ export default function Settings() {
   };
 
   const confirmLockedUpdate = () => {
+    if (confirmModal.type === 'email') {
+      if (confirmModal.confirmText !== 'CONFIRM') {
+        showToast({ type: 'error', title: 'Error', message: 'Please type CONFIRM exactly.' });
+        return;
+      }
+      confirmEmailUpdate();
+      return;
+    }
     if (confirmModal.confirmText !== 'CONFIRM') {
       showToast({ type: 'error', title: 'Error', message: 'Please type CONFIRM exactly.' });
       return;
@@ -221,6 +293,101 @@ export default function Settings() {
                 />
                 <div className="text-xs text-gray-500 mt-1">Used when deducting Loss of Pay (LOP) for unapproved absences.</div>
               </div>
+            </div>
+          )}
+
+          
+          {activeTab === 'email' && (
+            <div>
+              <div className="bg-blue-50 border border-blue-200 rounded-md p-4 text-xs text-blue-900 mb-6">
+                <strong>Important:</strong> Saving these settings will automatically restart the background queue workers to apply the new configurations.
+              </div>
+              
+              {emailLoading ? (
+                <div>Loading Email Settings...</div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <Card>
+                    <h3 className="font-bold text-lg mb-4 text-slate-800">General Configuration</h3>
+                    <div className="flex flex-col gap-4">
+                      <Checkbox 
+                        label="Sandbox Mode (Do not send real emails)" 
+                        checked={emailSettings.sandbox_mode === true || emailSettings.sandbox_mode === 'true' || emailSettings.sandbox_mode === 1} 
+                        onChange={e => handleEmailChange('sandbox_mode', e.target.checked)} 
+                      />
+                      <Select 
+                        label="OTP Send Mode"
+                        options={[{value: 'sync', label: 'Synchronous (Wait for send)'}, {value: 'queued', label: 'Queued (Background)'}]}
+                        value={emailSettings.otp_send_mode || 'sync'}
+                        onChange={e => handleEmailChange('otp_send_mode', e.target.value)}
+                      />
+                      <Select 
+                        label="Invitation Send Mode"
+                        options={[{value: 'sync', label: 'Synchronous'}, {value: 'queued', label: 'Queued'}]}
+                        value={emailSettings.invitation_send_mode || 'queued'}
+                        onChange={e => handleEmailChange('invitation_send_mode', e.target.value)}
+                      />
+                    </div>
+                  </Card>
+
+                  <Card>
+                    <h3 className="font-bold text-lg mb-4 text-slate-800">SMTP Credentials</h3>
+                    <div className="flex flex-col gap-4">
+                      <Input 
+                        label="SMTP Host" 
+                        value={emailSettings.smtp_host || ''} 
+                        onChange={e => handleEmailChange('smtp_host', e.target.value)} 
+                        disabled={emailSettings.sandbox_mode === true || emailSettings.sandbox_mode === 'true' || emailSettings.sandbox_mode === 1}
+                      />
+                      <Input 
+                        type="number"
+                        label="SMTP Port" 
+                        value={emailSettings.smtp_port || ''} 
+                        onChange={e => handleEmailChange('smtp_port', e.target.value)} 
+                        disabled={emailSettings.sandbox_mode === true || emailSettings.sandbox_mode === 'true' || emailSettings.sandbox_mode === 1}
+                      />
+                      <Select 
+                        label="Encryption"
+                        options={[{value: 'tls', label: 'TLS'}, {value: 'ssl', label: 'SSL'}, {value: 'none', label: 'None'}]}
+                        value={emailSettings.smtp_encryption || 'tls'}
+                        onChange={e => handleEmailChange('smtp_encryption', e.target.value)}
+                        disabled={emailSettings.sandbox_mode === true || emailSettings.sandbox_mode === 'true' || emailSettings.sandbox_mode === 1}
+                      />
+                      <Input 
+                        label="SMTP Username" 
+                        value={emailSettings.smtp_username || ''} 
+                        onChange={e => handleEmailChange('smtp_username', e.target.value)} 
+                        disabled={emailSettings.sandbox_mode === true || emailSettings.sandbox_mode === 'true' || emailSettings.sandbox_mode === 1}
+                      />
+                      <Input 
+                        type="password"
+                        label={"SMTP Password " + (emailSettings.has_password ? "(Leave blank to keep existing)" : "")} 
+                        value={emailSettings.smtp_password || ''} 
+                        onChange={e => handleEmailChange('smtp_password', e.target.value)} 
+                        disabled={emailSettings.sandbox_mode === true || emailSettings.sandbox_mode === 'true' || emailSettings.sandbox_mode === 1}
+                        placeholder={emailSettings.has_password ? '********' : ''}
+                      />
+                      <Input 
+                        label="From Address" 
+                        value={emailSettings.from_address || ''} 
+                        onChange={e => handleEmailChange('from_address', e.target.value)} 
+                      />
+                      <Input 
+                        label="From Name" 
+                        value={emailSettings.from_name || ''} 
+                        onChange={e => handleEmailChange('from_name', e.target.value)} 
+                      />
+                      
+                      <div className="flex gap-4 mt-4">
+                        <Button variant="secondary" onClick={testEmailConnection} disabled={testingEmail || emailSettings.sandbox_mode === true || emailSettings.sandbox_mode === 'true' || emailSettings.sandbox_mode === 1}>
+                          {testingEmail ? 'Testing...' : 'Test Connection'}
+                        </Button>
+                        <Button variant="primary" onClick={saveEmailSettings}>Save Settings</Button>
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+              )}
             </div>
           )}
 
@@ -494,7 +661,7 @@ export default function Settings() {
       >
         <div className="space-y-4">
           <p className="text-sm text-gray-600">
-            You are attempting to modify <strong>{confirmModal.key}</strong> which is protected by a compliance lock.
+            {confirmModal.type === 'email' ? 'Saving these settings will restart the background queue workers to apply the new configurations.' : <>You are attempting to modify <strong>{confirmModal.key}</strong> which is protected by a compliance lock.</>}
           </p>
           <Input 
             label="Type 'CONFIRM' to proceed" 
@@ -503,14 +670,14 @@ export default function Settings() {
             placeholder="CONFIRM"
           />
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Reason for Modification (Min 10 chars)</label>
+            {confirmModal.type !== 'email' && (<><label className="block text-sm font-medium text-gray-700 mb-1">Reason for Modification (Min 10 chars)</label>
             <textarea 
               className="w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
               rows="3"
               value={confirmModal.reason}
               onChange={e => setConfirmModal(prev => ({ ...prev, reason: e.target.value }))}
               placeholder="e.g. Approved by legal compliance team..."
-            ></textarea>
+            ></textarea></>)}
           </div>
         </div>
       </ConfirmDialog>

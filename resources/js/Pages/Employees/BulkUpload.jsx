@@ -118,7 +118,7 @@ export default function BulkUpload() {
   ];
 
   return (
-    <RoleGuard allowedRoles={['admin', 'executive']}>
+    <RoleGuard allowedRoles={['admin', 'manager']}>
     <AuthenticatedLayout>
       <Head title="Bulk Upload Employees" />
 

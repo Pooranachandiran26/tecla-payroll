@@ -7,7 +7,7 @@ export default function ReportsAnalytics() {
   const role = 'admin'; // Or from context/props
 
   return (
-    <RoleGuard allowedRoles={['admin', 'executive']}>
+    <RoleGuard allowedRoles={['admin', 'manager']}>
     <AuthenticatedLayout>
       <Head title="Reports & Analytics" />
       
@@ -19,7 +19,7 @@ export default function ReportsAnalytics() {
       <div className="grid grid-cols-2 gap-6 mb-6">
         
         {/* Revenue Chart */}
-        {role === 'executive' ? (
+        {role === 'manager' ? (
           <div className="card locked-card" style={{ padding: 0, border: 'none' }}>
             <div className="locked-blur p-6 bg-white border border-gray-200 rounded-md">
               <h3 className="text-lg font-bold text-blue-900">Monthly Revenue per Client (June 2026)</h3>
@@ -73,7 +73,7 @@ export default function ReportsAnalytics() {
         )}
 
         {/* Margin Chart */}
-        {role === 'executive' ? (
+        {role === 'manager' ? (
           <div className="card locked-card" style={{ padding: 0, border: 'none' }}>
             <div className="locked-blur p-6 bg-white border border-gray-200 rounded-md">
               <h3 className="text-lg font-bold text-blue-900">Agency Net Profit Margins (H1 2026)</h3>

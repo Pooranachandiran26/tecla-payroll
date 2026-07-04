@@ -17,7 +17,7 @@ export default function ClientsList() {
     }, []);
 
     return (
-        <RoleGuard allowedRoles={['admin', 'executive']}>
+        <RoleGuard allowedRoles={['admin', 'manager']}>
     <AuthenticatedLayout>
             <Head title="Clients List" />
             <div className="legacy-react-wrapper">
