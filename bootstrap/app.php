@@ -11,9 +11,18 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
-    ->withMiddleware(function (Middleware $middleware): void {
+    ->withMiddleware(function (Middleware $middleware) {
         $middleware->web(append: [
-            HandleInertiaRequests::class,
+            \App\Http\Middleware\HandleInertiaRequests::class,
+            \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
+            \App\Http\Middleware\SecurityHeaders::class,
+        ]);
+        
+        $middleware->redirectGuestsTo(fn () => route('login'));
+        
+        $middleware->alias([
+            'role' => \App\Http\Middleware\EnsureUserRole::class,
+            'fresh-password' => \App\Http\Middleware\RequireFreshPassword::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

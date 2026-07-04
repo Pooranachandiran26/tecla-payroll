@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { adminNav, clientNav, candidateNav, subNavs, roleUserInfo, getActiveCategory } from '../Constants/navigation';
+import { adminNav, clientNav, candidateNav, subNavs, getActiveCategory } from '../Constants/navigation';
 import { Bell, User, LogOut, Menu } from 'lucide-react';
 import { useState } from 'react';
 import ToastContainer from '../Components/ui/Toast';
@@ -9,18 +9,21 @@ export default function AuthenticatedLayout({ children }) {
   const { url } = usePage();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
-  // Use shared role context — syncs across all pages
-  const { role, setRole } = useRole();
-  const userInfo = roleUserInfo[role];
+  // Use auth from usePage().props
+  const { auth } = usePage().props;
+  const role = auth?.user?.role || 'guest';
+  const userName = auth?.user?.name || 'User';
   
   const navLinks = role === 'client' ? clientNav
-    : role === 'candidate' ? candidateNav
+    : role === 'employee' ? candidateNav
     : adminNav;
 
   const activeCategory = getActiveCategory(url, role);
   
   // Get subnav items if any exist for the active category
-  const subNavItems = (role === 'admin' || role === 'executive') ? subNavs[activeCategory] : null;
+  const subNavItems = (role === 'admin' || role === 'manager') ? subNavs[activeCategory] : null;
+
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   return (
     <div className="app-container">
@@ -60,28 +63,21 @@ export default function AuthenticatedLayout({ children }) {
               <span className="notif-badge">3</span>
             </button>
             
-              <div className="role-switcher-container">
-                <span className="role-label">View As:</span>
-                <select 
-                  className="nav-dropdown"
-                  value={role}
-                  onChange={(e) => setRole(e.target.value)}
-                >
-                  <option value="admin">Admin</option>
-                  <option value="executive">Executive</option>
-                  <option value="client">Client</option>
-                  <option value="candidate">Employee</option>
-                </select>
-              </div>
-
-            <div className="user-profile-menu">
-              <div className="avatar" title={userInfo.label}>
-                {userInfo.label.charAt(0)}
+            <div className="user-profile-menu" style={{ position: 'relative', cursor: 'pointer' }} onClick={() => setDropdownOpen(!dropdownOpen)}>
+              <div className="avatar" title={userName}>
+                {userName.charAt(0).toUpperCase()}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', fontSize: '0.75rem', lineHeight: 1.2 }}>
-                <span style={{ fontWeight: 600 }}>{userInfo.label}</span>
-                <span style={{ color: 'rgba(255,255,255,0.7)' }}>{userInfo.roleLabel}</span>
+                <span style={{ fontWeight: 600 }}>{userName}</span>
+                <span style={{ color: 'rgba(255,255,255,0.7)', textTransform: 'capitalize' }}>{role}</span>
               </div>
+
+              {dropdownOpen && (
+                <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '0.5rem', background: 'white', borderRadius: '4px', boxShadow: '0 2px 10px rgba(0,0,0,0.1)', minWidth: '150px', zIndex: 100 }}>
+                  <Link href="/account/sessions" style={{ display: 'block', padding: '0.5rem 1rem', color: '#333', textDecoration: 'none', borderBottom: '1px solid #eee' }}>My Sessions</Link>
+                  <Link href="/logout" method="post" as="button" style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.5rem 1rem', color: 'var(--danger-red)', textDecoration: 'none', background: 'none', border: 'none', cursor: 'pointer' }}>Sign Out</Link>
+                </div>
+              )}
             </div>
           </div>
         </div>

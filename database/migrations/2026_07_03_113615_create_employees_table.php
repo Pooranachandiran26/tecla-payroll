@@ -36,7 +36,7 @@ return new class extends Migration
             $table->text('residential_address')->nullable();
             $table->string('previous_employer_name')->nullable();
             $table->string('previous_employer_uan')->nullable();
-            $table->string('aadhaar_number', 12)->nullable();
+            $table->text('aadhaar_number')->nullable();
             $table->date('probation_end_date')->nullable();
             $table->foreignId('reporting_manager_id')->nullable()->constrained('employees')->nullOnDelete();
             $table->boolean('prior_employment_flag')->default(false);
@@ -70,7 +70,7 @@ return new class extends Migration
             $table->boolean('bonus_toggle')->default(false);
 
             // Bank details
-            $table->string('bank_account_number');
+            $table->text('bank_account_number');
             $table->string('account_holder_name');
             $table->string('bank_ifsc');
             $table->string('bank_name');
@@ -78,7 +78,7 @@ return new class extends Migration
             $table->enum('uan_mode', ['new', 'existing_transfer']);
             $table->string('uan_number')->nullable();
             $table->string('esic_number')->nullable();
-            $table->string('pan_number');
+            $table->text('pan_number');
 
             // Exit-related
             $table->date('last_working_day')->nullable();

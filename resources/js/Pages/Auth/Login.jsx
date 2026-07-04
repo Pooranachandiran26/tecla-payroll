@@ -1,37 +1,26 @@
-import { Head, router } from '@inertiajs/react';
-import { useState } from 'react';
+import { Head, Link } from '@inertiajs/react';
+import { useForm } from '@inertiajs/react';
 import GuestLayout from '../../Layouts/GuestLayout';
-import Card from '../../Components/ui/Card';
 import Input from '../../Components/ui/Input';
 import Button from '../../Components/ui/Button';
-import Select from '../../Components/ui/Select';
 import Checkbox from '../../Components/ui/Checkbox';
 
 export default function Login() {
-  const [data, setData] = useState({
-    email: 'rajesh@tecla.in',
-    password: 'password123',
-    role: 'admin',
-    remember: true
+  const { data, setData, post, processing, errors } = useForm({
+    email: '',
+    password: '',
+    remember: false,
+    website_url: '', // Honeypot field
   });
 
   const handleChange = (e) => {
     const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-    setData(prev => ({ ...prev, [e.target.name]: value }));
+    setData(e.target.name, value);
   };
 
   const submit = (e) => {
     e.preventDefault();
-    
-    // In a real app this would post to an authentication endpoint.
-    // For this prototype, we simulate login routing based on role selection:
-    if (data.role === 'admin' || data.role === 'executive') {
-      router.visit('/dashboard');
-    } else if (data.role === 'client') {
-      router.visit('/client/dashboard');
-    } else if (data.role === 'candidate') {
-      router.visit('/employee/dashboard');
-    }
+    post('/login');
   };
 
   return (
@@ -39,6 +28,26 @@ export default function Login() {
       <Head title="Login" />
       
       <form onSubmit={submit}>
+        {errors.email && (
+          <div style={{ color: 'red', marginBottom: '1rem', fontSize: '0.85rem' }}>
+            {errors.email}
+          </div>
+        )}
+        
+        {/* Honeypot field (hidden from users) */}
+        <div style={{ display: 'none' }}>
+          <label htmlFor="website_url">Leave this field blank</label>
+          <input 
+            type="text" 
+            id="website_url" 
+            name="website_url" 
+            value={data.website_url}
+            onChange={handleChange}
+            tabIndex="-1" 
+            autoComplete="off" 
+          />
+        </div>
+
         <Input 
           label="Work Email" 
           name="email" 
@@ -59,19 +68,6 @@ export default function Login() {
           onChange={handleChange}
         />
 
-        <Select
-          label="Choose Demo Role"
-          name="role"
-          value={data.role}
-          onChange={handleChange}
-          options={[
-            { value: 'admin', label: 'Agency Admin (Full View & Margin Visibility)' },
-            { value: 'executive', label: 'Manager (No Margin/Profit View)' },
-            { value: 'client', label: 'Client Portal (Mahindra Corp View)' },
-            { value: 'candidate', label: 'Employee Portal (Aarav Sharma View)' }
-          ]}
-        />
-
         <div className="form-row" style={{ alignItems: 'center', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between' }}>
           <Checkbox 
             label="Remember me" 
@@ -79,17 +75,15 @@ export default function Login() {
             checked={data.remember}
             onChange={handleChange}
           />
-          <a href="#" style={{ fontSize: '0.8rem', color: 'var(--primary-navy)' }}>Forgot password?</a>
+          <Link href="/forgot-password" style={{ fontSize: '0.8rem', color: 'var(--primary-navy)' }}>
+            Forgot password?
+          </Link>
         </div>
 
-        <Button type="submit" variant="primary" style={{ width: '100%', padding: '0.75rem' }}>
-          Sign In
+        <Button type="submit" variant="primary" style={{ width: '100%', padding: '0.75rem' }} disabled={processing}>
+          {processing ? 'Signing In...' : 'Sign In'}
         </Button>
       </form>
-      
-      <div style={{ marginTop: '1.5rem', textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-        Demo Account: <strong>admin</strong> | Password: <strong>password123</strong>
-      </div>
     </GuestLayout>
   );
 }

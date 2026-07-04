@@ -35,9 +35,23 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $settings = app(\App\Services\SettingsService::class);
+        
         return [
             ...parent::share($request),
-            //
+            'auth' => [
+                'user' => $request->user() ? [
+                    'id' => $request->user()->id,
+                    'name' => $request->user()->name,
+                    'email' => $request->user()->email,
+                    'role' => $request->user()->role,
+                    'must_change_password' => $request->user()->must_change_password,
+                ] : null,
+            ],
+            'authConfig' => [
+                'idle_timeout_minutes' => $settings->getAuthSecurity('idle_timeout_minutes', 15),
+                'session_lifetime' => config('session.lifetime'),
+            ]
         ];
     }
 }

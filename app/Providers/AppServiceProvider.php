@@ -20,5 +20,10 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         \App\Models\Employee::observe(\App\Observers\EmployeeObserver::class);
+        
+        \Illuminate\Support\Facades\Event::listen(
+            \Illuminate\Auth\Events\Failed::class,
+            \App\Listeners\LoginAnomalyListener::class
+        );
     }
 }

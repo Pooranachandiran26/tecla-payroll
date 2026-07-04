@@ -2,7 +2,6 @@ import React from 'react';
 import { createInertiaApp } from '@inertiajs/react';
 import { createRoot } from 'react-dom/client';
 import { ToastProvider } from './Hooks/useToast';
-import { RoleProvider } from './Contexts/RoleContext.jsx';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -40,9 +39,7 @@ createInertiaApp({
         createRoot(el).render(
             <ErrorBoundary>
               <ToastProvider>
-                <RoleProvider>
                   <App {...props} />
-                </RoleProvider>
               </ToastProvider>
             </ErrorBoundary>
         );

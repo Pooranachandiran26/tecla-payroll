@@ -1,107 +1,107 @@
-import { Head } from '@inertiajs/react';
+import { Head, useForm } from '@inertiajs/react';
 import { useState } from 'react';
 import AuthenticatedLayout from '../../Layouts/AuthenticatedLayout';
 import Card from '../../Components/ui/Card';
-import Badge from '../../Components/ui/Badge';
 import Button from '../../Components/ui/Button';
-import DataTable from '../../Components/ui/DataTable';
-import Checkbox from '../../Components/ui/Checkbox';
-import Modal from '../../Components/ui/Modal';
 import Input from '../../Components/ui/Input';
 import Select from '../../Components/ui/Select';
-import useToast from '../../Hooks/useToast';
-import { Plus } from 'lucide-react';
+import DataTable from '../../Components/ui/DataTable';
+import Modal from '../../Components/ui/Modal';
 
-import RoleGuard from '../../Components/RoleGuard.jsx';
-export default function UserManagement() {
-  const { showToast } = useToast();
-  const [modalOpen, setModalOpen] = useState(false);
-  const [users, setUsers] = useState([
-    { id: 1, name: 'Rajesh Kumar', empId: 'T-01', email: 'rajesh@tecla.in', role: 'Agency Admin', roleColor: 'success', scope: 'Full Operations & Margin', ip: 'Any IP (Cloud Access)', active: true },
-    { id: 2, name: 'Sunita Verma', empId: 'T-05', email: 'sunita@tecla.in', role: 'Manager', roleColor: 'info', scope: 'Calculations (No Margin)', ip: '192.168.1.* (Office LAN)', active: true },
-    { id: 3, name: 'Amit Khanna', empId: 'T-12', email: 'amit.k@tecla.in', role: 'Manager', roleColor: 'info', scope: 'Calculations (No Margin)', ip: '192.168.1.* (Office LAN)', active: false },
-  ]);
+export default function UserManagement({ users }) {
+  const [showInviteModal, setShowInviteModal] = useState(false);
 
-  const toggleUser = (id, name) => {
-    setUsers(users.map(u => u.id === id ? { ...u, active: !u.active } : u));
-    showToast(`Status changed: Access configuration modified for ${name}.`);
+  const { data, setData, post, processing, errors, reset } = useForm({
+    name: '',
+    email: '',
+    role: 'employee',
+    employee_id: '',
+    client_id: '',
+  });
+
+  const submit = (e) => {
+    e.preventDefault();
+    post('/admin/users', {
+      onSuccess: () => {
+        setShowInviteModal(false);
+        reset();
+      }
+    });
   };
 
   const columns = [
-    {
-      key: 'name',
-      label: 'Username / Profile',
-      render: (val, row) => (
-        <div>
-          <strong>{val}</strong>
-          <div className="text-xs text-gray-500">Emp ID: {row.empId}</div>
-        </div>
-      )
-    },
-    { key: 'email', label: 'Work Email Address' },
-    {
-      key: 'role',
-      label: 'Role Assignment',
-      render: (val, row) => <Badge variant={row.roleColor}>{val}</Badge>
-    },
-    { key: 'scope', label: 'Disbursement Scope' },
-    { key: 'ip', label: 'Authorized IP Range', render: (val) => <span className="font-mono">{val}</span> },
-    {
-      key: 'active',
-      label: 'Account Status',
-      render: (val, row) => (
-        <div className="flex items-center gap-2">
-          <Checkbox checked={val} onChange={() => toggleUser(row.id, row.name)} noMargin />
-          <span className={val ? 'text-sm' : 'text-sm text-red-600'}>{val ? 'Active' : 'Deactivated'}</span>
-        </div>
-      )
-    },
-    {
-      key: 'actions',
-      label: 'Actions',
-      render: () => <Button variant="navy" size="xs">Edit Rules</Button>
-    }
+    { header: 'Name', accessor: 'name' },
+    { header: 'Email', accessor: 'email' },
+    { header: 'Role', accessor: 'role', render: (row) => <span style={{ textTransform: 'capitalize' }}>{row.role}</span> },
+    { header: 'Status', accessor: 'status', render: (row) => (
+      <span style={{ 
+        padding: '0.25rem 0.5rem', 
+        borderRadius: '4px', 
+        fontSize: '0.75rem',
+        backgroundColor: row.status === 'active' ? '#dcfce7' : row.status === 'locked' ? '#fee2e2' : '#fef3c7',
+        color: row.status === 'active' ? '#166534' : row.status === 'locked' ? '#991b1b' : '#92400e'
+      }}>
+        {row.status}
+      </span>
+    )},
+    { header: 'Linked Profile', accessor: 'profile', render: (row) => {
+      if (row.role === 'employee' && row.employee) return `${row.employee.first_name} ${row.employee.last_name}`;
+      if (row.role === 'client' && row.client) return row.client.company_name;
+      return '-';
+    }}
   ];
 
   return (
-    <RoleGuard allowedRoles={['admin']}>
     <AuthenticatedLayout>
       <Head title="User Management" />
       
-      <div className="flex justify-between items-end mb-6">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <div>
-          <h2 className="text-2xl font-bold">Internal User Directory</h2>
-          <p className="text-gray-500 text-sm mt-1">Assign system roles, update access profiles, and manage system status locks.</p>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>User Management</h1>
+          <p style={{ color: 'var(--text-muted)' }}>Manage access, roles, and invitations.</p>
         </div>
-        <Button variant="primary" onClick={() => setModalOpen(true)} icon={Plus}>Add System User</Button>
+        
+        <Button variant="primary" onClick={() => setShowInviteModal(true)}>
+          Invite User
+        </Button>
       </div>
 
-      <Card noPadding>
-        <DataTable columns={columns} data={users} keyField="id" />
+      <Card>
+        <DataTable columns={columns} data={users} />
       </Card>
 
-      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Register New System User">
-        <form onSubmit={e => { e.preventDefault(); showToast('System User registered successfully!'); setModalOpen(false); }}>
-          <Input label="Full Name" required placeholder="e.g. Priyanjali Roy" />
-          <Input label="Work Email" type="email" required placeholder="e.g. proy@tecla.in" />
-          <div className="flex gap-4">
-            <Select 
-              label="System Role Scope" 
-              className="flex-1"
-              options={[
-                { value: 'executive', label: 'Manager (Restricted Financial View)' },
-                { value: 'admin', label: 'Agency Admin (Full Security View)' }
-              ]} 
-            />
-          </div>
-          <Input label="Allowed IP Addresses" placeholder="e.g. 192.168.1.*" value="192.168.1.*" onChange={() => {}} />
-          <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-gray-200">
-            <Button variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button>
-            <Button variant="primary" type="submit">Create User Profile</Button>
+      <Modal isOpen={showInviteModal} onClose={() => setShowInviteModal(false)} title="Invite New User">
+        <form onSubmit={submit}>
+          <Input label="Name" name="name" value={data.name} onChange={e => setData('name', e.target.value)} error={errors.name} required />
+          <Input label="Email" type="email" name="email" value={data.email} onChange={e => setData('email', e.target.value)} error={errors.email} required />
+          
+          <Select 
+            label="Role" 
+            name="role" 
+            value={data.role} 
+            onChange={e => setData('role', e.target.value)} 
+            options={[
+              { value: 'employee', label: 'Employee' },
+              { value: 'client', label: 'Client' },
+              { value: 'manager', label: 'Manager' },
+              { value: 'admin', label: 'Admin' }
+            ]} 
+          />
+
+          {data.role === 'employee' && (
+            <Input label="Employee ID (Internal)" name="employee_id" type="text" value={data.employee_id} onChange={e => setData('employee_id', e.target.value)} error={errors.employee_id} required />
+          )}
+
+          {data.role === 'client' && (
+            <Input label="Client ID (Internal)" name="client_id" type="text" value={data.client_id} onChange={e => setData('client_id', e.target.value)} error={errors.client_id} required />
+          )}
+
+          <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+            <Button type="button" variant="secondary" onClick={() => setShowInviteModal(false)}>Cancel</Button>
+            <Button type="submit" variant="primary" disabled={processing}>{processing ? 'Sending...' : 'Send Invitation'}</Button>
           </div>
         </form>
       </Modal>
     </AuthenticatedLayout>
-    </RoleGuard>
   );
 }

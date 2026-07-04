@@ -1,6 +1,4 @@
-// Navigation constants — ported from payroll-new/assets/script.js
-// All .html URLs replaced with Laravel route paths
-
+// Navigation constants
 export const adminNav = [
   { name: 'Dashboard', url: '/dashboard', key: 'dashboard' },
   { name: 'Quick Access', url: '/quick-access', key: 'quick-access' },
@@ -58,25 +56,14 @@ export const subNavs = {
   admin: [
     { name: 'Activity Log', url: '/admin/activity-log' },
     { name: 'User Management', url: '/admin/users' },
+    { name: 'Active Sessions', url: '/admin/sessions' },
     { name: 'Settings', url: '/admin/settings' },
   ],
 };
 
-// Role-based user display info
-export const roleUserInfo = {
-  admin:     { label: 'Rajesh',       roleLabel: 'Agency Admin' },
-  executive: { label: 'Sunita',       roleLabel: 'Manager' },
-  client:    { label: 'Mahindra Corp', roleLabel: 'Client Rep' },
-  candidate: { label: 'Aarav Sharma', roleLabel: 'Developer' },
-};
-
-/**
- * Determine the active primary nav category from the current URL path.
- * Ports the fallback logic from script.js L103-L146.
- */
 export function getActiveCategory(currentPath, role) {
   const navLinks = role === 'client' ? clientNav
-    : role === 'candidate' ? candidateNav
+    : role === 'employee' ? candidateNav
     : adminNav;
 
   // Direct match first
@@ -87,7 +74,7 @@ export function getActiveCategory(currentPath, role) {
   }
 
   // Sub-nav match
-  if (role === 'admin' || role === 'executive') {
+  if (role === 'admin' || role === 'manager') {
     for (const [category, links] of Object.entries(subNavs)) {
       for (const link of links) {
         if (currentPath === link.url || currentPath.startsWith(link.url + '/')) {
@@ -108,7 +95,7 @@ export function getActiveCategory(currentPath, role) {
     return 'clients';
   }
   if (currentPath.includes('employee') || currentPath.includes('salary') || currentPath.includes('bank') || currentPath.includes('leave')) {
-    if (role === 'candidate') {
+    if (role === 'employee') {
       if (currentPath.includes('dashboard')) return 'candidate-dashboard';
       if (currentPath.includes('attendance')) return 'candidate-attendance';
       if (currentPath.includes('leave')) return 'candidate-leave';
@@ -122,7 +109,7 @@ export function getActiveCategory(currentPath, role) {
   }
   if (currentPath.includes('compliance')) return 'compliance';
   if (currentPath.includes('report')) return 'reports';
-  if (currentPath.includes('activity') || currentPath.includes('user') || currentPath.includes('setting')) return 'admin';
+  if (currentPath.includes('activity') || currentPath.includes('user') || currentPath.includes('setting') || currentPath.includes('session')) return 'admin';
   if (currentPath.includes('quick-access')) return 'quick-access';
 
   return 'dashboard';

@@ -1,0 +1,78 @@
+<?php
+
+namespace App\Http\Resources;
+
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+
+use App\Services\DataMasker;
+
+class EmployeeResource extends JsonResource
+{
+    /**
+     * Transform the resource into an array.
+     *
+     * @return array<string, mixed>
+     */
+    public function toArray(Request $request): array
+    {
+        return [
+            'id' => $this->id,
+            'employee_code' => $this->employee_code,
+            'client_id' => $this->client_id,
+            'branch_id' => $this->branch_id,
+            'full_name' => $this->full_name,
+            'personal_email' => $this->personal_email,
+            'phone_number' => $this->phone_number,
+            'date_of_birth' => $this->date_of_birth,
+            'date_of_joining' => $this->date_of_joining,
+            'designation' => $this->designation,
+            'employment_model' => $this->employment_model,
+            'status' => $this->status,
+            'gender' => $this->gender,
+            'blood_group' => $this->blood_group,
+            'marital_status' => $this->marital_status,
+            'emergency_contact_name' => $this->emergency_contact_name,
+            'emergency_contact_phone' => $this->emergency_contact_phone,
+            'residential_address' => $this->residential_address,
+            
+            // Numeric salary fields are NOT masked
+            'basic_pay' => $this->basic_pay,
+            'hra' => $this->hra,
+            'conveyance' => $this->conveyance,
+            'da' => $this->da,
+            'medical_allowance' => $this->medical_allowance,
+            'special_allowance' => $this->special_allowance,
+            'other_additions' => $this->other_additions,
+            'gross_monthly_salary' => $this->gross_monthly_salary,
+            'net_take_home_monthly' => $this->net_take_home_monthly,
+            'employer_pf_monthly' => $this->employer_pf_monthly,
+            'employer_esi_monthly' => $this->employer_esi_monthly,
+            'ctc_monthly' => $this->ctc_monthly,
+            
+            // Statutory settings
+            'pf_applicable' => $this->pf_applicable,
+            'esi_applicable' => $this->esi_applicable,
+            'pt_applicable' => $this->pt_applicable,
+            'lwf_applicable' => $this->lwf_applicable,
+            'tds_regime' => $this->tds_regime,
+            'gratuity_mode' => $this->gratuity_mode,
+            
+            // Bank Info (Partially Masked)
+            'account_holder_name' => $this->account_holder_name,
+            'bank_ifsc' => $this->bank_ifsc,
+            'bank_name' => $this->bank_name,
+            'bank_branch' => $this->bank_branch,
+            'bank_account_number' => DataMasker::maskBankAccount($this->bank_account_number),
+            
+            // Sensitive Identity Fields (Masked)
+            'pan_number' => DataMasker::maskIdentityNumber($this->pan_number),
+            'aadhaar_number' => DataMasker::maskIdentityNumber($this->aadhaar_number),
+            
+            // Statutory IDs
+            'uan_mode' => $this->uan_mode,
+            'uan_number' => $this->uan_number,
+            'esic_number' => $this->esic_number,
+        ];
+    }
+}
