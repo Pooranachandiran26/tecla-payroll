@@ -42,6 +42,11 @@ class ClientPolicy
         return $user->role === 'admin';
     }
 
+    public function restore(User $user, Client $client): bool
+    {
+        return $user->role === 'admin';
+    }
+
     public function viewDocuments(User $user, Client $client): bool
     {
         return in_array($user->role, ['admin', 'manager'])

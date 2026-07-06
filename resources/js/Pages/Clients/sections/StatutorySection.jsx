@@ -1,7 +1,11 @@
 import React from 'react';
+import { usePage } from '@inertiajs/react';
 import { PT_STATES, STATE_REG_OPTIONS } from '../constants/clientFormData';
 
 export default function StatutorySection({ formData, onChange, hook }) {
+  const { auth } = usePage().props;
+  const canEdit = auth.user.role === 'admin';
+  const lockProps = !canEdit ? { disabled: true, readOnly: true, title: "Statutory defaults can only be changed by an Agency Admin" } : {};
   return (
     <>
       <div className="section-header">
@@ -26,15 +30,15 @@ export default function StatutorySection({ formData, onChange, hook }) {
           <div className="stat-rate">
             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>Wage Ceiling Override (₹)</div>
             <input type="number" className="stat-rate-input" placeholder="15000"
-              value={formData.pfCeiling} onChange={e => hook.handlePFCeiling(e.target.value)} />
+              value={formData.pfCeiling} onChange={e => hook.handlePFCeiling(e.target.value)} {...lockProps} />
             <div className={`field-hint ${hook.getPFCeilingHint().type}`} style={{ fontSize: '0.65rem', marginTop: '0.2rem' }}>
               {hook.getPFCeilingHint().text}
             </div>
           </div>
           <div className="stat-toggle">
-            <label className="toggle-container">
+            <label className="toggle-container" title={lockProps.title}>
               <input type="checkbox" className="toggle-input"
-                checked={formData.pfApplicable} onChange={e => onChange('pfApplicable', e.target.checked)} />
+                checked={formData.pfApplicable} onChange={e => onChange('pfApplicable', e.target.checked)} {...lockProps} />
               <span className="toggle-switch"></span>
             </label>
           </div>
@@ -69,15 +73,15 @@ export default function StatutorySection({ formData, onChange, hook }) {
           <div className="stat-rate">
             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>Gross Limit Override (₹)</div>
             <input type="number" className="stat-rate-input" placeholder="21000"
-              value={formData.esiLimit} onChange={e => hook.handleESILimit(e.target.value)} />
+              value={formData.esiLimit} onChange={e => hook.handleESILimit(e.target.value)} {...lockProps} />
             <div className={`field-hint ${hook.getESILimitHint().type}`} style={{ fontSize: '0.65rem', marginTop: '0.2rem' }}>
               {hook.getESILimitHint().text}
             </div>
           </div>
           <div className="stat-toggle">
-            <label className="toggle-container">
+            <label className="toggle-container" title={lockProps.title}>
               <input type="checkbox" className="toggle-input"
-                checked={formData.esiApplicable} onChange={e => onChange('esiApplicable', e.target.checked)} />
+                checked={formData.esiApplicable} onChange={e => onChange('esiApplicable', e.target.checked)} {...lockProps} />
               <span className="toggle-switch"></span>
             </label>
           </div>
@@ -91,14 +95,14 @@ export default function StatutorySection({ formData, onChange, hook }) {
           </div>
           <div className="stat-rate">
             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>Override State Slab</div>
-            <select className="stat-rate-input" value={formData.ptState} onChange={e => onChange('ptState', e.target.value)}>
+            <select className="stat-rate-input" value={formData.ptState} onChange={e => onChange('ptState', e.target.value)} {...lockProps}>
               {PT_STATES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
             </select>
           </div>
           <div className="stat-toggle">
-            <label className="toggle-container">
+            <label className="toggle-container" title={lockProps.title}>
               <input type="checkbox" className="toggle-input"
-                checked={formData.ptApplicable} onChange={e => onChange('ptApplicable', e.target.checked)} />
+                checked={formData.ptApplicable} onChange={e => onChange('ptApplicable', e.target.checked)} {...lockProps} />
               <span className="toggle-switch"></span>
             </label>
           </div>
@@ -112,16 +116,16 @@ export default function StatutorySection({ formData, onChange, hook }) {
           </div>
           <div className="stat-rate">
             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>LWF Frequency</div>
-            <select className="stat-rate-input" value={formData.lwfFrequency} onChange={e => onChange('lwfFrequency', e.target.value)}>
+            <select className="stat-rate-input" value={formData.lwfFrequency} onChange={e => onChange('lwfFrequency', e.target.value)} {...lockProps}>
               <option value="biannual">Bi-Annual (Jun & Dec)</option>
               <option value="annual">Annual (Dec only)</option>
               <option value="monthly">Monthly</option>
             </select>
           </div>
           <div className="stat-toggle">
-            <label className="toggle-container">
+            <label className="toggle-container" title={lockProps.title}>
               <input type="checkbox" className="toggle-input"
-                checked={formData.lwfApplicable} onChange={e => onChange('lwfApplicable', e.target.checked)} />
+                checked={formData.lwfApplicable} onChange={e => onChange('lwfApplicable', e.target.checked)} {...lockProps} />
               <span className="toggle-switch"></span>
             </label>
           </div>
@@ -135,16 +139,16 @@ export default function StatutorySection({ formData, onChange, hook }) {
           </div>
           <div className="stat-rate">
             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>Default Tax Regime</div>
-            <select className="stat-rate-input" value={formData.tdsRegime} onChange={e => onChange('tdsRegime', e.target.value)}>
+            <select className="stat-rate-input" value={formData.tdsRegime} onChange={e => onChange('tdsRegime', e.target.value)} {...lockProps}>
               <option value="new">New Regime (Default)</option>
               <option value="old">Old Regime</option>
               <option value="employee_choice">Employee's Choice</option>
             </select>
           </div>
           <div className="stat-toggle">
-            <label className="toggle-container">
+            <label className="toggle-container" title={lockProps.title}>
               <input type="checkbox" className="toggle-input"
-                checked={formData.tdsApplicable} onChange={e => onChange('tdsApplicable', e.target.checked)} />
+                checked={formData.tdsApplicable} onChange={e => onChange('tdsApplicable', e.target.checked)} {...lockProps} />
               <span className="toggle-switch"></span>
             </label>
           </div>
@@ -158,16 +162,16 @@ export default function StatutorySection({ formData, onChange, hook }) {
           </div>
           <div className="stat-rate">
             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>Gratuity Treatment</div>
-            <select className="stat-rate-input" value={formData.gratuityMode} onChange={e => onChange('gratuityMode', e.target.value)}>
+            <select className="stat-rate-input" value={formData.gratuityMode} onChange={e => onChange('gratuityMode', e.target.value)} {...lockProps}>
               <option value="ctc_included">Deduct from CTC (Accrued)</option>
               <option value="over_above">Over & Above CTC (Client bears cost)</option>
               <option value="none">Not Accrued (Paid out on event)</option>
             </select>
           </div>
           <div className="stat-toggle">
-            <label className="toggle-container">
+            <label className="toggle-container" title={lockProps.title}>
               <input type="checkbox" className="toggle-input"
-                checked={formData.gratuityApplicable} onChange={e => onChange('gratuityApplicable', e.target.checked)} />
+                checked={formData.gratuityApplicable} onChange={e => onChange('gratuityApplicable', e.target.checked)} {...lockProps} />
               <span className="toggle-switch"></span>
             </label>
           </div>
@@ -182,12 +186,12 @@ export default function StatutorySection({ formData, onChange, hook }) {
           <div className="stat-rate">
             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>Accrual %</div>
             <input type="number" className="stat-rate-input" placeholder="8.33" step="0.01" max="20" min="8.33"
-              value={formData.bonusPct} onChange={e => onChange('bonusPct', e.target.value)} />
+              value={formData.bonusPct} onChange={e => onChange('bonusPct', e.target.value)} {...lockProps} />
           </div>
           <div className="stat-toggle">
-            <label className="toggle-container">
+            <label className="toggle-container" title={lockProps.title}>
               <input type="checkbox" className="toggle-input"
-                checked={formData.bonusApplicable} onChange={e => onChange('bonusApplicable', e.target.checked)} />
+                checked={formData.bonusApplicable} onChange={e => onChange('bonusApplicable', e.target.checked)} {...lockProps} />
               <span className="toggle-switch"></span>
             </label>
           </div>
@@ -201,7 +205,7 @@ export default function StatutorySection({ formData, onChange, hook }) {
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Denominator used for daily wage calculation (Basic / X).</div>
             </div>
             <select className="form-control" style={{ maxWidth: '250px' }}
-              value={formData.lopBasis} onChange={e => onChange('lopBasis', e.target.value)}>
+              value={formData.lopBasis} onChange={e => onChange('lopBasis', e.target.value)} {...lockProps}>
               <option value="inherit">Inherit Global Settings</option>
               <option value="26_days">Fixed 26 Days</option>
               <option value="30_days">Fixed 30 Days</option>

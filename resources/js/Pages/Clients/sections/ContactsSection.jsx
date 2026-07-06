@@ -156,9 +156,21 @@ export default function ContactsSection({ formData, errors, onChange, onPocChang
               value={formData.poc3.name} onChange={e => onPocChange('poc3', 'name', e.target.value)} />
           </div>
           <div className="form-group">
+            <label>Designation</label>
+            <input type="text" className="form-control" placeholder="e.g. HR Manager"
+              value={formData.poc3.designation} onChange={e => onPocChange('poc3', 'designation', e.target.value)} />
+          </div>
+        </div>
+        <div className="form-row">
+          <div className="form-group">
             <label>Email</label>
             <input type="email" className="form-control" placeholder="e.g. hr@mahindra.com"
               value={formData.poc3.email} onChange={e => onPocChange('poc3', 'email', e.target.value)} />
+          </div>
+          <div className="form-group">
+            <label>Phone</label>
+            <input type="tel" className="form-control" placeholder="10-digit mobile" maxLength="10"
+              value={formData.poc3.phone} onChange={e => onPocChange('poc3', 'phone', e.target.value)} />
           </div>
         </div>
         <div className="form-row" style={{ marginTop: '0.75rem', alignItems: 'center', gap: '1.5rem' }}>

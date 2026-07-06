@@ -146,22 +146,34 @@ export default function AddressSection({ formData, errors, onChange, hook }) {
               Each branch with employees requires a separate GSTIN for compliance.
             </p>
           </div>
-          <button type="button" className="btn btn-secondary"
-            onClick={() => hook.addClientBranch()}>
-            + Add Branch
-          </button>
+          {hook.clientBranches.length < formData.workLocationsCount && !(formData.workLocationsCount === 1 && hook.clientBranches.length === 0) && (
+            <button type="button" className="btn btn-secondary"
+              onClick={() => hook.addClientBranch()}>
+              + Add Branch
+            </button>
+          )}
         </div>
 
-        <div id="client-branches-container" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          {hook.clientBranches.map((branch, idx) => (
-            <BranchCard key={branch.id} branch={branch} idx={idx}
-              totalBranches={hook.clientBranches.length}
-              onUpdate={hook.updateClientBranch}
-              onRemove={hook.removeClientBranch}
-              onPrimaryChange={hook.handlePrimaryBranchChange}
-              onValidateGSTIN={hook.validateBranchGSTIN} />
-          ))}
-        </div>
+        {formData.workLocationsCount === 1 ? (
+          <div style={{
+            padding: '1rem', background: 'var(--bg-light)', borderLeft: '4px solid var(--primary-blue)',
+            borderRadius: 'var(--radius-sm)', fontSize: '0.9rem', color: 'var(--primary-navy)'
+          }}>
+            <strong>Note:</strong> Since "Number of Work Locations" is 1, a default "Head Office" branch is automatically synced with your Registered Office address and GSTIN. You do not need to manually add or edit it.
+          </div>
+        ) : (
+          <div id="client-branches-container" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {hook.clientBranches.map((branch, idx) => (
+              <BranchCard key={branch.id} branch={branch} idx={idx}
+                errors={errors}
+                totalBranches={hook.clientBranches.length}
+                onUpdate={hook.updateClientBranch}
+                onRemove={hook.removeClientBranch}
+                onPrimaryChange={hook.handlePrimaryBranchChange}
+                onValidateGSTIN={hook.validateBranchGSTIN} />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Agency Branches Toggle */}
@@ -211,7 +223,7 @@ export default function AddressSection({ formData, errors, onChange, hook }) {
 }
 
 // ── Branch Card Sub-component ─────────────────
-function BranchCard({ branch, idx, totalBranches, onUpdate, onRemove, onPrimaryChange, onValidateGSTIN }) {
+function BranchCard({ branch, idx, errors = {}, totalBranches, onUpdate, onRemove, onPrimaryChange, onValidateGSTIN }) {
   const BRANCH_STATES = [
     'Tamil Nadu', 'Maharashtra', 'Karnataka', 'Delhi (NCT)',
     'Telangana', 'Gujarat', 'West Bengal', 'Rajasthan', 'Uttar Pradesh',
@@ -235,7 +247,7 @@ function BranchCard({ branch, idx, totalBranches, onUpdate, onRemove, onPrimaryC
       <div className="form-row">
         <div className="form-group">
           <label>Branch Name <span style={{ color: 'var(--status-danger)' }}>*</span></label>
-          <input type="text" className="form-control" placeholder="e.g. Chennai Office"
+          <input type="text" className={`form-control ${errors[`branches.${idx}.name`] ? 'invalid' : ''}`} placeholder="e.g. Chennai Office"
             value={branch.name}
             onChange={e => onUpdate(branch.id, 'name', e.target.value)} />
         </div>
@@ -249,7 +261,7 @@ function BranchCard({ branch, idx, totalBranches, onUpdate, onRemove, onPrimaryC
 
       <div className="form-group">
         <label>Address Line 1 <span style={{ color: 'var(--status-danger)' }}>*</span></label>
-        <input type="text" className="form-control" value={branch.addr1}
+        <input type="text" className={`form-control ${errors[`branches.${idx}.addr1`] ? 'invalid' : ''}`} value={branch.addr1}
           onChange={e => onUpdate(branch.id, 'addr1', e.target.value)} />
       </div>
 
@@ -261,7 +273,7 @@ function BranchCard({ branch, idx, totalBranches, onUpdate, onRemove, onPrimaryC
         </div>
         <div className="form-group">
           <label>City <span style={{ color: 'var(--status-danger)' }}>*</span></label>
-          <input type="text" className="form-control" value={branch.city}
+          <input type="text" className={`form-control ${errors[`branches.${idx}.city`] ? 'invalid' : ''}`} value={branch.city}
             onChange={e => onUpdate(branch.id, 'city', e.target.value)} />
         </div>
       </div>
@@ -269,7 +281,7 @@ function BranchCard({ branch, idx, totalBranches, onUpdate, onRemove, onPrimaryC
       <div className="form-row">
         <div className="form-group">
           <label>State <span style={{ color: 'var(--status-danger)' }}>*</span></label>
-          <select className="form-control" value={branch.state}
+          <select className={`form-control ${errors[`branches.${idx}.state`] ? 'invalid' : ''}`} value={branch.state}
             onChange={e => { onUpdate(branch.id, 'state', e.target.value); onValidateGSTIN(branch.id); }}>
             <option value="">-- Select --</option>
             {BRANCH_STATES.map(s => <option key={s} value={s}>{s}</option>)}
@@ -277,7 +289,7 @@ function BranchCard({ branch, idx, totalBranches, onUpdate, onRemove, onPrimaryC
         </div>
         <div className="form-group">
           <label>PIN Code <span style={{ color: 'var(--status-danger)' }}>*</span></label>
-          <input type="text" className="form-control" maxLength="6" value={branch.pin}
+          <input type="text" className={`form-control ${errors[`branches.${idx}.pin`] ? 'invalid' : ''}`} maxLength="6" value={branch.pin}
             onChange={e => onUpdate(branch.id, 'pin', e.target.value)} />
         </div>
       </div>

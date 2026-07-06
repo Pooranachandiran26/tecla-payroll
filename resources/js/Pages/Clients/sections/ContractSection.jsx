@@ -123,6 +123,7 @@ export default function ContractSection({ formData, errors, onChange, hook }) {
             value={formData.contractEnd}
             onChange={e => onChange('contractEnd', e.target.value)}
             onBlur={hook.validateContractDates} />
+          <div className="field-hint">Leave blank for open-ended contracts.</div>
           {hook.hints.contractEnd && (
             <div className={`field-hint ${hook.hints.contractEnd.type === 'error' ? 'error' : hook.hints.contractEnd.type === 'success' ? 'success' : ''}`}>
               {hook.hints.contractEnd.text}
@@ -135,7 +136,7 @@ export default function ContractSection({ formData, errors, onChange, hook }) {
           <input type="checkbox" className="toggle-input"
             checked={formData.autoRenewal} onChange={e => onChange('autoRenewal', e.target.checked)} />
           <span className="toggle-switch"></span>
-          <span style={{ fontSize: '0.875rem', fontWeight: 500, marginLeft: '0.75rem', display: 'inline-block', verticalAlign: 'middle' }}>Auto-Renewal Clause Active</span>
+          <span style={{ fontSize: '0.875rem', fontWeight: 500, marginLeft: '0.75rem', display: 'inline-block', verticalAlign: 'middle' }}>Auto-Renewal (renew for same period if not terminated)</span>
         </label>
       </div>
 
@@ -146,24 +147,28 @@ export default function ContractSection({ formData, errors, onChange, hook }) {
               checked={formData.poRequired} onChange={e => onChange('poRequired', e.target.checked)} />
             <span className="toggle-switch"></span>
           </label>
-          <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>Purchase Order (PO) required for invoicing</span>
+          <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>Purchase Order (PO) Required before invoicing</span>
         </div>
         {formData.poRequired && (
           <div className="form-row conditional-field">
             <div className="form-group">
-              <label>Current PO Number <span style={{ color: 'var(--status-danger)' }}>*</span></label>
+              <label>PO Number <span style={{ color: 'var(--status-danger)' }}>*</span></label>
               <input type="text" className={`form-control ${errors.poNumber ? 'invalid' : ''}`}
+                placeholder="e.g. PO/2026/00142"
                 value={formData.poNumber} onChange={e => onChange('poNumber', e.target.value)} />
+              <div className="field-hint">Invoice held as Draft until PO number is entered here.</div>
             </div>
             <div className="form-group">
-              <label>PO Value (if capped)</label>
-              <input type="number" className="form-control"
+              <label>PO Value (₹)</label>
+              <input type="number" className="form-control" placeholder="e.g. 500000"
                 value={formData.poValue} onChange={e => onChange('poValue', e.target.value)} />
+              <div className="field-hint">Invoice generation blocked if cumulative invoices exceed this amount.</div>
             </div>
             <div className="form-group">
               <label>PO Validity Date</label>
               <input type="date" className="form-control"
                 value={formData.poValidity} onChange={e => onChange('poValidity', e.target.value)} />
+              <div className="field-hint">Invoice generation blocked after this date.</div>
             </div>
           </div>
         )}
@@ -187,13 +192,12 @@ export default function ContractSection({ formData, errors, onChange, hook }) {
       </div>
       <div className="form-row">
         <div className="form-group">
-          <label>Termination Notice Period (Days)</label>
-          <input type="number" className="form-control" value={formData.noticePeriod} onChange={e => onChange('noticePeriod', e.target.value)} />
+          <label>Contract Notice Period (days)</label>
+          <input type="number" className="form-control" placeholder="30" value={formData.noticePeriod} onChange={e => onChange('noticePeriod', e.target.value)} />
         </div>
         <div className="form-group">
-          <label>Credit Limit Amount</label>
-          <input type="number" className="form-control" value={formData.creditLimit} onChange={e => onChange('creditLimit', e.target.value)} />
-          <div className="field-hint">Alert generated if outstanding exceeds limit.</div>
+          <label>Credit Limit (₹)</label>
+          <input type="number" className="form-control" placeholder="e.g. 1000000" value={formData.creditLimit} onChange={e => onChange('creditLimit', e.target.value)} />
         </div>
       </div>
       <div className="form-row">
@@ -229,18 +233,19 @@ export default function ContractSection({ formData, errors, onChange, hook }) {
             )}
           </div>
           <div className="form-group">
-            <label>Reverse Charge Mechanism (RCM)</label>
+            <label>Reverse Charge Applicable</label>
             <div style={{ marginTop: '0.5rem' }}>
               <label className="toggle-container" style={{ margin: 0 }}>
                 <input type="checkbox" className="toggle-input"
                   checked={formData.reverseCharge} onChange={e => onChange('reverseCharge', e.target.checked)} />
                 <span className="toggle-switch"></span>
-                <span style={{ fontSize: '0.875rem', fontWeight: 500, marginLeft: '0.75rem', display: 'inline-block', verticalAlign: 'middle' }}>Client pays GST directly</span>
+                <span style={{ fontSize: '0.875rem', fontWeight: 500, marginLeft: '0.75rem', display: 'inline-block', verticalAlign: 'middle' }}>Shift GST liability to client</span>
               </label>
+              <div className="field-hint" style={{ marginTop: '0.5rem' }}>If active, invoice will bear 'Reverse Charge Applicable' note.</div>
             </div>
           </div>
           <div className="form-group">
-            <label>TDS Applicable (by Client on Agency)</label>
+            <label>TDS Applicable on Agency Invoice</label>
             <select className="form-control" value={formData.tdsApplicableAgency} onChange={e => hook.handleTDSChange(e.target.value)}>
               <option value="na">Not Applicable</option>
               <option value="1">1% (Sec 194C - Contract)</option>
@@ -248,7 +253,7 @@ export default function ContractSection({ formData, errors, onChange, hook }) {
               <option value="10">10% (Sec 194J - Prof Services)</option>
               <option value="other">Other / Custom</option>
             </select>
-            <div className="field-hint" style={{ color: 'var(--primary-navy)', fontWeight: 600 }}>
+            <div className="field-hint">
               {hook.getTDSPreview()}
             </div>
           </div>
@@ -275,9 +280,10 @@ export default function ContractSection({ formData, errors, onChange, hook }) {
         </div>
       </div>
       <div className="form-group">
-        <label>Custom Invoice Footer Notes (Optional)</label>
-        <textarea className="form-control" rows="2" placeholder="Any specific instructions to appear on the invoice footer..."
+        <label>Invoice Footer Notes</label>
+        <textarea className="form-control" rows="2" placeholder="e.g. Please include PO number in payment reference. NEFT preferred."
           value={formData.invoiceFooterNotes} onChange={e => onChange('invoiceFooterNotes', e.target.value)}></textarea>
+        <div className="field-hint">Appears at the bottom of every invoice sent to this client.</div>
       </div>
     </>
   );

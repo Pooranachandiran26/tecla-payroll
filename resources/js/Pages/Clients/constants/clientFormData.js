@@ -261,7 +261,7 @@ export function getDefaultFormData() {
     // Contacts
     poc1: { name: '', designation: '', email: '', phone: '', whatsappSame: true, prefs: { email: true, sms: true, wa: true } },
     poc2: { name: '', designation: '', email: '', phone: '', whatsappSame: true, ccInvoice: true, prefs: { email: true, sms: false, wa: false } },
-    poc3: { name: '', email: '', whatsappSame: true, onboardingKits: true, prefs: { email: true, sms: false, wa: false } },
+    poc3: { name: '', designation: '', email: '', phone: '', whatsappSame: true, onboardingKits: true, prefs: { email: true, sms: false, wa: false } },
 
     // Contract & Billing
     contractType: '', billingModel: '',

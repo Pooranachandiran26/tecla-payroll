@@ -1,4 +1,5 @@
 import React, { useRef } from 'react';
+import { usePage, router } from '@inertiajs/react';
 import { REQUIRED_DOC_TYPES, DOC_TYPE_LABELS, DOC_TYPE_ICONS } from '../constants/clientFormData';
 
 export default function DocumentsSection({ formData, hook }) {
@@ -32,6 +33,17 @@ export default function DocumentsSection({ formData, hook }) {
     if (e.target.files && e.target.files.length > 0) {
       hook.processFiles(e.target.files, hook.pendingDocType);
     }
+  };
+
+  const { auth } = usePage().props;
+  const canVerify = auth.user.role === 'admin' || auth.user.role === 'manager';
+
+  const handleVerify = (docDbId, status) => {
+    if (!hook.editId) return;
+    const reason = status === 'rejected' ? prompt("Enter rejection reason:") : null;
+    if (status === 'rejected' && !reason) return;
+    
+    router.put(`/clients/${hook.editId}/documents/${docDbId}/verify`, { status, reason }, { preserveScroll: true });
   };
 
   return (
@@ -82,14 +94,47 @@ export default function DocumentsSection({ formData, hook }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <span style={{ fontSize: '1.25rem' }}>{DOC_TYPE_ICONS[doc.type] || '📄'}</span>
               <div>
-                <strong style={{ fontSize: '0.85rem', display: 'block', color: 'var(--primary-navy)' }}>{doc.name}</strong>
+                <strong style={{ fontSize: '0.85rem', display: 'block', color: 'var(--primary-navy)' }}>
+                  {doc.name}
+                  {doc.verification_status && (
+                    <span style={{ 
+                      marginLeft: '0.5rem', padding: '0.1rem 0.4rem', borderRadius: '4px', fontSize: '0.65rem',
+                      background: doc.verification_status === 'verified' ? '#DEF7EC' : doc.verification_status === 'rejected' ? '#FDE8E8' : '#FEF3C7',
+                      color: doc.verification_status === 'verified' ? '#03543F' : doc.verification_status === 'rejected' ? '#9B1C1C' : '#92400E'
+                    }}>
+                      {doc.verification_status.toUpperCase()}
+                    </span>
+                  )}
+                </strong>
                 <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{DOC_TYPE_LABELS[doc.type]} • {(doc.size / 1024 / 1024).toFixed(2)} MB</span>
+                {doc.rejection_reason && (
+                  <div style={{ fontSize: '0.7rem', color: '#9B1C1C', marginTop: '0.2rem' }}>Reason: {doc.rejection_reason}</div>
+                )}
               </div>
             </div>
-            <button type="button" onClick={() => hook.removeDoc(doc.id)}
-              style={{ background: 'none', border: 'none', color: 'var(--status-danger)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>
-              🗑 Remove
-            </button>
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              {doc.dbId && (
+                <a href={`/clients/${hook.editId}/documents/${doc.dbId}/download`} target="_blank" rel="noreferrer"
+                  style={{ fontSize: '0.8rem', color: 'var(--primary-blue)', textDecoration: 'none', fontWeight: 600 }}>
+                  ⬇️ Download
+                </a>
+              )}
+              
+              {doc.dbId && canVerify && doc.verification_status === 'pending' && (
+                <>
+                  <button type="button" onClick={() => handleVerify(doc.dbId, 'verified')} style={{ background: 'none', border: 'none', color: '#03543F', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>✅ Verify</button>
+                  <button type="button" onClick={() => handleVerify(doc.dbId, 'rejected')} style={{ background: 'none', border: 'none', color: '#9B1C1C', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>❌ Reject</button>
+                </>
+              )}
+
+              {!doc.dbId && (
+                <button type="button" onClick={() => hook.removeDoc(doc.id)}
+                  style={{ background: 'none', border: 'none', color: 'var(--status-danger)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>
+                  🗑 Remove
+                </button>
+              )}
+            </div>
           </div>
         ))}
         {hook.uploadedDocs.length === 0 && (

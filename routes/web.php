@@ -70,11 +70,18 @@ Route::middleware('auth')->group(function () {
             Route::post('/export/employees', [\App\Http\Controllers\ExportController::class, 'exportEmployeeData']);
 
             // Clients
-            Route::get('/clients', [ClientController::class,'index'])->middleware('can:viewAny,App\Models\Client');
+            Route::get('/clients', [ClientController::class,'index'])->middleware('can:viewAny,App\Models\Client')->name('clients.index');
             Route::get('/clients/create', [ClientController::class,'create'])->middleware('can:create,App\Models\Client');
             Route::post('/clients', [ClientController::class,'store']);
-            Route::get('/clients/{client}', [ClientController::class,'show'])->middleware('can:view,client');
+            Route::get('/clients/{client}', [ClientController::class,'show'])->middleware('can:view,client')->name('clients.show');
+            Route::get('/clients/{client}/edit', [ClientController::class,'edit'])->middleware('can:update,client')->name('clients.edit');
             Route::put('/clients/{client}', [ClientController::class,'update'])->middleware('can:update,client');
+            Route::delete('/clients/{client}', [ClientController::class,'destroy'])->middleware('can:delete,client')->name('clients.destroy');
+            Route::post('/clients/{client}/deactivate', [ClientController::class,'deactivate'])->middleware('can:update,client')->name('clients.deactivate');
+            Route::post('/clients/{id}/restore', [ClientController::class,'restore'])->name('clients.restore');
+            Route::post('/clients/{client}/documents', [ClientController::class, 'uploadDocument'])->middleware('can:update,client');
+            Route::put('/clients/{client}/documents/{document}/verify', [ClientController::class, 'verifyDocument']);
+            Route::get('/clients/{client}/documents/{document}/download', [ClientController::class, 'downloadDocument']);
 
             // Employees
             Route::post('/employees/calculate-preview', [EmployeeController::class, 'calculatePreview']);

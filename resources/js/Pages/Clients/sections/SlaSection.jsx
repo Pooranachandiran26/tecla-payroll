@@ -1,7 +1,9 @@
 import React from 'react';
-import { CUTOFF_DAYS, PAYROLL_LOCK_DAYS, SALARY_CREDIT_DAYS, INVOICE_RAISE_DAYS, PAYROLL_CONVENTIONS, ACCOUNT_MANAGERS } from '../constants/clientFormData';
+import { usePage } from '@inertiajs/react';
+import { CUTOFF_DAYS, PAYROLL_LOCK_DAYS, SALARY_CREDIT_DAYS, INVOICE_RAISE_DAYS, PAYROLL_CONVENTIONS } from '../constants/clientFormData';
 
 export default function SlaSection({ formData, errors, onChange, hook }) {
+  const { accountManagers = [] } = usePage().props;
   const showCustomCycle = formData.payrollMonthConvention === 'custom';
 
   return (
@@ -83,14 +85,14 @@ export default function SlaSection({ formData, errors, onChange, hook }) {
           <label>Assigned Account Manager (Internal)</label>
           <select className="form-control" value={formData.accountManager} onChange={e => onChange('accountManager', e.target.value)}>
             <option value="">-- Assign Account Manager --</option>
-            {ACCOUNT_MANAGERS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+            {accountManagers.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
           </select>
         </div>
         <div className="form-group">
           <label>Backup Account Manager</label>
           <select className="form-control" value={formData.backupAccountManager} onChange={e => onChange('backupAccountManager', e.target.value)}>
             <option value="">-- Select Backup AM --</option>
-            {ACCOUNT_MANAGERS.filter(m => m.value !== formData.accountManager).map(m => (
+            {accountManagers.filter(m => m.value != formData.accountManager).map(m => (
               <option key={m.value} value={m.value}>{m.label}</option>
             ))}
           </select>

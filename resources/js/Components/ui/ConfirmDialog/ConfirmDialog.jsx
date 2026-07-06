@@ -6,6 +6,7 @@ export default function ConfirmDialog({
   isOpen, onClose, onConfirm, title = 'Confirm Action',
   message = 'Are you sure?', confirmLabel = 'Confirm',
   cancelLabel = 'Cancel', variant = 'danger', loading = false,
+  children
 }) {
   return (
     <Modal
@@ -24,9 +25,12 @@ export default function ConfirmDialog({
         </>
       }
     >
-      <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
-        <AlertTriangle size={24} style={{ color: 'var(--status-warning)', flexShrink: 0, marginTop: '0.125rem' }} />
-        <p style={{ fontSize: '0.9rem', margin: 0 }}>{message}</p>
+      <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', flexDirection: 'column' }}>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+          <AlertTriangle size={24} style={{ color: 'var(--status-warning)', flexShrink: 0, marginTop: '0.125rem' }} />
+          <p style={{ fontSize: '0.9rem', margin: 0 }}>{message}</p>
+        </div>
+        {children && <div style={{ width: '100%', marginTop: '1rem' }}>{children}</div>}
       </div>
     </Modal>
   );
