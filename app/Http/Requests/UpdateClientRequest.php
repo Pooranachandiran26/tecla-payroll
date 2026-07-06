@@ -27,7 +27,7 @@ class UpdateClientRequest extends FormRequest
             'pan_number' => $this->pan,
             'industry' => $this->industry,
             'status' => $this->status ?: 'onboarding',
-            'country' => $this->country,
+            'country' => $this->country ?: 'India',
             'cin_number' => $this->cin,
             'incorporation_date' => $this->incorporationDate,
             'logo_path' => $this->logoUrl,
@@ -56,16 +56,16 @@ class UpdateClientRequest extends FormRequest
             'credit_limit' => $this->creditLimit,
             'late_payment_penalty_pct' => $this->latePenalty,
             'invoice_cycle' => $this->invoiceCycle,
-            'currency' => $this->billingCurrency,
+            'currency' => $this->billingCurrency ?: 'INR',
             'tds_applicable_on_agency_fee' => $this->tdsApplicableAgency,
             'po_required' => $this->poRequired ? 1 : 0,
             'po_number' => $this->poNumber,
             'auto_renewal' => $this->autoRenewal ? 1 : 0,
-            'notice_period_days' => $this->noticePeriod,
+            'notice_period_days' => $this->noticePeriod ?? 30,
             
             // Statutory
             'pt_state' => $this->ptState,
-            'default_gratuity_mode' => $this->gratuityMode,
+            'default_gratuity_mode' => $this->gratuityMode ?: 'ctc_included',
             'gratuity_applicable' => $this->gratuityApplicable ? 1 : 0,
             'statutory_bonus_applicable' => $this->statutoryBonusApplicable ? 1 : 0,
             'bonus_rate_percentage' => $this->bonusRate ?? 8.33,
@@ -80,7 +80,7 @@ class UpdateClientRequest extends FormRequest
             
             // Portal & SLA
             'client_portal_enabled' => $this->portalAccess ? 1 : 0,
-            'portal_access_level' => $this->portalAccessLevel,
+            'portal_access_level' => $this->portalAccessLevel ?: 'view_only',
             'portal_primary_email' => $this->portalEmail,
             'portal_view_salary' => $this->portalViewSalary ? 1 : 0,
             'portal_view_invoices' => $this->portalViewInvoices ? 1 : 0,
@@ -98,7 +98,7 @@ class UpdateClientRequest extends FormRequest
             'invoice_dispute_window_days' => $this->invoiceDisputeDays,
             'invoice_raise_day' => $this->invoiceRaiseDay,
             'payroll_convention' => $this->payrollMonthConvention,
-            'lop_basis_days' => $this->lopBasis,
+            'lop_basis_days' => $this->lopBasis ?: '26',
             'auto_reminders' => $this->autoReminders ? 1 : 0,
             'client_notes' => $this->clientNotes,
 
