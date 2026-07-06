@@ -14,7 +14,7 @@ export default function Dashboard() {
   const { role } = useRole();
 
   return (
-    <RoleGuard allowedRoles={['admin', 'executive']}>
+    <RoleGuard allowedRoles={['admin', 'manager', 'manager']}>
     <AuthenticatedLayout>
       
       <div className="flex-row-between">
@@ -63,7 +63,7 @@ export default function Dashboard() {
           icon={IndianRupee}
         />
         
-        {role === 'executive' ? (
+        {role === 'manager' ? (
           <div className="card metric-card locked-card">
             <div className="locked-blur">
               <span className="metric-label">Net Agency Margin</span>
@@ -200,8 +200,8 @@ export default function Dashboard() {
             </div>
           </Card>
 
-          <Card title="System Activity Log" headerAction={role !== 'executive' && <Button href="/admin/activity-log" variant="link" size="xs">View Full</Button>}>
-            {role === 'executive' ? (
+          <Card title="System Activity Log" headerAction={role !== 'manager' && <Button href="/admin/activity-log" variant="link" size="xs">View Full</Button>}>
+            {role === 'manager' ? (
               <div className="locked-card" style={{ padding: 0, border: 'none', background: 'none' }}>
                 <div className="locked-blur" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.8rem' }}>
                    <div><strong>Rajesh</strong> approved Payroll batch for <em>Mahindra Corp</em></div>

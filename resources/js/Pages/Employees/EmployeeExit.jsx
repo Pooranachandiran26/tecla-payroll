@@ -168,7 +168,7 @@ export default function EmployeeExit() {
   };
 
   return (
-    <RoleGuard allowedRoles={['admin', 'executive']}>
+    <RoleGuard allowedRoles={['admin', 'manager']}>
     <AuthenticatedLayout>
       <Head title="Employee Exit Wizard" />
 

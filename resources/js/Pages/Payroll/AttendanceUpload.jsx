@@ -106,7 +106,7 @@ export default function AttendanceUpload() {
   ];
 
   return (
-    <RoleGuard allowedRoles={['admin', 'executive']}>
+    <RoleGuard allowedRoles={['admin', 'manager']}>
     <AuthenticatedLayout>
       <Head title="Upload Attendance" />
 

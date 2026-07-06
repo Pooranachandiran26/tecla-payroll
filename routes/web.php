@@ -118,6 +118,10 @@ Route::middleware('auth')->group(function () {
             Route::get('/admin/settings/auth-security', [SettingsController::class, 'getAuthSecurity']);
             Route::put('/admin/settings/auth-security', [SettingsController::class, 'updateAuthSecurity']);
             
+            Route::get('/admin/settings/email', [SettingsController::class, 'getEmailSettings']);
+            Route::put('/admin/settings/email', [SettingsController::class, 'updateEmailSettings']);
+            Route::post('/admin/settings/email/test', [SettingsController::class, 'testEmailSettings'])->middleware('throttle:3,1');
+            
             Route::get('/admin/sessions', [SessionController::class, 'allSessions']);
             Route::delete('/admin/sessions/{id}', [SessionController::class, 'revokeAny']);
             Route::post('/admin/sessions/bulk-revoke', [SessionController::class, 'bulkRevoke']);

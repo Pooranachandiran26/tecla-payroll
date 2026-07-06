@@ -5,7 +5,7 @@ import { Head, Link } from '@inertiajs/react';
 import RoleGuard from '../../Components/RoleGuard.jsx';
 export default function LeaveRequest() {
     return (
-        <RoleGuard allowedRoles={['admin', 'executive', 'candidate']}>
+        <RoleGuard allowedRoles={['admin', 'manager', 'employee']}>
     <AuthenticatedLayout>
             <Head title="Leave Request" />
             

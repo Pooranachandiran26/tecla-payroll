@@ -22,15 +22,26 @@ class InvitationService
         
         $user = User::create(array_merge($userData, [
             'status' => 'invited',
+            'password' => Hash::make(Str::random(32)), // dummy password since users.password is not null
             'invitation_token' => hash('sha256', $token),
             'invitation_expires_at' => now()->addDays($expiryDays),
             'must_change_password' => true,
         ]));
 
-        // Send email via Log
-        Log::info("Invitation created for {$user->email}. Link: " . url("/invitation/{$token}"));
-        
-        $this->audit->log('invitation_created', request()->user(), $user, null, ['email' => $user->email, 'role' => $user->role]);
+        try {
+            $link = url("/invitation/{$token}");
+            if (\App\Services\SettingsService::get('email.invitation_send_mode') === 'sync') {
+                \Illuminate\Support\Facades\Mail::to($user->email)->send(new \App\Mail\InvitationMail($link, $user));
+            } else {
+                \Illuminate\Support\Facades\Mail::to($user->email)->queue(new \App\Mail\InvitationMail($link, $user));
+            }
+            $this->audit->log('invitation_created', request()->user(), $user, null, ['email' => $user->email, 'role' => $user->role]);
+        } catch (\Throwable $e) {
+            $this->audit->log('invitation.send_failed', request()->user(), $user, null, ['error' => $e->getMessage()]);
+            // Revert user creation since invitation failed
+            $user->delete();
+            throw new \App\Exceptions\InvitationDeliveryException("We couldn't send the invitation email. Please check your email configurations.");
+        }
 
         return $user;
     }

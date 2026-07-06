@@ -17,7 +17,7 @@ export default function EmployeeDetail() {
     }, []);
 
     return (
-        <RoleGuard allowedRoles={['admin', 'executive']}>
+        <RoleGuard allowedRoles={['admin', 'manager']}>
     <AuthenticatedLayout>
             <Head title="Employee Detail" />
             <div className="legacy-react-wrapper">

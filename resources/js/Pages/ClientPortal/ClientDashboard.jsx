@@ -5,7 +5,7 @@ import { Head, Link } from '@inertiajs/react';
 import RoleGuard from '../../Components/RoleGuard.jsx';
 export default function ClientDashboard() {
     return (
-        <RoleGuard allowedRoles={['admin', 'executive', 'client']}>
+        <RoleGuard allowedRoles={['admin', 'manager', 'client']}>
     <AuthenticatedLayout>
             <Head title="Client Dashboard" />
             

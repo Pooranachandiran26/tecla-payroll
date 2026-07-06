@@ -69,7 +69,7 @@ export default function PayrollApproval() {
     };
 
     return (
-        <RoleGuard allowedRoles={['admin', 'executive']}>
+        <RoleGuard allowedRoles={['admin', 'manager']}>
             <AuthenticatedLayout>
                 <Head title="Payroll Approval" />
 
@@ -220,8 +220,8 @@ export default function PayrollApproval() {
                     </div>
 
                     <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-                        <div className={`card ${role === 'executive' ? 'locked-card' : ''}`}>
-                            <div className={role === 'executive' ? 'locked-blur' : ''}>
+                        <div className={`card ${role === 'manager' ? 'locked-card' : ''}`}>
+                            <div className={role === 'manager' ? 'locked-blur' : ''}>
                                 <h3 className="card-title">Agency Profit Margin</h3>
                                 <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "1rem" }}>Calculated as Invoiced Amount minus Gross Earnings and True Employer-Side Cost.</p>
                                 
@@ -250,7 +250,7 @@ export default function PayrollApproval() {
                                 </div>
                             </div>
                             
-                            {role === 'executive' && (
+                            {role === 'manager' && (
                                 <div className="locked-overlay">
                                     <div className="locked-badge">🔒 Margin Lock</div>
                                     <span style={{ fontSize: "0.8rem", fontWeight: 600, textAlign: "center", color: "var(--text-main)" }}>Margin Data Protected</span>
@@ -266,7 +266,7 @@ export default function PayrollApproval() {
                             </p>
                             
                             <div>
-                                <button className="btn btn-primary" style={{ width: "100%", padding: "0.6rem" }} onClick={handleApprove} disabled={role === 'executive'}>
+                                <button className="btn btn-primary" style={{ width: "100%", padding: "0.6rem" }} onClick={handleApprove} disabled={role === 'manager'}>
                                     ✓ Approve & Lock Batch
                                 </button>
                                 <Link href="/payroll/processing" className="btn btn-secondary" style={{ width: "100%", marginTop: "0.5rem", padding: "0.6rem", display: "block", textAlign: "center", boxSizing: "border-box" }}>
@@ -274,7 +274,7 @@ export default function PayrollApproval() {
                                 </Link>
                             </div>
                             
-                            {role === 'executive' && (
+                            {role === 'manager' && (
                                 <div style={{ backgroundColor: "var(--status-danger-bg)", borderRadius: "var(--radius-sm)", padding: "0.75rem", border: "1px solid #FFCDD2", marginTop: "0.5rem" }}>
                                     <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--status-danger)" }}>
                                         🔒 Manager: You do not have permissions to lock this payroll run. Please notify the Administrator.

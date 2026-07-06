@@ -26,6 +26,7 @@ class DatabaseSeeder extends Seeder
             ClientSeeder::class,
             EmployeeSeeder::class,
             AuthSecuritySettingsSeeder::class,
+            EmailSettingsSeeder::class,
             TestUsersSeeder::class,
         ]);
     }
