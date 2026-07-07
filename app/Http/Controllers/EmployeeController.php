@@ -76,7 +76,7 @@ class EmployeeController extends Controller
 
     public function show($id)
     {
-        $employee = \App\Models\Employee::with(['salaryRevisions.approvedBy', 'client', 'exitRequest'])->findOrFail($id);
+        $employee = \App\Models\Employee::with(['salaryRevisions.approvedBy', 'client', 'exitRequest', 'documents'])->findOrFail($id);
         return \Inertia\Inertia::render('Employees/EmployeeDetail', [
             'employee' => new \App\Http\Resources\EmployeeResource($employee)
         ]);
@@ -88,6 +88,43 @@ class EmployeeController extends Controller
         
         $employee->update($request->validated());
 
-        return redirect()->route('employees.index')->with('success', 'Employee updated successfully.');
+        return redirect()->back()->with('success', 'Employee updated successfully.');
+    }
+
+    public function storeDocument(\App\Http\Requests\StoreEmployeeDocumentRequest $request, $id)
+    {
+        $employee = \App\Models\Employee::findOrFail($id);
+        
+        $path = $request->file('file')->store('employee_documents');
+        
+        \App\Models\EmployeeDocument::create([
+            'employee_id' => $employee->id,
+            'document_type' => $request->document_type,
+            'file_path' => $path,
+            'status' => 'pending'
+        ]);
+
+        return redirect()->back()->with('success', 'Document uploaded successfully.');
+    }
+
+    public function verifyDocument(\Illuminate\Http\Request $request, $id, $docId)
+    {
+        $employee = \App\Models\Employee::findOrFail($id);
+        \Illuminate\Support\Facades\Gate::authorize('verifyDocuments', $employee);
+
+        $request->validate([
+            'status' => 'required|in:verified,rejected',
+            'rejection_reason' => 'required_if:status,rejected|nullable|string'
+        ]);
+
+        $document = \App\Models\EmployeeDocument::where('employee_id', $employee->id)->findOrFail($docId);
+        $document->update([
+            'status' => $request->status,
+            'rejection_reason' => $request->status === 'rejected' ? $request->rejection_reason : null,
+            'verified_by' => auth()->id(),
+            'verified_at' => now(),
+        ]);
+
+        return redirect()->back()->with('success', 'Document verified successfully.');
     }
 }

@@ -98,6 +98,8 @@ Route::middleware('auth')->group(function () {
             Route::get('/employees/{id}', [EmployeeController::class, 'show'])->name('employees.show');
             Route::get('/employees/{id}/edit', [EmployeeController::class, 'edit'])->name('employees.edit');
             Route::put('/employees/{id}', [EmployeeController::class, 'update'])->name('employees.update');
+            Route::post('/employees/{id}/documents', [EmployeeController::class, 'storeDocument'])->name('employees.documents.store');
+            Route::put('/employees/{id}/documents/{docId}/verify', [EmployeeController::class, 'verifyDocument'])->name('employees.documents.verify');
             Route::get('/employees/{id}/exit', [\App\Http\Controllers\EmployeeExitController::class, 'show'])->name('employees.exit.show');
             Route::post('/employees/{id}/exit/preview-settlement', [\App\Http\Controllers\EmployeeExitController::class, 'previewSettlement']);
             Route::post('/employees/{id}/exit/stage/{stage}', [\App\Http\Controllers\EmployeeExitController::class, 'storeStage']);
