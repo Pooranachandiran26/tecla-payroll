@@ -26,6 +26,19 @@ export default function useClientForm() {
   const [stateRegistrations, setStateRegistrations] = useState([
     { state: 'MH', ptRegNo: '', lwfRegNo: '' },
   ]);
+
+  const getStepForField = (field) => {
+    if (['companyName', 'companyType', 'trustRegNo', 'gstin', 'gstType', 'pan', 'tan', 'cin', 'incorporationDate', 'clientCode', 'industry', 'subIndustry', 'clientStatus', 'workLocationsCount', 'isGroupCompany', 'parentCompany'].includes(field)) return 1;
+    if (['regAddressLine1', 'regAddressLine2', 'regCity', 'regState', 'regPin', 'country', 'taxId', 'regNo', 'billingSame', 'billAddressLine1', 'billCity', 'billState', 'billPin', 'hasAgencyBranches'].includes(field) || field.startsWith('branches')) return 2;
+    if (field.startsWith('poc') || field.startsWith('extraContacts')) return 3;
+    if (['contractType', 'billingModel', 'markupPct', 'markupBase', 'fixedFeeCandidate', 'fixedMonthlyRetainer', 'hourlyRate', 'standardHours', 'otBilling', 'otApproval', 'invoiceCycle', 'paymentTerms', 'contractStart', 'contractEnd', 'autoRenewal', 'poRequired', 'poNumber', 'poValue', 'poValidity', 'gstRate', 'lutRefNo', 'reverseCharge', 'tdsApplicableAgency', 'prefFormatPDF', 'prefFormatXLSX', 'invoiceFooterNotes', 'noticePeriod', 'creditLimit', 'latePenalty', 'billingCurrency'].includes(field)) return 4;
+    if (['pfCeiling', 'pfApplicable', 'esiLimit', 'esiApplicable', 'ptState', 'ptApplicable', 'lwfFrequency', 'lwfApplicable', 'tdsRegime', 'tdsApplicable', 'gratuityMode', 'gratuityApplicable', 'bonusPct', 'bonusApplicable', 'lopBasis'].includes(field)) return 5;
+    if (field === 'documents') return 6;
+    if (['portalAccess', 'portalEmail', 'portalAccessLevel', 'portalViewSalary', 'portalViewInvoices', 'portalViewPayslips', 'portalRaiseRequests', 'portal2fa', 'sessionTimeout', 'ipWhitelist', 'logoUrl'].includes(field)) return 7;
+    if (['attendanceCutoff', 'payrollLockDay', 'salaryCreditDay', 'invoiceDisputeDays', 'invoiceRaiseDay', 'payrollMonthConvention', 'cycleStartDay', 'cycleEndDay', 'accountManager', 'backupAccountManager', 'autoReminders', 'clientNotes'].includes(field)) return 8;
+    return 1;
+  };
+
   const [toastMessage, setToastMessage] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editId, setEditId] = useState(null);
@@ -832,6 +845,7 @@ export default function useClientForm() {
       'registered_address_line_1': 'regAddressLine1',
       'registered_city': 'regCity',
       'registered_state': 'regState',
+      'registered_pin': 'regPin',
       'registered_pin_code': 'regPin',
       'tax_id': 'taxId',
       'registration_number': 'regNo',
@@ -897,12 +911,6 @@ export default function useClientForm() {
     if (payload.contractEnd && new Date(payload.contractEnd) < new Date()) {
       showToast('⚠️ Notice: Saving client with an expired contract end date.');
     }
-    if (payload.billingModel === 'markup' && payload.markupPct === 0) {
-      if (!confirm('⚠️ You entered 0% markup. Confirm you want to proceed with 0% markup?')) {
-        setIsSubmitting(false);
-        return false;
-      }
-    }
 
     const handleSuccess = (page) => {
       setIsSubmitting(false);
@@ -930,6 +938,13 @@ export default function useClientForm() {
           if (branchErrors[i]) return { ...b, gstinError: branchErrors[i] };
           return b;
         }));
+      }
+
+      // Jump to first error step
+      if (Object.keys(mapped).length > 0) {
+        const firstErrorKey = Object.keys(mapped)[0];
+        const step = getStepForField(firstErrorKey);
+        setCurrentStep(step);
       }
 
       showToast(`❌ Required fields missing or invalid. Please check the highlighted errors.`);

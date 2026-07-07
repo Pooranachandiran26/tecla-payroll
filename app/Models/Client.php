@@ -10,6 +10,29 @@ class Client extends Model
     use SoftDeletes;
     protected $guarded = [];
 
+    /**
+     * Fields safe to include in watcher notification emails.
+     * Encrypted/PII fields (pan_number, gstin, etc.) are deliberately excluded.
+     */
+    const NOTIFIABLE_FIELDS = [
+        'company_name',
+        'client_code',
+        'industry',
+        'contract_type',
+        'contract_start_date',
+        'contract_end_date',
+        'billing_model',
+        'status',
+        'auto_renewal',
+        'notice_period_days',
+        'account_manager_id',
+        'backup_account_manager_id',
+        'payment_net_terms',
+        'invoice_cycle',
+        'sla_tier',
+        'client_portal_enabled',
+    ];
+
     protected $casts = [
         'pan_number' => 'encrypted',
         'gstin' => 'encrypted',

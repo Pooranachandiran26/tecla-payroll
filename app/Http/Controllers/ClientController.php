@@ -12,7 +12,13 @@ use App\Http\Requests\UpdateClientRequest;
 use App\Services\AuditService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use App\Events\ClientCreated;
+use App\Events\ClientStatusChanged;
+use App\Events\ClientSensitiveFieldChanged;
+use App\Events\ClientDeleted;
+use App\Events\ClientRestored;
 
 class ClientController extends Controller
 {
@@ -164,6 +170,7 @@ class ClientController extends Controller
             if (!empty($validated['branches'])) {
                 foreach ($validated['branches'] as $branchData) {
                     unset($branchData['state_code']);
+                    unset($branchData['id']);
                     $client->branches()->create($branchData);
                 }
             }
@@ -188,6 +195,8 @@ class ClientController extends Controller
 
             return $client;
         });
+
+        Event::dispatch(new ClientCreated($client));
 
         return redirect()->route('clients.show', $client)->with('success', 'Client created successfully.');
     }
@@ -218,6 +227,10 @@ class ClientController extends Controller
         if ($statutoryFieldsChanged) {
             $this->authorize('updateStatutory', $client);
         }
+
+        // Capture old values for notification whitelist BEFORE the transaction
+        $oldStatus = $client->status;
+        $oldWhitelisted = collect($client->getAttributes())->only(Client::NOTIFIABLE_FIELDS)->toArray();
 
         DB::transaction(function () use ($request, $client) {
             $validated = $request->validated();
@@ -267,7 +280,8 @@ class ClientController extends Controller
                 
                 foreach ($validated['branches'] as $branchData) {
                     unset($branchData['state_code']);
-                    $branchId = !empty($branchData['id']) ? $branchData['id'] : null;
+                    $branchId = !empty($branchData['id']) && is_numeric($branchData['id']) ? $branchData['id'] : null;
+                    unset($branchData['id']);
                     
                     $branch = $client->branches()->updateOrCreate(
                         ['id' => $branchId],
@@ -282,6 +296,23 @@ class ClientController extends Controller
 
             $this->audit->log('updated', auth()->user(), $client, $oldValues, $client->fresh()->toArray());
         });
+
+        // Dispatch notification events AFTER transaction commits
+        if ($client->wasChanged('status')) {
+            Event::dispatch(new ClientStatusChanged($client, $oldStatus, $client->status));
+        }
+
+        $changedWhitelisted = collect($client->getChanges())
+            ->only(array_diff(Client::NOTIFIABLE_FIELDS, ['status']))
+            ->toArray();
+
+        if (!empty($changedWhitelisted)) {
+            Event::dispatch(new ClientSensitiveFieldChanged(
+                $client,
+                collect($oldWhitelisted)->only(array_keys($changedWhitelisted))->toArray(),
+                $changedWhitelisted
+            ));
+        }
 
         return redirect()->back()->with('success', 'Client updated successfully');
     }
@@ -361,7 +392,7 @@ class ClientController extends Controller
         }
         */
 
-        DB::transaction(function () use ($client) {
+        DB::transaction(function () use ($request, $client) {
             $client->branches->each(fn($b) => $b->delete());
             $client->contacts->each(fn($c) => $c->delete());
             $client->documents->each(fn($d) => $d->delete());
@@ -373,10 +404,16 @@ class ClientController extends Controller
                 $u->save();
             });
 
+            // Persist deletion reason to the database before soft-deleting
+            $client->deletion_reason = $request->reason;
+            $client->save();
+
             $client->delete();
         });
 
         $this->audit->log('client.deleted', auth()->user(), $client, null, ['reason' => $request->reason]);
+
+        Event::dispatch(new ClientDeleted($client, $request->reason, auth()->user()));
 
         return redirect()->route('clients.index')->with('success', 'Client deleted successfully.');
     }
@@ -417,6 +454,8 @@ class ClientController extends Controller
         });
 
         $this->audit->log('client.restored', auth()->user(), $client);
+
+        Event::dispatch(new ClientRestored($client, auth()->user()));
 
         return back()->with('success', 'Client restored successfully.');
     }
