@@ -42,12 +42,21 @@ export default function Settings() {
   const [testingEmail, setTestingEmail] = useState(false);
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, key: null, newValue: null, reason: '', confirmText: '' });
 
+  // Watcher State
+  const [watchers, setWatchers] = useState([]);
+  const [watchersLoading, setWatchersLoading] = useState(false);
+  const [showWatcherForm, setShowWatcherForm] = useState(false);
+  const [currentWatcher, setCurrentWatcher] = useState({ name: '', email: '', is_active: true, categories: [], notes: '' });
+
   useEffect(() => {
     if (activeTab === 'auth_security' && Object.keys(authSettings).length === 0) {
       fetchAuthSettings();
     }
     if (activeTab === 'email' && Object.keys(emailSettings).length === 0) {
       fetchEmailSettings();
+    }
+    if (activeTab === 'notif' && watchers.length === 0) {
+      fetchWatchers();
     }
   }, [activeTab]);
 
@@ -63,6 +72,46 @@ export default function Settings() {
       showToast({ type: 'error', title: 'Error', message: e.message || 'Failed to load auth settings' });
     } finally {
       setAuthLoading(false);
+    }
+  };
+
+  const fetchWatchers = async () => {
+    setWatchersLoading(true);
+    try {
+      const res = await axios.get('/admin/watchers');
+      setWatchers(res.data);
+    } catch (e) {
+      showToast({ type: 'error', title: 'Error', message: 'Failed to load watchers' });
+    } finally {
+      setWatchersLoading(false);
+    }
+  };
+
+  const saveWatcher = async (e) => {
+    e.preventDefault();
+    try {
+      if (currentWatcher.id) {
+        await axios.put(`/admin/watchers/${currentWatcher.id}`, currentWatcher);
+        showToast({ type: 'success', title: 'Success', message: 'Watcher updated.' });
+      } else {
+        await axios.post('/admin/watchers', currentWatcher);
+        showToast({ type: 'success', title: 'Success', message: 'Watcher added.' });
+      }
+      setShowWatcherForm(false);
+      fetchWatchers();
+    } catch (err) {
+      showToast({ type: 'error', title: 'Error', message: err.response?.data?.message || 'Failed to save watcher' });
+    }
+  };
+
+  const deleteWatcher = async (id) => {
+    if(!confirm('Are you sure you want to delete this watcher?')) return;
+    try {
+      await axios.delete(`/admin/watchers/${id}`);
+      showToast({ type: 'success', title: 'Success', message: 'Watcher deleted.' });
+      fetchWatchers();
+    } catch (err) {
+      showToast({ type: 'error', title: 'Error', message: 'Failed to delete watcher' });
     }
   };
 
@@ -249,12 +298,99 @@ export default function Settings() {
 
           {activeTab === 'notif' && (
             <div>
-              <h3 className="text-base text-blue-900 font-bold mb-4">E-mail Notifications Dispatch targets</h3>
-              <div className="flex flex-col gap-4">
-                <Checkbox checked={true} onChange={()=>{}} label="Email employee automatically upon final payroll locks (Payslip PDF attached)." />
-                <Checkbox checked={true} onChange={()=>{}} label="Nudge Client portal administrators automatically when timesheets are pending over 48 hours." />
-                <Checkbox checked={true} onChange={()=>{}} label="Send Admin alert when an employee crossing threshold limit triggers automated ESI locks." />
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-base text-blue-900 font-bold">Global Notification Watchers</h3>
+                {!showWatcherForm && (
+                  <Button variant="primary" onClick={() => { setCurrentWatcher({ name: '', email: '', is_active: true, categories: [], notes: '' }); setShowWatcherForm(true); }}>
+                    Add Watcher
+                  </Button>
+                )}
               </div>
+              
+              {showWatcherForm ? (
+                <Card>
+                  <form onSubmit={saveWatcher} className="flex flex-col gap-4">
+                    <div className="flex gap-4">
+                      <div className="flex-1">
+                        <Input label="Name" value={currentWatcher.name} onChange={e => setCurrentWatcher({...currentWatcher, name: e.target.value})} required />
+                      </div>
+                      <div className="flex-1">
+                        <Input type="email" label="Email" value={currentWatcher.email} onChange={e => setCurrentWatcher({...currentWatcher, email: e.target.value})} required />
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Notification Categories</label>
+                      <div className="flex flex-col gap-2 p-4 border rounded bg-slate-50">
+                        <Checkbox 
+                          label="All modules (including future ones)" 
+                          checked={currentWatcher.categories.includes('all')}
+                          onChange={e => {
+                            if (e.target.checked) {
+                              setCurrentWatcher({...currentWatcher, categories: ['all']});
+                            } else {
+                              setCurrentWatcher({...currentWatcher, categories: []});
+                            }
+                          }}
+                        />
+                        <div className="ml-6 flex gap-4 mt-2">
+                          <Checkbox 
+                            label="Client Module" 
+                            disabled={currentWatcher.categories.includes('all')}
+                            checked={currentWatcher.categories.includes('client')}
+                            onChange={e => {
+                              const cats = new Set(currentWatcher.categories);
+                              e.target.checked ? cats.add('client') : cats.delete('client');
+                              setCurrentWatcher({...currentWatcher, categories: Array.from(cats)});
+                            }}
+                          />
+                          <Checkbox 
+                            label="Employee Module" 
+                            disabled={currentWatcher.categories.includes('all')}
+                            checked={currentWatcher.categories.includes('employee')}
+                            onChange={e => {
+                              const cats = new Set(currentWatcher.categories);
+                              e.target.checked ? cats.add('employee') : cats.delete('employee');
+                              setCurrentWatcher({...currentWatcher, categories: Array.from(cats)});
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <Input label="Notes" value={currentWatcher.notes || ''} onChange={e => setCurrentWatcher({...currentWatcher, notes: e.target.value})} />
+                    
+                    <Checkbox label="Active" checked={currentWatcher.is_active} onChange={e => setCurrentWatcher({...currentWatcher, is_active: e.target.checked})} />
+                    
+                    <div className="flex gap-2">
+                      <Button type="button" variant="secondary" onClick={() => setShowWatcherForm(false)}>Cancel</Button>
+                      <Button type="submit" variant="primary">Save Watcher</Button>
+                    </div>
+                  </form>
+                </Card>
+              ) : (
+                <div className="border border-gray-200 rounded-md overflow-hidden">
+                  <DataTable 
+                    columns={[
+                      { key: 'name', label: 'Name' },
+                      { key: 'email', label: 'Email' },
+                      { key: 'categories', label: 'Categories', render: (_, row) => row.categories.join(', ') },
+                      { key: 'is_active', label: 'Status', render: (_, row) => row.is_active ? 'Active' : 'Inactive' },
+                      { key: 'actions', label: 'Actions', render: (_, row) => (
+                        <div className="flex gap-2">
+                          <Button variant="secondary" size="xs" onClick={() => { setCurrentWatcher(row); setShowWatcherForm(true); }}>Edit</Button>
+                          <Button variant="danger" size="xs" onClick={() => deleteWatcher(row.id)}>Delete</Button>
+                        </div>
+                      )}
+                    ]}
+                    data={watchers}
+                    keyField="id"
+                  />
+                  {watchers.length === 0 && !watchersLoading && (
+                    <div className="p-4 text-center text-gray-500">No watchers configured.</div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

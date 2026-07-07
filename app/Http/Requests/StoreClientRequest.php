@@ -19,6 +19,8 @@ class StoreClientRequest extends FormRequest
 
     protected function prepareForValidation()
     {
+        \Illuminate\Support\Facades\Log::info('StoreClientRequest payload received', $this->all());
+
         $mapped = [
             'company_name' => $this->name,
             'company_type' => $this->type,
@@ -303,7 +305,7 @@ class StoreClientRequest extends FormRequest
 
             // Branches
             'branches' => 'nullable|array',
-            'branches.*.id' => 'nullable|integer',
+            'branches.*.id' => 'nullable|string',
             'branches.*.branch_code' => 'nullable|string',
             'branches.*.branch_name' => 'nullable|string',
             'branches.*.address_line_1' => 'nullable|string',

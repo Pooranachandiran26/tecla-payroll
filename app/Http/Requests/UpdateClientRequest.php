@@ -307,7 +307,7 @@ class UpdateClientRequest extends FormRequest
 
             // Branches
             'branches' => 'nullable|array',
-            'branches.*.id' => 'nullable|integer',
+            'branches.*.id' => 'nullable|string',
             'branches.*.branch_code' => 'nullable|string',
             'branches.*.branch_name' => 'nullable|string',
             'branches.*.address_line_1' => 'nullable|string',

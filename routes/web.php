@@ -124,6 +124,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/invoices/generate', fn() => Inertia::render('Invoicing/InvoiceGenerate'));
             Route::get('/compliance', fn() => Inertia::render('Compliance/ComplianceReports'));
             Route::get('/reports', fn() => Inertia::render('Reports/ReportsAnalytics'));
+
         });
 
         // ADMIN ONLY
@@ -132,6 +133,9 @@ Route::middleware('auth')->group(function () {
             Route::get('/admin/users', [UserController::class, 'index']);
             Route::post('/admin/users', [UserController::class, 'store']);
             Route::get('/admin/settings', fn() => Inertia::render('Admin/Settings'));
+            
+            Route::apiResource('admin/watchers', \App\Http\Controllers\NotificationWatcherController::class)->except(['show']);
+            
             Route::get('/admin/settings/auth-security', [SettingsController::class, 'getAuthSecurity']);
             Route::put('/admin/settings/auth-security', [SettingsController::class, 'updateAuthSecurity']);
             
