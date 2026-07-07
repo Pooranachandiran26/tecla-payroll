@@ -25,5 +25,19 @@ class AppServiceProvider extends ServiceProvider
             \Illuminate\Auth\Events\Failed::class,
             \App\Listeners\LoginAnomalyListener::class
         );
+
+        // Global Notification Watcher Interceptor
+        \Illuminate\Support\Facades\Event::listen('*', function ($eventName, array $data) {
+            foreach ($data as $event) {
+                if ($event instanceof \App\Contracts\NotifiesWatchers) {
+                    \App\Jobs\NotifyWatchersJob::dispatch(
+                        $event->watcherCategory(),
+                        $event->watcherSubject(),
+                        $event->watcherSummary(),
+                        $event->watcherContextUrl()
+                    );
+                }
+            }
+        });
     }
 }
