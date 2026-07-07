@@ -1,17 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import './EmployeeExit.css';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, Link, router } from '@inertiajs/react';
-import Button from '@/Components/ui/Button';
-import Select from '@/Components/ui/Select';
-import Input from '@/Components/ui/Input';
-import Badge from '@/Components/ui/Badge';
-import Modal from '@/Components/ui/Modal';
-import useToast from '@/Hooks/useToast';
-import axios from 'axios';
+import AuthenticatedLayout from '../../Layouts/AuthenticatedLayout';
+import { Head, Link, usePage } from '@inertiajs/react';
+import Button from '../../Components/ui/Button';
+import Select from '../../Components/ui/Select';
+import Input from '../../Components/ui/Input';
+import Badge from '../../Components/ui/Badge';
+import Modal from '../../Components/ui/Modal';
+import useToast from '../../Hooks/useToast';
 
-import RoleGuard from '@/Components/RoleGuard';
-
+import RoleGuard from '../../Components/RoleGuard.jsx';
 const STEPS = [
   { id: 1, label: 'Initiate' },
   { id: 2, label: 'Notice Period' },
@@ -22,108 +20,50 @@ const STEPS = [
   { id: 7, label: 'Documents' },
 ];
 
-export default function EmployeeExit({ employee: rawEmployee, initialExitData }) {
-  const employee = rawEmployee?.data || rawEmployee || {};
+export default function EmployeeExit() {
   const { showToast } = useToast();
-  
-  const [currentStage, setCurrentStage] = useState(initialExitData?.current_stage || 1);
-  const [highestStageReached, setHighestStageReached] = useState(initialExitData?.current_stage || 1);
-  
+  const [currentStage, setCurrentStage] = useState(1);
+  const [highestStageReached, setHighestStageReached] = useState(1);
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [confirmExitModalOpen, setConfirmExitModalOpen] = useState(false);
 
-  // Form states based on API fields
+  // Initialize Dates
+  useEffect(() => {
+    const today = new Date().toISOString().split('T')[0];
+    setSubmissionDate(today);
+    const lwdDate = new Date();
+    lwdDate.setDate(lwdDate.getDate() + 30);
+    setLwd(lwdDate.toISOString().split('T')[0]);
+  }, []);
+
   // Stage 1
-  const [exitType, setExitType] = useState(initialExitData?.exit_type || 'Resignation');
-  const [reasonCategory, setReasonCategory] = useState(initialExitData?.reason_category || '');
-  const [submissionDate, setSubmissionDate] = useState(initialExitData?.submission_date || '');
-  const [discussed, setDiscussed] = useState(initialExitData?.discussed_with_employee ? 'yes' : 'no');
-  const [discussionSummary, setDiscussionSummary] = useState(initialExitData?.discussion_summary || '');
+  const [exitType, setExitType] = useState('Resignation');
+  const [reasonCategory, setReasonCategory] = useState('Better Opportunity');
+  const [submissionDate, setSubmissionDate] = useState('');
+  const [discussed, setDiscussed] = useState('yes');
+  const [discussionSummary, setDiscussionSummary] = useState('');
 
   // Stage 2
-  const [lwd, setLwd] = useState(initialExitData?.last_working_day || '');
-  const [noticeAmountType, setNoticeAmountType] = useState(initialExitData?.notice_amount_type || 'none');
-  const [noticeShortfallDays, setNoticeShortfallDays] = useState(initialExitData?.notice_shortfall_days || 0);
+  const [lwd, setLwd] = useState('');
   
   // Stage 3
   const [clearances, setClearances] = useState({
-    laptop: initialExitData?.clearance_laptop || '',
-    idcard: initialExitData?.clearance_idcard || '',
-    manager: initialExitData?.clearance_manager || '',
-    itaccess: initialExitData?.clearance_itaccess || '',
-    handover: initialExitData?.clearance_handover || '',
-    client: initialExitData?.clearance_client || ''
+    laptop: '', idcard: '', manager: '', itaccess: '', handover: '', client: ''
   });
 
   // Stage 4
-  const [interviewReason, setInterviewReason] = useState(initialExitData?.interview_reason || '');
-  const [recommend, setRecommend] = useState(initialExitData?.would_recommend || 'yes');
-  const [starRating, setStarRating] = useState(initialExitData?.star_rating || 4);
+  const [interviewReason, setInterviewReason] = useState('');
+  const [recommend, setRecommend] = useState('yes');
+  const [starRating, setStarRating] = useState(4);
 
   // Stage 5
-  const [unusedLeaves, setUnusedLeaves] = useState(initialExitData?.unused_leaves || 0);
-  const [simLoan, setSimLoan] = useState(initialExitData?.loan_recovery_amount || '');
-  const [bonusAmount, setBonusAmount] = useState(initialExitData?.bonus_amount || '');
-  const [pendingSalaryAmount, setPendingSalaryAmount] = useState(initialExitData?.pending_salary_amount || '');
-  const [tdsAmount, setTdsAmount] = useState(initialExitData?.tds_amount || '');
-  
+  const [simYears, setSimYears] = useState('4.8');
+  const [simLoan, setSimLoan] = useState('5000');
   const [showAdhoc, setShowAdhoc] = useState(false);
   const [adhocAmount, setAdhocAmount] = useState('');
   const [adhocReason, setAdhocReason] = useState('');
-  const [adhocs, setAdhocs] = useState(initialExitData?.adhoc_adjustments || []);
-  
-  const [settlementStatus, setSettlementStatus] = useState(initialExitData?.settlement_status || 'draft');
-  const [settlementPreview, setSettlementPreview] = useState(null);
-
-  // Derived Values
-  const isEmployerInitiated = exitType === 'Termination' || exitType === 'Client-Initiated';
-  
-  useEffect(() => {
-    // Stage 2 derived values
-    if (submissionDate && lwd) {
-      const diffTime = new Date(lwd) - new Date(submissionDate);
-      let servedDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      if (servedDays < 0) servedDays = 0;
-      
-      const requiredNotice = employee.notice_period_days || 30;
-      let shortfall = requiredNotice - servedDays;
-      if (shortfall < 0) shortfall = 0;
-      
-      setNoticeShortfallDays(shortfall);
-      if (shortfall > 0) {
-          setNoticeAmountType(isEmployerInitiated ? 'addition' : 'deduction');
-      } else {
-          setNoticeAmountType('none');
-      }
-    }
-  }, [submissionDate, lwd, isEmployerInitiated, employee.notice_period_days]);
-
-  useEffect(() => {
-    if (currentStage === 5) {
-      fetchSettlementPreview();
-    }
-  }, [currentStage, unusedLeaves, simLoan, bonusAmount, pendingSalaryAmount, tdsAmount, adhocs, lwd, noticeShortfallDays, noticeAmountType]);
-
-  const fetchSettlementPreview = async () => {
-    try {
-      const payload = {
-        last_working_day: lwd,
-        notice_shortfall_days: noticeShortfallDays,
-        notice_amount_type: noticeAmountType,
-        unused_leaves: unusedLeaves,
-        loan_recovery_amount: simLoan || 0,
-        bonus_amount: bonusAmount || 0,
-        pending_salary_amount: pendingSalaryAmount || 0,
-        tds_amount: tdsAmount || 0,
-        adhoc_adjustments: adhocs
-      };
-      const res = await axios.post(`/employees/${employee.id}/exit/preview-settlement`, payload);
-      setSettlementPreview(res.data);
-    } catch (e) {
-      console.error(e);
-      showToast({ message: 'Error calculating settlement preview', type: 'error' });
-    }
-  };
+  const [adhocs, setAdhocs] = useState([]);
+  const [settlementStatus, setSettlementStatus] = useState('draft'); // draft, pending, approved
 
   const goToStage = (stage) => {
     if (stage > highestStageReached && stage !== 7 && stage !== 6) {
@@ -136,47 +76,12 @@ export default function EmployeeExit({ employee: rawEmployee, initialExitData })
     setCurrentStage(stage);
   };
 
-  const completeStage = async (stageNum, extraData = {}) => {
-    try {
-      let payload = {};
-      switch (stageNum) {
-        case 1:
-          payload = { exit_type: exitType, reason_category: reasonCategory, submission_date: submissionDate, discussed_with_employee: discussed === 'yes', discussion_summary: discussionSummary };
-          break;
-        case 2:
-          payload = { last_working_day: lwd, notice_shortfall_days: noticeShortfallDays, notice_amount_type: noticeAmountType };
-          break;
-        case 3:
-          payload = clearances;
-          break;
-        case 4:
-          payload = { interview_reason: interviewReason, would_recommend: recommend, star_rating: starRating };
-          break;
-        case 5:
-          payload = { 
-            last_working_day: lwd, notice_shortfall_days: noticeShortfallDays, notice_amount_type: noticeAmountType,
-            unused_leaves: unusedLeaves, loan_recovery_amount: simLoan || 0, bonus_amount: bonusAmount || 0, 
-            pending_salary_amount: pendingSalaryAmount || 0, tds_amount: tdsAmount || 0, adhoc_adjustments: adhocs,
-            is_submitting_for_approval: extraData.submitForApproval || false
-          };
-          break;
-      }
-      
-      const res = await axios.post(`/employees/${employee.id}/exit/stage/${stageNum}`, payload);
-      
-      if (extraData.submitForApproval) {
-          setSettlementStatus('pending_approval');
-      }
-
-      const nextStage = extraData.submitForApproval ? 6 : stageNum + 1;
-      if (nextStage > highestStageReached) {
-        setHighestStageReached(nextStage);
-      }
-      goToStage(nextStage);
-    } catch (e) {
-      console.error(e);
-      showToast({ message: e.response?.data?.message || 'Error saving stage', type: 'error' });
+  const completeStage = (stageNum) => {
+    const nextStage = stageNum + 1;
+    if (nextStage > highestStageReached) {
+      setHighestStageReached(nextStage);
     }
+    goToStage(nextStage);
   };
 
   const allClearancesSelected = Object.values(clearances).every(val => val !== '');
@@ -192,51 +97,88 @@ export default function EmployeeExit({ employee: rawEmployee, initialExitData })
     }
   };
 
-  const approveSettlement = async () => {
-    try {
-      await axios.post(`/employees/${employee.id}/exit/approve`);
-      setSettlementStatus('approved');
-      showToast({ message: 'Settlement Approved', type: 'success' });
-      const nextStage = 6;
-      setHighestStageReached(nextStage);
-      goToStage(nextStage);
-    } catch (e) {
-        showToast({ message: e.response?.data?.message || 'Error approving settlement', type: 'error' });
-    }
-  };
+  // ── DYNAMIC COMPUTATIONS ──
+  const isEmployerInitiated = exitType === 'Termination' || exitType === 'Client-Initiated';
 
-  const executeExit = async () => {
-    try {
-      await axios.post(`/employees/${employee.id}/exit/confirm`);
-      setConfirmExitModalOpen(false);
-      showToast({ message: 'Employee Exit Confirmed', type: 'success' });
-      setHighestStageReached(7);
-      goToStage(7);
-    } catch (e) {
-      showToast({ message: e.response?.data?.message || 'Error confirming exit', type: 'error' });
-    }
-  };
-
-  const requiredNotice = employee.notice_period_days || 30;
-  let servedDays = 0;
+  let diffDays = 0;
+  let shortfallDays = 0;
   if (submissionDate && lwd) {
-      const diffTime = new Date(lwd) - new Date(submissionDate);
-      servedDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      if (servedDays < 0) servedDays = 0;
+    const diffTime = new Date(lwd) - new Date(submissionDate);
+    diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    if (diffDays < 0) diffDays = 0;
+    shortfallDays = 30 - diffDays;
+    if (shortfallDays < 0) shortfallDays = 0;
   }
+
+  const basicMonthly = 22000;
+  const ctcMonthly = 45000;
+  const dailyBasic = Math.round(basicMonthly / 30);
+  const dailyCtc = Math.round(ctcMonthly / 30);
+
+  const settlement = React.useMemo(() => {
+    const salaryAmount = ctcMonthly;
+    const leaveAmount = 12 * dailyBasic;
+    const bonusAmount = 12500;
+    let gratuityAmount = 0;
+    
+    const yearsVal = parseFloat(simYears) || 0;
+    if (yearsVal >= 5.0) {
+      gratuityAmount = Math.round((basicMonthly / 26) * 15 * yearsVal);
+    }
+    
+    let noticeAmount = 0;
+    if (shortfallDays > 0) {
+      if (isEmployerInitiated) {
+        noticeAmount = shortfallDays * dailyCtc;
+      } else {
+        noticeAmount = shortfallDays * dailyBasic;
+      }
+    }
+
+    const tdsAmount = 6200;
+    const loanInputVal = parseFloat(simLoan) || 0;
+    
+    let adhocVal = 0;
+    adhocs.forEach(a => adhocVal += a.amount);
+
+    let subtotal = salaryAmount + leaveAmount + bonusAmount + gratuityAmount + adhocVal;
+    if (isEmployerInitiated && shortfallDays > 0) {
+      subtotal += noticeAmount;
+    } else if (!isEmployerInitiated && shortfallDays > 0) {
+      subtotal -= noticeAmount;
+    }
+    subtotal -= tdsAmount;
+
+    let finalNet = subtotal - loanInputVal;
+    const loanOverflow = finalNet < 0;
+    const unrecoveredLoan = loanOverflow ? Math.abs(finalNet) : 0;
+    if (finalNet < 0) finalNet = 0; // Floor at 0
+
+    return {
+      salaryAmount, leaveAmount, bonusAmount, gratuityAmount, 
+      noticeAmount, tdsAmount, loanInputVal, adhocVal,
+      subtotal, finalNet, loanOverflow, unrecoveredLoan
+    };
+  }, [simYears, simLoan, adhocs, shortfallDays, isEmployerInitiated]);
+
+  const executeExit = () => {
+    setConfirmExitModalOpen(false);
+    showToast({ message: 'Employee Exit Confirmed', type: 'success' });
+    completeStage(6);
+  };
 
   return (
     <RoleGuard allowedRoles={['admin', 'manager']}>
     <AuthenticatedLayout>
-      <Head title={`Employee Exit - ${employee.full_name}`} />
+      <Head title="Employee Exit Wizard" />
 
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <Link href={`/employees/${employee.id}`} className="text-[0.85rem] font-semibold text-[#1F3864] hover:underline">
-            ← Back to {employee.full_name}'s Profile
+          <Link href="/employees/88" className="text-[0.85rem] font-semibold text-[#1F3864] hover:underline">
+            ← Back to Aarav's Profile
           </Link>
           <h2 className="text-2xl font-bold text-[#1F3864] mt-2 mb-1">Employee Exit & Full & Final Workflow</h2>
-          <p className="text-gray-500 text-sm">Guided multi-stage exit wizard for <strong>{employee.full_name} ({employee.employee_code})</strong></p>
+          <p className="text-gray-500 text-sm">Guided multi-stage exit wizard for <strong>Aarav Sharma (TEC-088)</strong></p>
         </div>
         <div>
           <Button variant="outline" onClick={() => setCancelModalOpen(true)}>Cancel Exit Process</Button>
@@ -374,7 +316,7 @@ export default function EmployeeExit({ employee: rawEmployee, initialExitData })
             </div>
 
             <div className="alert-banner info">
-              ℹ️ <strong>Contractual Notice Required:</strong> <span className="font-bold ml-1">{requiredNotice} Days</span> (pulled from current active employment agreement).
+              ℹ️ <strong>Contractual Notice Required:</strong> <span className="font-bold ml-1">30 Days</span> (pulled from current active employment agreement).
             </div>
 
             <div className="form-row mt-6">
@@ -385,25 +327,25 @@ export default function EmployeeExit({ employee: rawEmployee, initialExitData })
               <div className="form-group flex-1">
                 <label>Calculated Notice Period Status</label>
                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-md text-[0.95rem] font-semibold">
-                  {noticeShortfallDays > 0 ? (
+                  {shortfallDays > 0 ? (
                     isEmployerInitiated 
-                      ? `Notice Served: ${servedDays} days | Notice Pay in Lieu: ${noticeShortfallDays} days`
-                      : `Notice Served: ${servedDays} days | Shortfall: ${noticeShortfallDays} days`
+                      ? `Notice Served: ${diffDays} days | Notice Pay in Lieu: ${shortfallDays} days`
+                      : `Notice Served: ${diffDays} days | Shortfall: ${shortfallDays} days`
                   ) : (
-                    `Notice Served: ${servedDays} days | Shortfall: 0 days`
+                    `Notice Served: ${diffDays} days | Shortfall: 0 days`
                   )}
                 </div>
               </div>
             </div>
 
-            {noticeShortfallDays > 0 && isEmployerInitiated && (
+            {shortfallDays > 0 && isEmployerInitiated && (
               <div className="alert-banner info mt-4">
-                ℹ️ <strong>Notice Pay in Lieu:</strong> Since this is an employer/client-initiated exit ({exitType}) with a notice shortfall of {noticeShortfallDays} days, the agency will provide Notice Pay in Lieu to the employee in the final settlement.
+                ℹ️ <strong>Notice Pay in Lieu:</strong> Since this is an employer/client-initiated exit ({exitType}) with a notice shortfall of {shortfallDays} days, the agency will provide Notice Pay in Lieu to the employee in the final settlement.
               </div>
             )}
-            {noticeShortfallDays > 0 && !isEmployerInitiated && (
+            {shortfallDays > 0 && !isEmployerInitiated && (
               <div className="alert-banner amber mt-4">
-                ⚠ <strong>Notice Shortfall Recovery:</strong> Employee is serving {servedDays} days against the required {requiredNotice} days. A shortfall recovery for {noticeShortfallDays} days will be deducted in the final settlement.
+                ⚠ <strong>Notice Shortfall Recovery:</strong> Employee is serving {diffDays} days against the required 30 days. A shortfall recovery for {shortfallDays} days will be deducted in the final settlement.
               </div>
             )}
 
@@ -548,36 +490,38 @@ export default function EmployeeExit({ employee: rawEmployee, initialExitData })
             <div className="stage-header">
               <h3 className="stage-title">Stage 5: Full & Final Settlement Computation</h3>
               <Badge type="gold">
-                {settlementStatus === 'draft' ? 'Draft Computation' : settlementStatus === 'pending_approval' ? 'Pending Approval' : 'Approved'}
+                {settlementStatus === 'draft' ? 'Draft Computation' : settlementStatus === 'pending' ? 'Pending Approval' : 'Approved'}
               </Badge>
             </div>
 
             <div className="bg-slate-50 border border-slate-300 p-4 rounded-md mb-6 flex gap-6 items-center flex-wrap">
-              <div className="text-[0.85rem] font-bold text-[#1F3864]">⚙️ Settlement Inputs:</div>
+              <div className="text-[0.85rem] font-bold text-[#1F3864]">⚙️ Mockup Simulation Controls:</div>
               <div className="flex items-center gap-2">
-                <label className="text-[0.8rem] font-semibold">Unused Leaves:</label>
-                <Input type="number" value={unusedLeaves} onChange={e => setUnusedLeaves(e.target.value)} className="w-24 py-1" />
-              </div>
-              <div className="flex items-center gap-2">
-                <label className="text-[0.8rem] font-semibold">Bonus Amount (₹):</label>
-                <Input type="number" value={bonusAmount} onChange={e => setBonusAmount(e.target.value)} className="w-32 py-1" />
-              </div>
-              <div className="flex items-center gap-2">
-                <label className="text-[0.8rem] font-semibold">Pro-rated Salary (₹):</label>
-                <Input type="number" value={pendingSalaryAmount} onChange={e => setPendingSalaryAmount(e.target.value)} className="w-32 py-1" />
+                <label className="text-[0.8rem] font-semibold">Years of Service:</label>
+                <Select value={simYears} onChange={e => setSimYears(e.target.value)} className="w-48 py-1">
+                  <option value="1.5">1.5 Years (No Gratuity)</option>
+                  <option value="4.8">4.8 Years (Borderline Flag)</option>
+                  <option value="5.4">5.4 Years (Gratuity Eligible)</option>
+                </Select>
               </div>
               <div className="flex items-center gap-2">
                 <label className="text-[0.8rem] font-semibold">Loan Recovery (₹):</label>
                 <Input type="number" value={simLoan} onChange={e => setSimLoan(e.target.value)} className="w-32 py-1" />
               </div>
-              <div className="flex items-center gap-2">
-                <label className="text-[0.8rem] font-semibold">TDS Adj (₹):</label>
-                <Input type="number" value={tdsAmount} onChange={e => setTdsAmount(e.target.value)} className="w-32 py-1" />
-              </div>
             </div>
 
-            {settlementPreview ? (
-            <>
+            {parseFloat(simYears) >= 4.5 && parseFloat(simYears) < 5.0 && (
+              <div className="alert-banner amber mb-4">
+                ⚠ <strong>Gratuity Review Required:</strong> Service duration is borderline for gratuity eligibility ({simYears} Years) — confirm before finalizing.
+              </div>
+            )}
+            
+            {settlement.loanOverflow && (
+              <div className="alert-banner amber mb-4" style={{ backgroundColor: '#FFF5F5', borderColor: '#FEB2B2', color: '#C53030', borderLeftColor: '#E53E3E' }}>
+                ⛔ <strong>Loan Recovery Deficit Flag:</strong> Outstanding balance of ₹{settlement.unrecoveredLoan.toLocaleString('en-IN')} could not be fully recovered from settlement — flagged for separate finance follow-up.
+              </div>
+            )}
+
             <table className="data-table settlement-table w-full mb-6">
               <thead>
                 <tr>
@@ -589,59 +533,51 @@ export default function EmployeeExit({ employee: rawEmployee, initialExitData })
               <tbody>
                 <tr>
                   <td><strong>Pending Salary (Pro-rated)</strong></td>
-                  <td>Entered manual pro-ration amount</td>
-                  <td className="text-right amount-pos">+₹{Number(settlementPreview.pending_salary_amount).toLocaleString('en-IN')}</td>
+                  <td>June Earned Salary (pro-rated based on LWD)</td>
+                  <td className="text-right amount-pos">+₹{settlement.salaryAmount.toLocaleString('en-IN')}</td>
                 </tr>
-                {settlementPreview.leave_encashment_amount > 0 && (
                 <tr>
                   <td><strong>Leave Encashment</strong></td>
-                  <td>{unusedLeaves} Accrued Unused Earned Leaves</td>
-                  <td className="text-right amount-pos">+₹{Number(settlementPreview.leave_encashment_amount).toLocaleString('en-IN')}</td>
+                  <td>12 Accrued Unused Earned Leaves</td>
+                  <td className="text-right amount-pos">+₹{settlement.leaveAmount.toLocaleString('en-IN')}</td>
                 </tr>
-                )}
-                {noticeShortfallDays > 0 && settlementPreview.notice_amount > 0 && (
+                {shortfallDays > 0 && (
                   <tr>
                     <td><strong>{isEmployerInitiated ? 'Notice Pay in Lieu (Addition)' : 'Notice Period Shortfall Recovery'}</strong></td>
-                    <td>{isEmployerInitiated ? `Agency providing pay in lieu for ${noticeShortfallDays} days notice shortfall` : `Shortfall deduction for ${noticeShortfallDays} days unserved notice`}</td>
+                    <td>{isEmployerInitiated ? `Agency providing pay in lieu for ${shortfallDays} days notice shortfall` : `Shortfall deduction for ${shortfallDays} days unserved notice`}</td>
                     <td className={`text-right ${isEmployerInitiated ? 'amount-pos' : 'amount-neg'}`}>
-                      {isEmployerInitiated ? '+' : '-'}₹{Number(settlementPreview.notice_amount).toLocaleString('en-IN')}
+                      {isEmployerInitiated ? '+' : '-'}₹{settlement.noticeAmount.toLocaleString('en-IN')}
                     </td>
                   </tr>
                 )}
-                {settlementPreview.bonus_amount > 0 && (
                 <tr>
                   <td><strong>Bonus / Incentive Payout</strong></td>
-                  <td>Entered Amount</td>
-                  <td className="text-right amount-pos">+₹{Number(settlementPreview.bonus_amount).toLocaleString('en-IN')}</td>
+                  <td>Q1 Performance Incentive Accrual</td>
+                  <td className="text-right amount-pos">+₹{settlement.bonusAmount.toLocaleString('en-IN')}</td>
                 </tr>
-                )}
-                {settlementPreview.loan_recovery_amount > 0 && (
                 <tr>
                   <td><strong>Loan / Advance Recovery</strong></td>
-                  <td>Entered Amount</td>
-                  <td className="text-right amount-neg">-₹{Number(settlementPreview.loan_recovery_amount).toLocaleString('en-IN')}</td>
+                  <td>Emergency Salary Advance Recovery</td>
+                  <td className="text-right amount-neg">-₹{settlement.loanInputVal.toLocaleString('en-IN')}</td>
                 </tr>
-                )}
-                {settlementPreview.gratuity_amount > 0 && (
+                {settlement.gratuityAmount > 0 && (
                   <tr>
                     <td><strong>Statutory Gratuity Payout</strong></td>
-                    <td>Eligible (>= 4 Years, 240 Days)</td>
-                    <td className="text-right amount-pos">+₹{Number(settlementPreview.gratuity_amount).toLocaleString('en-IN')}</td>
+                    <td>(Basic / 26) * 15 * Years of Service</td>
+                    <td className="text-right amount-pos">+₹{settlement.gratuityAmount.toLocaleString('en-IN')}</td>
                   </tr>
                 )}
-                {settlementPreview.tds_amount > 0 && (
                 <tr>
                   <td><strong>TDS on Settlement</strong></td>
-                  <td>Entered adjustment</td>
-                  <td className="text-right amount-neg">-₹{Number(settlementPreview.tds_amount).toLocaleString('en-IN')}</td>
+                  <td>Recalculated withholding</td>
+                  <td className="text-right amount-neg">-₹{settlement.tdsAmount.toLocaleString('en-IN')}</td>
                 </tr>
-                )}
                 {adhocs.map((a, i) => (
                   <tr key={i} className="bg-[#FFFBEB]">
                     <td><strong>Ad-hoc Adjustment</strong></td>
                     <td>{a.reason}</td>
                     <td className={`text-right ${a.amount < 0 ? 'amount-neg' : 'amount-pos'}`}>
-                      {a.amount >= 0 ? '+' : ''}₹{Math.abs(a.amount).toLocaleString('en-IN')}
+                      {a.amount >= 0 ? '+' : ''}₹{Math.abs(a.amount)}
                     </td>
                   </tr>
                 ))}
@@ -677,31 +613,26 @@ export default function EmployeeExit({ employee: rawEmployee, initialExitData })
                 <div className="total-label">Net Final Settlement Amount</div>
                 <div className="text-[0.85rem] opacity-80 mt-1">Payable to employee on full clearance verification</div>
               </div>
-              <div className="total-amount">₹{Number(settlementPreview.net_settlement_amount).toLocaleString('en-IN')}</div>
+              <div className="total-amount">₹{settlement.finalNet.toLocaleString('en-IN')}</div>
             </div>
-            </>
-            ) : (
-                <div className="p-4 text-center">Loading Preview...</div>
-            )}
 
             <div className="wizard-footer">
               <Button variant="outline" onClick={() => goToStage(4)}>← Back to Exit Interview</Button>
               <div className="flex gap-4 items-center">
                 {settlementStatus === 'draft' && (
-                  <>
-                  <Button variant="outline" onClick={() => completeStage(5, { submitForApproval: false })}>Save Draft</Button>
                   <button className="btn-gold" onClick={() => {
-                    completeStage(5, { submitForApproval: true });
+                    setSettlementStatus('pending');
+                    showToast({ message: 'Submitted for Admin Approval', type: 'info' });
                   }}>Submit for Approval</button>
-                  </>
                 )}
-                {settlementStatus === 'pending_approval' && (
-                  <RoleGuard allowedRoles={['admin']}>
-                    <Button variant="navy" onClick={approveSettlement}>✓ Approve Settlement (Admin)</Button>
-                  </RoleGuard>
+                {settlementStatus === 'pending' && (
+                  <Button variant="navy" onClick={() => {
+                    setSettlementStatus('approved');
+                    showToast({ message: 'Settlement Approved', type: 'success' });
+                  }}>✓ Approve Settlement (Admin)</Button>
                 )}
                 {settlementStatus === 'approved' && (
-                  <button className="btn-gold" onClick={() => goToStage(6)}>Next: Confirm Exit →</button>
+                  <button className="btn-gold" onClick={() => completeStage(5)}>Next: Confirm Exit →</button>
                 )}
               </div>
             </div>
@@ -730,16 +661,14 @@ export default function EmployeeExit({ employee: rawEmployee, initialExitData })
 
               <div className="flex items-center justify-between pt-6 border-t border-[#FED7D7]">
                 <div>
-                  <strong className="text-[#991B1B] text-[1.05rem]">Employee: {employee.full_name} ({employee.employee_code})</strong>
+                  <strong className="text-[#991B1B] text-[1.05rem]">Employee: Aarav Sharma (TEC-088)</strong>
                   <div className="text-[0.85rem] text-[#B91C1C] mt-1">
-                    Last Working Day: {lwd || 'Not set'} | Settlement: ₹{Number(settlementPreview?.net_settlement_amount || 0).toLocaleString('en-IN')}
+                    Last Working Day: {lwd || 'Not set'} | Settlement: ₹{settlement.finalNet.toLocaleString('en-IN')}
                   </div>
                 </div>
-                <RoleGuard allowedRoles={['admin']}>
                 <Button variant="danger" className="py-3 px-6 text-[1.05rem] font-bold shadow-[0_4px_12px_rgba(220,38,38,0.2)]" onClick={() => setConfirmExitModalOpen(true)}>
                   🚪 Confirm & Mark as Exited
                 </Button>
-                </RoleGuard>
               </div>
             </div>
 
@@ -760,10 +689,10 @@ export default function EmployeeExit({ employee: rawEmployee, initialExitData })
             </div>
 
             <div className="alert-banner green mb-6">
-              ✓ <strong>Exit process complete.</strong> {employee.full_name} has been successfully moved to the Alumni record.
+              ✓ <strong>Exit process complete.</strong> Aarav Sharma has been successfully moved to the Alumni record.
             </div>
             <div className="alert-banner info mb-8">
-              ℹ️ <strong>Digital Delivery Note:</strong> Documents sent to personal email ({employee.personal_email}).
+              ℹ️ <strong>Digital Delivery Note:</strong> Documents sent to personal email (aarav.sharma@gmail.com).
             </div>
 
             <div className="grid grid-cols-3 gap-6">
@@ -787,15 +716,15 @@ export default function EmployeeExit({ employee: rawEmployee, initialExitData })
         <p className="mb-6">Are you sure you want to cancel? Any unsaved changes in this wizard will be lost, and the employee will remain active.</p>
         <div className="flex justify-end gap-3">
           <Button variant="secondary" onClick={() => setCancelModalOpen(false)}>No, Keep Working</Button>
-          <Link href={`/employees/${employee.id}`} className="btn btn-danger">Yes, Cancel Process</Link>
+          <Link href="/employees/88" className="btn btn-danger">Yes, Cancel Process</Link>
         </div>
       </Modal>
 
       <Modal isOpen={confirmExitModalOpen} onClose={() => setConfirmExitModalOpen(false)} title="Confirm Formal Exit">
-        <p className="mb-2">Are you absolutely sure you want to mark <strong>{employee.full_name}</strong> as Exited?</p>
+        <p className="mb-2">Are you absolutely sure you want to mark <strong>Aarav Sharma</strong> as Exited?</p>
         <ul className="list-disc pl-5 mb-6 text-sm text-gray-600">
           <li>Portal access will be instantly revoked.</li>
-          <li>Settlement amount of ₹{Number(settlementPreview?.net_settlement_amount || 0).toLocaleString('en-IN')} will be queued for banking.</li>
+          <li>Settlement amount of ₹{settlement.finalNet.toLocaleString('en-IN')} will be queued for banking.</li>
           <li>Relieving letter will be auto-generated.</li>
         </ul>
         <div className="flex justify-end gap-3">

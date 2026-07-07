@@ -6,6 +6,7 @@ use Inertia\Inertia;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\ClientPortalController;
 use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\SalaryRevisionController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\InvitationController;
@@ -74,6 +75,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/clients/create', [ClientController::class,'create'])->middleware('can:create,App\Models\Client');
             Route::post('/clients', [ClientController::class,'store']);
             Route::get('/clients/{client}', [ClientController::class,'show'])->middleware('can:view,client')->name('clients.show');
+            Route::get('/clients/{client}/statutory-defaults', [ClientController::class, 'statutoryDefaults'])->middleware('can:view,client')->name('clients.statutoryDefaults');
             Route::get('/clients/{client}/edit', [ClientController::class,'edit'])->middleware('can:update,client')->name('clients.edit');
             Route::put('/clients/{client}', [ClientController::class,'update'])->middleware('can:update,client');
             Route::delete('/clients/{client}', [ClientController::class,'destroy'])->middleware('can:delete,client')->name('clients.destroy');
@@ -85,13 +87,28 @@ Route::middleware('auth')->group(function () {
 
             // Employees
             Route::post('/employees/calculate-preview', [EmployeeController::class, 'calculatePreview']);
-            Route::get('/employees', [EmployeeController::class, 'index']);
-            Route::get('/employees/create', fn() => Inertia::render('Employees/EmployeeForm'));
+            Route::get('/employees', [EmployeeController::class, 'index'])->name('employees.index');
+            Route::post('/employees', [EmployeeController::class, 'store'])->name('employees.store');
+            Route::get('/employees/create', function() {
+                $clients = \App\Models\Client::where('status', 'active')->select('id', 'company_name')->get();
+                return Inertia::render('Employees/EmployeeForm', ['clients' => $clients]);
+            });
             Route::get('/employees/bulk-upload', fn() => Inertia::render('Employees/BulkUpload'));
             Route::get('/employees/salary-bulk-update', fn() => Inertia::render('Employees/SalaryBulkUpdate'));
-            Route::get('/employees/{id}', [EmployeeController::class, 'show']);
-            Route::get('/employees/{id}/exit', fn() => Inertia::render('Employees/EmployeeExit'));
-            Route::get('/employees/{id}/salary-revision', fn() => Inertia::render('Employees/SalaryRevision'));
+            Route::get('/employees/{id}', [EmployeeController::class, 'show'])->name('employees.show');
+            Route::get('/employees/{id}/edit', [EmployeeController::class, 'edit'])->name('employees.edit');
+            Route::put('/employees/{id}', [EmployeeController::class, 'update'])->name('employees.update');
+            Route::get('/employees/{id}/exit', [\App\Http\Controllers\EmployeeExitController::class, 'show'])->name('employees.exit.show');
+            Route::post('/employees/{id}/exit/preview-settlement', [\App\Http\Controllers\EmployeeExitController::class, 'previewSettlement']);
+            Route::post('/employees/{id}/exit/stage/{stage}', [\App\Http\Controllers\EmployeeExitController::class, 'storeStage']);
+            Route::post('/employees/{id}/exit/approve', [\App\Http\Controllers\EmployeeExitController::class, 'approve']);
+            Route::post('/employees/{id}/exit/confirm', [\App\Http\Controllers\EmployeeExitController::class, 'confirm']);
+            
+            // Salary Revision
+            Route::get('/employees/{id}/salary-revision', [SalaryRevisionController::class, 'create'])->name('employees.salary-revision.create');
+            Route::post('/employees/{id}/salary-revision', [SalaryRevisionController::class, 'store'])->name('employees.salary-revision.store');
+            Route::post('/employees/{id}/salary-revision/{revisionId}/approve', [SalaryRevisionController::class, 'approve'])->name('employees.salary-revision.approve');
+            
             Route::get('/bank-change-requests', fn() => Inertia::render('Employees/BankChangeRequests'));
             Route::get('/leave-approval', fn() => Inertia::render('Employees/LeaveApprovalQueue'));
 

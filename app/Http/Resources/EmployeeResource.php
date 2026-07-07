@@ -20,6 +20,7 @@ class EmployeeResource extends JsonResource
             'id' => $this->id,
             'employee_code' => $this->employee_code,
             'client_id' => $this->client_id,
+            'client_name' => $this->relationLoaded('client') && $this->client ? $this->client->company_name : null,
             'branch_id' => $this->branch_id,
             'full_name' => $this->full_name,
             'personal_email' => $this->personal_email,
@@ -73,6 +74,13 @@ class EmployeeResource extends JsonResource
             'uan_mode' => $this->uan_mode,
             'uan_number' => $this->uan_number,
             'esic_number' => $this->esic_number,
+            
+            // F&F and Rules
+            'lop_basis_days' => $this->lop_basis_days,
+            'notice_period_days' => $this->notice_period_days,
+            
+            // Relations
+            'salary_revisions' => $this->whenLoaded('salaryRevisions'),
         ];
     }
 }
