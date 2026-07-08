@@ -13,4 +13,9 @@ class EmployeePolicy
     {
         //
     }
+
+    public function verifyDocuments(User $user, \App\Models\Employee $employee)
+    {
+        return $user->role === 'admin';
+    }
 }

@@ -20,6 +20,17 @@ class EmployeeObserver
         $employee->employer_esi_monthly = $calculations['employer_esi_monthly'];
         $employee->net_take_home_monthly = $calculations['net_take_home_monthly'];
         $employee->ctc_monthly = $calculations['ctc_monthly'];
+
+        // Compute hashes for encrypted fields
+        if ($employee->isDirty('pan_number')) {
+            $employee->pan_number_hash = $employee->pan_number ? hash('sha256', $employee->pan_number) : null;
+        }
+        if ($employee->isDirty('aadhaar_number')) {
+            $employee->aadhaar_number_hash = $employee->aadhaar_number ? hash('sha256', $employee->aadhaar_number) : null;
+        }
+        if ($employee->isDirty('bank_account_number')) {
+            $employee->bank_account_hash = $employee->bank_account_number ? hash('sha256', $employee->bank_account_number) : null;
+        }
     }
 
     /**

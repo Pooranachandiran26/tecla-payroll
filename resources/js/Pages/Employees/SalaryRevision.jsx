@@ -1,326 +1,282 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import AuthenticatedLayout from '../../Layouts/AuthenticatedLayout';
-import { Head, Link } from '@inertiajs/react';
-
+import { Head, Link, useForm, router, usePage } from '@inertiajs/react';
 import RoleGuard from '../../Components/RoleGuard.jsx';
-export default function SalaryRevision() {
+import axios from 'axios';
+
+export default function SalaryRevision({ employee, revisions }) {
+    const { auth } = usePage().props;
+
+    const { data, setData, post, processing, errors } = useForm({
+        new_basic_pay: employee.basic_pay || 0,
+        new_hra: employee.hra || 0,
+        new_conveyance: employee.conveyance || 0,
+        new_da: employee.da || 0,
+        new_medical_allowance: employee.medical_allowance || 0,
+        new_special_allowance: employee.special_allowance || 0,
+        new_other_additions: employee.other_additions || 0,
+        effective_date: new Date().toISOString().split('T')[0],
+        reason_for_revision: 'appraisal',
+    });
+
+    const [preview, setPreview] = useState(null);
+    const [previewLoading, setPreviewLoading] = useState(false);
+    const [previewError, setPreviewError] = useState(null);
+
+    // Initial preview and debounced subsequent previews
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            calculatePreview();
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [
+        data.new_basic_pay, data.new_hra, data.new_conveyance, 
+        data.new_da, data.new_medical_allowance, data.new_special_allowance, 
+        data.new_other_additions
+    ]);
+
+    const calculatePreview = async () => {
+        setPreviewLoading(true);
+        setPreviewError(null);
+        try {
+            // We reuse the existing endpoint, just passing the new components 
+            // along with existing employee toggles
+            const res = await axios.post('/employees/calculate-preview', {
+                client_id: employee.client_id,
+                basic_pay: data.new_basic_pay,
+                hra: data.new_hra,
+                conveyance: data.new_conveyance,
+                da: data.new_da,
+                medical_allowance: data.new_medical_allowance,
+                special_allowance: data.new_special_allowance,
+                other_additions: data.new_other_additions,
+                
+                // Keep existing statutory toggles
+                pf_applicable: employee.pf_applicable,
+                esi_applicable: employee.esi_applicable,
+                pt_applicable: employee.pt_applicable,
+                lwf_applicable: employee.lwf_applicable,
+                pt_deduction_override: employee.pt_deduction_override,
+            });
+            setPreview(res.data);
+        } catch (error) {
+            console.error(error);
+            setPreviewError("Failed to calculate preview");
+        } finally {
+            setPreviewLoading(false);
+        }
+    };
+
+    const submit = (e) => {
+        e.preventDefault();
+        post(`/employees/${employee.id}/salary-revision`);
+    };
+
+    const handleAction = (revisionId, action, reason = null) => {
+        router.post(`/employees/${employee.id}/salary-revision/${revisionId}/approve`, {
+            action,
+            rejection_reason: reason
+        });
+    };
+
+    const formatCurrency = (val) => {
+        return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(val || 0);
+    };
+
     return (
         <RoleGuard allowedRoles={['admin', 'manager']}>
-    <AuthenticatedLayout>
-            <Head title="SalaryRevision" />
-            <div className="main-content">
-                
-    <div id="navbar-placeholder"></div>
+            <AuthenticatedLayout>
+                <Head title={`Salary Revision - ${employee.full_name}`} />
+                <div className="main-content">
+                    
+                    <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                            <Link href={`/employees/${employee.id}`} style={{ fontSize: '0.85rem', fontWeight: '600' }}>
+                                ← Back to {employee.full_name}'s Profile
+                            </Link>
+                            <h2 style={{ marginTop: '0.5rem' }}>Process Salary Revision</h2>
+                            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                                Perform monthly CTC increments or corrections for {employee.full_name}.
+                            </p>
+                        </div>
+                    </div>
 
-    
-      <div style={{ marginBottom: '1.5rem' }}>
-        <a href="/employees/88" style={{ fontSize: '0.85rem', fontWeight: '600' }}>← Back to Aarav's Profile</a>
-        <h2 style={{ marginTop: '0.5rem' }}>Process Salary Revision</h2>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Perform monthly CTC increments or corrections for Aarav Sharma. System handles statutory updates dynamically.</p>
-      </div>
+                    {/* Pending / History Revisions */}
+                    {revisions && revisions.length > 0 && (
+                        <div className="card" style={{ marginBottom: '2rem' }}>
+                            <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem' }}>Revision History</h3>
+                            <div style={{ overflowX: 'auto' }}>
+                                <table className="table" style={{ width: '100%' }}>
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Reason</th>
+                                            <th>Old CTC</th>
+                                            <th>New CTC</th>
+                                            <th>Status</th>
+                                            <th>Actions/Details</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {revisions.map(rev => (
+                                            <tr key={rev.id}>
+                                                <td>{new Date(rev.created_at).toLocaleDateString()}</td>
+                                                <td>{rev.reason_for_revision}</td>
+                                                <td>{formatCurrency(rev.old_ctc)}</td>
+                                                <td>{formatCurrency(rev.new_ctc)}</td>
+                                                <td>
+                                                    <span className={`badge badge-${rev.status === 'approved' ? 'success' : (rev.status === 'rejected' ? 'danger' : 'warning')}`}>
+                                                        {rev.status.replace('_', ' ').toUpperCase()}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    {rev.status === 'pending_approval' && auth.user.role === 'admin' ? (
+                                                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                            <button 
+                                                                className="btn btn-primary btn-sm"
+                                                                onClick={() => handleAction(rev.id, 'approve')}
+                                                            >
+                                                                Approve
+                                                            </button>
+                                                            <button 
+                                                                className="btn btn-secondary btn-sm"
+                                                                onClick={() => {
+                                                                    const reason = prompt("Enter rejection reason:");
+                                                                    if (reason) handleAction(rev.id, 'reject', reason);
+                                                                }}
+                                                            >
+                                                                Reject
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                                                            {rev.status === 'rejected' ? `Reason: ${rev.rejection_reason}` : (rev.approved_at ? `Resolved: ${new Date(rev.approved_at).toLocaleDateString()}` : '-')}
+                                                        </span>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
 
-      <div className="grid-layout">
-        {/*  Main Form Column  */}
-        <div className="card">
-          <form onSubmit={(e) => { e.preventDefault(); alert('Salary revision submitted for approval!'); window.location.href='/employees/88'; }}>
-            
-            <div style={{ display: 'flex', gap: '2rem', marginBottom: '2rem' }}>
-              
-              {/*  Current Salary Column  */}
-              <div style={{ flex: '1', opacity: '0.85', borderRight: '1px solid var(--border-color)', paddingRight: '1.5rem' }}>
-                <h3 style={{ fontSize: '1.1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', marginBottom: '1.25rem', color: 'var(--primary-navy)' }}>
-                  Current Salary structure
-                </h3>
-                <h4 style={{ fontSize: '0.95rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>EARNINGS</h4>
-                <div className="form-group">
-                  <label>1. Basic Pay (Monthly)</label>
-                  <input type="text" className="form-control" value="₹17,000" disabled/>
-                </div>
-                <div className="form-group">
-                  <label>2. HRA (House Rent Allowance)</label>
-                  <input type="text" className="form-control" value="₹8,500" disabled/>
-                </div>
-                <div className="form-group">
-                  <label>3. Conveyance</label>
-                  <input type="text" className="form-control" value="₹1,600" disabled/>
-                </div>
-                <div className="form-group">
-                  <label>4. DA (Dearness Allowance)</label>
-                  <input type="text" className="form-control" value="₹0" disabled/>
-                </div>
-                <div className="form-group">
-                  <label>5. Medical Allowance</label>
-                  <input type="text" className="form-control" value="₹0" disabled/>
-                </div>
-                <div className="form-group">
-                  <label>6. Special Allowance</label>
-                  <input type="text" className="form-control" value="₹7,900" disabled/>
-                </div>
-                <div className="form-group">
-                  <label>7. Other Additions</label>
-                  <input type="text" className="form-control" value="₹0" disabled/>
-                </div>
-                <div className="form-group">
-                  <label>8. Arrears Amount</label>
-                  <input type="text" className="form-control" value="₹0" disabled/>
-                </div>
-                <div style={{ backgroundColor: '#F1F5F9', padding: '0.75rem', borderRadius: 'var(--radius-sm)', fontWeight: 'bold', fontSize: '1.1rem', textAlign: 'center', color: 'var(--text-main)', marginTop: '1rem', marginBottom: '2rem' }}>
-                  Gross Total: ₹35,000
-                </div>
+                    <div className="grid-layout">
+                        <div className="card">
+                            <form onSubmit={submit}>
+                                
+                                <div style={{ display: 'flex', gap: '2rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
+                                    
+                                    {/* Current Salary */}
+                                    <div style={{ flex: '1', minWidth: '300px', opacity: '0.85', borderRight: '1px solid var(--border-color)', paddingRight: '1.5rem' }}>
+                                        <h3 style={{ fontSize: '1.1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', marginBottom: '1.25rem', color: 'var(--primary-navy)' }}>
+                                            Current Salary structure
+                                        </h3>
+                                        <h4 style={{ fontSize: '0.95rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>EARNINGS</h4>
+                                        <div className="form-group"><label>1. Basic Pay</label><input type="text" className="form-control" value={employee.basic_pay} disabled/></div>
+                                        <div className="form-group"><label>2. HRA</label><input type="text" className="form-control" value={employee.hra} disabled/></div>
+                                        <div className="form-group"><label>3. Conveyance</label><input type="text" className="form-control" value={employee.conveyance} disabled/></div>
+                                        <div className="form-group"><label>4. DA</label><input type="text" className="form-control" value={employee.da} disabled/></div>
+                                        <div className="form-group"><label>5. Medical Allowance</label><input type="text" className="form-control" value={employee.medical_allowance} disabled/></div>
+                                        <div className="form-group"><label>6. Special Allowance</label><input type="text" className="form-control" value={employee.special_allowance} disabled/></div>
+                                        <div className="form-group"><label>7. Other Additions</label><input type="text" className="form-control" value={employee.other_additions} disabled/></div>
+                                        
+                                        <div style={{ backgroundColor: 'var(--primary-navy)', padding: '1rem', borderRadius: 'var(--radius-sm)', fontWeight: 'bold', fontSize: '1.25rem', textAlign: 'center', color: 'white', marginBottom: '1.5rem', marginTop: '1.5rem' }}>
+                                            Net Pay: <span style={{ color: 'var(--accent-gold)' }}>{formatCurrency(employee.net_take_home_monthly)}</span>
+                                        </div>
+                                        <div style={{ backgroundColor: '#F1F5F9', border: '2px dashed var(--border-color)', padding: '1rem', borderRadius: 'var(--radius-sm)', fontWeight: 'bold', fontSize: '1.25rem', textAlign: 'center', color: 'var(--primary-navy)' }}>
+                                            CTC: <span style={{ color: 'var(--text-main)' }}>{formatCurrency(employee.ctc_monthly)}</span>
+                                        </div>
+                                    </div>
 
-                <h4 style={{ fontSize: '0.95rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>DEDUCTIONS</h4>
-                <div className="form-group">
-                  <label>1. Employee PF</label>
-                  <input type="text" className="form-control" value="₹2,100" disabled/>
-                </div>
-                <div className="form-group">
-                  <label>2. Employee ESIC</label>
-                  <input type="text" className="form-control" value="₹612.50" disabled/>
-                </div>
-                <div className="form-group">
-                  <label>3. Professional Tax</label>
-                  <input type="text" className="form-control" value="₹200" disabled/>
-                </div>
-                <div className="form-group">
-                  <label>4. Welfare Fund</label>
-                  <input type="text" className="form-control" value="₹0" disabled/>
-                </div>
-                <div className="form-group">
-                  <label>5. LOP Deduction</label>
-                  <input type="text" className="form-control" value="₹0" disabled/>
-                </div>
-                <div className="form-group">
-                  <label>6. TDS</label>
-                  <input type="text" className="form-control" value="₹2,500" disabled/>
-                </div>
-                <div style={{ backgroundColor: '#FFF5F5', padding: '0.75rem', borderRadius: 'var(--radius-sm)', fontWeight: 'bold', fontSize: '1.1rem', textAlign: 'center', color: 'var(--status-danger)', marginTop: '1rem', marginBottom: '2rem' }}>
-                  Total Deductions: ₹5,412.50
-                </div>
+                                    {/* Proposed Salary */}
+                                    <div style={{ flex: '1', minWidth: '300px' }}>
+                                        <h3 style={{ fontSize: '1.1rem', borderBottom: '2px solid var(--primary-navy)', paddingBottom: '0.5rem', marginBottom: '1.25rem', color: 'var(--primary-navy)' }}>
+                                            Proposed New Structure
+                                        </h3>
+                                        <h4 style={{ fontSize: '0.95rem', color: 'var(--primary-navy)', marginBottom: '1rem' }}>EARNINGS</h4>
+                                        <div className="form-group">
+                                            <label>1. Basic Pay</label>
+                                            <input type="number" step="0.01" className="form-control" value={data.new_basic_pay} onChange={e => setData('new_basic_pay', e.target.value)} required/>
+                                            {errors.new_basic_pay && <div className="text-danger">{errors.new_basic_pay}</div>}
+                                        </div>
+                                        <div className="form-group">
+                                            <label>2. HRA</label>
+                                            <input type="number" step="0.01" className="form-control" value={data.new_hra} onChange={e => setData('new_hra', e.target.value)} required/>
+                                        </div>
+                                        <div className="form-group">
+                                            <label>3. Conveyance</label>
+                                            <input type="number" step="0.01" className="form-control" value={data.new_conveyance} onChange={e => setData('new_conveyance', e.target.value)} required/>
+                                        </div>
+                                        <div className="form-group">
+                                            <label>4. DA</label>
+                                            <input type="number" step="0.01" className="form-control" value={data.new_da} onChange={e => setData('new_da', e.target.value)} required/>
+                                        </div>
+                                        <div className="form-group">
+                                            <label>5. Medical Allowance</label>
+                                            <input type="number" step="0.01" className="form-control" value={data.new_medical_allowance} onChange={e => setData('new_medical_allowance', e.target.value)} required/>
+                                        </div>
+                                        <div className="form-group">
+                                            <label>6. Special Allowance</label>
+                                            <input type="number" step="0.01" className="form-control" value={data.new_special_allowance} onChange={e => setData('new_special_allowance', e.target.value)} required/>
+                                        </div>
+                                        <div className="form-group">
+                                            <label>7. Other Additions</label>
+                                            <input type="number" step="0.01" className="form-control" value={data.new_other_additions} onChange={e => setData('new_other_additions', e.target.value)} required/>
+                                        </div>
 
-                <div style={{ backgroundColor: 'var(--primary-navy)', padding: '1rem', borderRadius: 'var(--radius-sm)', fontWeight: 'bold', fontSize: '1.25rem', textAlign: 'center', color: 'white', marginBottom: '1.5rem' }}>
-                  Net Pay: <span style={{ color: 'var(--accent-gold)' }}>₹29,587.50</span>
-                </div>
+                                        <div style={{ backgroundColor: 'var(--primary-navy)', padding: '1rem', borderRadius: 'var(--radius-sm)', fontWeight: 'bold', fontSize: '1.25rem', textAlign: 'center', color: 'white', marginBottom: '1.5rem', marginTop: '1.5rem', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
+                                            Net Pay: <span style={{ color: 'var(--accent-gold)' }}>
+                                                {previewLoading ? '...' : (preview ? formatCurrency(preview.net_take_home_monthly) : '-')}
+                                            </span>
+                                        </div>
+                                        <div style={{ backgroundColor: '#F1F5F9', border: '2px dashed var(--border-color)', padding: '1rem', borderRadius: 'var(--radius-sm)', fontWeight: 'bold', fontSize: '1.25rem', textAlign: 'center', color: 'var(--primary-navy)', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
+                                            CTC: <span style={{ color: 'var(--text-main)' }}>
+                                                {previewLoading ? '...' : (preview ? formatCurrency(preview.ctc_monthly) : '-')}
+                                            </span>
+                                        </div>
+                                        
+                                    </div>
+                                </div>
 
-                <h4 style={{ fontSize: '0.95rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>EMPLOYER CONTRIBUTIONS</h4>
-                <div className="form-group">
-                  <label>Employer PF</label>
-                  <input type="text" className="form-control" value="₹2,100.00" disabled/>
-                </div>
-                <div className="form-group">
-                  <label>Employer ESIC</label>
-                  <input type="text" className="form-control" value="₹612.50" disabled/>
-                </div>
-                <div style={{ backgroundColor: '#F8FAFC', border: '1px solid var(--border-color)', padding: '0.75rem', borderRadius: 'var(--radius-sm)', fontWeight: 'bold', fontSize: '1.1rem', textAlign: 'center', color: 'var(--text-main)', marginTop: '1rem', marginBottom: '1.5rem' }}>
-                  Total Employer Cost: ₹2,712.50
-                </div>
+                                {/* Comparison Alert */}
+                                {preview && (
+                                    <div style={{ backgroundColor: 'var(--status-success-bg)', border: '1px solid #C8E6C9', padding: '1rem', borderRadius: 'var(--radius-sm)', textAlign: 'center', marginBottom: '2rem' }}>
+                                        <span style={{ fontSize: '1rem', fontWeight: 'bold', color: 'var(--status-success)' }}>
+                                            📈 Revision Summary (CTC): {formatCurrency(employee.ctc_monthly)} → {formatCurrency(preview.ctc_monthly)}
+                                        </span>
+                                    </div>
+                                )}
 
-                <div style={{ backgroundColor: '#F1F5F9', border: '2px dashed var(--border-color)', padding: '1rem', borderRadius: 'var(--radius-sm)', fontWeight: 'bold', fontSize: '1.25rem', textAlign: 'center', color: 'var(--primary-navy)', marginBottom: '2.5rem' }}>
-                  CTC: <span style={{ color: 'var(--text-main)' }}>₹37,712.50</span>
-                </div>
+                                {/* Parameters */}
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label>Effective From Date</label>
+                                        <input type="date" className="form-control" value={data.effective_date} onChange={e => setData('effective_date', e.target.value)} required max={new Date().toISOString().split('T')[0]} />
+                                        {errors.effective_date && <div className="text-danger">{errors.effective_date}</div>}
+                                        <small className="text-muted">Must be today or in the past.</small>
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Reason for Revision</label>
+                                        <select className="form-control" value={data.reason_for_revision} onChange={e => setData('reason_for_revision', e.target.value)}>
+                                            <option value="appraisal">Annual Performance Appraisal</option>
+                                            <option value="promotion">Role Promotion Adjustment</option>
+                                            <option value="correction">Statutory Structure Correction</option>
+                                            <option value="other">Other / Cost of Living Adjustment</option>
+                                        </select>
+                                    </div>
+                                </div>
 
-                <h4 style={{ fontSize: '0.95rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>STATUTORY APPLICABILITY &amp; LOANS</h4>
-                <div className="form-group">
-                  <label>PF Applicable (Contribution %)</label>
-                  <input type="text" className="form-control" value="Yes (12% Employee + Employer)" disabled/>
+                                <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '2rem' }}>
+                                    <Link href={`/employees/${employee.id}`} className="btn btn-secondary">Cancel</Link>
+                                    <button type="submit" className="btn btn-primary" disabled={processing}>Submit for Approval</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
                 </div>
-                <div className="form-group">
-                  <label>ESI Applicable</label>
-                  <input type="text" className="form-control" value="Yes (1.75% Employee)" disabled/>
-                </div>
-                <div className="form-group">
-                  <label>PT Applicable</label>
-                  <input type="text" className="form-control" value="Yes (₹200 / month)" disabled/>
-                </div>
-                <div className="form-group">
-                  <label>TDS Applicable (Regime)</label>
-                  <input type="text" className="form-control" value="Yes (New Regime)" disabled/>
-                </div>
-                <div className="form-group">
-                  <label>Loan / Advance Deduction (Monthly)</label>
-                  <input type="text" className="form-control" value="₹2,500 / month (Active)" disabled/>
-                </div>
-              </div>
-
-              {/*  Proposed Salary Column  */}
-              <div style={{ flex: '1' }}>
-                <h3 style={{ fontSize: '1.1rem', borderBottom: '2px solid var(--primary-navy)', paddingBottom: '0.5rem', marginBottom: '1.25rem', color: 'var(--primary-navy)' }}>
-                  Proposed New Structure
-                </h3>
-                <h4 style={{ fontSize: '0.95rem', color: 'var(--primary-navy)', marginBottom: '1rem' }}>EARNINGS</h4>
-                <div className="form-group">
-                  <label htmlFor="new-basic">1. Basic Pay (Monthly)</label>
-                  <input type="number" id="new-basic" className="form-control" value="22000" onChange="recalculateProposed()"/>
-                </div>
-                <div className="form-group">
-                  <label htmlFor="new-hra">2. HRA (House Rent Allowance)</label>
-                  <input type="number" id="new-hra" className="form-control" value="11000" onChange="recalculateProposed()"/>
-                </div>
-                <div className="form-group">
-                  <label htmlFor="new-conveyance">3. Conveyance</label>
-                  <input type="number" id="new-conveyance" className="form-control" value="1600" onChange="recalculateProposed()"/>
-                </div>
-                <div className="form-group">
-                  <label htmlFor="new-da">4. DA (Dearness Allowance)</label>
-                  <input type="number" id="new-da" className="form-control" value="0" onChange="recalculateProposed()"/>
-                </div>
-                <div className="form-group">
-                  <label htmlFor="new-medical">5. Medical Allowance</label>
-                  <input type="number" id="new-medical" className="form-control" value="0" onChange="recalculateProposed()"/>
-                </div>
-                <div className="form-group">
-                  <label htmlFor="new-special">6. Special Allowance</label>
-                  <input type="number" id="new-special" className="form-control" value="10400" onChange="recalculateProposed()"/>
-                </div>
-                <div className="form-group">
-                  <label htmlFor="new-other">7. Other Additions</label>
-                  <input type="number" id="new-other" className="form-control" value="0" onChange="recalculateProposed()"/>
-                </div>
-                <div className="form-group">
-                  <label htmlFor="new-arrears">8. Arrears Amount</label>
-                  <input type="number" id="new-arrears" className="form-control" value="0" onChange="recalculateProposed()"/>
-                </div>
-                <div style={{ backgroundColor: 'var(--primary-navy)', padding: '0.75rem', borderRadius: 'var(--radius-sm)', fontWeight: 'bold', fontSize: '1.1rem', textAlign: 'center', color: 'white', marginTop: '1rem', marginBottom: '2rem' }}>
-                  Gross Total: <span id="new-gross-display" style={{ color: 'var(--accent-gold)' }}>₹45,000</span>
-                </div>
-
-                <h4 style={{ fontSize: '0.95rem', color: 'var(--primary-navy)', marginBottom: '1rem' }}>DEDUCTIONS</h4>
-                <div className="form-group">
-                  <label htmlFor="new-emp-pf">1. Employee PF</label>
-                  <input type="number" id="new-emp-pf" className="form-control" value="2640" onChange="recalculateProposed()"/>
-                </div>
-                <div className="form-group">
-                  <label htmlFor="new-emp-esic">2. Employee ESIC</label>
-                  <input type="number" id="new-emp-esic" className="form-control" value="0" onChange="recalculateProposed()"/>
-                </div>
-                <div className="form-group">
-                  <label htmlFor="new-pt-ded">3. Professional Tax</label>
-                  <input type="number" id="new-pt-ded" className="form-control" value="200" onChange="recalculateProposed()"/>
-                </div>
-                <div className="form-group">
-                  <label htmlFor="new-welfare">4. Welfare Fund</label>
-                  <input type="number" id="new-welfare" className="form-control" value="0" onChange="recalculateProposed()"/>
-                </div>
-                <div className="form-group">
-                  <label htmlFor="new-lop">5. LOP Deduction</label>
-                  <input type="number" id="new-lop" className="form-control" value="0" onChange="recalculateProposed()"/>
-                </div>
-                <div className="form-group">
-                  <label htmlFor="new-tds-ded">6. TDS</label>
-                  <input type="number" id="new-tds-ded" className="form-control" value="4500" onChange="recalculateProposed()"/>
-                </div>
-                <div style={{ backgroundColor: '#FFF5F5', border: '1px solid #FEB2B2', padding: '0.75rem', borderRadius: 'var(--radius-sm)', fontWeight: 'bold', fontSize: '1.1rem', textAlign: 'center', color: 'var(--status-danger)', marginTop: '1rem', marginBottom: '2rem' }}>
-                  Total Deductions: <span id="new-deductions-display">₹7,340</span>
-                </div>
-
-                <div style={{ backgroundColor: 'var(--primary-navy)', padding: '1rem', borderRadius: 'var(--radius-sm)', fontWeight: 'bold', fontSize: '1.25rem', textAlign: 'center', color: 'white', marginBottom: '1.5rem', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
-                  Net Pay: <span id="new-net-display" style={{ color: 'var(--accent-gold)' }}>₹37,660</span>
-                </div>
-
-                <h4 style={{ fontSize: '0.95rem', color: 'var(--primary-navy)', marginBottom: '1rem' }}>EMPLOYER CONTRIBUTIONS</h4>
-                <div className="form-group">
-                  <label htmlFor="new-employer-pf">Employer PF</label>
-                  <input type="number" id="new-employer-pf" className="form-control" value="2640" onChange="recalculateProposed()"/>
-                </div>
-                <div className="form-group">
-                  <label htmlFor="new-employer-esic">Employer ESIC</label>
-                  <input type="number" id="new-employer-esic" className="form-control" value="0" onChange="recalculateProposed()"/>
-                </div>
-                <div style={{ backgroundColor: '#F8FAFC', border: '1px solid var(--border-color)', padding: '0.75rem', borderRadius: 'var(--radius-sm)', fontWeight: 'bold', fontSize: '1.1rem', textAlign: 'center', color: 'var(--text-main)', marginTop: '1rem', marginBottom: '1.5rem' }}>
-                  Total Employer Cost: <span id="new-employer-cost-display">₹2,640</span>
-                </div>
-
-                <div style={{ backgroundColor: '#F1F5F9', border: '2px dashed var(--border-color)', padding: '1rem', borderRadius: 'var(--radius-sm)', fontWeight: 'bold', fontSize: '1.25rem', textAlign: 'center', color: 'var(--primary-navy)', marginBottom: '2.5rem', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
-                  CTC: <span id="new-ctc-display" style={{ color: 'var(--text-main)' }}>₹47,640</span>
-                </div>
-
-                <h4 style={{ fontSize: '0.95rem', color: 'var(--primary-navy)', marginBottom: '1rem' }}>STATUTORY APPLICABILITY &amp; LOANS</h4>
-                <div className="form-group">
-                  <label htmlFor="new-pf">PF Applicable (Contribution %)</label>
-                  <select id="new-pf" className="form-control" onChange="recalculateProposed()">
-                    <option value="yes">Yes (12% Employee + Employer)</option>
-                    <option value="no">No</option>
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label htmlFor="new-esi">ESI Applicable</label>
-                  <select id="new-esi" className="form-control" onChange="recalculateProposed()">
-                    <option value="yes">Yes (1.75% Employee)</option>
-                    <option value="no">No (Exceeds ₹21k limit)</option>
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label htmlFor="new-pt">PT Applicable</label>
-                  <select id="new-pt" className="form-control" onChange="recalculateProposed()">
-                    <option value="yes">Yes (₹200 / month)</option>
-                    <option value="no">No</option>
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label htmlFor="new-tds">TDS Applicable (Regime)</label>
-                  <select id="new-tds" className="form-control" onChange="recalculateProposed()">
-                    <option value="new">Yes (New Regime)</option>
-                    <option value="old">Yes (Old Regime)</option>
-                    <option value="no">No TDS</option>
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label htmlFor="new-loan">Loan / Advance Deduction (Monthly)</label>
-                  <input type="text" id="new-loan" className="form-control" value="₹2,500 / month (Active)" readOnly style={{ backgroundColor: '#F1F5F9', color: 'var(--text-muted)', cursor: 'not-allowed' }}/>
-                </div>
-              </div>
-
-            </div>
-
-            {/*  Increment comparison alert  */}
-            <div style={{ backgroundColor: 'var(--status-success-bg)', border: '1px solid #C8E6C9', padding: '1rem', borderRadius: 'var(--radius-sm)', textAlign: 'center', marginBottom: '2rem' }}>
-              <span style={{ fontSize: '1rem', fontWeight: 'bold', color: 'var(--status-success)' }} id="comparison-label">
-                📈 Revision Summary (CTC): ₹37,712.50 → ₹47,640.00 (+26.3% Increase)
-              </span>
-            </div>
-
-            {/*  Parameters  */}
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="effective-date">Effective From Date</label>
-                <input type="date" id="effective-date" className="form-control" value="2026-06-01" required />
-              </div>
-              <div className="form-group">
-                <label htmlFor="revision-reason">Reason for Revision</label>
-                <select id="revision-reason" className="form-control">
-                  <option value="appraisal">Annual Performance Appraisal</option>
-                  <option value="promotion">Role Promotion Adjustment</option>
-                  <option value="correction">Statutory Structure Correction</option>
-                  <option value="other">Other / Cost of Living Adjustment</option>
-                </select>
-              </div>
-            </div>
-
-            {/*  Action Buttons  */}
-            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '2rem' }}>
-              <a href="/employees/88" className="btn btn-secondary">Cancel</a>
-              <button type="submit" className="btn btn-primary">Submit for Approval</button>
-            </div>
-
-          </form>
-        </div>
-
-        {/*  Sidebar Guidelines  */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          <div className="card" style={{ backgroundColor: 'var(--status-warning-bg)', borderLeft: '4px solid var(--status-warning)' }}>
-            <h4 style={{ color: '#E65100', marginBottom: '0.5rem' }}>Statutory Threshold Alert</h4>
-            <p style={{ fontSize: '0.8rem', lineHeight: '1.4', color: '#E65100' }}>
-              Increasing the CTC above ₹21,000 will automatically disable the employee's ESI eligibility starting next payroll run. Ensure the employee is notified regarding medical benefits changes.
-            </p>
-          </div>
-        </div>
-      </div>
-    
-  </div>
-
-  
-  
-            
-        </AuthenticatedLayout>
-    </RoleGuard>
+            </AuthenticatedLayout>
+        </RoleGuard>
     );
 }

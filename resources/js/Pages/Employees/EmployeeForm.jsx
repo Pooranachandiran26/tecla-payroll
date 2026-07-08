@@ -3,97 +3,68 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, router } from '@inertiajs/react';
 import './EmployeeForm.css';
 import RoleGuard from '../../Components/RoleGuard.jsx';
+import axios from 'axios';
+import useToast from '../../Hooks/useToast';
 
-const CLIENT_STATUTORY_DEFAULTS = {
-  mahindra: {
-    name: "Mahindra Corp", contractType: "agency_payroll", pfApplicable: true, pfCeiling: 15000,
-    esiApplicable: true, esiLimit: 21000, esiContributionPeriodEnd: '2026-09-30', ptApplicable: true, ptBasis: "auto",
-    lwfApplicable: true, lwfFrequency: "annual", tdsRegime: "new", gratuityMode: "part_of_ctc", statutoryBonusApplicable: true, bonusRate: 8.33, lopBasis: "26_days"
-  },
-  tcs: {
-    name: "Tata Consultancy Services — EOR", contractType: "eor", pfApplicable: true, pfCeiling: 15000,
-    esiApplicable: false, esiLimit: 21000, esiContributionPeriodEnd: '2026-09-30', ptApplicable: true, ptBasis: "auto",
-    lwfApplicable: false, lwfFrequency: "annual", tdsRegime: "old", gratuityMode: "over_and_above", statutoryBonusApplicable: false, bonusRate: 8.33, lopBasis: "30_days"
-  },
-  tcs_agency: {
-    name: "Tata Consultancy Services — Agency", contractType: "agency_payroll", pfApplicable: true, pfCeiling: 15000,
-    esiApplicable: true, esiLimit: 21000, esiContributionPeriodEnd: '2026-09-30', ptApplicable: true, ptBasis: "auto",
-    lwfApplicable: true, lwfFrequency: "annual", tdsRegime: "old", gratuityMode: "part_of_ctc", statutoryBonusApplicable: true, bonusRate: 8.33, lopBasis: "30_days"
-  },
-  reliance: {
-    name: "Reliance Digital", contractType: "hybrid", pfApplicable: true, pfCeiling: 15000,
-    esiApplicable: true, esiLimit: 25000, esiContributionPeriodEnd: '2026-09-30', ptApplicable: false, ptBasis: "auto",
-    lwfApplicable: true, lwfFrequency: "monthly", tdsRegime: "new", gratuityMode: "part_of_ctc", statutoryBonusApplicable: true, bonusRate: 10.0, lopBasis: "inherit_global"
-  },
-  wipro: {
-    name: "Wipro Ltd", contractType: "hybrid", pfApplicable: true, pfCeiling: 15000,
-    esiApplicable: true, esiLimit: 21000, esiContributionPeriodEnd: '2026-09-30', ptApplicable: true, ptBasis: "auto",
-    lwfApplicable: true, lwfFrequency: "bi-annual", tdsRegime: "employee_choice", gratuityMode: "over_and_above", statutoryBonusApplicable: true, bonusRate: 8.33, lopBasis: "30_days"
-  }
-};
 
-const EXISTING_PHONES = { '9999988888': 'Priya Mehta (TEC-045)', '8888877777': 'Rohit Kapoor (TEC-072)' };
-const EXISTING_PANS = { 'ZZZZZ9999Z': 'Neha Patil (TEC-121)', 'YYYYY8888Y': 'Suresh Kumar (TEC-033)', 'XXXXX7777X': 'Divya Rao (TEC-056)' };
-const IFSC_LOOKUP = {
-  'HDFC': { bank: 'HDFC Bank', branch: 'Andheri East, Mumbai' },
-  'ICIC': { bank: 'ICICI Bank', branch: 'Connaught Place, Delhi' },
-  'SBIN': { bank: 'State Bank of India', branch: 'Fort, Mumbai' },
-  'KKBK': { bank: 'Kotak Mahindra Bank', branch: 'Bandra West, Mumbai' },
-  'UTIB': { bank: 'Axis Bank', branch: 'Nariman Point, Mumbai' },
-  'PUNB': { bank: 'Punjab National Bank', branch: 'Chandni Chowk, Delhi' }
-};
-
-const ORIG_VALUES = {
-  fullName: 'Aarav Sharma', phone: '9876543210', email: 'aarav.sharma@gmail.com', designation: 'Senior Developer'
-};
-
-export default function EmployeeForm() {
+export default function EmployeeForm({ clients = [], errors: serverErrors, employee = null }) {
   const [formMode, setFormMode] = useState('add');
-  const [empId, setEmpId] = useState(null);
+  const [empId, setEmpId] = useState(employee ? employee.data?.id || employee.id : null);
+  const { showToast } = useToast();
 
-  const [formData, setFormData] = useState({
-    fullName: 'Aarav Sharma',
-    dob: '1998-04-12',
-    personalEmail: 'aarav.sharma@gmail.com',
-    phone: '9876543210',
-    emergencyContact: '9876543211',
-    clientPartner: 'mahindra',
-    designation: 'Senior Developer',
-    doj: '2025-01-15',
-    empType: 'eor',
-    priorEmploymentFlag: true,
-    address: 'Flat 4B, Andheri East, Mumbai',
-    accountNo: '50100452398571',
-    accountNoConfirm: '50100452398571',
-    ifsc: 'HDFC0000060',
-    bankName: 'HDFC Bank',
-    bankBranch: 'Andheri East, Mumbai',
-    accountHolder: 'Aarav Sharma',
-    pan: 'ABCDE1234F',
-    aadhaar: '', 
-    uanMode: 'prior',
-    uan: '100523485790',
-    esiNo: '3114589723',
-    basicSal: 22000,
-    hraSal: 11000,
-    conveyanceSal: 1600,
-    daSal: 0,
-    medicalSal: 0,
-    specialSal: 10400,
-    otherSal: 0,
-    arrearsSal: 0,
-    ptDeduction: 200,
-    welfareFund: 0,
-    pfToggle: true,
-    esiToggle: true,
-    tdsToggle: true,
-    ptToggle: true,
-    lwfToggle: true,
-    bonusToggle: true,
-    taxRegime: 'new',
-    declarations: 'yes',
-    gratuityMode: 'part_of_ctc',
-    lopBasis: '26_days'
+  const maxDobDate = useMemo(() => {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() - 18);
+    return d.toISOString().split('T')[0];
+  }, []);
+
+  const [formData, setFormData] = useState(() => {
+    const emp = employee ? (employee.data || employee) : null;
+    return {
+      fullName: emp?.full_name || '',
+      gender: emp?.gender || '',
+      bloodGroup: emp?.blood_group || '',
+      maritalStatus: emp?.marital_status || '',
+      dob: emp?.date_of_birth || '',
+      personalEmail: emp?.personal_email || '',
+      phone: emp?.phone_number || '',
+      emergencyContact: emp?.emergency_contact_phone || '',
+      clientPartner: emp?.client_id || '',
+      designation: emp?.designation || '',
+      doj: emp?.date_of_joining || '',
+      empType: emp?.employment_model || 'eor',
+      priorEmploymentFlag: emp ? emp.prior_employment_flag === 1 : true,
+      address: emp?.residential_address || '',
+      accountNo: emp?.bank_account_number || '',
+      accountNoConfirm: emp?.bank_account_number || '',
+      ifsc: emp?.bank_ifsc || '',
+      bankName: emp?.bank_name || '',
+      bankBranch: emp?.bank_branch || '',
+      accountHolder: emp?.account_holder_name || '',
+      pan: emp?.pan_number || '',
+      aadhaar: emp?.aadhaar_number || '',
+      uanMode: emp?.uan_mode || 'new',
+      uan: emp?.uan_number || '',
+      esiNo: emp?.esic_number || '',
+      basicSal: emp?.basic_pay || 0,
+      hraSal: emp?.hra || 0,
+      conveyanceSal: emp?.conveyance || 0,
+      daSal: emp?.da || 0,
+      medicalSal: emp?.medical_allowance || 0,
+      specialSal: emp?.special_allowance || 0,
+      otherSal: emp?.other_additions || 0,
+      ptDeduction: emp?.pt_deduction_override || 0,
+      pfToggle: emp ? emp.pf_applicable === 1 : true,
+      esiToggle: emp ? emp.esi_applicable === 1 : true,
+      tdsToggle: emp ? emp.tds_applicable === 1 : true,
+      ptToggle: emp ? emp.pt_applicable === 1 : true,
+      lwfToggle: emp ? emp.lwf_applicable === 1 : true,
+      bonusToggle: emp ? emp.bonus_toggle === 1 : true,
+      taxRegime: emp?.tds_regime || 'new',
+      declarations: emp ? (emp.declarations_accepted === 1 ? 'yes' : 'no') : 'yes',
+      gratuityMode: emp?.gratuity_mode || 'part_of_ctc',
+      lopBasis: emp?.lop_basis_days || '30'
+    };
   });
 
   const [overrides, setOverrides] = useState({
@@ -110,8 +81,7 @@ export default function EmployeeForm() {
   const [pendingEmpType, setPendingEmpType] = useState('');
   const [previousEmpType, setPreviousEmpType] = useState('eor');
   
-  const [aadhaarMasked, setAadhaarMasked] = useState('••••••••7890');
-  const [aadhaarRaw, setAadhaarRaw] = useState('');
+
   const [isAadhaarFocused, setIsAadhaarFocused] = useState(false);
 
   // Computed values
@@ -122,8 +92,8 @@ export default function EmployeeForm() {
   const grossCTC = useMemo(() => {
     return Number(formData.basicSal) + Number(formData.hraSal) + Number(formData.conveyanceSal) + 
            Number(formData.daSal) + Number(formData.medicalSal) + Number(formData.specialSal) + 
-           Number(formData.otherSal) + Number(formData.arrearsSal);
-  }, [formData.basicSal, formData.hraSal, formData.conveyanceSal, formData.daSal, formData.medicalSal, formData.specialSal, formData.otherSal, formData.arrearsSal]);
+           Number(formData.otherSal);
+  }, [formData.basicSal, formData.hraSal, formData.conveyanceSal, formData.daSal, formData.medicalSal, formData.specialSal, formData.otherSal]);
 
   const [previewCalculations, setPreviewCalculations] = useState(null);
 
@@ -142,7 +112,7 @@ export default function EmployeeForm() {
           esi_applicable: formData.esiToggle,
           pt_deduction_override: formData.ptDeduction
         };
-        const res = await window.axios.post('/employees/calculate-preview', payload);
+        const res = await axios.post('/employees/calculate-preview', payload);
         if (res.status === 200) {
           setPreviewCalculations(res.data);
         }
@@ -158,7 +128,48 @@ export default function EmployeeForm() {
     formData.ptDeduction
   ]);
 
-  const activeClientDefaults = CLIENT_STATUTORY_DEFAULTS[formData.clientPartner];
+  const [activeClientDefaults, setActiveClientDefaults] = useState(null);
+
+  // Sync logic on client change
+  useEffect(() => {
+    if (!formData.clientPartner) {
+      setActiveClientDefaults(null);
+      return;
+    }
+    axios.get(`/clients/${formData.clientPartner}/statutory-defaults`)
+      .then(res => {
+        const d = res.data;
+        setActiveClientDefaults(d);
+        setFormData(prev => {
+          const next = { ...prev };
+          if (!overrides.pf) next.pfToggle = d.pfApplicable;
+          if (!overrides.esi) next.esiToggle = d.esiApplicable;
+          if (!overrides.tds) next.taxRegime = d.tdsRegime;
+          if (!overrides.pt) next.ptToggle = d.ptApplicable;
+          if (!overrides.lwf) next.lwfToggle = d.lwfApplicable;
+          if (!overrides.bonus) next.bonusToggle = d.statutoryBonusApplicable;
+          if (!overrides.gratuity) {
+            if (d.gratuityMode === 'na') {
+               next.gratuityMode = 'part_of_ctc';
+            } else if (d.gratuityMode === 'ctc_included') {
+               next.gratuityMode = 'part_of_ctc';
+            } else if (d.gratuityMode === 'over_ctc') {
+               next.gratuityMode = 'over_and_above';
+            } else {
+               next.gratuityMode = d.gratuityMode;
+            }
+          }
+          if (!overrides.lop) {
+               // inherit resolves to '26' globally
+               let rawLop = String(d.lopBasisDays || '');
+               if (rawLop.includes('30')) next.lopBasis = '30';
+               else next.lopBasis = '26';
+            }
+          return next;
+        });
+      })
+      .catch(err => console.error("Failed to fetch statutory defaults:", err));
+  }, [formData.clientPartner, overrides]);
 
   // Helper for errors
   const setErrorMsg = (field, msg, type = 'error') => {
@@ -188,50 +199,31 @@ export default function EmployeeForm() {
   // Initialization (URL parse)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const id = params.get('id');
-    const mode = params.get('mode') || (id ? 'edit-active' : 'add');
+    const id = params.get('id') || (employee ? (employee.data?.id || employee.id) : null);
+    const mode = params.get('mode') || (id ? (employee && (employee.data?.status || employee.status) === 'active' ? 'edit-active' : 'edit-onboarding') : 'add');
     setEmpId(id);
     setFormMode(mode);
     
     if (mode === 'edit-active') {
-      addBlocker('Date of Joining is locked — payroll already processed');
-      setErrorMsg('doj', 'Cannot change Date of Joining after payroll has been processed for this employee.', 'error');
+      // Just a visual indicator that some fields are locked. Do not block form submission.
+      setErrorMsg('doj', 'Date of Joining is locked as payroll history exists.', 'warn');
     }
   }, []);
 
-  // Sync logic on client change
-  useEffect(() => {
-    if (activeClientDefaults) {
-      const d = activeClientDefaults;
-      setFormData(prev => {
-        const next = { ...prev };
-        if (!overrides.pf) next.pfToggle = d.pfApplicable;
-        if (!overrides.esi) next.esiToggle = d.esiApplicable;
-        if (!overrides.tds) next.taxRegime = d.tdsRegime;
-        if (!overrides.pt) next.ptToggle = d.ptApplicable;
-        if (!overrides.lwf) next.lwfToggle = d.lwfApplicable;
-        if (!overrides.bonus) next.bonusToggle = d.statutoryBonusApplicable;
-        if (!overrides.gratuity) next.gratuityMode = d.gratuityMode;
-        if (!overrides.lop) next.lopBasis = d.lopBasis;
-        return next;
-      });
-    }
-  }, [formData.clientPartner, overrides]);
+  // Sync logic on client change is now handled above.
 
   // Validations
   const validateFullName = () => {
     if (!formData.fullName) return;
-    if (formMode !== 'add' && formData.fullName !== ORIG_VALUES.fullName) {
+    // Name change detection only applies in edit mode — compare against the
+    // server-provided employee record (not a hardcoded mockup name).
+    const originalName = employee ? (employee.data?.full_name || employee.full_name) : null;
+    if (formMode !== 'add' && originalName && formData.fullName !== originalName) {
       setNameChangeUploadVisible(true);
-      // In a real scenario we'd check file upload state here, simplifying for mockup:
       addBlocker('Name change requires supporting document upload'); 
     } else {
       setNameChangeUploadVisible(false);
       removeBlocker('Name change requires supporting document upload');
-    }
-
-    if (formData.pan.length === 10) {
-      setErrorMsg('fullName', '⚠ Name mismatch with PAN — statutory filings may be rejected. Confirm before saving.', 'warn');
     }
   };
 
@@ -271,21 +263,17 @@ export default function EmployeeForm() {
       addBlocker('Phone number must be exactly 10 digits');
       return;
     }
-    if (formMode !== 'add' && formData.phone === ORIG_VALUES.phone) return;
-    
-    if (EXISTING_PHONES[formData.phone]) {
-      setErrorMsg('phone', `⚠ This number is already linked to ${EXISTING_PHONES[formData.phone]}. Continue anyway?`, 'warn');
-      setPhoneDupChoiceVisible(true);
-    }
+    // Real duplicate phone checks happen server-side via unique DB index.
+    clearErrorMsg('phone');
   };
 
   const acceptDuplicatePhone = () => {
     setPhoneDupChoiceVisible(false);
-    setErrorMsg('phone', '✓ Acknowledged — duplicate number accepted.', 'info');
+    clearErrorMsg('phone');
   };
 
   const rejectDuplicatePhone = () => {
-    handleInputChange('phone', ORIG_VALUES.phone);
+    handleInputChange('phone', '');
     setPhoneDupChoiceVisible(false);
   };
 
@@ -298,24 +286,36 @@ export default function EmployeeForm() {
     }
   };
 
-  const validateIFSC = () => {
+  const validateIFSC = async () => {
     removeBlocker('IFSC code format is invalid');
-    if (!formData.ifsc) return;
-    if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(formData.ifsc.toUpperCase())) {
+    removeBlocker('IFSC code not found');
+    if (!formData.ifsc) {
+      setFormData(prev => ({ ...prev, bankName: '', bankBranch: '' }));
+      return;
+    }
+    const ifscUpper = formData.ifsc.toUpperCase();
+    if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifscUpper)) {
       setErrorMsg('ifsc', '⛔ IFSC must be 4 letters + 0 + 6 alphanumeric chars (e.g. HDFC0000060).', 'error');
       addBlocker('IFSC code format is invalid');
+      setFormData(prev => ({ ...prev, bankName: '', bankBranch: '' }));
       return;
     }
     
-    const prefix = formData.ifsc.toUpperCase().slice(0, 4);
-    if (IFSC_LOOKUP[prefix]) {
-      setFormData(prev => ({ ...prev, bankName: IFSC_LOOKUP[prefix].bank, bankBranch: IFSC_LOOKUP[prefix].branch }));
+    try {
+      const res = await axios.get(`https://ifsc.razorpay.com/${ifscUpper}`);
+      if (res.data) {
+        setFormData(prev => ({ ...prev, bankName: res.data.BANK, bankBranch: res.data.BRANCH }));
+        setErrorMsg('ifsc', '✅ Verified', 'success');
+      }
+    } catch (err) {
+      setFormData(prev => ({ ...prev, bankName: '', bankBranch: '' }));
+      setErrorMsg('ifsc', '⛔ Invalid IFSC code or not found.', 'error');
+      addBlocker('IFSC code not found');
     }
   };
 
   const validatePAN = () => {
     removeBlocker('PAN format is invalid');
-    removeBlocker('PAN is already registered to another employee');
     if (!formData.pan) return;
     
     if (!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(formData.pan.toUpperCase())) {
@@ -323,11 +323,8 @@ export default function EmployeeForm() {
       addBlocker('PAN format is invalid');
       return;
     }
-    if (EXISTING_PANS[formData.pan.toUpperCase()]) {
-      setErrorMsg('pan', `⛔ This PAN is already registered to ${EXISTING_PANS[formData.pan.toUpperCase()]}. Cannot create duplicate record.`, 'error');
-      addBlocker('PAN is already registered to another employee');
-      return;
-    }
+    // Real duplicate PAN checks happen server-side via SHA-256 hash uniqueness.
+    clearErrorMsg('pan');
     validateFullName();
   };
 
@@ -336,8 +333,7 @@ export default function EmployeeForm() {
     if (grossCTC === 0) return;
     const pct = (Number(formData.basicSal) / grossCTC) * 100;
     if (pct < 50) {
-      setErrorMsg('basicSal', `⛔ Basic Pay (₹${formData.basicSal.toLocaleString('en-IN')}) is ${pct.toFixed(1)}% of CTC — must be at least 50% as per current wage code rules.`, 'error');
-      addBlocker('Basic Pay must be at least 50% of CTC');
+      setErrorMsg('basicSal', `⚠ Basic Pay (₹${formData.basicSal.toLocaleString('en-IN')}) is ${pct.toFixed(1)}% of CTC — usually should be at least 50% as per new wage code rules, but you can proceed.`, 'warn');
     }
   };
 
@@ -374,22 +370,57 @@ export default function EmployeeForm() {
     setShowEmpTypeModal(false);
   };
 
-  const handleFormSubmit = (e) => {
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
     validatePersonalEmail();
     validatePhone();
     validatePAN();
     validateAccountMatch();
-    validateIFSC();
+    await validateIFSC();
     validateBasicPct();
     validateAgeAtJoining();
 
     if (blockingErrors.size > 0) {
+      showToast({ 
+        type: 'error', 
+        title: 'Cannot Save Employee', 
+        message: 'Please resolve the blocking errors indicated in the form fields before saving.' 
+      });
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
     
-    router.visit('/employees');
+    const errorKeyMap = {
+      'client_id': 'clientPartner', 'full_name': 'fullName', 'personal_email': 'personalEmail',
+      'phone_number': 'phone', 'emergency_contact_phone': 'emergencyContact', 'date_of_birth': 'dob',
+      'date_of_joining': 'doj', 'employment_model': 'empType', 'prior_employment_flag': 'priorEmploymentFlag',
+      'residential_address': 'address', 'bank_account_number': 'accountNo', 'bank_ifsc': 'ifsc',
+      'bank_name': 'bankName', 'bank_branch': 'bankBranch', 'account_holder_name': 'accountHolder',
+      'gender': 'gender', 'blood_group': 'bloodGroup', 'marital_status': 'maritalStatus',
+      'pan_number': 'pan', 'aadhaar_number': 'aadhaar', 'uan_mode': 'uanMode', 'uan_number': 'uan',
+      'esic_number': 'esiNo', 'basic_pay': 'basicSal', 'hra': 'hraSal', 'conveyance': 'conveyanceSal',
+      'da': 'daSal', 'medical_allowance': 'medicalSal', 'special_allowance': 'specialSal',
+      'other_additions': 'otherSal', 'pt_deduction_override': 'ptDeduction', 'tds_regime': 'taxRegime',
+      'gratuity_mode': 'gratuityMode', 'lop_basis_days': 'lopBasis',
+    };
+    
+    const url = isAdd ? '/employees' : `/employees/${empId}`;
+    const method = isAdd ? 'post' : 'put';
+    
+    router[method](url, formData, {
+      onError: (serverErrors) => {
+        const mappedErrors = {};
+        const errorMessages = [];
+        Object.keys(serverErrors).forEach(key => {
+          const frontendKey = errorKeyMap[key] || key;
+          mappedErrors[frontendKey] = { msg: serverErrors[key], type: 'error' };
+          errorMessages.push(serverErrors[key]);
+        });
+        setErrors(prev => ({ ...prev, ...mappedErrors }));
+        showToast({ type: 'error', title: 'Validation Failed', message: errorMessages.join(' | ') });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    });
   };
 
   const toggleOverride = (field) => {
@@ -412,7 +443,7 @@ export default function EmployeeForm() {
             </p>
           </div>
 
-          <div className="grid-layout">
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 340px", gap: "2rem", alignItems: "start" }}>
             <div className="card">
               <form id="emp-form" onSubmit={handleFormSubmit}>
                 
@@ -451,18 +482,56 @@ export default function EmployeeForm() {
                 <div className="form-row">
                   {isAdd && (
                     <div className="form-group">
-                      <label>Date of Birth</label>
-                      <input type="date" className={`form-control ${errors.dob ? `is-${errors.dob.type}` : ''}`} value={formData.dob}
+                      <label>Date of Birth <span style={{ color: "var(--status-danger)" }}>*</span></label>
+                      <input type="date" max={maxDobDate} className={`form-control ${errors.dob ? `is-${errors.dob.type}` : ''}`} value={formData.dob}
                         onChange={e => { handleInputChange('dob', e.target.value); validateAgeAtJoining(); }} />
                       {errors.dob && <div className={`field-msg ${errors.dob.type} show`}>{errors.dob.msg}</div>}
                     </div>
                   )}
+
+                  <div className="form-group">
+                    <label>Gender</label>
+                    <select className="form-control" value={formData.gender} onChange={e => handleInputChange('gender', e.target.value)}>
+                      <option value="">-- Select --</option>
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Blood Group</label>
+                    <select className="form-control" value={formData.bloodGroup} onChange={e => handleInputChange('bloodGroup', e.target.value)}>
+                      <option value="">-- Select --</option>
+                      <option value="A+">A+</option>
+                      <option value="A-">A-</option>
+                      <option value="B+">B+</option>
+                      <option value="B-">B-</option>
+                      <option value="AB+">AB+</option>
+                      <option value="AB-">AB-</option>
+                      <option value="O+">O+</option>
+                      <option value="O-">O-</option>
+                      <option value="Unknown">Unknown</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Marital Status</label>
+                    <select className="form-control" value={formData.maritalStatus} onChange={e => handleInputChange('maritalStatus', e.target.value)}>
+                      <option value="">-- Select --</option>
+                      <option value="single">Single</option>
+                      <option value="married">Married</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
                   <div className="form-group">
                     <label>Personal Email <span style={{ color: "var(--status-danger)" }}>*</span></label>
                     <input type="email" className={`form-control ${errors.personalEmail ? `is-${errors.personalEmail.type}` : ''}`} value={formData.personalEmail}
                       onChange={e => handleInputChange('personalEmail', e.target.value)} onBlur={validatePersonalEmail} />
                     {errors.personalEmail && <div className={`field-msg ${errors.personalEmail.type} show`}>{errors.personalEmail.msg}</div>}
-                    {!isAdd && formData.personalEmail !== ORIG_VALUES.email && (
+                    {!isAdd && employee && formData.personalEmail !== (employee.data?.personal_email || employee.personal_email) && (
                       <div style={{ marginTop: "0.4rem", fontSize: "0.8rem", color: "#64748B", fontStyle: "italic" }}>
                         A notification will be sent to the previous email address confirming this change.
                       </div>
@@ -495,11 +564,10 @@ export default function EmployeeForm() {
                     <div className="form-group">
                       <label>Client Partner</label>
                       <select className="form-control" value={formData.clientPartner} onChange={e => handleInputChange('clientPartner', e.target.value)} disabled={isActive}>
-                        <option value="mahindra">Mahindra Corp</option>
-                        <option value="tcs">Tata Consultancy Services — EOR</option>
-                        <option value="tcs_agency">Tata Consultancy Services — Agency</option>
-                        <option value="reliance">Reliance Digital</option>
-                        <option value="wipro">Wipro Ltd</option>
+                        <option value="">-- Select Client --</option>
+                        {clients && clients.map(c => (
+                          <option key={c.id} value={c.id}>{c.company_name}</option>
+                        ))}
                       </select>
                     </div>
                   )}
@@ -509,9 +577,9 @@ export default function EmployeeForm() {
                   </div>
                 </div>
 
-                {isAdd && (
-                  <div className="form-row">
-                    <div className="form-group">
+
+                <div className="form-row">
+                  <div className="form-group">
                       <label>Date of Joining</label>
                       <input type="date" className={`form-control ${isActive ? 'read-only-field' : ''} ${errors.doj ? `is-${errors.doj.type}` : ''}`} value={formData.doj}
                         onChange={e => { handleInputChange('doj', e.target.value); validateAgeAtJoining(); }} readOnly={isActive} />
@@ -528,10 +596,8 @@ export default function EmployeeForm() {
                       {formData.empType === 'contract' && <div style={{ marginTop: "0.5rem", padding: "0.75rem", background: "#F8FAFC", borderLeft: "3px solid var(--primary-navy)", borderRadius: "var(--radius-sm)", fontSize: "0.8rem" }}>PF, ESI, and PT are filed under Tecla Media registration.</div>}
                     </div>
                   </div>
-                )}
-
-                <div className="form-row">
-                  {isAdd && (
+                  
+                  <div className="form-row">
                     <div className="form-group" style={{ flex: 1 }}>
                       <label>Prior Employment Flag <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>(Required for Previous Employer KYC docs)</span></label>
                       <div style={{ marginTop: "0.5rem" }}>
@@ -542,15 +608,13 @@ export default function EmployeeForm() {
                         </label>
                       </div>
                     </div>
-                  )}
                   <div className="form-group" style={{ flex: 1 }}>
                     <label>Residential Address</label>
                     <input type="text" className="form-control" value={formData.address} onChange={e => handleInputChange('address', e.target.value)} />
                   </div>
                 </div>
 
-                {isAdd && (
-                  <>
+
                 {/* 2. BANK DETAILS */}
                 <h3 style={{ borderBottom: "1px solid var(--border-color)", paddingBottom: "0.5rem", marginTop: "2rem", marginBottom: "0.75rem", fontSize: "1.05rem" }}>
                   Secure Disbursement Details
@@ -618,42 +682,26 @@ export default function EmployeeForm() {
                     <input type="text" className={`form-control ${errors.pan ? `is-${errors.pan.type}` : ''}`} value={formData.pan}
                       onChange={e => handleInputChange('pan', e.target.value.toUpperCase())} onBlur={validatePAN} />
                     {errors.pan && <div className={`field-msg ${errors.pan.type} show`}>{errors.pan.msg}</div>}
+                    <small style={{ color: "var(--text-muted)", display: "block", marginTop: "4px" }}>Note: Name on PAN must exactly match the Full Name entered above to avoid statutory rejection.</small>
                   </div>
                   <div className="form-group">
                     <label>Aadhaar Number</label>
                     <input type="text" className="form-control" 
-                      value={isAadhaarFocused ? aadhaarRaw : ''}
+                      value={isAadhaarFocused ? formData.aadhaar : ''}
                       placeholder={isAadhaarFocused ? "12-digit Aadhaar" : "Click to reveal/edit"}
                       onFocus={() => setIsAadhaarFocused(true)} 
                       onBlur={() => setIsAadhaarFocused(false)} 
                       onChange={e => {
                         const val = e.target.value.replace(/\D/g, '');
-                        setAadhaarRaw(val);
-                        setAadhaarMasked(val ? `••••••••${val.slice(-4)}` : '');
+                        handleInputChange('aadhaar', val);
                       }} 
+                      maxLength="12"
                     />
-                    {!isAadhaarFocused && aadhaarMasked && <div style={{ fontFamily: "monospace", letterSpacing: "0.1em", fontSize: "0.875rem", color: "var(--text-muted)", marginTop: "0.25rem" }}>{aadhaarMasked}</div>}
+                    {!isAadhaarFocused && formData.aadhaar && <div style={{ fontFamily: "monospace", letterSpacing: "0.1em", fontSize: "0.875rem", color: "var(--text-muted)", marginTop: "0.25rem" }}>{`••••••••${formData.aadhaar.slice(-4)}`}</div>}
                   </div>
                 </div>
 
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Provident Fund UAN</label>
-                    <div style={{ display: "flex", gap: "1.5rem", marginBottom: "0.5rem" }}>
-                      <label><input type="radio" value="prior" checked={formData.uanMode === 'prior'} onChange={() => handleInputChange('uanMode', 'prior')} /> Has Prior PF</label>
-                      <label><input type="radio" value="new" checked={formData.uanMode === 'new'} onChange={() => handleInputChange('uanMode', 'new')} /> Generate New UAN</label>
-                    </div>
-                    <input type="text" className={`form-control ${formData.uanMode === 'new' ? 'read-only-field' : ''}`} value={formData.uanMode === 'new' ? '' : formData.uan} 
-                      onChange={e => handleInputChange('uan', e.target.value)} disabled={formData.uanMode === 'new'} placeholder="Universal Account Number" />
-                    {formData.uanMode === 'new' && <div className="field-msg warn show">⚡ Duplicate UANs require manual EPFO merge if past history exists.</div>}
-                  </div>
-                  {formData.esiToggle && (
-                    <div className="form-group">
-                      <label>ESI IP Number</label>
-                      <input type="text" className="form-control" value={formData.esiNo} onChange={e => handleInputChange('esiNo', e.target.value)} />
-                    </div>
-                  )}
-                </div>
+
 
                 {/* 4. SALARY STRUCTURE */}
                 <h3 style={{ borderBottom: "1px solid var(--border-color)", paddingBottom: "0.5rem", marginTop: "2rem", marginBottom: "1.25rem", fontSize: "1.05rem" }}>
@@ -702,48 +750,16 @@ export default function EmployeeForm() {
                         <label>7. Other Additions (₹)</label>
                         <input type="number" className="form-control" value={formData.otherSal} onChange={e => handleInputChange('otherSal', e.target.value)} />
                       </div>
-                      <div className="form-group">
-                        <label>8. Arrears Amount (₹)</label>
-                        <input type="number" className="form-control" value={formData.arrearsSal} onChange={e => handleInputChange('arrearsSal', e.target.value)} />
-                      </div>
                     </div>
 
                     <div className="form-row">
                       <div className="form-group">
                         <label>Professional Tax Override (₹)</label>
                         <input type="number" className="form-control" placeholder="Leave blank for 0" value={formData.ptDeduction} onChange={e => handleInputChange('ptDeduction', e.target.value)} />
-                        <small style={{ color: "var(--text-muted)", display: "block", marginTop: "4px" }}>Default is 0 if blank</small>
-                      </div>
-                    </div>
-
-                    <div style={{ backgroundColor: "#F8FAFC", border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)", padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem", marginBottom: "2rem" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <span style={{ fontWeight: "500", color: "var(--text-color)" }}>Calculated Monthly Gross Earnings:</span>
-                        <span style={{ fontSize: "1.2rem", fontWeight: "bold", color: "var(--primary-navy)" }}>₹{previewCalculations ? previewCalculations.gross_monthly_salary?.toLocaleString('en-IN') : grossCTC.toLocaleString('en-IN')}</span>
-                      </div>
-                      
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", color: "var(--text-muted)" }}>
-                        <span>Estimated Employee Deductions (PF, ESI, PT):</span>
-                        <span>- ₹{previewCalculations ? (previewCalculations.employee_pf_monthly + previewCalculations.employee_esi_monthly + previewCalculations.pt_monthly)?.toLocaleString('en-IN') : '0'}</span>
-                      </div>
-
-                      <div style={{ backgroundColor: "var(--primary-navy)", color: "white", padding: "1rem", borderRadius: "var(--radius-sm)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <span style={{ fontWeight: "500" }}>Estimated Net Take Home:</span>
-                        <span style={{ fontSize: "1.5rem", fontWeight: "bold", color: "var(--accent-gold)" }}>₹{previewCalculations ? previewCalculations.net_take_home_monthly?.toLocaleString('en-IN') : grossCTC.toLocaleString('en-IN')}</span>
-                      </div>
-
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", color: "var(--text-muted)", marginTop: "0.5rem" }}>
-                        <span>Estimated Employer Contributions:</span>
-                        <span>+ ₹{previewCalculations ? (previewCalculations.employer_pf_monthly + previewCalculations.employer_esi_monthly)?.toLocaleString('en-IN') : '0'}</span>
-                      </div>
-
-                      <div style={{ borderTop: "2px dashed var(--border-color)", paddingTop: "1rem", display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "0.5rem" }}>
-                        <span style={{ fontWeight: "bold", color: "var(--text-color)", fontSize: "1.1rem" }}>Estimated Cost to Company (CTC):</span>
-                        <span style={{ fontSize: "1.3rem", fontWeight: "bold", color: "var(--primary-navy)" }}>₹{previewCalculations ? previewCalculations.ctc_monthly?.toLocaleString('en-IN') : grossCTC.toLocaleString('en-IN')}</span>
-                      </div>
-                      
-                      <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", textAlign: "center", marginTop: "0.5rem" }}>
-                        * Final Net Pay and CTC may vary slightly based on monthly attendance and finalized tax declarations.
+                        <small style={{ color: "var(--text-muted)", display: "block", marginTop: "4px" }}>
+                          Default is 0 if blank.<br/>
+                          (Note: Professional Tax (PT) is currently contributing ₹0 to this deduction, likely because it was left blank/overridden to 0 or the specific state slab doesn't trigger for this exact amount yet).
+                        </small>
                       </div>
                     </div>
                   </div>
@@ -775,6 +791,27 @@ export default function EmployeeForm() {
                       </label>
                     </div>
                   </div>
+                  {formData.pfToggle && (
+                    <div style={{ backgroundColor: "#FFFFFF", padding: "1rem", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", marginTop: "0.5rem" }}>
+                      <div className="form-row">
+                        <div className="form-group" style={{ marginBottom: "0" }}>
+                          <label>UAN Mode <span style={{ color: "var(--status-danger)" }}>*</span></label>
+                          <select className={`form-control ${errors.uanMode ? 'is-invalid' : ''}`} value={formData.uanMode} onChange={e => handleInputChange('uanMode', e.target.value)}>
+                            <option value="new">Pending / New Registration</option>
+                            <option value="existing_transfer">Existing UAN</option>
+                          </select>
+                          {errors.uanMode && <div className="invalid-feedback">{errors.uanMode}</div>}
+                        </div>
+                        {formData.uanMode === 'existing_transfer' && (
+                          <div className="form-group" style={{ marginBottom: "0" }}>
+                            <label>UAN Number <span style={{ color: "var(--status-danger)" }}>*</span></label>
+                            <input type="text" className={`form-control ${errors.uan ? 'is-invalid' : ''}`} value={formData.uan} onChange={e => handleInputChange('uan', e.target.value)} placeholder="12-digit UAN" maxLength="12" />
+                            {errors.uan && <div className="invalid-feedback">{errors.uan}</div>}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                   <hr style={{ border: "0", borderTop: "1px solid var(--border-color)" }} />
 
                   {/* ESI Toggle */}
@@ -797,6 +834,15 @@ export default function EmployeeForm() {
                       </label>
                     </div>
                   </div>
+                  {formData.esiToggle && (
+                    <div style={{ backgroundColor: "#FFFFFF", padding: "1rem", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", marginTop: "0.5rem" }}>
+                      <div className="form-group" style={{ marginBottom: "0" }}>
+                        <label>ESIC IP Number <span style={{ color: "var(--status-danger)" }}>*</span></label>
+                        <input type="text" className={`form-control ${errors.esiNo ? 'is-invalid' : ''}`} value={formData.esiNo} onChange={e => handleInputChange('esiNo', e.target.value)} placeholder="10-digit ESIC Number" maxLength="10" />
+                        {errors.esiNo && <div className="invalid-feedback">{errors.esiNo}</div>}
+                      </div>
+                    </div>
+                  )}
                   <hr style={{ border: "0", borderTop: "1px solid var(--border-color)" }} />
 
                   {/* TDS Toggle */}
@@ -836,9 +882,39 @@ export default function EmployeeForm() {
                     )}
                   </div>
 
-                </div>
-                  </>
-                )}
+                  </div>
+                  
+                    <div style={{ backgroundColor: "#F8FAFC", border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)", padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem", marginBottom: "2rem" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontWeight: "500", color: "var(--text-color)" }}>Calculated Monthly Gross Earnings:</span>
+                        <span style={{ fontSize: "1.2rem", fontWeight: "bold", color: "var(--primary-navy)" }}>₹{previewCalculations ? previewCalculations.gross_monthly_salary?.toLocaleString('en-IN') : grossCTC.toLocaleString('en-IN')}</span>
+                      </div>
+                      
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", color: "var(--text-muted)" }}>
+                        <span>Estimated Employee Deductions (PF, ESI, PT):</span>
+                        <span>- ₹{previewCalculations ? (previewCalculations.employee_pf_monthly + previewCalculations.employee_esi_monthly + previewCalculations.pt_monthly)?.toLocaleString('en-IN') : '0'}</span>
+                      </div>
+
+                      <div style={{ backgroundColor: "var(--primary-navy)", color: "white", padding: "1rem", borderRadius: "var(--radius-sm)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontWeight: "500" }}>Estimated Net Take Home:</span>
+                        <span style={{ fontSize: "1.5rem", fontWeight: "bold", color: "var(--accent-gold)" }}>₹{previewCalculations ? previewCalculations.net_take_home_monthly?.toLocaleString('en-IN') : grossCTC.toLocaleString('en-IN')}</span>
+                      </div>
+
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", color: "var(--text-muted)", marginTop: "0.5rem" }}>
+                        <span>Estimated Employer Contributions:</span>
+                        <span>+ ₹{previewCalculations ? (previewCalculations.employer_pf_monthly + previewCalculations.employer_esi_monthly)?.toLocaleString('en-IN') : '0'}</span>
+                      </div>
+
+                      <div style={{ borderTop: "2px dashed var(--border-color)", paddingTop: "1rem", display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "0.5rem" }}>
+                        <span style={{ fontWeight: "bold", color: "var(--text-color)", fontSize: "1.1rem" }}>Estimated Cost to Company (CTC):</span>
+                        <span style={{ fontSize: "1.3rem", fontWeight: "bold", color: "var(--primary-navy)" }}>₹{previewCalculations ? previewCalculations.ctc_monthly?.toLocaleString('en-IN') : grossCTC.toLocaleString('en-IN')}</span>
+                      </div>
+                      
+                      <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", textAlign: "center", marginTop: "0.5rem" }}>
+                        * Final Net Pay and CTC may vary slightly based on monthly attendance and finalized tax declarations.
+                      </div>
+                    </div>
+
                 
                 {!isAdd && (
                   <div id="edit-footer-note" style={{ marginTop: "1.5rem", paddingTop: "1rem", borderTop: "1px solid var(--border-color)", textAlign: "center", fontSize: "0.85rem", color: "var(--text-muted)" }}>
@@ -856,13 +932,54 @@ export default function EmployeeForm() {
                   </div>
                 )}
 
+                {isAdd && (
+                  <div className="alert-banner info" style={{ marginTop: "1rem", backgroundColor: "#E0F2FE", border: "1px solid #BAE6FD", color: "#0369A1", padding: "1rem", borderRadius: "var(--radius-sm)" }}>
+                    ℹ️ <strong>Note:</strong> New employees start in <strong>Onboarding</strong> status. Upload and get all required documents verified to activate them under their assigned client.
+                  </div>
+                )}
+
                 <div style={{ display: "flex", gap: "1rem", justifyContent: "flex-end", marginTop: "2rem" }}>
                   <Link href="/employees" className="btn btn-secondary">Cancel</Link>
-                  <button type="submit" className="btn btn-primary" disabled={blockingErrors.size > 0} style={blockingErrors.size > 0 ? { opacity: 0.5, cursor: 'not-allowed' } : {}}>
+                  <button type="submit" className="btn btn-primary" onClick={() => {
+                    if (blockingErrors.size > 0) {
+                      showToast({ type: 'error', title: 'Cannot Save Employee', message: Array.from(blockingErrors).join(' | ') });
+                    }
+                  }}>
                     Save Employee Configuration
                   </button>
                 </div>
               </form>
+            </div>
+            
+            {/* Right Side Notes Panel */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+              <div className="card" style={{ padding: "1.25rem", background: "#f8faff", border: "1px solid #d0dfff" }}>
+                <h4 style={{ margin: "0 0 0.5rem 0", fontSize: "0.95rem", color: "var(--primary-color)", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                  <span style={{ fontSize: "1.1rem" }}>👤</span> Personal Details
+                </h4>
+                <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)", lineHeight: "1.5" }}>Ensure the PAN matches the Full Name perfectly. Phone numbers and Emails are checked for duplicates against our database.</p>
+              </div>
+              
+              <div className="card" style={{ padding: "1.25rem", background: "#f8faff", border: "1px solid #d0dfff" }}>
+                <h4 style={{ margin: "0 0 0.5rem 0", fontSize: "0.95rem", color: "var(--primary-color)", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                  <span style={{ fontSize: "1.1rem" }}>🏦</span> Banking Info
+                </h4>
+                <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)", lineHeight: "1.5" }}>The IFSC code automatically fetches the correct Branch and Bank Name directly via the Razorpay API. Double check the account number.</p>
+              </div>
+              
+              <div className="card" style={{ padding: "1.25rem", background: "#f8faff", border: "1px solid #d0dfff" }}>
+                <h4 style={{ margin: "0 0 0.5rem 0", fontSize: "0.95rem", color: "var(--primary-color)", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                  <span style={{ fontSize: "1.1rem" }}>💰</span> Salary Structure
+                </h4>
+                <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)", lineHeight: "1.5" }}>By law, Basic Pay should ideally be 50% or more of the CTC. The preview calculates exact Employer Contributions dynamically.</p>
+              </div>
+              
+              <div className="card" style={{ padding: "1.25rem", background: "#f8faff", border: "1px solid #d0dfff" }}>
+                <h4 style={{ margin: "0 0 0.5rem 0", fontSize: "0.95rem", color: "var(--primary-color)", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                  <span style={{ fontSize: "1.1rem" }}>⚖️</span> Statutory Compliance
+                </h4>
+                <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)", lineHeight: "1.5" }}>PF wage ceiling is inherited from the client. ESI is disabled automatically if Gross exceeds ₹21,000. PT override bypasses state slabs.</p>
+              </div>
             </div>
           </div>
           
