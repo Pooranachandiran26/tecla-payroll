@@ -119,12 +119,23 @@ Route::middleware('auth')->group(function () {
             
             Route::apiResource('admin/watchers', \App\Http\Controllers\NotificationWatcherController::class)->except(['show']);
             
+            Route::get('/admin/settings/company', [SettingsController::class, 'getCompanyProfile']);
+            Route::put('/admin/settings/company', [SettingsController::class, 'updateCompanyProfile']);
+            
+            Route::get('/admin/settings/pt-slabs', [SettingsController::class, 'getPtSlabs']);
+            
+            Route::get('/admin/settings/payroll', [SettingsController::class, 'getPayrollConfig']);
+            Route::put('/admin/settings/payroll', [SettingsController::class, 'updatePayrollConfig']);
+            
             Route::get('/admin/settings/auth-security', [SettingsController::class, 'getAuthSecurity']);
             Route::put('/admin/settings/auth-security', [SettingsController::class, 'updateAuthSecurity']);
             
             Route::get('/admin/settings/email', [SettingsController::class, 'getEmailSettings']);
             Route::put('/admin/settings/email', [SettingsController::class, 'updateEmailSettings']);
             Route::post('/admin/settings/email/test', [SettingsController::class, 'testEmailSettings'])->middleware('throttle:3,1');
+            
+            Route::get('/admin/settings/branding', [SettingsController::class, 'getBranding']);
+            Route::post('/admin/settings/branding', [SettingsController::class, 'updateBranding']);
             
             Route::get('/admin/sessions', [SessionController::class, 'allSessions']);
             Route::delete('/admin/sessions/{id}', [SessionController::class, 'revokeAny']);

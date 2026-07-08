@@ -9,8 +9,8 @@ export default function AuthenticatedLayout({ children }) {
   const { url } = usePage();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
-  // Use auth from usePage().props
-  const { auth } = usePage().props;
+  // Use auth and branding from usePage().props
+  const { auth, branding } = usePage().props;
   const role = auth?.user?.role || 'guest';
   const userName = auth?.user?.name || 'User';
   
@@ -38,10 +38,16 @@ export default function AuthenticatedLayout({ children }) {
               <Menu size={24} />
             </button>
             <div className="brand-logo">
-              <svg width="24" height="24" viewBox="0 0 24 24">
-                <path d="M12 2L2 22h20L12 2zm0 6l5 10H7l5-10z"/>
-              </svg>
-              Tecla Payroll
+              {branding?.logo_url ? (
+                <img src={branding.logo_url} alt="Agency Logo" style={{ maxHeight: '32px', maxWidth: '140px', objectFit: 'contain' }} />
+              ) : (
+                <>
+                  <svg width="24" height="24" viewBox="0 0 24 24">
+                    <path d="M12 2L2 22h20L12 2zm0 6l5 10H7l5-10z"/>
+                  </svg>
+                  Tecla Payroll
+                </>
+              )}
             </div>
           </div>
 

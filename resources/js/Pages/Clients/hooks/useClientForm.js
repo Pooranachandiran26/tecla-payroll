@@ -10,9 +10,12 @@ import {
 //  useClientForm — All form state, validation & logic
 // ═══════════════════════════════════════════════════
 
-export default function useClientForm() {
+export default function useClientForm(defaultLopBasis = 'inherit') {
   // ── Core state ───────────────────────────────────
-  const [formData, setFormData] = useState(getDefaultFormData());
+  const initialFormData = getDefaultFormData();
+  initialFormData.lopBasis = defaultLopBasis;
+  
+  const [formData, setFormData] = useState(initialFormData);
   const [errors, setErrors] = useState({});
   const [hints, setHints] = useState({});
   const [currentStep, setCurrentStep] = useState(1);
@@ -1044,7 +1047,7 @@ export default function useClientForm() {
       gratuityApplicable: true, // Not in DB, default true
       bonusPct: client.bonus_rate_percentage || 8.33,
       bonusApplicable: client.statutory_bonus_applicable !== undefined ? client.statutory_bonus_applicable : false,
-      lopBasis: client.lop_basis_days || 'inherit',
+      lopBasis: client.lop_basis_days || defaultLopBasis,
       portalAccess: client.client_portal_enabled || false,
       portalEmail: client.primary_poc_email || '',
       portalAccessLevel: client.portal_access_level || 'view_only',
@@ -1158,15 +1161,25 @@ export default function useClientForm() {
       const codeKey = formData.clientCode || 'temp';
       const draftStr = localStorage.getItem(`tecla_client_draft_${codeKey}`);
 
-      if (draftStr) {
-        try {
-          const draftData = JSON.parse(draftStr);
-          setFormData(prev => ({ ...prev, ...draftData }));
-          // Note: contacts and branches from draft need special handling if we want full recovery,
-          // but for now, basic recovery is fine.
-          showToast('ℹ️ Loaded form from local draft.');
-        } catch (e) { console.error(e); }
-      } else {
+        if (draftStr) {
+          try {
+            const draftData = JSON.parse(draftStr);
+            
+            // Map legacy string values to actual numbers or default
+            if (draftData.lopBasis === 'inherit' || draftData.lopBasis === '') {
+                draftData.lopBasis = defaultLopBasis;
+            } else if (draftData.lopBasis === '26_days') {
+                draftData.lopBasis = '26';
+            } else if (draftData.lopBasis === '30_days') {
+                draftData.lopBasis = '30';
+            }
+
+            setFormData(prev => ({ ...prev, ...draftData }));
+            // Note: contacts and branches from draft need special handling if we want full recovery,
+            // but for now, basic recovery is fine.
+            showToast('ℹ️ Loaded form from local draft.');
+          } catch (e) { console.error(e); }
+        } else {
         DEMO_BRANCHES.forEach(b => addClientBranch(b));
       }
     }

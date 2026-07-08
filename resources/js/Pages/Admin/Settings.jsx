@@ -1,5 +1,5 @@
 import { Head } from '@inertiajs/react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import AuthenticatedLayout from '../../Layouts/AuthenticatedLayout';
 import Card from '../../Components/ui/Card';
@@ -20,6 +20,7 @@ export default function Settings() {
 
   const tabs = [
     { key: 'company', label: 'Company Profile' },
+    { key: 'branding', label: 'Branding' },
     { key: 'email', label: 'Email Delivery' },
     { key: 'slabs', label: 'Statutory Slab Configurations' },
     { key: 'notif', label: 'Notification Setup' },
@@ -28,15 +29,34 @@ export default function Settings() {
     { key: 'auth_security', label: 'Authentication & Security' }
   ];
 
-  const ptSlabs = [
-    { id: 1, from: '₹0', to: '₹7,500', deduction: '₹0', exceptions: 'Exempted', disabled: true },
-    { id: 2, from: '₹7,501', to: '₹10,000', deduction: '₹175 / month', exceptions: 'Standard slab', disabled: false },
-    { id: 3, from: '₹10,001', to: 'No Limit', deduction: '₹200 / month', exceptions: '₹300 deducted in February month', disabled: false }
-  ];
+  const [ptSlabs, setPtSlabs] = useState([]);
+  const [ptSlabsLoading, setPtSlabsLoading] = useState(false);
+
+  // Company Settings State
+  const [companySettings, setCompanySettings] = useState({});
+  const [companyLoading, setCompanyLoading] = useState(false);
 
   // Auth & Security State
   const [authSettings, setAuthSettings] = useState({});
   const [authLoading, setAuthLoading] = useState(false);
+  
+  // Payroll State
+  const [payrollSettings, setPayrollSettings] = useState({});
+  const [payrollLoading, setPayrollLoading] = useState(false);
+  
+  // Branding State
+  const [brandingSettings, setBrandingSettings] = useState({});
+  const [brandingLoading, setBrandingLoading] = useState(false);
+  const [brandingSaving, setBrandingSaving] = useState(false);
+  const [logoFile, setLogoFile] = useState(null);
+  const [faviconFile, setFaviconFile] = useState(null);
+  const [logoPreview, setLogoPreview] = useState('');
+  const [faviconPreview, setFaviconPreview] = useState('');
+  const [brandingColor, setBrandingColor] = useState('#1e3a8a');
+  const [brandingTheme, setBrandingTheme] = useState('system');
+  const logoInputRef = useRef(null);
+  const faviconInputRef = useRef(null);
+  
   const [emailSettings, setEmailSettings] = useState({});
   const [emailLoading, setEmailLoading] = useState(false);
   const [testingEmail, setTestingEmail] = useState(false);
@@ -49,16 +69,149 @@ export default function Settings() {
   const [currentWatcher, setCurrentWatcher] = useState({ name: '', email: '', is_active: true, categories: [], notes: '' });
 
   useEffect(() => {
+    if (activeTab === 'company' && Object.keys(companySettings).length === 0) {
+      fetchCompanySettings();
+    }
+    if (activeTab === 'slabs' && ptSlabs.length === 0) {
+      fetchPtSlabs();
+    }
     if (activeTab === 'auth_security' && Object.keys(authSettings).length === 0) {
       fetchAuthSettings();
     }
     if (activeTab === 'email' && Object.keys(emailSettings).length === 0) {
       fetchEmailSettings();
     }
+    if (activeTab === 'payroll' && Object.keys(payrollSettings).length === 0) {
+      fetchPayrollSettings();
+    }
+    if (activeTab === 'branding' && Object.keys(brandingSettings).length === 0) {
+      fetchBrandingSettings();
+    }
     if (activeTab === 'notif' && watchers.length === 0) {
       fetchWatchers();
     }
   }, [activeTab]);
+
+  const fetchCompanySettings = async () => {
+    setCompanyLoading(true);
+    try {
+      const res = await axios.get('/admin/settings/company');
+      setCompanySettings(res.data);
+    } catch (e) {
+      showToast({ type: 'error', title: 'Error', message: 'Failed to load company settings' });
+    } finally {
+      setCompanyLoading(false);
+    }
+  };
+
+  const fetchPtSlabs = async () => {
+    setPtSlabsLoading(true);
+    try {
+      const res = await axios.get('/admin/settings/pt-slabs');
+      setPtSlabs(res.data);
+    } catch (e) {
+      showToast({ type: 'error', title: 'Error', message: 'Failed to load statutory slabs' });
+    } finally {
+      setPtSlabsLoading(false);
+    }
+  };
+
+  const handleCompanyChange = (key, value) => {
+    setCompanySettings(prev => ({ ...prev, [key]: value }));
+  };
+
+  const saveCompanySettings = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.put('/admin/settings/company', companySettings);
+      showToast({ type: 'success', title: 'Success', message: 'Company Profile updated successfully!' });
+    } catch (err) {
+      showToast({ type: 'error', title: 'Error', message: err.response?.data?.message || 'Failed to save company settings' });
+    }
+  };
+
+  const fetchPayrollSettings = async () => {
+    setPayrollLoading(true);
+    try {
+      const res = await axios.get('/admin/settings/payroll');
+      setPayrollSettings(res.data);
+    } catch (e) {
+      showToast({ type: 'error', title: 'Error', message: 'Failed to load payroll settings' });
+    } finally {
+      setPayrollLoading(false);
+    }
+  };
+
+  const savePayrollSettings = async (value) => {
+    try {
+      await axios.put('/admin/settings/payroll', { default_lop_basis: value });
+      setPayrollSettings(prev => ({ ...prev, default_lop_basis: value }));
+      showToast({ type: 'success', title: 'Success', message: 'Global LOP Basis updated.' });
+    } catch (err) {
+      showToast({ type: 'error', title: 'Error', message: err.response?.data?.message || 'Failed to save payroll settings' });
+    }
+  };
+
+  // ── Branding Functions ──────────────────────────────
+  const fetchBrandingSettings = async () => {
+    setBrandingLoading(true);
+    try {
+      const res = await axios.get('/admin/settings/branding');
+      setBrandingSettings(res.data);
+      setBrandingColor(res.data.primary_color || '#1e3a8a');
+      setBrandingTheme(res.data.theme_mode_default || 'system');
+      if (res.data.logo_path_url) setLogoPreview(res.data.logo_path_url);
+      if (res.data.favicon_path_url) setFaviconPreview(res.data.favicon_path_url);
+    } catch (e) {
+      showToast({ type: 'error', title: 'Error', message: 'Failed to load branding settings' });
+    } finally {
+      setBrandingLoading(false);
+    }
+  };
+
+  const handleFileSelect = (type, file) => {
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      showToast({ type: 'error', title: 'Error', message: `${type === 'logo' ? 'Logo' : 'Favicon'} must be less than 2MB` });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      if (type === 'logo') {
+        setLogoFile(file);
+        setLogoPreview(e.target.result);
+      } else {
+        setFaviconFile(file);
+        setFaviconPreview(e.target.result);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const saveBrandingSettings = async () => {
+    setBrandingSaving(true);
+    try {
+      const formData = new FormData();
+      if (logoFile) formData.append('logo', logoFile);
+      if (faviconFile) formData.append('favicon', faviconFile);
+      formData.append('primary_color', brandingColor);
+      formData.append('theme_mode_default', brandingTheme);
+
+      await axios.post('/admin/settings/branding', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      // Re-fetch to get updated URLs
+      await fetchBrandingSettings();
+      setLogoFile(null);
+      setFaviconFile(null);
+      showToast({ type: 'success', title: 'Success', message: 'Branding settings saved successfully!' });
+    } catch (err) {
+      showToast({ type: 'error', title: 'Error', message: err.response?.data?.message || 'Failed to save branding settings' });
+    } finally {
+      setBrandingSaving(false);
+    }
+  };
 
   const fetchAuthSettings = async () => {
     setAuthLoading(true);
@@ -249,50 +402,73 @@ export default function Settings() {
         
         <div className="p-6">
           {activeTab === 'company' && (
-            <form onSubmit={e => { e.preventDefault(); showToast('Company Profile updated successfully!'); }}>
-              <div className="flex gap-4 mb-4">
-                <div className="flex-1"><Input label="Agency Legal Name" value="Tecla Agency Private Limited" onChange={()=>{}} noMargin /></div>
-                <div className="flex-1"><Input label="TAN Number (Tax Deduction Account)" value="MUMT01234B" onChange={()=>{}} noMargin /></div>
-              </div>
-              <div className="flex gap-4 mb-4">
-                <div className="flex-1"><Input label="Default Authorized Signatory" value="Rajesh Kumar" onChange={()=>{}} noMargin /></div>
-                <div className="flex-1"><Input label="Register Office Address" value="BKC, Bandra East, Mumbai, Maharashtra" onChange={()=>{}} noMargin /></div>
-              </div>
-              <Button type="submit" variant="primary" className="mt-4">Update Basic Profile</Button>
-            </form>
+            <div className="max-w-4xl">
+              {companyLoading ? (
+                <div>Loading Company Settings...</div>
+              ) : (
+                <form onSubmit={saveCompanySettings}>
+                  <div className="flex gap-4 mb-4">
+                    <div className="flex-1">
+                      <Input label="Agency Legal Name" value={companySettings.agency_legal_name || ''} onChange={e => handleCompanyChange('agency_legal_name', e.target.value)} noMargin />
+                    </div>
+                    <div className="flex-1">
+                      <Input label="TAN Number (Tax Deduction Account)" value={companySettings.tan_number || ''} onChange={e => handleCompanyChange('tan_number', e.target.value)} noMargin />
+                    </div>
+                  </div>
+                  <div className="flex gap-4 mb-4">
+                    <div className="flex-1">
+                      <Input label="Default Authorized Signatory" value={companySettings.default_authorized_signatory || ''} onChange={e => handleCompanyChange('default_authorized_signatory', e.target.value)} noMargin />
+                    </div>
+                    <div className="flex-1">
+                      <Input label="Register Office Address" value={companySettings.registered_office_address || ''} onChange={e => handleCompanyChange('registered_office_address', e.target.value)} noMargin />
+                    </div>
+                  </div>
+                  <div className="flex gap-4 mb-4">
+                    <div className="flex-1">
+                      <Input label="Agency GSTIN" value={companySettings.agency_gstin || ''} onChange={e => handleCompanyChange('agency_gstin', e.target.value)} noMargin />
+                    </div>
+                    <div className="flex-1">
+                      {/* Placeholder for future expansion */}
+                    </div>
+                  </div>
+                  <Button type="submit" variant="primary" className="mt-4">Update Basic Profile</Button>
+                </form>
+              )}
+            </div>
           )}
 
           {activeTab === 'slabs' && (
             <div>
-              <div className="mb-6">
-                <h3 className="text-base text-blue-900 font-bold">Professional Tax (PT) Slabs - Maharashtra State</h3>
-                <p className="text-xs text-gray-500 mb-4">Customize deduction brackets mapped to employee gross earnings.</p>
-                <div className="border border-gray-200 rounded-md overflow-hidden">
-                  <DataTable 
-                    columns={[
-                      { key: 'from', label: 'Monthly Gross Salary (From)' },
-                      { key: 'to', label: 'Monthly Gross Salary (To)' },
-                      { key: 'deduction', label: 'Monthly PT Deduction Amount (₹)' },
-                      { key: 'exceptions', label: 'Exceptions / Flags' },
-                      { key: 'actions', label: 'Actions', render: (_, row) => (
+              <h3 className="text-lg font-bold text-gray-800">Professional Tax (PT) Slabs</h3>
+              <p className="text-sm text-gray-500 mb-4">PT rates dynamically map to employee work states for accurate monthly deduction.</p>
+              
+              {ptSlabsLoading ? (
+                <div>Loading Slabs...</div>
+              ) : (
+                <DataTable 
+                  columns={[
+                    { label: 'From (Gross)', key: 'from' },
+                    { label: 'To (Gross)', key: 'to' },
+                    { label: 'Deduction', key: 'deduction' },
+                    { label: 'Exceptions/Notes', key: 'exceptions' },
+                    { 
+                      label: 'Action', 
+                      key: 'id',
+                      render: (_, row) => (
                         <Button 
-                          variant={row.disabled ? 'secondary' : 'navy'} 
-                          size="xs" 
+                          variant="secondary" 
+                          size="sm" 
                           disabled={row.disabled}
-                          onClick={() => showToast('PT bracket editing is locked for compliance safety.')}
+                          onClick={() => showToast({ type: 'error', title: 'Action Locked', message: 'PT bracket editing is locked for compliance safety.' })}
                         >
-                          {row.disabled ? 'Standard' : 'Modify'}
+                          Modify
                         </Button>
-                      )}
-                    ]}
-                    data={ptSlabs}
-                    keyField="id"
-                  />
-                </div>
-              </div>
-              <div className="bg-blue-50 border border-blue-200 rounded-md p-4 text-xs text-blue-900">
-                <strong>Compliance Note:</strong> Tax slabs are pre-synchronized with Central and State Government notifications (updated June 2026). Overriding these slabs manually is audited in the Activity logs.
-              </div>
+                      )
+                    }
+                  ]}
+                  data={ptSlabs}
+                />
+              )}
             </div>
           )}
 
@@ -394,6 +570,151 @@ export default function Settings() {
             </div>
           )}
 
+          {activeTab === 'branding' && (
+            <div>
+              <h3 className="text-base text-blue-900 font-bold mb-2">Branding & Appearance</h3>
+              <p className="text-sm text-gray-500 mb-6">Customize logos, colors, and theme defaults for the agency portal.</p>
+              
+              {brandingLoading ? (
+                <div>Loading branding settings...</div>
+              ) : (
+                <div className="space-y-8">
+                  {/* Logo & Favicon Row */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Logo Upload */}
+                    <Card>
+                      <h4 className="font-semibold text-slate-800 mb-3">Agency Logo</h4>
+                      <p className="text-xs text-gray-500 mb-4">Displayed in the header and login page. Max 2MB. Accepted: JPG, PNG, SVG, WebP.</p>
+                      <div 
+                        className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-400 transition-colors"
+                        onClick={() => logoInputRef.current?.click()}
+                        style={{ minHeight: '160px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        {logoPreview ? (
+                          <div>
+                            <img src={logoPreview} alt="Logo preview" style={{ maxHeight: '80px', maxWidth: '200px', objectFit: 'contain', marginBottom: '0.5rem' }} />
+                            <p className="text-xs text-gray-500">{logoFile ? logoFile.name : 'Current logo'}</p>
+                            <p className="text-xs text-blue-600 mt-1">Click to replace</p>
+                          </div>
+                        ) : (
+                          <div>
+                            <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🖼️</div>
+                            <p className="text-sm font-medium text-gray-600">Click to upload logo</p>
+                            <p className="text-xs text-gray-400">JPG, PNG, SVG, WebP — max 2MB</p>
+                          </div>
+                        )}
+                      </div>
+                      <input
+                        ref={logoInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/svg+xml,image/webp"
+                        style={{ display: 'none' }}
+                        onChange={(e) => handleFileSelect('logo', e.target.files[0])}
+                      />
+                    </Card>
+
+                    {/* Favicon Upload */}
+                    <Card>
+                      <h4 className="font-semibold text-slate-800 mb-3">Favicon</h4>
+                      <p className="text-xs text-gray-500 mb-4">Displayed in the browser tab. Max 2MB. Accepted: JPG, PNG, SVG, WebP.</p>
+                      <div 
+                        className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-400 transition-colors"
+                        onClick={() => faviconInputRef.current?.click()}
+                        style={{ minHeight: '160px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        {faviconPreview ? (
+                          <div>
+                            <img src={faviconPreview} alt="Favicon preview" style={{ maxHeight: '64px', maxWidth: '64px', objectFit: 'contain', marginBottom: '0.5rem' }} />
+                            <p className="text-xs text-gray-500">{faviconFile ? faviconFile.name : 'Current favicon'}</p>
+                            <p className="text-xs text-blue-600 mt-1">Click to replace</p>
+                          </div>
+                        ) : (
+                          <div>
+                            <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>⭐</div>
+                            <p className="text-sm font-medium text-gray-600">Click to upload favicon</p>
+                            <p className="text-xs text-gray-400">JPG, PNG, SVG, WebP — max 2MB</p>
+                          </div>
+                        )}
+                      </div>
+                      <input
+                        ref={faviconInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/svg+xml,image/webp"
+                        style={{ display: 'none' }}
+                        onChange={(e) => handleFileSelect('favicon', e.target.files[0])}
+                      />
+                    </Card>
+                  </div>
+
+                  {/* Color & Theme Row */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Primary Color */}
+                    <Card>
+                      <h4 className="font-semibold text-slate-800 mb-3">Primary Brand Color</h4>
+                      <p className="text-xs text-gray-500 mb-4">Used for header backgrounds, buttons, and accents throughout the app.</p>
+                      <div className="flex items-center gap-4">
+                        <input 
+                          type="color" 
+                          value={brandingColor}
+                          onChange={(e) => setBrandingColor(e.target.value)}
+                          style={{ width: '48px', height: '48px', border: '2px solid #e2e8f0', borderRadius: '8px', cursor: 'pointer', padding: '2px' }}
+                        />
+                        <div>
+                          <input 
+                            type="text" 
+                            value={brandingColor}
+                            onChange={(e) => { if (/^#[0-9A-Fa-f]{0,6}$/.test(e.target.value)) setBrandingColor(e.target.value); }}
+                            className="border border-gray-300 rounded-md px-3 py-1.5 text-sm font-mono"
+                            style={{ width: '120px' }}
+                            placeholder="#1e3a8a"
+                          />
+                          <p className="text-xs text-gray-400 mt-1">Hex color code</p>
+                        </div>
+                        <div style={{ width: '80px', height: '36px', backgroundColor: brandingColor, borderRadius: '6px', border: '1px solid #e2e8f0' }} />
+                      </div>
+                    </Card>
+
+                    {/* Theme Mode */}
+                    <Card>
+                      <h4 className="font-semibold text-slate-800 mb-3">Default Theme Mode</h4>
+                      <p className="text-xs text-gray-500 mb-4">Default appearance for new users. Users can override this in their profile.</p>
+                      <div className="flex gap-2">
+                        {[
+                          { value: 'light', label: '☀️ Light', desc: 'Always light' },
+                          { value: 'dark', label: '🌙 Dark', desc: 'Always dark' },
+                          { value: 'system', label: '💻 System', desc: 'Match OS' },
+                        ].map(opt => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => setBrandingTheme(opt.value)}
+                            className={`flex-1 p-3 rounded-lg border-2 text-center transition-all ${
+                              brandingTheme === opt.value 
+                                ? 'border-blue-500 bg-blue-50' 
+                                : 'border-gray-200 bg-white hover:border-gray-300'
+                            }`}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            <div className="text-lg">{opt.label.split(' ')[0]}</div>
+                            <div className="text-xs font-semibold mt-1">{opt.label.split(' ').slice(1).join(' ')}</div>
+                            <div className="text-xs text-gray-400">{opt.desc}</div>
+                          </button>
+                        ))}
+                      </div>
+                    </Card>
+                  </div>
+
+                  {/* Save Button */}
+                  <div className="flex justify-end">
+                    <Button onClick={saveBrandingSettings} disabled={brandingSaving}>
+                      {brandingSaving ? 'Saving...' : '💾 Save Branding Settings'}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {activeTab === 'onboarding' && (
             <div>
               <h3 className="text-base text-blue-900 font-bold mb-2">Onboarding & KYC Verification Policy</h3>
@@ -418,15 +739,19 @@ export default function Settings() {
               <p className="text-sm text-gray-500 mb-6">Configure default calculation behaviors for the agency. These can be overridden per client.</p>
               
               <div className="max-w-md">
-                <Select 
-                  label="Default LOP Calculation Basis"
-                  options={[
-                    { value: '26', label: '26 Working Days (excludes Sundays)' },
-                    { value: '30', label: '30 Calendar Days' }
-                  ]}
-                  value="30"
-                  onChange={() => showToast('Global LOP Basis updated.')}
-                />
+                {payrollLoading ? (
+                  <div>Loading...</div>
+                ) : (
+                  <Select 
+                    label="Default LOP Calculation Basis"
+                    options={[
+                      { value: '26', label: '26 Working Days (excludes Sundays)' },
+                      { value: '30', label: '30 Calendar Days' }
+                    ]}
+                    value={payrollSettings.default_lop_basis || '30'}
+                    onChange={(e) => savePayrollSettings(e.target.value)}
+                  />
+                )}
                 <div className="text-xs text-gray-500 mt-1">Used when deducting Loss of Pay (LOP) for unapproved absences.</div>
               </div>
             </div>
