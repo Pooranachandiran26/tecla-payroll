@@ -305,9 +305,9 @@ export default function ClientDetail({ client, employees }) {
                   employees.data.map(emp => (
                     <tr key={emp.id}>
                       <td>{emp.employee_code || 'N/A'}</td>
-                      <td><strong>{emp.first_name} {emp.last_name}</strong></td>
+                      <td><strong>{emp.full_name}</strong></td>
                       <td>{emp.designation || 'N/A'}</td>
-                      <td>{emp.gross_salary ? `₹${parseFloat(emp.gross_salary).toLocaleString('en-IN')}` : 'N/A'}</td>
+                      <td>{emp.gross_monthly_salary ? `₹${parseFloat(emp.gross_monthly_salary).toLocaleString('en-IN')}` : 'N/A'}</td>
                       <td>
                         {emp.pf_applicable ? <span className="badge badge-success" style={{marginRight: '4px'}}>PF</span> : null}
                         {emp.esi_applicable ? <span className="badge badge-success" style={{marginRight: '4px'}}>ESI</span> : null}

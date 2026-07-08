@@ -10,6 +10,11 @@ class SalaryCalculationService
     public const PF_WAGE_CEILING = 15000;
 
     /**
+     * The statutory ceiling for ESI calculation.
+     */
+    public const ESI_WAGE_CEILING = 21000;
+
+    /**
      * Calculate structural/sanctioned salary components for an employee.
      * 
      * NOTE: These computed fields represent the employee's SANCTIONED/STRUCTURAL 
@@ -46,7 +51,8 @@ class SalaryCalculationService
         // 3. Calculate ESI
         $employerEsi = 0;
         $employeeEsi = 0;
-        if (data_get($employeeData, 'esi_applicable', true)) {
+        $esiLimit = (float) data_get($employeeData, 'esi_limit', self::ESI_WAGE_CEILING);
+        if (data_get($employeeData, 'esi_applicable', true) && $gross <= $esiLimit) {
             $employeeEsi = $gross * 0.0075; // 0.75%
             $employerEsi = $gross * 0.0325; // 3.25%
         }

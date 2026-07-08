@@ -24,9 +24,6 @@ class PasswordService
         if ($this->settings->getAuthSecurity('password_require_symbols', true)) {
             $rule->symbols();
         }
-        if ($this->settings->getAuthSecurity('password_prevent_pwned', true)) {
-            $rule->uncompromised();
-        }
         
         return $rule;
     }

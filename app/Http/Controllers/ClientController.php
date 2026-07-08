@@ -466,4 +466,26 @@ class ClientController extends Controller
 
         return back()->with('success', 'Client restored successfully.');
     }
+
+    public function statutoryDefaults(Client $client)
+    {
+        $this->authorize('view', $client);
+
+        return response()->json([
+            'pfApplicable' => (bool)$client->pf_applicable,
+            'pfCeiling' => $client->pf_ceiling,
+            'esiApplicable' => (bool)$client->esi_applicable,
+            'esiLimit' => $client->esi_limit,
+            'lwfApplicable' => (bool)$client->lwf_applicable,
+            'lwfFrequency' => $client->lwf_frequency,
+            'tdsRegime' => $client->tds_regime,
+            'tdsApplicable' => (bool)$client->tds_applicable,
+            'gratuityMode' => $client->default_gratuity_mode,
+            'gratuityApplicable' => (bool)$client->gratuity_applicable,
+            'statutoryBonusApplicable' => (bool)$client->statutory_bonus_applicable,
+            'bonusRatePercentage' => $client->bonus_rate_percentage,
+            'ptState' => $client->pt_state,
+            'lopBasisDays' => $client->lop_basis_days,
+        ]);
+    }
 }
