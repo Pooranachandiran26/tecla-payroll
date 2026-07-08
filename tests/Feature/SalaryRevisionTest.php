@@ -6,13 +6,14 @@ use App\Models\User;
 use App\Models\Employee;
 use App\Models\Client;
 use App\Models\SalaryRevision;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 use Carbon\Carbon;
 
 class SalaryRevisionTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     protected function setUp(): void
     {
@@ -25,12 +26,18 @@ class SalaryRevisionTest extends TestCase
         if (!$client) {
             $client = Client::factory()->create();
         }
+        
+        $branch = \App\Models\ClientBranch::first();
+        if (!$branch) {
+            $branch = \App\Models\ClientBranch::factory()->create(['client_id' => $client->id]);
+        }
 
         // We assume an employee exists (from the seeder or previous tests)
         $this->employee = Employee::first();
         if (!$this->employee) {
             $this->employee = Employee::factory()->create([
                 'client_id' => $client->id,
+                'branch_id' => $branch->id,
                 'basic_pay' => 10000,
                 'hra' => 5000,
                 'conveyance' => 0,

@@ -29,6 +29,7 @@ class EmployeeResource extends JsonResource
             'date_of_joining' => $this->date_of_joining,
             'designation' => $this->designation,
             'employment_model' => $this->employment_model,
+            'prior_employment_flag' => $this->prior_employment_flag,
             'status' => $this->status,
             'gender' => $this->gender,
             'blood_group' => $this->blood_group,
@@ -50,6 +51,9 @@ class EmployeeResource extends JsonResource
             'employer_pf_monthly' => $this->employer_pf_monthly,
             'employer_esi_monthly' => $this->employer_esi_monthly,
             'ctc_monthly' => $this->ctc_monthly,
+            'employee_pf_monthly' => $this->employer_pf_monthly, // Usually identical
+            'employee_esi_monthly' => $this->esi_applicable ? round((float)$this->gross_monthly_salary * 0.0075, 2) : 0,
+            'pt_monthly' => (float)($this->pt_deduction_override ?: 0),
             
             // Statutory settings
             'pf_applicable' => $this->pf_applicable,
@@ -81,6 +85,11 @@ class EmployeeResource extends JsonResource
             
             // Relations
             'salary_revisions' => $this->whenLoaded('salaryRevisions'),
+            'documents' => $this->whenLoaded('documents'),
+            
+            // Computed Document Counts
+            'documents_verified_count' => $this->documents_verified_count,
+            'documents_required_count' => $this->documents_required_count,
         ];
     }
 }

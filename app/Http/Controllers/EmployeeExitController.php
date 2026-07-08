@@ -60,7 +60,7 @@ class EmployeeExitController extends Controller
                 ]);
                 
                 $lwd = Carbon::parse($validated['last_working_day']);
-                if ($calculator->isPayrollLocked($lwd->month, $lwd->year)) {
+                if ($calcService->isPayrollLocked($lwd->month, $lwd->year)) {
                     throw ValidationException::withMessages([
                         'last_working_day' => 'Cannot exit an employee with a last working day that falls in a month where payroll is already locked.'
                     ]);

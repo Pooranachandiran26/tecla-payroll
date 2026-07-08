@@ -15,7 +15,7 @@ class EmployeeController extends Controller
 
     public function index(Request $request)
     {
-        $query = \App\Models\Employee::with('client');
+        $query = \App\Models\Employee::with(['client', 'documents']);
         
         if ($request->search) {
             $query->where('employee_code', 'like', "%{$request->search}%")
@@ -76,7 +76,7 @@ class EmployeeController extends Controller
 
     public function show($id)
     {
-        $employee = \App\Models\Employee::with(['salaryRevisions.approvedBy', 'client', 'exitRequest', 'documents'])->findOrFail($id);
+        $employee = \App\Models\Employee::with(['salaryRevisions.approver', 'client', 'exitRequest', 'documents'])->findOrFail($id);
         return \Inertia\Inertia::render('Employees/EmployeeDetail', [
             'employee' => new \App\Http\Resources\EmployeeResource($employee)
         ]);
@@ -124,6 +124,24 @@ class EmployeeController extends Controller
             'verified_by' => auth()->id(),
             'verified_at' => now(),
         ]);
+
+        // Check for auto-activation
+        if ($request->status === 'verified' && $employee->status === 'onboarding') {
+            $employee->load('documents'); // reload to get latest status
+            if ($employee->documents_verified_count >= $employee->documents_required_count) {
+                $employee->update(['status' => 'active']);
+                
+                $auditService = app(\App\Services\AuditService::class);
+                $auditService->log(
+                    'employee.auto_activated',
+                    auth()->user(),
+                    $employee,
+                    ['status' => 'onboarding'],
+                    ['status' => 'active'],
+                    ['reason' => 'All required documents verified']
+                );
+            }
+        }
 
         return redirect()->back()->with('success', 'Document verified successfully.');
     }

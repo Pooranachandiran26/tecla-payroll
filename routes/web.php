@@ -6,6 +6,7 @@ use Inertia\Inertia;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\ClientPortalController;
 use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\BulkUploadController;
 use App\Http\Controllers\SalaryRevisionController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\Auth\LoginController;
@@ -94,6 +95,8 @@ Route::middleware('auth')->group(function () {
                 return Inertia::render('Employees/EmployeeForm', ['clients' => $clients]);
             });
             Route::get('/employees/bulk-upload', fn() => Inertia::render('Employees/BulkUpload'));
+            Route::post('/employees/bulk-upload/validate', [BulkUploadController::class, 'validateUpload'])->name('employees.bulk-upload.validate');
+            Route::post('/employees/bulk-upload/execute', [BulkUploadController::class, 'executeImport'])->name('employees.bulk-upload.execute');
             Route::get('/employees/salary-bulk-update', fn() => Inertia::render('Employees/SalaryBulkUpdate'));
             Route::get('/employees/{id}', [EmployeeController::class, 'show'])->name('employees.show');
             Route::get('/employees/{id}/edit', [EmployeeController::class, 'edit'])->name('employees.edit');

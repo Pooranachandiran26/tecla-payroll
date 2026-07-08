@@ -28,7 +28,7 @@ export default function EmployeesList({ employees = { data: [], links: [] }, cli
           <p style={{"color":"var(--text-muted)","fontSize":"0.9rem"}}>Manage agency personnel, statutory rules, salary revisions, and leave balances.</p>
         </div>
         <div style={{"display":"flex","gap":"0.75rem"}}>
-          <a href="candidates-bulk-upload.html" className="btn btn-secondary">📥 Bulk Upload Employees</a>
+          <Link href="/employees/bulk-upload" className="btn btn-secondary">📥 Bulk Upload Employees</Link>
           <a href="/employees/create" className="btn btn-primary">➕ Add New Employee</a>
         </div>
       </div>
@@ -100,9 +100,16 @@ export default function EmployeesList({ employees = { data: [], links: [] }, cli
                     </td>
                     <td>{emp.date_of_joining ? new Date(emp.date_of_joining).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}</td>
                     <td>
-                      <span className={`badge badge-${emp.status === 'active' ? 'success' : emp.status === 'exited' ? 'danger' : 'warning'}`}>
-                        {emp.status ? (emp.status.charAt(0).toUpperCase() + emp.status.slice(1)) : 'Unknown'}
-                      </span>
+                      <div style={{"display":"flex","alignItems":"center","gap":"0.5rem"}}>
+                        <span className={`badge badge-${emp.status === 'active' ? 'success' : emp.status === 'exited' ? 'danger' : 'warning'}`}>
+                          {emp.status ? (emp.status.charAt(0).toUpperCase() + emp.status.slice(1)) : 'Unknown'}
+                        </span>
+                        {emp.status === 'onboarding' && (
+                          <span className="badge badge-gold" style={{"fontSize":"0.75rem"}}>
+                            {emp.documents_verified_count || 0}/{emp.documents_required_count || 5} Docs
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td>
                       <Link href={`/employees/${emp.id}`} className="btn btn-secondary btn-xs" style={{"marginRight":"0.5rem"}}>View Profile</Link>

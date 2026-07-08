@@ -147,7 +147,14 @@ export default function EmployeeExit({ employee: rawEmployee, initialExitData })
           payload = { last_working_day: lwd, notice_shortfall_days: noticeShortfallDays, notice_amount_type: noticeAmountType };
           break;
         case 3:
-          payload = clearances;
+          payload = {
+            clearance_laptop: clearances.laptop,
+            clearance_idcard: clearances.idcard,
+            clearance_manager: clearances.manager,
+            clearance_itaccess: clearances.itaccess,
+            clearance_handover: clearances.handover,
+            clearance_client: clearances.client,
+          };
           break;
         case 4:
           payload = { interview_reason: interviewReason, would_recommend: recommend, star_rating: starRating };
@@ -625,7 +632,7 @@ export default function EmployeeExit({ employee: rawEmployee, initialExitData })
                 {settlementPreview.gratuity_amount > 0 && (
                   <tr>
                     <td><strong>Statutory Gratuity Payout</strong></td>
-                    <td>Eligible (>= 4 Years, 240 Days)</td>
+                    <td>Eligible (&gt;= 4 Years, 240 Days)</td>
                     <td className="text-right amount-pos">+₹{Number(settlementPreview.gratuity_amount).toLocaleString('en-IN')}</td>
                   </tr>
                 )}
