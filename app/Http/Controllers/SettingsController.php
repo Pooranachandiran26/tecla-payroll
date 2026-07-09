@@ -6,9 +6,144 @@ use Illuminate\Http\Request;
 use App\Models\Setting;
 use App\Services\SettingsService;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class SettingsController extends Controller
 {
+    // ───────────────────────────────────────────────────
+    //  Branding
+    // ───────────────────────────────────────────────────
+
+    public function getBranding()
+    {
+        $settings = SettingsService::group('branding');
+
+        // Convert stored file paths to public URLs for the frontend
+        foreach (['logo_path', 'favicon_path'] as $key) {
+            if (!empty($settings[$key])) {
+                $settings[$key . '_url'] = Storage::disk('public')->url($settings[$key]);
+            } else {
+                $settings[$key . '_url'] = '';
+            }
+        }
+
+        return response()->json($settings);
+    }
+
+    public function updateBranding(Request $request)
+    {
+        $request->validate([
+            'logo'               => 'nullable|image|mimes:jpg,jpeg,png,svg,webp|max:2048',
+            'favicon'            => 'nullable|image|mimes:jpg,jpeg,png,svg,webp|max:2048',
+            'primary_color'      => 'nullable|string|regex:/^#[0-9A-Fa-f]{6}$/',
+            'theme_mode_default' => 'nullable|string|in:light,dark,system',
+        ]);
+
+        $changes = [];
+
+        // Handle logo upload
+        if ($request->hasFile('logo')) {
+            $oldPath = SettingsService::get('branding.logo_path');
+            if ($oldPath && Storage::disk('public')->exists($oldPath)) {
+                Storage::disk('public')->delete($oldPath);
+            }
+            $path = $request->file('logo')->store('branding', 'public');
+            SettingsService::set('branding.logo_path', $path, auth()->id());
+            $changes[] = ['key' => 'logo_path', 'old_value' => $oldPath, 'new_value' => $path];
+        }
+
+        // Handle favicon upload
+        if ($request->hasFile('favicon')) {
+            $oldPath = SettingsService::get('branding.favicon_path');
+            if ($oldPath && Storage::disk('public')->exists($oldPath)) {
+                Storage::disk('public')->delete($oldPath);
+            }
+            $path = $request->file('favicon')->store('branding', 'public');
+            SettingsService::set('branding.favicon_path', $path, auth()->id());
+            $changes[] = ['key' => 'favicon_path', 'old_value' => $oldPath, 'new_value' => $path];
+        }
+
+        // Handle text fields
+        foreach (['primary_color', 'theme_mode_default'] as $field) {
+            if ($request->has($field)) {
+                $newValue = $request->input($field);
+                $oldValue = SettingsService::get("branding.{$field}");
+                if ($oldValue !== $newValue) {
+                    SettingsService::set("branding.{$field}", $newValue, auth()->id());
+                    $changes[] = ['key' => $field, 'old_value' => $oldValue, 'new_value' => $newValue];
+                }
+            }
+        }
+
+        if (!empty($changes)) {
+            app(\App\Services\AuditService::class)->log('branding_updated', auth()->user(), null, null, ['changes' => $changes]);
+        }
+
+        return response()->json(['message' => 'Branding settings updated successfully.']);
+    }
+    public function getCompanyProfile()
+    {
+        $settings = SettingsService::group('company_profile');
+        
+        // Fix: decode any JSON-encoded strings that have baked-in literal quotes
+        foreach ($settings as $key => $value) {
+            if (is_string($value) && str_starts_with($value, '"') && str_ends_with($value, '"')) {
+                $settings[$key] = json_decode($value);
+            }
+        }
+        
+        return response()->json($settings);
+    }
+
+    public function updateCompanyProfile(Request $request)
+    {
+        $updates = $request->validate([
+            'agency_legal_name' => 'nullable|string',
+            'tan_number' => 'nullable|string',
+            'default_authorized_signatory' => 'nullable|string',
+            'registered_office_address' => 'nullable|string',
+            'agency_gstin' => 'nullable|string',
+        ]);
+
+        $changes = [];
+
+        foreach ($updates as $key => $newValue) {
+            $oldValue = SettingsService::get("company_profile.{$key}");
+            
+            if ($oldValue !== $newValue) {
+                SettingsService::set("company_profile.{$key}", $newValue, auth()->id());
+                
+                $changes[] = [
+                    'key' => $key,
+                    'old_value' => $oldValue,
+                    'new_value' => $newValue,
+                ];
+            }
+        }
+
+        if (!empty($changes)) {
+            app(\App\Services\AuditService::class)->log('company_profile_updated', auth()->user(), null, null, ['changes' => $changes]);
+        }
+
+        return response()->json(['message' => 'Company Profile updated successfully.']);
+    }
+
+    public function getPtSlabs()
+    {
+        $slabs = \Illuminate\Support\Facades\DB::table('pt_slabs')->where('is_active', true)->get()->map(function ($slab) {
+            return [
+                'id' => $slab->id,
+                'from' => '₹' . number_format($slab->min_salary),
+                'to' => $slab->max_salary ? '₹' . number_format($slab->max_salary) : 'No Limit',
+                'deduction' => '₹' . floatval($slab->deduction_amount) . ($slab->deduction_note ? ' ' . $slab->deduction_note : ''),
+                'exceptions' => $slab->exceptions_text,
+                'disabled' => true // Enforcing read-only on the frontend
+            ];
+        });
+        
+        return response()->json($slabs);
+    }
+
     public function getAuthSecurity()
     {
         $settings = Setting::where('group', 'auth_security')->get()->keyBy('key');
@@ -22,6 +157,41 @@ class SettingsController extends Controller
         });
 
         return response()->json($response);
+    }
+
+    public function getPayrollConfig()
+    {
+        $settings = SettingsService::group('payroll_configuration');
+        return response()->json($settings);
+    }
+
+    public function updatePayrollConfig(Request $request)
+    {
+        $updates = $request->validate([
+            'default_lop_basis' => 'required|in:26,30'
+        ]);
+
+        $changes = [];
+
+        foreach ($updates as $key => $newValue) {
+            $oldValue = SettingsService::get("payroll_configuration.{$key}");
+            
+            if ($oldValue !== $newValue) {
+                SettingsService::set("payroll_configuration.{$key}", $newValue, auth()->id());
+                
+                $changes[] = [
+                    'key' => $key,
+                    'old_value' => $oldValue,
+                    'new_value' => $newValue,
+                ];
+            }
+        }
+
+        if (!empty($changes)) {
+            app(\App\Services\AuditService::class)->log('payroll_settings_updated', auth()->user(), null, null, ['changes' => $changes]);
+        }
+
+        return response()->json(['message' => 'Payroll configuration updated successfully.']);
     }
 
     public function updateAuthSecurity(Request $request)

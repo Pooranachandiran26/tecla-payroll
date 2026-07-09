@@ -108,8 +108,12 @@ class ClientController extends Controller
             ->get(['id', 'name'])
             ->map(fn($u) => ['value' => $u->id, 'label' => $u->name]);
             
+        // Fetch the global default LOP calculation basis to pre-fill the form
+        $defaultLopBasis = \App\Services\SettingsService::get('payroll_configuration.default_lop_basis', '30');
+            
         return Inertia::render('Clients/ClientForm', [
-            'accountManagers' => $accountManagers
+            'accountManagers' => $accountManagers,
+            'defaultLopBasis' => $defaultLopBasis
         ]);
     }
 
@@ -126,9 +130,12 @@ class ClientController extends Controller
             ->get(['id', 'name'])
             ->map(fn($u) => ['value' => $u->id, 'label' => $u->name]);
             
+        $defaultLopBasis = \App\Services\SettingsService::get('payroll_configuration.default_lop_basis', '30');
+            
         return Inertia::render('Clients/ClientForm', [
             'client' => $client,
-            'accountManagers' => $accountManagers
+            'accountManagers' => $accountManagers,
+            'defaultLopBasis' => $defaultLopBasis
         ]);
     }
 
