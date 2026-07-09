@@ -210,7 +210,7 @@ class BulkUploadValidationService
 
             $rules = [
                 'full_name' => 'required|string|max:255',
-                'personal_email' => 'required|email|unique:employees,personal_email',
+                'personal_email' => ['required', 'email', 'unique:employees,personal_email', 'unique:users,email'],
                 'phone_number' => 'required|string|max:15|unique:employees,phone_number',
                 'emergency_contact_phone' => 'nullable|string|max:15',
                 'date_of_birth' => 'required|date',

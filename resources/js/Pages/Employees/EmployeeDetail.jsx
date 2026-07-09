@@ -1,11 +1,26 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import './EmployeeDetail.css';
+import useToast from '../../Hooks/useToast';
 
 import RoleGuard from '../../Components/RoleGuard.jsx';
+import ComingSoonFeature from '../../Components/ui/ComingSoonFeature';
+import ConfirmDialog from '../../Components/ui/ConfirmDialog';
 export default function EmployeeDetail({ employee: empProp }) {
     const employee = empProp?.data || empProp || {};
+    const { auth, flash } = usePage().props;
+    const { showToast } = useToast();
+    const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, confirmText: '', reason: '' });
+
+    useEffect(() => {
+        if (flash?.success) {
+            showToast({ type: 'success', title: 'Success', message: flash.success });
+        }
+        if (flash?.error) {
+            showToast({ type: 'error', title: 'Error', message: flash.error });
+        }
+    }, [flash, showToast]);
     useEffect(() => {
         // Load the legacy logic dynamically so it runs on client side after render
         import('./EmployeeDetailLogic.js').then(module => {
@@ -119,12 +134,109 @@ const renderDocumentRows = () => {
             )}
           </div>
           <div style={{"display":"flex","gap":"0.75rem"}}>
+            {employee.personal_email && (
+                <button 
+                    onClick={() => {
+                        if (confirm('Resend invitation email to this employee?')) {
+                            router.post(`/employees/${employee.id}/resend-invitation`);
+                        }
+                    }} 
+                    className="btn" 
+                    style={{"backgroundColor":"white","color":"var(--primary-navy)","border":"1px solid var(--primary-navy)"}}
+                >
+                    ✉️ Resend Invite
+                </button>
+            )}
             <a href={`/employees/${employee.id}/salary-revision`} className="btn btn-navy">📈 Revise Salary</a>
             <a href={`/employees/${employee.id}/exit?stage=1`} className="btn btn-danger">🚪 Initiate Exit Process</a>
             <Link href={`/employees/${employee.id}/edit`} className="btn btn-secondary">✏️ Edit Profile</Link>
+            
+            {employee.status === 'suspended' ? (
+              <button 
+                  className="btn btn-primary" 
+                  onClick={() => {
+                      if (confirm('Are you sure you want to reactivate this employee?')) {
+                          router.post(`/employees/${employee.id}/activate`);
+                      }
+                  }}
+              >
+                  ▶️ Reactivate
+              </button>
+            ) : (
+              <button 
+                  className="btn btn-warning" 
+                  onClick={() => {
+                      if (confirm('Are you sure you want to suspend this employee?')) {
+                          router.post(`/employees/${employee.id}/deactivate`);
+                      }
+                  }}
+              >
+                  ⏸ Suspend
+              </button>
+            )}
+
+            {auth.user.role === 'admin' && (
+              <button 
+                className="btn btn-danger" 
+                style={{ backgroundColor: 'var(--status-danger)', color: 'white', borderColor: 'var(--status-danger)' }} 
+                onClick={() => setDeleteDialog({ isOpen: true, confirmText: '', reason: '' })}
+              >
+                🗑️ Delete
+              </button>
+            )}
           </div>
         </div>
       </div>
+
+      <ConfirmDialog 
+        isOpen={deleteDialog.isOpen}
+        title="Delete Employee"
+        message={`Are you absolutely sure you want to delete ${employee.full_name}? This action cannot be undone and will soft-delete the employee and all related records.`}
+        onClose={() => setDeleteDialog({ isOpen: false, confirmText: '', reason: '' })}
+        onConfirm={() => {
+          if (deleteDialog.confirmText !== 'DELETE') {
+            alert('Please type DELETE to confirm.');
+            return;
+          }
+          if (deleteDialog.reason.length < 10) {
+            alert('Please provide a reason (min 10 characters).');
+            return;
+          }
+          router.delete(`/employees/${employee.id}`, {
+            data: { confirm_text: deleteDialog.confirmText, reason: deleteDialog.reason },
+            onFinish: () => setDeleteDialog({ isOpen: false, confirmText: '', reason: '' })
+          });
+        }}
+        confirmLabel="Delete Employee"
+        variant="danger"
+      >
+        <div className="space-y-4">
+          <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <label style={{ fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+              Type 'DELETE' to confirm
+            </label>
+            <input 
+              type="text"
+              style={{ width: '100%', padding: '0.5rem', border: '1px solid #D1D5DB', borderRadius: '0.375rem' }}
+              value={deleteDialog.confirmText} 
+              onChange={e => setDeleteDialog(prev => ({ ...prev, confirmText: e.target.value }))}
+              placeholder="DELETE"
+            />
+          </div>
+          <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <label style={{ fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
+              Reason for Deletion (Min 10 chars)
+            </label>
+            <textarea 
+              style={{ width: '100%', padding: '0.5rem', border: '1px solid #D1D5DB', borderRadius: '0.375rem' }}
+              rows="3"
+              value={deleteDialog.reason}
+              onChange={e => setDeleteDialog(prev => ({ ...prev, reason: e.target.value }))}
+              placeholder="e.g. Contract terminated, offboarding completed..."
+            ></textarea>
+          </div>
+        </div>
+      </ConfirmDialog>
 
       {/*  Tab Container  */}
       <div className="tab-container card">
@@ -1243,16 +1355,34 @@ const renderDocumentRows = () => {
 
         {/*  Tab 6: Tax Declaration  */}
         <div className="tab-content" data-tab="tax">
-          <div style={{"padding":"3rem 1rem","textAlign":"center","color":"var(--text-muted)","fontStyle":"italic"}}>
-            Tax Declarations will come soon (Dependent on Payroll Module &amp; Employee Login Portal).
-          </div>
+          <ComingSoonFeature 
+            title="Tax Declaration"
+            description="Employees will be able to log in and self-declare their tax-saving investments once the Payroll Module is fully connected."
+            dependsOn={["Payroll Module"]}
+            plannedFields={[
+              "Section 80C investments (PPF, ELSS, life insurance)",
+              "Section 80D health insurance premiums",
+              "HRA declaration with landlord PAN and rent receipts",
+              "Section 24b home loan interest",
+              "Supporting proof document uploads",
+              "Real-time TDS impact preview"
+            ]}
+          />
         </div>
 
         {/*  Tab 7: Loans & Advances  */}
         <div className="tab-content" data-tab="loans">
-          <div style={{"padding":"3rem 1rem","textAlign":"center","color":"var(--text-muted)","fontStyle":"italic"}}>
-            Loans &amp; Advances will come soon (Dependent on Payroll Module).
-          </div>
+          <ComingSoonFeature 
+            title="Loans & Advances"
+            description="Salary advances and loan repayments will automatically deduct from monthly payslips once the Payroll Module is built."
+            dependsOn={["Payroll Module"]}
+            plannedFields={[
+              "Agency-issued salary advance tracking",
+              "Automatic monthly EMI deduction during payroll processing",
+              "External loan/garnishment order tracking",
+              "Repayment history"
+            ]}
+          />
         </div>
       </div>{/*  end tab-container  */}
     

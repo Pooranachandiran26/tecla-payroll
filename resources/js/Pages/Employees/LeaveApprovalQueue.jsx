@@ -1,199 +1,181 @@
 import React, { useState } from 'react';
 import AuthenticatedLayout from '../../Layouts/AuthenticatedLayout';
-import { Head, Link } from '@inertiajs/react';
+import { Head, useForm, router, usePage } from '@inertiajs/react';
 import Button from '../../Components/ui/Button';
-import DataTable from '../../Components/ui/DataTable';
 import Badge from '../../Components/ui/Badge';
-import Select from '../../Components/ui/Select';
+import Modal from '../../Components/ui/Modal';
 import useToast from '../../Hooks/useToast';
-import { Info } from 'lucide-react';
-
 import RoleGuard from '../../Components/RoleGuard.jsx';
-const initialLeaves = [
-  {
-    id: 1,
-    empName: 'Aarav Sharma',
-    empCode: 'TEC-088',
-    client: 'Mahindra Corp',
-    leaveType: 'Sick Leave (SL)',
-    leaveCode: 'sick',
-    dateRange: 'June 23, 2026 - June 23, 2026',
-    days: 1,
-    reason: 'Suffering from viral fever, prescription attached.',
-    status: 'pending'
-  },
-  {
-    id: 2,
-    empName: 'Neha Patil',
-    empCode: 'TEC-121',
-    client: 'Mahindra Corp',
-    leaveType: 'Casual Leave (CL)',
-    leaveCode: 'casual',
-    dateRange: 'June 28, 2026 - June 30, 2026',
-    days: 3,
-    reason: 'Traveling to hometown for family ceremony.',
-    status: 'pending'
-  }
-];
 
-export default function LeaveApprovalQueue() {
+export default function LeaveApprovalQueue({ initialLeaves }) {
   const { showToast } = useToast();
-  const [leaves, setLeaves] = useState(initialLeaves);
-  const [showBanner, setShowBanner] = useState(true);
+  
+  // State for rejection modal
+  const [rejectLeaveId, setRejectLeaveId] = useState(null);
+  const { data, setData, post, processing, reset, errors, clearErrors } = useForm({
+      rejection_reason: ''
+  });
 
-  const pendingCount = leaves.filter(l => l.status === 'pending').length;
-  const approvedCount = leaves.filter(l => l.status === 'approved').length;
-  const rejectedCount = leaves.filter(l => l.status === 'rejected').length;
+  const pendingCount = initialLeaves.filter(l => l.status === 'pending').length;
+  const approvedCount = initialLeaves.filter(l => l.status === 'approved').length;
+  const rejectedCount = initialLeaves.filter(l => l.status === 'rejected').length;
 
-  const processLeave = (id, action) => {
-    const employee = leaves.find(l => l.id === id)?.empName;
-    setLeaves(prev => prev.map(l => l.id === id ? { ...l, status: action } : l));
-    
-    if (action === 'approved') {
-      showToast({ message: `Leave approved for ${employee}`, type: 'success' });
-    } else {
-      showToast({ message: `Leave rejected for ${employee}`, type: 'error' });
-    }
+  const handleApprove = (id) => {
+      router.post(route('leave-requests.approve', id), {}, {
+          onSuccess: () => showToast({ message: 'Leave approved successfully.', type: 'success' }),
+          onError: () => {
+              if (usePage().props.flash?.error) {
+                  showToast({ message: usePage().props.flash.error, type: 'error' });
+              }
+          }
+      });
   };
 
-  const columns = [
-    {
-      header: 'Employee Name',
-      accessor: 'empName',
-      cell: (row) => (
-        <>
-          <strong>{row.empName}</strong>
-          <div className="text-xs text-gray-500 mt-0.5">Emp Code: {row.empCode}</div>
-        </>
-      )
-    },
-    {
-      header: 'Client Partner',
-      accessor: 'client'
-    },
-    {
-      header: 'Leave Type',
-      accessor: 'leaveType',
-      cell: (row) => {
-        let badgeType = 'neutral';
-        if (row.leaveCode === 'sick') badgeType = 'info';
-        if (row.leaveCode === 'casual') badgeType = 'success';
-        if (row.leaveCode === 'earned') badgeType = 'warning';
-        return <Badge type={badgeType}>{row.leaveType}</Badge>;
-      }
-    },
-    {
-      header: 'Date Range',
-      accessor: 'dateRange'
-    },
-    {
-      header: 'Total Days',
-      accessor: 'days',
-      cell: (row) => (
-        <div className="font-bold text-center">{row.days} Day{row.days > 1 ? 's' : ''}</div>
-      )
-    },
-    {
-      header: 'Reason',
-      accessor: 'reason',
-      cell: (row) => (
-        <span className="text-[0.85rem]">{row.reason}</span>
-      )
-    },
-    {
-      header: 'Status',
-      accessor: 'status',
-      cell: (row) => {
-        if (row.status === 'pending') return <Badge type="warning">Pending Approval</Badge>;
-        if (row.status === 'approved') return <Badge type="success">Approved</Badge>;
-        if (row.status === 'rejected') return <Badge type="danger">Rejected</Badge>;
-        return null;
-      }
-    },
-    {
-      header: 'Actions',
-      accessor: 'actions',
-      cell: (row) => {
-        if (row.status === 'pending') {
-          return (
-            <div className="flex gap-2">
-              <Button size="xs" variant="primary" onClick={() => processLeave(row.id, 'approved')}>Approve</Button>
-              <Button size="xs" variant="danger" onClick={() => processLeave(row.id, 'rejected')}>Reject</Button>
-            </div>
-          );
-        }
-        if (row.status === 'approved') {
-          const d = new Date().toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'});
-          return (
-            <span className="text-[0.85rem] text-green-600 font-bold">
-              Approved by Rajesh (Admin)<br/>
-              <span className="text-[0.75rem] text-gray-500 font-normal">{d}</span>
-            </span>
-          );
-        }
-        if (row.status === 'rejected') {
-          return <span className="text-[0.85rem] text-red-600 font-bold">Rejected — employee notified</span>;
-        }
-      }
-    }
-  ];
+  const submitReject = (e) => {
+      e.preventDefault();
+      post(route('leave-requests.reject', rejectLeaveId), {
+          onSuccess: () => {
+              showToast({ message: 'Leave rejected successfully.', type: 'success' });
+              setRejectLeaveId(null);
+              reset();
+          },
+          onError: () => {
+              if (usePage().props.flash?.error) {
+                  showToast({ message: usePage().props.flash.error, type: 'error' });
+              }
+          }
+      });
+  };
 
   return (
     <RoleGuard allowedRoles={['admin', 'manager']}>
-    <AuthenticatedLayout>
-      <Head title="Leave Approval Queue" />
-
-      <div className="mb-6">
-        <Link href="/employees" className="text-[0.85rem] font-semibold text-[#1F3864] hover:underline">
-          ← Back to Employees Directory
-        </Link>
-        <h2 className="text-2xl font-bold text-[#1F3864] mt-2 mb-1">Leave Request Approval Queue</h2>
-        <p className="text-gray-500 text-sm">Approve or reject employee leave requests. Approved leaves automatically override punch logs as 'On Leave' during payroll processing.</p>
-      </div>
-
-      {showBanner && (
-        <div className="bg-[#FFFBEB] border border-[#FDE68A] border-l-4 border-l-[#F59E0B] p-4 rounded-md mb-6 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Info className="w-5 h-5 text-[#D97706]" />
-            <span className="text-sm text-[#92400E]">
-              These are leave requests from agency-deployed employees. You are approving as the agency (Tecla Media), not as the client's manager. Approved leave is marked in payroll as 'On Leave' — it is not a Loss of Pay day.
-            </span>
+      <AuthenticatedLayout>
+        <Head title="Leave Approval Queue" />
+        
+        <div className="mb-6">
+          <h2 className="text-2xl font-semibold mb-2">Leave Approval Queue</h2>
+          <p className="text-gray-500">Review and process employee leave applications.</p>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100 flex items-center justify-between">
+            <div>
+              <p className="text-gray-500 text-sm font-medium mb-1">Pending Review</p>
+              <h3 className="text-3xl font-bold text-gray-800">{pendingCount}</h3>
+            </div>
+            <div className="h-12 w-12 bg-amber-50 rounded-full flex items-center justify-center text-amber-500">
+              <i className="lucide-clock"></i>
+            </div>
           </div>
-          <Button size="xs" variant="secondary" onClick={() => setShowBanner(false)}>Dismiss</Button>
-        </div>
-      )}
-
-      <div className="card p-4 mb-6 flex gap-4 items-center flex-wrap">
-        <div className="text-[0.85rem] font-semibold text-[#1F3864]">Filters:</div>
-        <div>
-          <Select value="">
-            <option value="">All Clients</option>
-            <option value="mahindra">Mahindra Corp</option>
-            <option value="tcs">Tata Consultancy Services</option>
-          </Select>
-        </div>
-        <div>
-          <Select value="">
-            <option value="">All Leave Types</option>
-            <option value="sick">Sick Leave (SL)</option>
-            <option value="casual">Casual Leave (CL)</option>
-            <option value="earned">Earned Leave (EL)</option>
-          </Select>
-        </div>
-        <Button variant="navy" className="py-1.5 px-4 h-auto min-h-0 text-sm">Apply</Button>
-      </div>
-
-      <div className="card p-0">
-        <div className="flex justify-between items-center p-5 pb-0 mb-4">
-          <h3 className="text-lg font-bold text-[#1F3864] m-0">Approval Queue</h3>
-          <div className="text-[0.85rem] font-semibold">
-            <span className="text-yellow-600">{pendingCount} Pending</span> | <span className="text-green-600 ml-1">{approvedCount} Approved</span> | <span className="text-red-600 ml-1">{rejectedCount} Rejected</span>
+          
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100 flex items-center justify-between">
+            <div>
+              <p className="text-gray-500 text-sm font-medium mb-1">Approved</p>
+              <h3 className="text-3xl font-bold text-gray-800">{approvedCount}</h3>
+            </div>
+            <div className="h-12 w-12 bg-green-50 rounded-full flex items-center justify-center text-green-500">
+              <i className="lucide-check-circle"></i>
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-100 flex items-center justify-between">
+            <div>
+              <p className="text-gray-500 text-sm font-medium mb-1">Rejected</p>
+              <h3 className="text-3xl font-bold text-gray-800">{rejectedCount}</h3>
+            </div>
+            <div className="h-12 w-12 bg-red-50 rounded-full flex items-center justify-center text-red-500">
+              <i className="lucide-x-circle"></i>
+            </div>
           </div>
         </div>
-        <DataTable columns={columns} data={leaves} />
-      </div>
+        
+        <div className="card">
+            <div className="table-responsive">
+              <table className="data-table w-full">
+                <thead>
+                  <tr>
+                    <th>Employee</th>
+                    <th>Leave Type</th>
+                    <th>Date Range</th>
+                    <th>Days</th>
+                    <th>Reason</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {initialLeaves.length === 0 ? (
+                      <tr><td colSpan="7" className="text-center">No leave requests found.</td></tr>
+                  ) : initialLeaves.map(leave => (
+                    <tr key={leave.id}>
+                      <td>
+                        <div className="font-medium">{leave.empName}</div>
+                        <div className="text-xs text-gray-500">{leave.empCode} • {leave.client}</div>
+                      </td>
+                      <td>
+                        <span className="badge badge-info">{leave.leaveType}</span>
+                      </td>
+                      <td className="text-sm">{leave.dateRange}</td>
+                      <td className="text-center font-medium">{leave.days}</td>
+                      <td className="text-sm max-w-xs truncate" title={leave.reason}>{leave.reason}</td>
+                      <td>
+                        {leave.status === 'pending' && <span className="badge badge-warning">Pending</span>}
+                        {leave.status === 'approved' && <span className="badge badge-success">Approved</span>}
+                        {leave.status === 'rejected' && <span className="badge badge-danger">Rejected</span>}
+                      </td>
+                      <td>
+                        {leave.status === 'pending' ? (
+                          <div className="flex gap-2">
+                            <Button 
+                                size="sm" 
+                                variant="success" 
+                                onClick={() => handleApprove(leave.id)}
+                            >
+                                Approve
+                            </Button>
+                            <Button 
+                                size="sm" 
+                                variant="danger" 
+                                onClick={() => {
+                                    setRejectLeaveId(leave.id);
+                                    clearErrors();
+                                    reset();
+                                }}
+                            >
+                                Reject
+                            </Button>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 text-sm">Processed</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+        </div>
 
-    </AuthenticatedLayout>
+        <Modal isOpen={rejectLeaveId !== null} onClose={() => setRejectLeaveId(null)} title="Reject Leave Request">
+            <form onSubmit={submitReject}>
+                <div className="form-group mb-4">
+                    <label>Rejection Reason (min 10 chars)</label>
+                    <textarea 
+                        className="form-control" 
+                        rows="3" 
+                        value={data.rejection_reason} 
+                        onChange={e => setData('rejection_reason', e.target.value)}
+                    ></textarea>
+                    {errors.rejection_reason && <span className="error-text">{errors.rejection_reason}</span>}
+                </div>
+                <div className="flex justify-end gap-2">
+                    <Button variant="secondary" type="button" onClick={() => setRejectLeaveId(null)}>Cancel</Button>
+                    <Button variant="danger" type="submit" disabled={processing}>Confirm Rejection</Button>
+                </div>
+            </form>
+        </Modal>
+
+      </AuthenticatedLayout>
     </RoleGuard>
   );
 }

@@ -61,7 +61,45 @@ class EmployeeController extends Controller
 
         $employee = \App\Models\Employee::create($data);
 
+        try {
+            if (!\App\Models\User::where('employee_id', $employee->id)->exists()) {
+                $invitationService = app(\App\Services\InvitationService::class);
+                $invitationService->createInvitation([
+                    'name' => $employee->full_name,
+                    'email' => $employee->personal_email,
+                    'role' => 'employee',
+                    'employee_id' => $employee->id,
+                ]);
+            }
+        } catch (\Illuminate\Database\QueryException $e) {
+            \Illuminate\Support\Facades\Log::error("Failed to provision user for employee {$employee->id} (QueryException): " . $e->getMessage());
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Failed to provision user for employee {$employee->id}: " . $e->getMessage());
+        }
+
         return redirect()->route('employees.index')->with('success', 'Employee created successfully.');
+    }
+
+    public function resendInvitation($id)
+    {
+        $employee = \App\Models\Employee::findOrFail($id);
+        $user = \App\Models\User::where('employee_id', $employee->id)->first();
+
+        if (!$user) {
+            return redirect()->back()->with('error', 'No user account found for this employee.');
+        }
+
+        if ($user->status !== 'invited') {
+            abort(403, 'Cannot resend invitation to an active user.');
+        }
+
+        try {
+            $invitationService = app(\App\Services\InvitationService::class);
+            $invitationService->resendInvitation($user);
+            return redirect()->back()->with('success', 'Invitation resent successfully.');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Failed to resend invitation: ' . $e->getMessage());
+        }
     }
 
     public function edit($id)
@@ -144,5 +182,167 @@ class EmployeeController extends Controller
         }
 
         return redirect()->back()->with('success', 'Document verified successfully.');
+    }
+
+    public function destroy(Request $request, $id)
+    {
+        $employee = \App\Models\Employee::withTrashed()->findOrFail($id);
+        \Illuminate\Support\Facades\Gate::authorize('delete', $employee);
+
+        $request->validate([
+            'confirm_text' => 'required|in:DELETE',
+            'reason' => 'required|string|min:10'
+        ]);
+
+        // BLOCKING CHECK 1: Pending or incomplete exit
+        $inProgressExit = $employee->exitRequest()->where(function($q) {
+            $q->where('settlement_status', 'pending_approval')
+              ->orWhere('current_stage', '<', 6);
+        })->exists();
+
+        if ($inProgressExit) {
+            return redirect()->back()->with('error', 'Cannot delete: this employee has an in-progress exit. Complete or cancel it first.');
+        }
+
+        // BLOCKING CHECK 2: Payroll locked (stub)
+        // SUGGESTION: Future real check when payroll module is built
+        $isPayrollLocked = false;
+        if ($isPayrollLocked) {
+            return redirect()->back()->with('error', 'Cannot delete: this employee has locked payroll records.');
+        }
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($employee, $request) {
+            // Soft delete relations via Eloquent to trigger their soft deletes if any events existed
+            // (even without events, explicitly iterating is safer per requirements)
+            $employee->documents->each(fn($m) => $m->delete());
+            $employee->salaryRevisions->each(fn($m) => $m->delete());
+            if ($employee->exitRequest) {
+                $employee->exitRequest->delete();
+            }
+            // If BankChangeRequest existed, we'd delete it here, but it's not a standard relation on the model yet
+            try {
+                \App\Models\BankChangeRequest::where('employee_id', $employee->id)->get()->each(fn($m) => $m->delete());
+            } catch (\Illuminate\Database\QueryException $e) {
+                // Table is currently a stub without employee_id column, ignore for now
+            }
+
+            $employee->delete();
+
+            // Suspend active linked users
+            $linkedUser = \App\Models\User::where('employee_id', $employee->id)->where('status', 'active')->first();
+            if ($linkedUser) {
+                $linkedUser->update([
+                    'status' => 'suspended',
+                    'suspended_reason' => 'employee_deleted'
+                ]);
+            }
+        });
+
+        $auditService = app(\App\Services\AuditService::class);
+        $auditService->log(
+            'employee.deleted',
+            auth()->user(),
+            $employee,
+            null,
+            ['reason' => $request->reason]
+        );
+
+        return redirect()->route('employees.index')->with('success', 'Employee deleted successfully.');
+    }
+
+    public function deactivate(Request $request, $id)
+    {
+        $employee = \App\Models\Employee::findOrFail($id);
+        \Illuminate\Support\Facades\DB::transaction(function () use ($employee) {
+            $employee->update(['status' => 'suspended']);
+
+            $linkedUser = \App\Models\User::where('employee_id', $employee->id)->where('status', 'active')->first();
+            if ($linkedUser) {
+                $linkedUser->update([
+                    'status' => 'suspended',
+                    'suspended_reason' => 'employee_suspended'
+                ]);
+            }
+        });
+
+        $auditService = app(\App\Services\AuditService::class);
+        $auditService->log(
+            'employee.deactivated',
+            auth()->user(),
+            $employee,
+            null,
+            null
+        );
+
+        return redirect()->back()->with('success', 'Employee deactivated successfully.');
+    }
+
+    public function activate(Request $request, $id)
+    {
+        $employee = \App\Models\Employee::findOrFail($id);
+        \Illuminate\Support\Facades\DB::transaction(function () use ($employee) {
+            $employee->update(['status' => 'active']);
+
+            $linkedUser = \App\Models\User::where('employee_id', $employee->id)
+                ->where('status', 'suspended')
+                ->where('suspended_reason', 'employee_suspended')
+                ->first();
+                
+            if ($linkedUser) {
+                $linkedUser->update([
+                    'status' => 'active',
+                    'suspended_reason' => null
+                ]);
+            }
+        });
+
+        $auditService = app(\App\Services\AuditService::class);
+        $auditService->log(
+            'employee.activated',
+            auth()->user(),
+            $employee,
+            null,
+            null
+        );
+
+        return redirect()->back()->with('success', 'Employee activated successfully.');
+    }
+
+    public function restore(Request $request, $id)
+    {
+        $employee = \App\Models\Employee::withTrashed()->findOrFail($id);
+        \Illuminate\Support\Facades\Gate::authorize('restore', $employee);
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($employee) {
+            $employee->restore();
+
+            \App\Models\EmployeeDocument::withTrashed()->where('employee_id', $employee->id)->get()->each(fn($m) => $m->restore());
+            \App\Models\SalaryRevision::withTrashed()->where('employee_id', $employee->id)->get()->each(fn($m) => $m->restore());
+            \App\Models\EmployeeExit::withTrashed()->where('employee_id', $employee->id)->get()->each(fn($m) => $m->restore());
+            \App\Models\BankChangeRequest::withTrashed()->where('employee_id', $employee->id)->get()->each(fn($m) => $m->restore());
+
+            $linkedUser = \App\Models\User::where('employee_id', $employee->id)
+                ->where('status', 'suspended')
+                ->where('suspended_reason', 'employee_deleted')
+                ->first();
+                
+            if ($linkedUser) {
+                $linkedUser->update([
+                    'status' => 'active',
+                    'suspended_reason' => null
+                ]);
+            }
+        });
+
+        $auditService = app(\App\Services\AuditService::class);
+        $auditService->log(
+            'employee.restored',
+            auth()->user(),
+            $employee,
+            null,
+            null
+        );
+
+        return redirect()->back()->with('success', 'Employee restored successfully.');
     }
 }
