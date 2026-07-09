@@ -20,48 +20,48 @@ export default function BulkUpload() {
 
   const columns = [
     {
-      header: 'Row No',
-      accessor: 'rowNo'
+      label: 'Row No',
+      key: 'rowNo'
     },
     {
-      header: 'Employee Code',
-      accessor: 'empCode'
+      label: 'Employee Code',
+      key: 'empCode'
     },
     {
-      header: 'Employee Name',
-      accessor: 'empName',
-      cell: (row) => <strong>{row.empName}</strong>
+      label: 'Employee Name',
+      key: 'empName',
+      render: (val, row) => <strong>{row.empName}</strong>
     },
     {
-      header: 'Client Assignment',
-      accessor: 'client'
+      label: 'Client Assignment',
+      key: 'client'
     },
     {
-      header: 'Statutory Preview',
-      accessor: 'statutory',
-      cell: (row) => {
+      label: 'Statutory Preview',
+      key: 'statutory',
+      render: (val, row) => {
         if (!row.statutory) return '—';
         return (
           <div className="flex gap-1 flex-wrap text-[0.7rem]">
-            {row.statutory.pf && <Badge type="info">PF</Badge>}
-            {row.statutory.esi && <Badge type="info">ESI</Badge>}
-            {row.statutory.pt && <Badge type="info">PT</Badge>}
-            {row.statutory.lwf && <Badge type="info">LWF</Badge>}
-            {row.statutory.tds && <Badge type="info">TDS</Badge>}
+            {row.statutory.pf && <Badge status="inactive" label="PF" />}
+            {row.statutory.esi && <Badge status="inactive" label="ESI" />}
+            {row.statutory.pt && <Badge status="inactive" label="PT" />}
+            {row.statutory.lwf && <Badge status="inactive" label="LWF" />}
+            {row.statutory.tds && <Badge status="inactive" label="TDS" />}
             {!row.statutory.pf && !row.statutory.esi && !row.statutory.pt && !row.statutory.lwf && !row.statutory.tds && <span className="text-gray-400">None</span>}
           </div>
         );
       }
     },
     {
-      header: 'Gross Salary (CTC)',
-      accessor: 'ctc',
-      cell: (row) => row.ctc ? `₹${Number(row.ctc).toLocaleString('en-IN')}` : '—'
+      label: 'Gross Salary (CTC)',
+      key: 'ctc',
+      render: (val, row) => row.ctc ? `₹${Number(row.ctc).toLocaleString('en-IN')}` : '—'
     },
     {
-      header: 'Validation Message',
-      accessor: 'message',
-      cell: (row) => {
+      label: 'Validation Message',
+      key: 'message',
+      render: (val, row) => {
         let colorClass = 'text-green-600';
         if (row.status === 'warning') colorClass = 'text-yellow-600';
         if (row.status === 'error') colorClass = 'text-red-600';
@@ -69,12 +69,12 @@ export default function BulkUpload() {
       }
     },
     {
-      header: 'Status',
-      accessor: 'status',
-      cell: (row) => {
-        if (row.status === 'ready') return <Badge type="success">Ready</Badge>;
-        if (row.status === 'warning') return <Badge type="warning">Warning</Badge>;
-        if (row.status === 'error') return <Badge type="danger">Error</Badge>;
+      label: 'Status',
+      key: 'status',
+      render: (val, row) => {
+        if (row.status === 'ready') return <Badge status="active" label="Ready" />;
+        if (row.status === 'warning') return <Badge status="pending" label="Warning" />;
+        if (row.status === 'error') return <Badge status="rejected" label="Error" />;
         return null;
       }
     }
