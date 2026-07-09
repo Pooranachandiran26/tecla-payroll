@@ -1,136 +1,77 @@
-import React from 'react';
+import React, { useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
+import useToast from '../../Hooks/useToast';
 
 import RoleGuard from '../../Components/RoleGuard.jsx';
-export default function EmployeeAttendance() {
+
+export default function EmployeeAttendance({ employee, attendanceRecords, correctionRequests = [] }) {
+    const records = attendanceRecords?.data || [];
+    const [showModal, setShowModal] = useState(false);
+    const [selectedDate, setSelectedDate] = useState('');
+    const { showToast } = useToast();
+
+    const { data, setData, post, processing, errors, reset, transform } = useForm({
+        attendance_date: '',
+        requested_punch_in_time: '',
+        requested_punch_out_time: '',
+        reason_category: 'forgot_to_punch_out',
+        reason_details: '',
+    });
+
+    transform((data) => ({
+        ...data,
+        requested_punch_in_time: data.requested_punch_in_time ? new Date(data.requested_punch_in_time).toISOString() : '',
+        requested_punch_out_time: data.requested_punch_out_time ? new Date(data.requested_punch_out_time).toISOString() : '',
+    }));
+
+    const openModal = (dateStr) => {
+        const isPending = correctionRequests.some(r => r.attendance_date === dateStr && r.status === 'pending');
+        if (isPending) {
+            showToast({ type: 'warning', title: 'Pending Request', message: 'Correction already pending for this date.' });
+            return;
+        }
+
+        setSelectedDate(dateStr);
+        // Default to local 09:00 and 17:00
+        setData({
+            attendance_date: dateStr,
+            requested_punch_in_time: `${dateStr}T09:00`,
+            requested_punch_out_time: `${dateStr}T17:00`,
+            reason_category: 'forgot_to_punch_out',
+            reason_details: '',
+        });
+        setShowModal(true);
+    };
+
+    const submitCorrection = (e) => {
+        e.preventDefault();
+        post('/employee/attendance/correction-request', {
+            preserveScroll: true,
+            onSuccess: (page) => {
+                if (page.props.flash?.success) {
+                    showToast({ type: 'success', title: 'Request Submitted', message: page.props.flash.success });
+                    setShowModal(false);
+                    reset();
+                } else if (page.props.flash?.error) {
+                    showToast({ type: 'error', title: 'Error', message: page.props.flash.error });
+                }
+            }
+        });
+    };
+
     return (
-        <RoleGuard allowedRoles={['admin', 'manager', 'employee']}>
+        <RoleGuard allowedRoles={['employee']}>
     <AuthenticatedLayout>
             <Head title="Employee Attendance" />
             
       <div className="flex-row-between">
         <div>
           <h2>My Attendance Logs</h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>View clock-in calendar, track work hour accumulations, and check unpaid absence ratios.</p>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.95rem', backgroundColor: 'var(--bg-card)', padding: '0.5rem 1rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', fontWeight: '500' }}>
-          <button className="btn btn-secondary btn-xs"  style={{ padding: '0.2rem 0.5rem' }}>←</button>
-          <span style={{ fontWeight: '600', color: 'var(--primary-navy)', minWidth: '80px', textAlign: 'center' }} id="current-month-display">June 2026</span>
-          <button className="btn btn-secondary btn-xs"  style={{ padding: '0.2rem 0.5rem' }}>→</button>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>View clock-in logs and track work hour accumulations.</p>
         </div>
       </div>
-      
-      <div id="sim-banner" style={{ backgroundColor: '#FFFBEB', border: '1px solid #FDE68A', borderLeft: '4px solid var(--status-warning)', padding: '1rem 1.25rem', borderRadius: 'var(--radius-md)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <span style={{ fontSize: '1.25rem' }}>⏳</span>
-          <span style={{ fontSize: '0.9rem', color: '#92400E' }} id="sim-banner-text">
-            Leave request for Jun 28–30 is Pending Approval. These days will update to 'On Leave' once approved by the agency.
-          </span>
-        </div>
-        <button className="btn btn-secondary btn-xs" id="btn-simulate" >Simulate Approval Update</button>
-      </div>
 
-      
-      <div className="grid-layout">
-        
-        
-        <div className="card">
-          <h3 className="card-title">Attendance Calendar</h3>
-          
-          <div id="calendar-loading-message" style={{ display: 'none', alignItems: 'center', justifyContent: 'center', height: '300px', backgroundColor: 'var(--bg-light)', borderRadius: 'var(--radius-sm)' }}></div>
-          
-          <div className="calendar-grid" id="calendar-container">
-            
-            <div className="calendar-day-header">Mon</div>
-            <div className="calendar-day-header">Tue</div>
-            <div className="calendar-day-header">Wed</div>
-            <div className="calendar-day-header">Thu</div>
-            <div className="calendar-day-header">Fri</div>
-            <div className="calendar-day-header">Sat</div>
-            <div className="calendar-day-header">Sun</div>
-
-            
-            <div className="calendar-day-cell present">1<span className="calendar-indicator present">P</span></div>
-            <div className="calendar-day-cell present">2<span className="calendar-indicator present">P</span></div>
-            <div className="calendar-day-cell present">3<span className="calendar-indicator present">P</span></div>
-            <div className="calendar-day-cell present">4<span className="calendar-indicator present">P</span></div>
-            <div className="calendar-day-cell present">5<span className="calendar-indicator present">P</span></div>
-            <div className="calendar-day-cell other-month">6</div>
-            <div className="calendar-day-cell other-month">7</div>
-
-            <div className="calendar-day-cell present">8<span className="calendar-indicator present">P</span></div>
-            <div className="calendar-day-cell present">9<span className="calendar-indicator present">P</span></div>
-            <div className="calendar-day-cell half-day">10<span className="calendar-indicator half-day">H</span></div>
-            <div className="calendar-day-cell present">11<span className="calendar-indicator present">P</span></div>
-            <div className="calendar-day-cell present">12<span className="calendar-indicator present">P</span></div>
-            <div className="calendar-day-cell other-month">13</div>
-            <div className="calendar-day-cell other-month">14</div>
-
-            <div className="calendar-day-cell present">15<span className="calendar-indicator present">P</span></div>
-            <div className="calendar-day-cell present">16<span className="calendar-indicator present">P</span></div>
-            <div className="calendar-day-cell present">17<span className="calendar-indicator present">P</span></div>
-            <div className="calendar-day-cell present">18<span className="calendar-indicator present">P</span></div>
-            <div className="calendar-day-cell present">19<span className="calendar-indicator present">P</span></div>
-            <div className="calendar-day-cell other-month">20</div>
-            <div className="calendar-day-cell other-month">21</div>
-
-            <div className="calendar-day-cell present">22<span className="calendar-indicator present">P</span></div>
-            <div className="calendar-day-cell leave">23<span className="calendar-indicator leave">SL</span></div>
-            <div className="calendar-day-cell present">24<span className="calendar-indicator present">P</span></div>
-            
-            <div className="calendar-day-cell present" style={{ border: '2px solid var(--accent-gold)' }}>25<span className="calendar-indicator present">P</span></div>
-            <div className="calendar-day-cell">26</div>
-            <div className="calendar-day-cell other-month">27</div>
-            <div className="calendar-day-cell absent" id="sim-cell-28">28<span className="calendar-indicator absent">A</span></div>
-
-            <div className="calendar-day-cell absent" id="sim-cell-29">29<span className="calendar-indicator absent">A</span></div>
-            <div className="calendar-day-cell absent" id="sim-cell-30">30<span className="calendar-indicator absent">A</span></div>
-            
-            <div className="calendar-day-cell other-month">1</div>
-            <div className="calendar-day-cell other-month">2</div>
-            <div className="calendar-day-cell other-month">3</div>
-            <div className="calendar-day-cell other-month">4</div>
-            <div className="calendar-day-cell other-month">5</div>
-          </div>
-        </div>
-
-        
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          
-          
-          <div className="card">
-            <h3 className="card-title" id="summary-base-title">June Summary Base</h3>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1rem', fontSize: '0.9rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Presents (Full-time):</span>
-                <span className="badge badge-success" style={{ fontSize: '0.85rem', fontWeight: 'bold', padding: '0.2rem 0.5rem' }}>16 Days</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Half Days Logged:</span>
-                <span className="badge badge-warning" style={{ fontSize: '0.85rem', fontWeight: 'bold', padding: '0.2rem 0.5rem' }}>1 Day</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Approved Paid Leave:</span>
-                <span className="badge badge-info" style={{ fontSize: '0.85rem', fontWeight: 'bold', padding: '0.2rem 0.5rem' }} id="sim-paid-leave">1 Day</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Unpaid Absences:</span>
-                <span className="badge badge-danger" style={{ fontSize: '0.85rem', fontWeight: 'bold', padding: '0.2rem 0.5rem' }} id="sim-unpaid-absence">3 Days</span>
-              </div>
-              <hr style={{ border: '0', borderTop: '1px solid var(--border-color)' }} />
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '1rem', color: 'var(--primary-navy)' }}>
-                <span>Total Payable Days:</span>
-                <span>17.5 Days / 18 working</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-      
       <div className="card" style={{ marginTop: '1.5rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '1rem' }}>
           <h3 className="card-title" style={{ margin: '0' }}>Daily Punch logs details</h3>
@@ -141,46 +82,175 @@ export default function EmployeeAttendance() {
             <thead>
               <tr>
                 <th>Date</th>
-                <th>Shift hours</th>
                 <th>Clock In Stamp</th>
                 <th>Clock Out Stamp</th>
                 <th>Total Work Duration</th>
-                <th>Location Details</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {records.length > 0 ? records.map(record => (
+                <tr key={record.id}>
+                  <td>{new Date(record.attendance_date).toLocaleDateString()}</td>
+                  <td>{record.punch_in_time ? new Date(record.punch_in_time).toLocaleTimeString() : '—'}</td>
+                  <td>{record.punch_out_time ? new Date(record.punch_out_time).toLocaleTimeString() : '—'}</td>
+                  <td style={{ fontWeight: '600' }}>
+                    {record.hours_worked !== null ? `${record.hours_worked}h` : '—'}
+                  </td>
+                  <td>
+                    <span className={`badge badge-${
+                      record.status === 'present' ? 'success' : 
+                      record.status === 'half_day' ? 'warning' : 
+                      record.status === 'absent' ? 'danger' : 'info'
+                    }`}>
+                      {record.status ? record.status.replace('_', ' ') : 'Pending'}
+                    </span>
+                  </td>
+                  <td>
+                    <button 
+                      className="btn btn-secondary btn-xs" 
+                      onClick={() => openModal(record.attendance_date)}
+                      disabled={correctionRequests.some(r => r.attendance_date === record.attendance_date && r.status === 'pending')}
+                    >
+                      Request Correction
+                    </button>
+                  </td>
+                </tr>
+              )) : (
+                <tr>
+                  <td colSpan="6" style={{ textAlign: 'center', padding: '2rem' }}>No attendance records found.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        
+        {/* Simple Pagination controls if needed */}
+        {attendanceRecords?.links && (
+          <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+             {attendanceRecords.links.map((link, index) => (
+                link.url ? (
+                  <Link 
+                    key={index} 
+                    href={link.url} 
+                    className={`btn btn-xs ${link.active ? 'btn-primary' : 'btn-secondary'}`}
+                    dangerouslySetInnerHTML={{ __html: link.label }} 
+                  />
+                ) : (
+                  <span
+                    key={index}
+                    className="btn btn-xs btn-secondary"
+                    style={{ opacity: 0.5, cursor: 'not-allowed' }}
+                    dangerouslySetInnerHTML={{ __html: link.label }}
+                  />
+                )
+             ))}
+          </div>
+        )}
+      </div>
+
+      <div className="card" style={{ marginTop: '1.5rem' }}>
+        <h3 className="card-title">My Correction Requests</h3>
+        <div className="table-responsive">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Requested In</th>
+                <th>Requested Out</th>
+                <th>Reason</th>
                 <th>Status</th>
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td>June 25, 2026</td>
-                <td>General (09:00 - 18:00)</td>
-                <td>09:42 AM</td>
-                <td>06:15 PM</td>
-                <td style={{ fontWeight: '600' }}>8h 33m</td>
-                <td>Mahindra Worli Office (IP: 103.45.20.12)</td>
-                <td><span className="badge badge-success">Present</span></td>
-              </tr>
-              <tr>
-                <td>June 24, 2026</td>
-                <td>General (09:00 - 18:00)</td>
-                <td>09:30 AM</td>
-                <td>06:05 PM</td>
-                <td style={{ fontWeight: '600' }}>8h 35m</td>
-                <td>Mahindra Worli Office (IP: 103.45.20.12)</td>
-                <td><span className="badge badge-success">Present</span></td>
-              </tr>
-              <tr>
-                <td>June 23, 2026</td>
-                <td>General (09:00 - 18:00)</td>
-                <td>—</td>
-                <td>—</td>
-                <td style={{ fontWeight: '600' }}>0h 0m</td>
-                <td>On approved Sick Leave (SL)</td>
-                <td><span className="badge badge-info">Paid Leave</span></td>
-              </tr>
+              {correctionRequests.length > 0 ? correctionRequests.map(req => (
+                <tr key={req.id}>
+                  <td>{new Date(req.attendance_date).toLocaleDateString()}</td>
+                  <td>{new Date(req.requested_punch_in_time).toLocaleTimeString()}</td>
+                  <td>{new Date(req.requested_punch_out_time).toLocaleTimeString()}</td>
+                  <td>{req.reason_category.replace(/_/g, ' ')}</td>
+                  <td>
+                    <span className={`badge badge-${
+                      req.status === 'approved' ? 'success' : 
+                      req.status === 'rejected' ? 'danger' : 'warning'
+                    }`}>
+                      {req.status === 'pending' ? 'Pending manager review' : req.status}
+                    </span>
+                  </td>
+                </tr>
+              )) : (
+                <tr>
+                  <td colSpan="5" style={{ textAlign: 'center', padding: '2rem' }}>No correction requests found.</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
       </div>
+
+      {showModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div className="card" style={{ width: '100%', maxWidth: '500px', padding: '2rem' }}>
+            <h3 style={{ marginBottom: '1rem' }}>Request Time Correction for {selectedDate}</h3>
+            <form onSubmit={submitCorrection}>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Requested Punch In Time</label>
+                <input 
+                  type="datetime-local" 
+                  className="form-control" 
+                  style={{ width: '100%' }}
+                  value={data.requested_punch_in_time} 
+                  onChange={e => setData('requested_punch_in_time', e.target.value)} 
+                />
+                {errors.requested_punch_in_time && <span style={{ color: 'red', fontSize: '0.8rem' }}>{errors.requested_punch_in_time}</span>}
+              </div>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Requested Punch Out Time</label>
+                <input 
+                  type="datetime-local" 
+                  className="form-control" 
+                  style={{ width: '100%' }}
+                  value={data.requested_punch_out_time} 
+                  onChange={e => setData('requested_punch_out_time', e.target.value)} 
+                />
+                {errors.requested_punch_out_time && <span style={{ color: 'red', fontSize: '0.8rem' }}>{errors.requested_punch_out_time}</span>}
+              </div>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Reason Category</label>
+                <select 
+                  className="form-control" 
+                  style={{ width: '100%' }}
+                  value={data.reason_category} 
+                  onChange={e => setData('reason_category', e.target.value)}
+                >
+                  <option value="forgot_to_punch_out">Forgot to Punch Out</option>
+                  <option value="forgot_to_punch_in">Forgot to Punch In</option>
+                  <option value="system_error">System Error</option>
+                  <option value="emergency_early_leave">Emergency Early Leave</option>
+                  <option value="other">Other</option>
+                </select>
+                {errors.reason_category && <span style={{ color: 'red', fontSize: '0.8rem' }}>{errors.reason_category}</span>}
+              </div>
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Reason Details (min 10 chars)</label>
+                <textarea 
+                  className="form-control" 
+                  style={{ width: '100%', minHeight: '80px' }}
+                  value={data.reason_details} 
+                  onChange={e => setData('reason_details', e.target.value)}
+                  placeholder="Explain why you are requesting this correction..."
+                />
+                {errors.reason_details && <span style={{ color: 'red', fontSize: '0.8rem' }}>{errors.reason_details}</span>}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary" disabled={processing}>Submit Request</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     
         </AuthenticatedLayout>
     </RoleGuard>

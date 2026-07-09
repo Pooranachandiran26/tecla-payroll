@@ -74,7 +74,7 @@ class UpdateEmployeeRequest extends FormRequest
         return [
             'client_id' => 'required|exists:clients,id',
             'full_name' => 'required|string|max:255',
-            'personal_email' => 'required|email|unique:employees,personal_email,' . $employeeId,
+            'personal_email' => 'required|email|unique:employees,personal_email,' . $employeeId . '|unique:users,email,'. $employeeId .',employee_id',
             'phone_number' => 'required|string|max:15|unique:employees,phone_number,' . $employeeId,
             'emergency_contact_phone' => 'nullable|string|max:15',
             'date_of_birth' => 'required|date',

@@ -40,12 +40,12 @@ class BulkUploadController extends Controller
             $results = $this->validationService->validateFile($fullPath);
             
             // Clean up the temp file after reading
-            unlink($fullPath);
+            @unlink($fullPath);
 
             return response()->json($results);
         } catch (\Exception $e) {
             if (file_exists($fullPath)) {
-                unlink($fullPath);
+                @unlink($fullPath);
             }
             return response()->json(['error' => 'Failed to parse file: ' . $e->getMessage()], 422);
         }
@@ -72,13 +72,14 @@ class BulkUploadController extends Controller
             $results = $this->validationService->validateFile($fullPath);
             
             if ($results['error_count'] > 0) {
-                unlink($fullPath);
+                @unlink($fullPath);
                 return response()->json(['error' => 'File contains validation errors.', 'results' => $results], 422);
             }
 
             $importedCount = 0;
             $clientImpacts = [];
             $clientIds = [];
+            $createdEmployees = [];
 
             // Wrap in transaction
             \Illuminate\Support\Facades\DB::beginTransaction();
@@ -91,6 +92,7 @@ class BulkUploadController extends Controller
 
                     $dbPayload = $row['db_payload'];
                     $employee = \App\Models\Employee::create($dbPayload);
+                    $createdEmployees[] = $employee;
                     $importedCount++;
 
                     $clientId = $employee->client_id;
@@ -118,13 +120,31 @@ class BulkUploadController extends Controller
                     ['count' => $importedCount, 'client_ids' => array_keys($clientIds), 'file_name' => $file->getClientOriginalName()]
                 );
 
+                // Provision users for successfully created employees
+                $invitationService = app(\App\Services\InvitationService::class);
+                foreach ($createdEmployees as $employee) {
+                    try {
+                        if (!\App\Models\User::where('employee_id', $employee->id)->exists()) {
+                            $invitationService->createInvitation([
+                                'name' => $employee->full_name,
+                                'email' => $employee->personal_email,
+                                'role' => 'employee',
+                                'employee_id' => $employee->id,
+                            ], true); // Force queue
+                        }
+                    } catch (\Illuminate\Database\QueryException $e) {
+                        \Illuminate\Support\Facades\Log::error("Failed to provision user for bulk imported employee {$employee->id} (QueryException): " . $e->getMessage());
+                    } catch (\Exception $e) {
+                        \Illuminate\Support\Facades\Log::error("Failed to provision user for bulk imported employee {$employee->id}: " . $e->getMessage());
+                    }
+                }
+
             } catch (\Exception $e) {
-                \Illuminate\Support\Facades\DB::rollBack();
                 // Determine failed row for error response
                 $failedRow = isset($row['rowNo']) ? $row['rowNo'] : 'unknown';
                 
                 if (file_exists($fullPath)) {
-                    unlink($fullPath);
+                    @unlink($fullPath);
                 }
                 
                 return response()->json([
@@ -134,7 +154,7 @@ class BulkUploadController extends Controller
                 ], 422);
             }
 
-            unlink($fullPath);
+            @unlink($fullPath);
 
             return response()->json([
                 'success' => true,
@@ -145,7 +165,7 @@ class BulkUploadController extends Controller
 
         } catch (\Exception $e) {
             if (file_exists($fullPath)) {
-                unlink($fullPath);
+                @unlink($fullPath);
             }
             return response()->json(['error' => 'Failed to parse file: ' . $e->getMessage()], 422);
         }

@@ -22,6 +22,13 @@ class BulkUploadValidationService
     {
         $reader = SimpleExcelReader::create($filePath);
         
+        $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+        if (in_array($extension, ['xlsx', 'xls'])) {
+            if (method_exists($reader, 'hasSheet') && $reader->hasSheet('Employee Data')) {
+                $reader->fromSheetName('Employee Data');
+            }
+        }
+        
         $results = [
             'valid_count' => 0,
             'warning_count' => 0,
@@ -203,7 +210,7 @@ class BulkUploadValidationService
 
             $rules = [
                 'full_name' => 'required|string|max:255',
-                'personal_email' => 'required|email|unique:employees,personal_email',
+                'personal_email' => ['required', 'email', 'unique:employees,personal_email', 'unique:users,email'],
                 'phone_number' => 'required|string|max:15|unique:employees,phone_number',
                 'emergency_contact_phone' => 'nullable|string|max:15',
                 'date_of_birth' => 'required|date',
@@ -365,6 +372,10 @@ class BulkUploadValidationService
             $results['rows'][] = $rowData;
             $results['total_rows']++;
         });
+
+        if (method_exists($reader, 'close')) {
+            $reader->close();
+        }
 
         return $results;
     }

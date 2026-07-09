@@ -101,6 +101,11 @@ Route::middleware('auth')->group(function () {
             Route::get('/employees/{id}', [EmployeeController::class, 'show'])->name('employees.show');
             Route::get('/employees/{id}/edit', [EmployeeController::class, 'edit'])->name('employees.edit');
             Route::put('/employees/{id}', [EmployeeController::class, 'update'])->name('employees.update');
+            Route::delete('/employees/{id}', [EmployeeController::class, 'destroy'])->name('employees.destroy');
+            Route::post('/employees/{id}/deactivate', [EmployeeController::class, 'deactivate'])->name('employees.deactivate');
+            Route::post('/employees/{id}/activate', [EmployeeController::class, 'activate'])->name('employees.activate');
+            Route::post('/employees/{id}/restore', [EmployeeController::class, 'restore'])->name('employees.restore');
+            Route::post('/employees/{id}/resend-invitation', [EmployeeController::class, 'resendInvitation'])->name('employees.resend-invitation');
             Route::post('/employees/{id}/documents', [EmployeeController::class, 'storeDocument'])->name('employees.documents.store');
             Route::put('/employees/{id}/documents/{docId}/verify', [EmployeeController::class, 'verifyDocument'])->name('employees.documents.verify');
             Route::get('/employees/{id}/exit', [\App\Http\Controllers\EmployeeExitController::class, 'show'])->name('employees.exit.show');
@@ -115,7 +120,9 @@ Route::middleware('auth')->group(function () {
             Route::post('/employees/{id}/salary-revision/{revisionId}/approve', [SalaryRevisionController::class, 'approve'])->name('employees.salary-revision.approve');
             
             Route::get('/bank-change-requests', fn() => Inertia::render('Employees/BankChangeRequests'));
-            Route::get('/leave-approval', fn() => Inertia::render('Employees/LeaveApprovalQueue'));
+            Route::get('/leave-requests', [\App\Http\Controllers\LeaveApprovalController::class, 'index'])->name('leave-requests.index');
+            Route::post('/leave-requests/{id}/approve', [\App\Http\Controllers\LeaveApprovalController::class, 'approve'])->name('leave-requests.approve');
+            Route::post('/leave-requests/{id}/reject', [\App\Http\Controllers\LeaveApprovalController::class, 'reject'])->name('leave-requests.reject');
 
             // Payroll & Invoicing & Reports
             Route::get('/payroll/live-monitor', fn() => Inertia::render('Payroll/LiveAttendanceMonitor'));
@@ -181,11 +188,19 @@ Route::middleware('auth')->group(function () {
 
         // EMPLOYEE ONLY
         Route::middleware('role:employee')->group(function () {
-            Route::get('/employee/dashboard', fn() => Inertia::render('EmployeePortal/EmployeeDashboard'));
-            Route::get('/employee/attendance', fn() => Inertia::render('EmployeePortal/EmployeeAttendance'));
-            Route::get('/employee/leave', fn() => Inertia::render('EmployeePortal/LeaveRequest'));
-            Route::get('/employee/payslips', fn() => Inertia::render('EmployeePortal/EmployeePayslips'));
-            Route::get('/employee/profile', fn() => Inertia::render('EmployeePortal/EmployeeProfile'));
+            Route::get('/employee/dashboard', [\App\Http\Controllers\EmployeePortalController::class, 'dashboard'])->name('employee.dashboard');
+            Route::get('/employee/profile', [\App\Http\Controllers\EmployeePortalController::class, 'profile'])->name('employee.profile');
+            Route::get('/employee/attendance', [\App\Http\Controllers\EmployeePortalController::class, 'attendance'])->name('employee.attendance');
+            Route::post('/employee/attendance/punch-in', [\App\Http\Controllers\EmployeePortalController::class, 'punchIn'])->name('employee.attendance.punch-in');
+            Route::post('/employee/attendance/punch-out', [\App\Http\Controllers\EmployeePortalController::class, 'punchOut'])->name('employee.attendance.punch-out');
+            
+            Route::get('/employee/attendance/correction-requests', [\App\Http\Controllers\EmployeePortalController::class, 'correctionRequests'])->name('employee.attendance.correction-requests');
+            Route::post('/employee/attendance/correction-request', [\App\Http\Controllers\EmployeePortalController::class, 'storeCorrectionRequest'])->name('employee.attendance.correction-request.store');
+            
+            Route::get('/employee/leave', [\App\Http\Controllers\EmployeePortalController::class, 'leave'])->name('employee.leave');
+            Route::post('/employee/leave-requests', [\App\Http\Controllers\EmployeePortalController::class, 'storeLeaveRequest'])->name('employee.leave.store');
+            
+            Route::get('/employee/payslips', fn() => Inertia::render('EmployeePortal/EmployeePayslips'))->name('employee.payslips');
         });
     });
 });

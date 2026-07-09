@@ -35,6 +35,7 @@ class User extends Authenticatable
         'last_login_ip',
         'invitation_token',
         'invitation_expires_at',
+        'suspended_reason',
     ];
 
     /**
@@ -76,7 +77,7 @@ class User extends Authenticatable
     // Helpers
     public function isAdmin() { return $this->role === 'admin'; }
     public function isManager() { return $this->role === 'manager'; }
-    public function isLocked() { return $this->status === 'locked' || ($this->locked_until && $this->locked_until->isFuture()); }
+    public function isLocked() { return in_array($this->status, ['locked', 'suspended']) || ($this->locked_until && $this->locked_until->isFuture()); }
     public function incrementFailedAttempts() {
         $this->increment('failed_login_attempts');
     }
