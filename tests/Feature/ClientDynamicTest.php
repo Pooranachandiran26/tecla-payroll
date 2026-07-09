@@ -25,6 +25,7 @@ class ClientDynamicTest extends TestCase
         $admin = User::where('role', 'admin')->first();
         
         $payload = [
+            'locationsCount' => 1,
             'name' => 'Valid Corp',
             'code' => 'VAL001',
             'type' => 'pvt_ltd',
@@ -65,6 +66,7 @@ class ClientDynamicTest extends TestCase
         $admin = User::where('role', 'admin')->first();
         
         $payload = [
+            'locationsCount' => 1,
             'name' => 'Invalid GSTIN Corp',
             'code' => 'INV001',
             'type' => 'pvt_ltd',
@@ -97,6 +99,7 @@ class ClientDynamicTest extends TestCase
         $admin = User::where('role', 'admin')->first();
         
         $payload = [
+            'locationsCount' => 1,
             'name' => 'Double Primary Corp',
             'code' => 'DBL001',
             'type' => 'pvt_ltd',
@@ -126,6 +129,7 @@ class ClientDynamicTest extends TestCase
         $admin = User::where('role', 'admin')->first();
         
         $payload = [
+            'locationsCount' => 1,
             'name' => 'No POC Corp',
             'code' => 'NOP001',
             'type' => 'pvt_ltd',
@@ -152,6 +156,7 @@ class ClientDynamicTest extends TestCase
         $client = Client::first();
         
         $payload = [
+            'locationsCount' => 1,
             'name' => $client->company_name,
             'code' => $client->client_code,
             'type' => $client->company_type,
@@ -164,7 +169,10 @@ class ClientDynamicTest extends TestCase
             'contractStart' => '2026-01-01',
             'markupPct' => 10,
             'poc1' => ['name' => 'Primary POC', 'email' => 'primary@test.com', 'phone' => '9876543210'],
-            'statutory_bonus_applicable' => true // STATUTORY FIELD
+            'locations' => [
+                ['branch_name' => 'HQ', 'is_head_office' => true, 'address_line_1' => '123 St', 'city' => 'C', 'state' => 'S', 'pin_code' => '123456']
+            ],
+            'statutoryBonusApplicable' => true // STATUTORY FIELD mapped correctly
         ];
 
         $response = $this->actingAs($manager)->put('/clients/' . $client->id, $payload);
@@ -182,6 +190,7 @@ class ClientDynamicTest extends TestCase
         $c2 = $client->contacts()->create(['contact_type' => 'finance', 'full_name' => 'Finance POC', 'email' => 'fin@test.com', 'phone' => '8888888888']);
         
         $payload = [
+            'locationsCount' => 1,
             'name' => $client->company_name,
             'code' => $client->client_code,
             'type' => $client->company_type,
@@ -195,15 +204,21 @@ class ClientDynamicTest extends TestCase
             'markupPct' => 10,
             // Keep Primary (update), Delete Finance, Create HR
             'poc1' => ['id' => $c1->id, 'name' => 'New Primary', 'email' => 'new@test.com', 'phone' => '7777777777'],
-            'poc3' => ['name' => 'HR POC', 'email' => 'hr@test.com', 'phone' => '6666666666']
+            'poc3' => ['name' => 'HR POC', 'email' => 'hr@test.com', 'phone' => '6666666666'],
+            'locations' => [
+                ['branch_name' => 'HQ', 'is_head_office' => true, 'address_line_1' => '123 St', 'city' => 'C', 'state' => 'S', 'pin_code' => '123456']
+            ]
         ];
 
         $response = $this->actingAs($admin)->from('/clients/' . $client->id . '/edit')->followingRedirects()->put('/clients/' . $client->id, $payload);
+        if ($response->status() !== 200) {
+            dd($response->json() ?? session()->get('errors')->getBag('default')->getMessages());
+        }
         $response->assertStatus(200);
         $response->assertSee('New Primary');
         
         $this->assertDatabaseHas('client_contacts', ['id' => $c1->id, 'full_name' => 'New Primary']); // Updated
-        $this->assertDatabaseMissing('client_contacts', ['id' => $c2->id]); // Deleted
+        $this->assertSoftDeleted('client_contacts', ['id' => $c2->id]); // Deleted
         $this->assertDatabaseHas('client_contacts', ['full_name' => 'HR POC']); // Created
         
         echo "9. Contact Sync Logic (Create/Update/Delete): Confirmed!\n";
