@@ -285,7 +285,7 @@ export function getDefaultFormData() {
     tdsRegime: 'new', tdsApplicable: true,
     gratuityMode: 'ctc_included', gratuityApplicable: true,
     bonusPct: 8.33, bonusApplicable: false,
-    lopBasis: 'inherit',
+    lopBasis: '', // Resolved by useClientForm
 
     // Portal
     portalAccess: false, portalEmail: '', portalAccessLevel: 'view_only',

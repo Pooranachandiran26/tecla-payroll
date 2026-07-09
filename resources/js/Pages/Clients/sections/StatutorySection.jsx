@@ -206,9 +206,8 @@ export default function StatutorySection({ formData, onChange, hook }) {
             </div>
             <select className="form-control" style={{ maxWidth: '250px' }}
               value={formData.lopBasis} onChange={e => onChange('lopBasis', e.target.value)} {...lockProps}>
-              <option value="inherit">Inherit Global Settings</option>
-              <option value="26_days">Fixed 26 Days</option>
-              <option value="30_days">Fixed 30 Days</option>
+              <option value="26">26 Working Days (excludes Sundays)</option>
+              <option value="30">30 Calendar Days</option>
               <option value="calendar">Actual Calendar Days (28/29/30/31)</option>
               <option value="working">Actual Working Days in Month</option>
             </select>

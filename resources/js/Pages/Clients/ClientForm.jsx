@@ -17,8 +17,8 @@ import DocumentsSection from './sections/DocumentsSection';
 import PortalSection from './sections/PortalSection';
 import SlaSection from './sections/SlaSection';
 
-export default function ClientForm({ client }) {
-  const hook = useClientForm();
+export default function ClientForm({ client, defaultLopBasis }) {
+  const hook = useClientForm(defaultLopBasis);
   const {
     formData, errors, hints, currentStep,
     sectionProgress, completionPct, completionCount, uploadedDocs,

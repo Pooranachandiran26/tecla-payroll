@@ -800,13 +800,13 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                             <option value="new">Pending / New Registration</option>
                             <option value="existing_transfer">Existing UAN</option>
                           </select>
-                          {errors.uanMode && <div className="invalid-feedback">{errors.uanMode}</div>}
+                          {errors.uanMode && <div className="invalid-feedback">{errors.uanMode.msg || errors.uanMode}</div>}
                         </div>
                         {formData.uanMode === 'existing_transfer' && (
                           <div className="form-group" style={{ marginBottom: "0" }}>
                             <label>UAN Number <span style={{ color: "var(--status-danger)" }}>*</span></label>
                             <input type="text" className={`form-control ${errors.uan ? 'is-invalid' : ''}`} value={formData.uan} onChange={e => handleInputChange('uan', e.target.value)} placeholder="12-digit UAN" maxLength="12" />
-                            {errors.uan && <div className="invalid-feedback">{errors.uan}</div>}
+                            {errors.uan && <div className="invalid-feedback">{errors.uan.msg || errors.uan}</div>}
                           </div>
                         )}
                       </div>
@@ -839,7 +839,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                       <div className="form-group" style={{ marginBottom: "0" }}>
                         <label>ESIC IP Number <span style={{ color: "var(--status-danger)" }}>*</span></label>
                         <input type="text" className={`form-control ${errors.esiNo ? 'is-invalid' : ''}`} value={formData.esiNo} onChange={e => handleInputChange('esiNo', e.target.value)} placeholder="10-digit ESIC Number" maxLength="10" />
-                        {errors.esiNo && <div className="invalid-feedback">{errors.esiNo}</div>}
+                        {errors.esiNo && <div className="invalid-feedback">{errors.esiNo.msg || errors.esiNo}</div>}
                       </div>
                     </div>
                   )}
