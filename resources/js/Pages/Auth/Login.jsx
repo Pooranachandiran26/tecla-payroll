@@ -5,7 +5,7 @@ import Input from '../../Components/ui/Input';
 import Button from '../../Components/ui/Button';
 import Checkbox from '../../Components/ui/Checkbox';
 
-export default function Login() {
+export default function Login({ rememberMeEnabled = true }) {
   const { data, setData, post, processing, errors } = useForm({
     email: '',
     password: '',
@@ -68,13 +68,15 @@ export default function Login() {
           onChange={handleChange}
         />
 
-        <div className="form-row" style={{ alignItems: 'center', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between' }}>
-          <Checkbox 
-            label="Remember me" 
-            name="remember" 
-            checked={data.remember}
-            onChange={handleChange}
-          />
+        <div className="form-row" style={{ alignItems: 'center', marginBottom: '1.5rem', display: 'flex', justifyContent: rememberMeEnabled ? 'space-between' : 'flex-end' }}>
+          {rememberMeEnabled && (
+            <Checkbox 
+              label="Remember me" 
+              name="remember" 
+              checked={data.remember}
+              onChange={handleChange}
+            />
+          )}
           <Link href="/forgot-password" style={{ fontSize: '0.8rem', color: 'var(--primary-navy)' }}>
             Forgot password?
           </Link>

@@ -4,7 +4,8 @@ import GuestLayout from '../../Layouts/GuestLayout';
 import Button from '../../Components/ui/Button';
 
 export default function VerifyOtp({ otpLength = 6, cooldownMinutes = 2 }) {
-  const [code, setCode] = useState(Array(otpLength).fill(''));
+  const length = Number(otpLength);
+  const [code, setCode] = useState(Array(length).fill(''));
   const inputRefs = useRef([]);
   const [cooldown, setCooldown] = useState(0);
 
@@ -40,7 +41,7 @@ export default function VerifyOtp({ otpLength = 6, cooldownMinutes = 2 }) {
     setCode(newCode);
     setData('code', newCode.join(''));
 
-    if (value && index < otpLength - 1) {
+    if (value && index < length - 1) {
       inputRefs.current[index + 1].focus();
     }
   };
@@ -53,7 +54,7 @@ export default function VerifyOtp({ otpLength = 6, cooldownMinutes = 2 }) {
 
   const submit = (e) => {
     e.preventDefault();
-    if (data.code.length !== otpLength) return;
+    if (data.code.length !== length) return;
     
     post('/login/verify-otp');
   };
@@ -64,7 +65,7 @@ export default function VerifyOtp({ otpLength = 6, cooldownMinutes = 2 }) {
       
       <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
         <h2>Verify Login</h2>
-        <p style={{ color: 'var(--text-muted)' }}>Enter the {otpLength}-digit code sent to your email.</p>
+        <p style={{ color: 'var(--text-muted)' }}>Enter the {length}-digit code sent to your email.</p>
       </div>
 
       <form onSubmit={submit}>
@@ -97,7 +98,7 @@ export default function VerifyOtp({ otpLength = 6, cooldownMinutes = 2 }) {
           ))}
         </div>
 
-        <Button type="submit" variant="primary" style={{ width: '100%', padding: '0.75rem' }} disabled={processing || code.join('').length !== otpLength}>
+        <Button type="submit" variant="primary" style={{ width: '100%', padding: '0.75rem' }} disabled={processing || code.join('').length !== length}>
           {processing ? 'Verifying...' : 'Verify Code'}
         </Button>
 
