@@ -62,6 +62,10 @@ class HandleInertiaRequests extends Middleware
                 'primary_color' => \App\Services\SettingsService::get('branding.primary_color', '#1e3a8a'),
                 'theme_mode_default' => \App\Services\SettingsService::get('branding.theme_mode_default', 'system'),
             ],
+            'flash' => [
+                'success' => fn () => $request->session()->get('success'),
+                'error' => fn () => $request->session()->get('error'),
+            ],
         ];
     }
 }

@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 class Employee extends Model
 {
     use HasFactory;
+    use \Illuminate\Database\Eloquent\SoftDeletes;
 
     const BASE_REQUIRED_DOCUMENT_TYPES = [
         'pan_card', 'aadhaar_card', 'bank_passbook', 'offer_letter', 'photo'

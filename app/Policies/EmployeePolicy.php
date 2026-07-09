@@ -18,4 +18,19 @@ class EmployeePolicy
     {
         return $user->role === 'admin';
     }
+
+    public function viewOwnProfile(User $user, \App\Models\Employee $employee)
+    {
+        return $user->employee_id === $employee->id;
+    }
+
+    public function delete(User $user, \App\Models\Employee $employee)
+    {
+        return $user->role === 'admin';
+    }
+
+    public function restore(User $user, \App\Models\Employee $employee)
+    {
+        return $user->role === 'admin';
+    }
 }
