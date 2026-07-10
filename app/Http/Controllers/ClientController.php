@@ -232,7 +232,18 @@ class ClientController extends Controller
         if ($request->has('statutory_bonus_applicable') && (bool)$request->statutory_bonus_applicable !== (bool)$client->statutory_bonus_applicable) $statutoryFieldsChanged = true;
 
         if ($statutoryFieldsChanged) {
+            if (app()->runningUnitTests()) {
+                info('statutoryFieldsChanged is true. Checking authorization.');
+            }
             $this->authorize('updateStatutory', $client);
+        } else {
+            if (app()->runningUnitTests()) {
+                info('statutoryFieldsChanged is false!', [
+                    'request' => (bool)$request->statutory_bonus_applicable,
+                    'client' => (bool)$client->statutory_bonus_applicable,
+                    'has' => $request->has('statutory_bonus_applicable')
+                ]);
+            }
         }
 
         // Capture old values for notification whitelist BEFORE the transaction

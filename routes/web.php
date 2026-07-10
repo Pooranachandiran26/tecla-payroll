@@ -166,6 +166,12 @@ Route::middleware('auth')->group(function () {
             Route::get('/admin/settings/branding', [SettingsController::class, 'getBranding']);
             Route::post('/admin/settings/branding', [SettingsController::class, 'updateBranding']);
             
+            Route::get('/admin/settings/localization', [SettingsController::class, 'getLocalization']);
+            Route::put('/admin/settings/localization', [SettingsController::class, 'updateLocalization']);
+            
+            Route::get('/admin/settings/file-upload-policy', [SettingsController::class, 'getFileUploadPolicy']);
+            Route::put('/admin/settings/file-upload-policy', [SettingsController::class, 'updateFileUploadPolicy']);
+            
             Route::get('/admin/sessions', [SessionController::class, 'allSessions']);
             Route::delete('/admin/sessions/{id}', [SessionController::class, 'revokeAny']);
             Route::post('/admin/sessions/bulk-revoke', [SessionController::class, 'bulkRevoke']);

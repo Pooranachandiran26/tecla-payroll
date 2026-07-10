@@ -41,6 +41,11 @@ class SessionController extends Controller
         if ($session) {
             app(\App\Services\AuditService::class)->log('session_revoked', Auth::user(), Auth::user(), null, null, ['session_id' => $id, 'ip_address' => $session->ip_address]);
             DB::table('sessions')->where('id', $id)->delete();
+            
+            // Invalidate remember token to prevent automatic re-login across devices
+            $user = Auth::user();
+            $user->setRememberToken(\Illuminate\Support\Str::random(60));
+            $user->save();
         }
 
         return back()->with('message', 'Session revoked.');
@@ -81,6 +86,10 @@ class SessionController extends Controller
             $user = \App\Models\User::find($session->user_id);
             if ($user) {
                 app(\App\Services\AuditService::class)->log('session_revoked', Auth::user(), $user, null, null, ['session_id' => $id, 'ip_address' => $session->ip_address]);
+                
+                // Invalidate remember token to prevent automatic re-login across devices
+                $user->setRememberToken(\Illuminate\Support\Str::random(60));
+                $user->save();
             }
             DB::table('sessions')->where('id', $id)->delete();
         }

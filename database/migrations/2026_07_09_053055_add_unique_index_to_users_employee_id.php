@@ -11,14 +11,16 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            // Drop existing non-unique foreign key and index if they exist
-            $table->dropForeign(['employee_id']);
-            // Add the unique constraint
-            $table->unique('employee_id');
-            // Re-add the foreign key constraint
-            $table->foreign('employee_id')->references('id')->on('employees')->onDelete('set null');
-        });
+        if (\Illuminate\Support\Facades\DB::getDriverName() !== 'sqlite') {
+            Schema::table('users', function (Blueprint $table) {
+                // Drop existing non-unique foreign key and index if they exist
+                $table->dropForeign(['employee_id']);
+                // Add the unique constraint
+                $table->unique('employee_id');
+                // Re-add the foreign key constraint
+                $table->foreign('employee_id')->references('id')->on('employees')->onDelete('set null');
+            });
+        }
     }
 
     /**
@@ -26,10 +28,12 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->dropForeign(['employee_id']);
-            $table->dropUnique(['employee_id']);
-            $table->foreign('employee_id')->references('id')->on('employees')->onDelete('set null');
-        });
+        if (\Illuminate\Support\Facades\DB::getDriverName() !== 'sqlite') {
+            Schema::table('users', function (Blueprint $table) {
+                $table->dropForeign(['employee_id']);
+                $table->dropUnique(['employee_id']);
+                $table->foreign('employee_id')->references('id')->on('employees')->onDelete('set null');
+            });
+        }
     }
 };

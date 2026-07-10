@@ -368,4 +368,62 @@ class SettingsController extends Controller
             return response()->json(['error' => $reason, 'details' => $errorMsg], 422);
         }
     }
+    // ───────────────────────────────────────────────────
+    // Localization
+    // ───────────────────────────────────────────────────
+
+    public function getLocalization()
+    {
+        $settings = SettingsService::group('localization');
+        return response()->json($settings);
+    }
+
+    public function updateLocalization(Request $request)
+    {
+        $validated = $request->validate([
+            'timezone' => 'nullable|string|max:255',
+            'date_format' => 'nullable|string|max:255',
+            'currency_symbol' => 'nullable|string|max:10',
+            'currency_code' => 'nullable|string|max:10',
+            'financial_year_start_month' => 'nullable|integer|min:1|max:12',
+        ]);
+
+        foreach ($validated as $key => $value) {
+            SettingsService::set('localization.' . $key, $value, auth()->id());
+        }
+
+        app(\App\Services\AuditService::class)->log('settings.localization_updated', auth()->user(), null, null, $validated);
+
+        return response()->json(['message' => 'Localization settings updated successfully']);
+    }
+    // ───────────────────────────────────────────────────
+    // File Upload Policy
+    // ───────────────────────────────────────────────────
+
+    public function getFileUploadPolicy()
+    {
+        $settings = SettingsService::group('file_upload_policy');
+        return response()->json($settings);
+    }
+
+    public function updateFileUploadPolicy(Request $request)
+    {
+        $validated = $request->validate([
+            'max_file_size_mb' => 'nullable|integer|min:1|max:100',
+            'allowed_document_types' => 'nullable|array',
+            'allowed_document_types.*' => 'string'
+        ]);
+
+        if (isset($validated['allowed_document_types'])) {
+            $validated['allowed_document_types'] = json_encode($validated['allowed_document_types']);
+        }
+
+        foreach ($validated as $key => $value) {
+            SettingsService::set('file_upload_policy.' . $key, $value, auth()->id());
+        }
+
+        app(\App\Services\AuditService::class)->log('settings.file_upload_policy_updated', auth()->user(), null, null, $validated);
+
+        return response()->json(['message' => 'File Upload Policy updated successfully']);
+    }
 }

@@ -2,8 +2,9 @@ import { Head, useForm } from '@inertiajs/react';
 import GuestLayout from '../../Layouts/GuestLayout';
 import Input from '../../Components/ui/Input';
 import Button from '../../Components/ui/Button';
+import PasswordPolicyFeedback from '../../Components/ui/PasswordPolicyFeedback';
 
-export default function AcceptInvitation({ email, role, token }) {
+export default function AcceptInvitation({ email, role, token, passwordPolicyRules }) {
   const { data, setData, post, processing, errors } = useForm({
     password: '',
     password_confirmation: '',
@@ -24,15 +25,18 @@ export default function AcceptInvitation({ email, role, token }) {
       </div>
 
       <form onSubmit={submit}>
-        <Input 
-          label="Create Password" 
-          name="password" 
-          type="password" 
-          required 
-          value={data.password}
-          onChange={e => setData('password', e.target.value)}
-          error={errors.password}
-        />
+        <div>
+          <Input 
+            label="Create Password" 
+            name="password" 
+            type="password" 
+            required 
+            value={data.password}
+            onChange={e => setData('password', e.target.value)}
+            error={errors.password}
+          />
+          <PasswordPolicyFeedback password={data.password} rules={passwordPolicyRules} />
+        </div>
         
         <Input 
           label="Confirm Password" 

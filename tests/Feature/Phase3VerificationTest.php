@@ -36,6 +36,7 @@ class Phase3VerificationTest extends TestCase
         ]);
 
         $payload = [
+            'locationsCount' => 1,
             'name' => 'Bypass Test Inc.',
             'type' => 'pvt_ltd',
             'code' => 'BYPASS-01',
@@ -160,6 +161,7 @@ class Phase3VerificationTest extends TestCase
         ]);
 
         $payload = [
+            'locationsCount' => 1,
             'name' => 'Updated Inc.',
             'type' => 'pvt_ltd',
             'code' => 'ORIG-03',
@@ -178,7 +180,7 @@ class Phase3VerificationTest extends TestCase
             ],
             'branches' => [
                 [
-                    'id' => $branch->id,
+                    'id' => (string)$branch->id,
                     'name' => 'Test Branch Updated',
                 ]
             ],

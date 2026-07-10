@@ -57,8 +57,8 @@ class HandleInertiaRequests extends Middleware
                 'session_lifetime' => config('session.lifetime'),
             ],
             'branding' => [
-                'logo_url' => $logoPath ? \Illuminate\Support\Facades\Storage::disk('public')->url($logoPath) : '',
-                'favicon_url' => $faviconPath ? \Illuminate\Support\Facades\Storage::disk('public')->url($faviconPath) : '',
+                'logo_url' => $logoPath ? \Illuminate\Support\Facades\Storage::disk('public')->url($logoPath) . '?v=' . time() : '',
+                'favicon_url' => $faviconPath ? \Illuminate\Support\Facades\Storage::disk('public')->url($faviconPath) . '?v=' . time() : '',
                 'primary_color' => \App\Services\SettingsService::get('branding.primary_color', '#1e3a8a'),
                 'theme_mode_default' => \App\Services\SettingsService::get('branding.theme_mode_default', 'system'),
             ],
