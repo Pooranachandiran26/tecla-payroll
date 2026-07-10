@@ -140,6 +140,7 @@ class BulkUploadController extends Controller
                 }
 
             } catch (\Exception $e) {
+                \Illuminate\Support\Facades\DB::rollBack();
                 // Determine failed row for error response
                 $failedRow = isset($row['rowNo']) ? $row['rowNo'] : 'unknown';
                 

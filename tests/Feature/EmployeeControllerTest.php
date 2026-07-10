@@ -10,7 +10,7 @@ use Tests\TestCase;
 
 class EmployeeControllerTest extends TestCase
 {
-    use \Illuminate\Foundation\Testing\DatabaseTransactions;
+    use \Illuminate\Foundation\Testing\RefreshDatabase;
 
     public function test_get_client_statutory_defaults_returns_json()
     {
@@ -33,6 +33,7 @@ class EmployeeControllerTest extends TestCase
         $client = Client::first();
         if (!$client) {
             $client = Client::factory()->create();
+            \App\Models\ClientBranch::factory()->create(['client_id' => $client->id]);
         }
 
         $payload = [
@@ -56,7 +57,7 @@ class EmployeeControllerTest extends TestCase
             'pan' => 'QWERT1234X',
             'uanMode' => 'existing_transfer',
             'uan' => '100000000001',
-            'esiNo' => '200000000002',
+            'esiNo' => '1234567890',
             'pfToggle' => true,
             'esiToggle' => true,
             'tdsToggle' => true,
@@ -116,6 +117,7 @@ class EmployeeControllerTest extends TestCase
         $client = Client::first();
         if (!$client) {
             $client = Client::factory()->create();
+            \App\Models\ClientBranch::factory()->create(['client_id' => $client->id]);
         }
 
         $payload = [
@@ -139,7 +141,7 @@ class EmployeeControllerTest extends TestCase
             'pan' => 'QWERT1234X', // Same PAN as previous test
             'uanMode' => 'existing_transfer',
             'uan' => '100000000003',
-            'esiNo' => '200000000004',
+            'esiNo' => '1234567891',
             'pfToggle' => true,
             'esiToggle' => true,
             'tdsToggle' => true,
