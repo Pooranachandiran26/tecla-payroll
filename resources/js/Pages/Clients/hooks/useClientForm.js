@@ -10,7 +10,7 @@ import {
 //  useClientForm — All form state, validation & logic
 // ═══════════════════════════════════════════════════
 
-export default function useClientForm(defaultLopBasis = 'inherit') {
+export default function useClientForm(defaultLopBasis = 'inherit', initialClient = null) {
   // ── Core state ───────────────────────────────────
   const initialFormData = getDefaultFormData();
   initialFormData.lopBasis = defaultLopBasis;
@@ -43,8 +43,8 @@ export default function useClientForm(defaultLopBasis = 'inherit') {
   };
 
   const [toastMessage, setToastMessage] = useState(null);
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [editId, setEditId] = useState(null);
+  const [isEditMode, setIsEditMode] = useState(!!initialClient);
+  const [editId, setEditId] = useState(initialClient ? initialClient.id : null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState('');
   const [pendingDocType, setPendingDocType] = useState('other');
@@ -509,7 +509,7 @@ export default function useClientForm(defaultLopBasis = 'inherit') {
         docFormData.append('type', pendingDocType);
         docFormData.append('file', file);
         
-        router.post(`/clients/${editId}/documents`, docFormData, {
+        router.post(route('clients.documents.store', editId), docFormData, {
           preserveScroll: true,
           onSuccess: () => {
             showToast(`✅ ${file.name} uploaded successfully`);
@@ -750,9 +750,9 @@ export default function useClientForm(defaultLopBasis = 'inherit') {
         gstType: b.gstType, pocName: b.pocName, pocEmail: b.pocEmail,
         pocPhone: b.pocPhone, isPrimary: b.isPrimary,
       })),
-      poc1: { ...formData.poc1, preferences: Object.entries(formData.poc1.prefs).filter(([, v]) => v).map(([k]) => k === 'wa' ? 'WhatsApp' : k === 'sms' ? 'SMS' : 'Email') },
-      poc2: { ...formData.poc2, preferences: Object.entries(formData.poc2.prefs).filter(([, v]) => v).map(([k]) => k === 'wa' ? 'WhatsApp' : k === 'sms' ? 'SMS' : 'Email') },
-      poc3: { ...formData.poc3, preferences: Object.entries(formData.poc3.prefs).filter(([, v]) => v).map(([k]) => k === 'wa' ? 'WhatsApp' : k === 'sms' ? 'SMS' : 'Email') },
+      poc1: { ...formData.poc1, preferences: Object.entries(formData.poc1?.prefs || {}).filter(([, v]) => v).map(([k]) => k === 'wa' ? 'WhatsApp' : k === 'sms' ? 'SMS' : 'Email') },
+      poc2: { ...formData.poc2, preferences: Object.entries(formData.poc2?.prefs || {}).filter(([, v]) => v).map(([k]) => k === 'wa' ? 'WhatsApp' : k === 'sms' ? 'SMS' : 'Email') },
+      poc3: { ...formData.poc3, preferences: Object.entries(formData.poc3?.prefs || {}).filter(([, v]) => v).map(([k]) => k === 'wa' ? 'WhatsApp' : k === 'sms' ? 'SMS' : 'Email') },
       extraContacts: extraContacts.filter(c => c.name && c.email).map(c => ({ ...c })),
       contractType: formData.contractType,
       billingModel: formData.billingModel,
@@ -954,13 +954,13 @@ export default function useClientForm(defaultLopBasis = 'inherit') {
     };
 
     if (isEditMode && editId) {
-      router.put(`/clients/${editId}`, payload, {
+      router.put(route('clients.update', editId), payload, {
         onSuccess: handleSuccess,
         onError: handleError,
         preserveScroll: true
       });
     } else {
-      router.post('/clients', payload, {
+      router.post(route('clients.store'), payload, {
         onSuccess: handleSuccess,
         onError: handleError,
         preserveScroll: true
@@ -1191,7 +1191,7 @@ export default function useClientForm(defaultLopBasis = 'inherit') {
     // State
     formData, errors, hints, currentStep, sectionProgress,
     uploadedDocs, extraContacts, clientBranches, agencyBranches,
-    stateRegistrations, toastMessage, isEditMode, pendingDocType,
+    stateRegistrations, toastMessage, isEditMode, editId, pendingDocType,
     fileInputRef, logoInputRef,
 
     // Generic handlers

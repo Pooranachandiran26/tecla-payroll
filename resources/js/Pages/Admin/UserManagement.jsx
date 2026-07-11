@@ -21,7 +21,7 @@ export default function UserManagement({ users, unlinkedEmployees = [], unlinked
 
   const submit = (e) => {
     e.preventDefault();
-    post('/admin/users', {
+    post(route('admin.users.store'), {
       onSuccess: () => {
         setShowInviteModal(false);
         reset();

@@ -159,7 +159,7 @@ export default function BankChangeRequests() {
       <Head title="Bank Change Requests" />
       
       <div className="mb-6">
-        <Link href="/employees" className="text-[0.85rem] font-semibold text-[#1F3864] hover:underline">
+        <Link href={route('employees.index')} className="text-[0.85rem] font-semibold text-[#1F3864] hover:underline">
           ← Back to Employees Directory
         </Link>
         <h2 className="text-2xl font-bold text-[#1F3864] mt-2 mb-1">Secure Bank Details Approval Queue</h2>

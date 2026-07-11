@@ -18,7 +18,7 @@ export default function ClientDetail({ client, employees }) {
   const [deleteDialog, setDeleteDialog] = React.useState({ isOpen: false, confirmText: '', reason: '' });
 
   const handleDeactivate = () => {
-    router.post(`/clients/${c.id}/deactivate`, {}, {
+    router.post(route('clients.deactivate', c.id), {}, {
       onSuccess: () => {
         setDeactivateDialog(false);
         showToast({ type: 'success', title: 'Success', message: 'Client deactivated successfully.' });
@@ -30,7 +30,7 @@ export default function ClientDetail({ client, employees }) {
   };
 
   const handleRestore = () => {
-    router.post(`/clients/${c.id}/restore`, {}, {
+    router.post(route('clients.restore', c.id), {}, {
       onSuccess: () => {
         showToast({ type: 'success', title: 'Success', message: 'Client restored successfully.' });
       },
@@ -50,7 +50,7 @@ export default function ClientDetail({ client, employees }) {
       return;
     }
 
-    router.delete(`/clients/${c.id}`, {
+    router.delete(route('clients.destroy', c.id), {
       data: {
         confirm_text: deleteDialog.confirmText,
         reason: deleteDialog.reason
@@ -80,7 +80,7 @@ export default function ClientDetail({ client, employees }) {
         <div className="legacy-react-wrapper">
                 
       <div style={{"marginBottom":"1.5rem"}}>
-        <a href="/clients" style={{"fontSize":"0.85rem","fontWeight":"600"}}>← Back to Clients Directory</a>
+        <a href={route('clients.index')} style={{"fontSize":"0.85rem","fontWeight":"600"}}>← Back to Clients Directory</a>
 
         <div className="client-header-container">
           <div>
@@ -108,7 +108,7 @@ export default function ClientDetail({ client, employees }) {
               <button className="btn btn-success" style={{ backgroundColor: 'var(--status-success)', color: 'white', borderColor: 'var(--status-success)' }} onClick={handleRestore}>▶️ Restore</button>
             ) : null}
 
-            <Link href={`/clients/${c.id}/edit`} className="btn btn-secondary">✏️ Edit Client</Link>
+            <Link href={route('clients.edit', c.id)} className="btn btn-secondary">✏️ Edit Client</Link>
             <button className="btn btn-primary" title="Invoicing not built yet">🧾 Generate Invoice</button>
           </div>
         </div>
@@ -283,7 +283,7 @@ export default function ClientDetail({ client, employees }) {
                 <option value="resigned">Resigned</option>
               </select>
             </div>
-            <a href="/employees/create" className="btn btn-primary btn-xs" style={{"padding":"0.4rem 0.75rem"}}>➕ Add Candidate</a>
+             <a href={route('employees.create')} className="btn btn-primary btn-xs" style={{"padding":"0.4rem 0.75rem"}}>➕ Add Candidate</a>
           </div>
 
           <div className="table-responsive">
@@ -315,7 +315,7 @@ export default function ClientDetail({ client, employees }) {
                       </td>
                       <td>{formatDate(emp.date_of_joining) || 'N/A'}</td>
                       <td><span className={`badge badge-${emp.status === 'active' ? 'success' : 'secondary'}`} style={{textTransform: 'capitalize'}}>{emp.status}</span></td>
-                      <td><a href={`/employees/${emp.id}`} className="btn btn-secondary btn-xs">View Profile</a></td>
+                       <td><a href={route('employees.show', emp.id)} className="btn btn-secondary btn-xs">View Profile</a></td>
                     </tr>
                   ))
                 ) : (
@@ -400,7 +400,7 @@ export default function ClientDetail({ client, employees }) {
                   </div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>Uploaded: {formatDate(doc.created_at)}</div>
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <a href={`/clients/${c.id}/documents/${doc.id}/download`} target="_blank" rel="noreferrer" className="btn btn-secondary btn-xs" style={{ flex: 1, textAlign: 'center' }}>Download</a>
+                     <a href={route('clients.documents.download', { client: c.id, document: doc.id })} target="_blank" rel="noreferrer" className="btn btn-secondary btn-xs" style={{ flex: 1, textAlign: 'center' }}>Download</a>
                   </div>
                 </div>
               ))

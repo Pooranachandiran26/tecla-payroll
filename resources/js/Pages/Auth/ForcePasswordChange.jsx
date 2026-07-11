@@ -12,7 +12,7 @@ export default function ForcePasswordChange({ passwordPolicyRules }) {
 
   const submit = (e) => {
     e.preventDefault();
-    post('/force-password-change');
+    post(route('password.force-change.post'));
   };
 
   return (

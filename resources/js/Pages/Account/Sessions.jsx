@@ -6,7 +6,7 @@ import Button from '../../Components/ui/Button';
 export default function OwnSessions({ sessions }) {
   const revokeSession = (id) => {
     if (confirm('Are you sure you want to log out this device?')) {
-      router.delete(`/account/sessions/${id}`);
+      router.delete(route('account.sessions.destroy', id));
     }
   };
 

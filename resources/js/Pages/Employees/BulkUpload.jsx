@@ -92,7 +92,7 @@ export default function BulkUpload() {
     formData.append('file', file);
     
     try {
-      const response = await axios.post('/employees/bulk-upload/validate', formData, {
+      const response = await axios.post(route('employees.bulk-upload.validate'), formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       setValidationResults(response.data);
@@ -116,7 +116,7 @@ export default function BulkUpload() {
     formData.append('file', selectedFile);
     
     try {
-      const response = await axios.post('/employees/bulk-upload/execute', formData, {
+      const response = await axios.post(route('employees.bulk-upload.execute'), formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       setExecutionResults(response.data);
@@ -163,14 +163,14 @@ export default function BulkUpload() {
 
       <div className="mb-6 flex justify-between items-end">
         <div>
-          <Link href="/employees" className="text-[0.85rem] font-semibold text-[#1F3864] hover:underline mb-2 inline-block">
+          <Link href={route('employees.index')} className="text-[0.85rem] font-semibold text-[#1F3864] hover:underline mb-2 inline-block">
             ← Back to Employees Directory
           </Link>
           <h2 className="text-2xl font-bold text-[#1F3864] mt-1 mb-1">Excel Bulk Employee Uploader</h2>
           <p className="text-gray-500 text-sm">Upload spreadsheet templates to onboard multiple employees and assign their client defaults instantly.</p>
         </div>
         <a 
-          href="/templates/employee_bulk_upload_template.xlsx" 
+          href={route('employees.bulk-upload').replace('/employees/bulk-upload', '/templates/employee_bulk_upload_template.xlsx')} 
           download 
           className="btn btn-outline flex items-center gap-2 text-sm font-semibold border-gray-300 shadow-sm"
         >
@@ -236,7 +236,7 @@ export default function BulkUpload() {
           <DataTable columns={columns} data={validationResults.rows} />
 
           <div className="flex justify-end gap-3 mt-6 border-t border-gray-200 p-6 pt-6">
-            <Link href="/employees">
+            <Link href={route('employees.index')}>
               <Button variant="secondary">Cancel</Button>
             </Link>
             <Button variant="primary" disabled={validationResults.error_count > 0 || isExecuting} onClick={handleExecute}>
@@ -258,7 +258,7 @@ export default function BulkUpload() {
               <Button variant="outline" onClick={downloadCSV}>
                 Download Results CSV
               </Button>
-              <Link href="/employees">
+              <Link href={route('employees.index')}>
                 <Button variant="primary">View Employees Directory</Button>
               </Link>
             </div>

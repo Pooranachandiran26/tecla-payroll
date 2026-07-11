@@ -27,7 +27,7 @@ export default function ClientsList({ clients, stats = {} }) {
 
   const handleDeactivate = () => {
     if (!deactivateClient) return;
-    router.post(`/clients/${deactivateClient.id}/deactivate`, {}, {
+    router.post(route('clients.deactivate', deactivateClient.id), {}, {
       onSuccess: () => {
         setDeactivateClient(null);
         showToast({ type: 'success', title: 'Success', message: 'Client deactivated successfully.' });
@@ -39,7 +39,7 @@ export default function ClientsList({ clients, stats = {} }) {
   };
 
   const handleRestore = (clientId) => {
-    router.post(`/clients/${clientId}/restore`, {}, {
+    router.post(route('clients.restore', clientId), {}, {
       onSuccess: () => {
         showToast({ type: 'success', title: 'Success', message: 'Client restored successfully.' });
       },
@@ -59,7 +59,7 @@ export default function ClientsList({ clients, stats = {} }) {
       return;
     }
 
-    router.delete(`/clients/${deleteDialog.client.id}`, {
+    router.delete(route('clients.destroy', deleteDialog.client.id), {
       data: {
         confirm_text: deleteDialog.confirmText,
         reason: deleteDialog.reason
@@ -88,7 +88,7 @@ export default function ClientsList({ clients, stats = {} }) {
           params[key] = filters[key];
         }
       });
-      router.get('/clients', params, { preserveState: true, replace: true });
+      router.get(route('clients.index'), params, { preserveState: true, replace: true });
     }, 400);
     return () => clearTimeout(timer);
   }, [filters]);
@@ -145,7 +145,7 @@ export default function ClientsList({ clients, stats = {} }) {
                 Manage all client profiles, contracts, and view high-level payroll metrics.
               </p>
             </div>
-            <Link href="/clients/create" className="btn btn-primary">➕ Add New Client</Link>
+            <Link href={route('clients.create')} className="btn btn-primary">➕ Add New Client</Link>
           </div>
 
           {/* Advanced Filters Row */}
@@ -263,7 +263,7 @@ export default function ClientsList({ clients, stats = {} }) {
                           <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
                             <div className="client-avatar">{c.company_name?.charAt(0) || 'C'}</div>
                             <div>
-                              <Link href={`/clients/${c.id}`} className="client-name">{c.company_name}</Link>
+                              <Link href={route('clients.show', c.id)} className="client-name">{c.company_name}</Link>
                               <div className="client-meta">
                                 <span>{c.client_code}</span>
                                 {c.gstin && <span> • GST: {c.gstin}</span>}
@@ -322,8 +322,8 @@ export default function ClientsList({ clients, stats = {} }) {
                             onChange={(e) => {
                               const val = e.target.value;
                               e.target.value = ""; 
-                              if (val === 'view') router.visit(`/clients/${c.id}`);
-                              else if (val === 'edit') router.visit(`/clients/${c.id}/edit`);
+                              if (val === 'view') router.visit(route('clients.show', c.id));
+                              else if (val === 'edit') router.visit(route('clients.edit', c.id));
                               else if (val === 'deactivate') setDeactivateClient(c);
                               else if (val === 'restore') handleRestore(c.id);
                               else if (val === 'delete') setDeleteDialog({ client: c, confirmText: '', reason: '' });

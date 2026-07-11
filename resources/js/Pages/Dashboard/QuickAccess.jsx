@@ -154,7 +154,7 @@ export default function QuickAccess() {
               <span className="text-[0.85rem] font-bold text-[#1F3864] uppercase tracking-wide">Leave</span>
             </div>
             <div className="grid grid-cols-[repeat(auto-fill,minmax(90px,1fr))] gap-0">
-              {renderBtn('qa-leave-queue', '/employees/leave-approval', <CheckSquare strokeWidth={1.6} />, 'Leave Approval Queue')}
+              {renderBtn('qa-leave-queue', '/leave-requests', <CheckSquare strokeWidth={1.6} />, 'Leave Approval Queue')}
             </div>
           </div>
         )}

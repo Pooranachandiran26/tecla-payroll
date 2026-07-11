@@ -12,7 +12,7 @@ export default function ResetPassword({ passwordPolicyRules }) {
 
   const submit = (e) => {
     e.preventDefault();
-    post('/reset-password/new');
+    post(route('password.reset.new.post'));
   };
 
   return (
