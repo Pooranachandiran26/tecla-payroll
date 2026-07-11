@@ -63,12 +63,19 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       taxRegime: emp?.tds_regime || 'new',
       declarations: emp ? (emp.declarations_accepted === 1 ? 'yes' : 'no') : 'yes',
       gratuityMode: emp?.gratuity_mode || 'part_of_ctc',
-      lopBasis: emp?.lop_basis_days || '30'
+      lopBasis: emp?.lop_basis_days || '30',
+      emergencyContactName: emp?.emergency_contact_name || '',
+      prevEmployerName: emp?.previous_employer_name || '',
+      prevEmployerUAN: emp?.previous_employer_uan || '',
+      probationEndDate: emp?.probation_end_date || '',
+      reportingManagerId: emp?.reporting_manager_id || '',
+      noticePeriodDays: emp?.notice_period_days ?? '',
+      esiPeriodEnd: emp?.esi_contribution_period_end || '',
     };
   });
 
   const [overrides, setOverrides] = useState({
-    pf: false, esi: false, tds: false, pt: false, lwf: false, bonus: false, gratuity: false, lop: false
+    pf: false, esi: false, tds: false, pt: false, lwf: false, bonus: false, gratuity: false, lop: false, noticePeriod: false
   });
 
   const [errors, setErrors] = useState({});
@@ -112,7 +119,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
           esi_applicable: formData.esiToggle,
           pt_deduction_override: formData.ptDeduction
         };
-        const res = await axios.post('/employees/calculate-preview', payload);
+        const res = await axios.post(route('employees.calculate-preview'), payload);
         if (res.status === 200) {
           setPreviewCalculations(res.data);
         }
@@ -129,6 +136,18 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
   ]);
 
   const [activeClientDefaults, setActiveClientDefaults] = useState(null);
+  const [clientActiveEmployees, setClientActiveEmployees] = useState([]);
+
+  // Fetch active employees for Reporting Manager dropdown
+  useEffect(() => {
+    if (!formData.clientPartner) {
+      setClientActiveEmployees([]);
+      return;
+    }
+    axios.get(route('clients.activeEmployees', formData.clientPartner))
+      .then(res => setClientActiveEmployees(res.data || []))
+      .catch(() => setClientActiveEmployees([]));
+  }, [formData.clientPartner]);
 
   // Sync logic on client change
   useEffect(() => {
@@ -136,7 +155,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       setActiveClientDefaults(null);
       return;
     }
-    axios.get(`/clients/${formData.clientPartner}/statutory-defaults`)
+    axios.get(route('clients.statutoryDefaults', formData.clientPartner))
       .then(res => {
         const d = res.data;
         setActiveClientDefaults(d);
@@ -164,6 +183,9 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                let rawLop = String(d.lopBasisDays || '');
                if (rawLop.includes('30')) next.lopBasis = '30';
                else next.lopBasis = '26';
+            }
+          if (!overrides.noticePeriod) {
+               next.noticePeriodDays = d.noticePeriodDays ?? 30;
             }
           return next;
         });
@@ -402,9 +424,13 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       'da': 'daSal', 'medical_allowance': 'medicalSal', 'special_allowance': 'specialSal',
       'other_additions': 'otherSal', 'pt_deduction_override': 'ptDeduction', 'tds_regime': 'taxRegime',
       'gratuity_mode': 'gratuityMode', 'lop_basis_days': 'lopBasis',
+      'emergency_contact_name': 'emergencyContactName', 'previous_employer_name': 'prevEmployerName',
+      'previous_employer_uan': 'prevEmployerUAN', 'probation_end_date': 'probationEndDate',
+      'reporting_manager_id': 'reportingManagerId', 'notice_period_days': 'noticePeriodDays',
+      'esi_contribution_period_end': 'esiPeriodEnd',
     };
     
-    const url = isAdd ? '/employees' : `/employees/${empId}`;
+    const url = isAdd ? route('employees.store') : route('employees.update', empId);
     const method = isAdd ? 'post' : 'put';
     
     router[method](url, formData, {
@@ -434,7 +460,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
         
         <div className="legacy-react-wrapper">
           <div style={{ marginBottom: "1.5rem" }}>
-            <Link href="/employees" style={{ fontSize: "0.85rem", fontWeight: "600" }}>← Back to Employees Directory</Link>
+            <Link href={route('employees.index')} style={{ fontSize: "0.85rem", fontWeight: "600" }}>← Back to Employees Directory</Link>
             <h2 id="form-page-title" style={{ marginTop: "0.5rem" }}>
               {isAdd ? 'Add New Employee' : `Edit Employee — ${isActive ? 'Active' : 'Onboarding'}`}
             </h2>
@@ -553,6 +579,14 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                     )}
                   </div>
                   <div className="form-group">
+                    <label>Emergency Contact Name</label>
+                    <input type="text" className="form-control" value={formData.emergencyContactName}
+                      onChange={e => handleInputChange('emergencyContactName', e.target.value)} placeholder="Name of emergency contact" />
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
                     <label>Emergency Contact Number</label>
                     <input type="text" className="form-control" value={formData.emergencyContact} maxLength="10"
                       onChange={e => handleInputChange('emergencyContact', e.target.value)} />
@@ -614,6 +648,53 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                   </div>
                 </div>
 
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Probation End Date</label>
+                    <input type="date" className={`form-control ${errors.probationEndDate ? 'is-error' : ''}`} value={formData.probationEndDate}
+                      onChange={e => handleInputChange('probationEndDate', e.target.value)} />
+                    {errors.probationEndDate && <div className="field-msg error show">{errors.probationEndDate.msg}</div>}
+                  </div>
+                  <div className="form-group">
+                    <label>Reporting Manager</label>
+                    <select className={`form-control ${errors.reportingManagerId ? 'is-error' : ''}`} value={formData.reportingManagerId}
+                      onChange={e => handleInputChange('reportingManagerId', e.target.value)}>
+                      <option value="">-- None --</option>
+                      {clientActiveEmployees.map(emp => (
+                        <option key={emp.id} value={emp.id}>{emp.full_name} ({emp.employee_code})</option>
+                      ))}
+                    </select>
+                    {errors.reportingManagerId && <div className="field-msg error show">{errors.reportingManagerId.msg}</div>}
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                      Notice Period (Days)
+                      <span className={`badge ${overrides.noticePeriod ? 'badge-gold' : 'badge-neutral'}`}>{overrides.noticePeriod ? 'Overridden' : 'Inherited'}</span>
+                    </label>
+                    <input type="number" className={`form-control ${errors.noticePeriodDays ? 'is-error' : ''}`} value={formData.noticePeriodDays} min="0"
+                      onChange={e => { handleInputChange('noticePeriodDays', e.target.value); toggleOverride('noticePeriod'); }} placeholder="e.g. 30" />
+                    {errors.noticePeriodDays && <div className="field-msg error show">{errors.noticePeriodDays.msg}</div>}
+                  </div>
+                </div>
+
+                {formData.priorEmploymentFlag && (
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Previous Employer Name</label>
+                      <input type="text" className="form-control" value={formData.prevEmployerName}
+                        onChange={e => handleInputChange('prevEmployerName', e.target.value)} placeholder="Previous company name" />
+                    </div>
+                    <div className="form-group">
+                      <label>Previous Employer UAN</label>
+                      <input type="text" className="form-control" value={formData.prevEmployerUAN}
+                        onChange={e => handleInputChange('prevEmployerUAN', e.target.value)} placeholder="Previous UAN (if available)" />
+                    </div>
+                  </div>
+                )}
+
 
                 {/* 2. BANK DETAILS */}
                 <h3 style={{ borderBottom: "1px solid var(--border-color)", paddingBottom: "0.5rem", marginTop: "2rem", marginBottom: "0.75rem", fontSize: "1.05rem" }}>
@@ -627,7 +708,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
 
                 {isActive ? (
                   <div style={{ marginBottom: "1.5rem", padding: "0.75rem 1rem", background: "#F8FAFC", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", fontSize: "0.85rem", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                    <span style={{ fontWeight: "500", color: "var(--text-main)" }}>🔒 Locked — use <Link href="/bank-change-requests" style={{ color: "var(--primary-navy)", fontWeight: "600", textDecoration: "underline" }}>Bank Change Requests</Link> to update</span>
+                    <span style={{ fontWeight: "500", color: "var(--text-main)" }}>🔒 Locked — use <Link href={route('employees.bank-change-requests')} style={{ color: "var(--primary-navy)", fontWeight: "600", textDecoration: "underline" }}>Bank Change Requests</Link> to update</span>
                   </div>
                 ) : (
                   <div>
@@ -710,7 +791,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
 
                 {isActive ? (
                   <div style={{ marginBottom: "1.5rem", padding: "0.75rem 1rem", background: "#F8FAFC", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", fontSize: "0.85rem", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                    <span style={{ fontWeight: "500", color: "var(--text-main)" }}>🔒 Locked — use <Link href={`/employees/${empId}/salary-revision`} style={{ color: "var(--primary-navy)", fontWeight: "600", textDecoration: "underline" }}>Revise Salary</Link> to update</span>
+                    <span style={{ fontWeight: "500", color: "var(--text-main)" }}>🔒 Locked — use <Link href={route('employees.salary-revision.create', empId)} style={{ color: "var(--primary-navy)", fontWeight: "600", textDecoration: "underline" }}>Revise Salary</Link> to update</span>
                   </div>
                 ) : (
                   <div>
@@ -836,10 +917,16 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                   </div>
                   {formData.esiToggle && (
                     <div style={{ backgroundColor: "#FFFFFF", padding: "1rem", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", marginTop: "0.5rem" }}>
-                      <div className="form-group" style={{ marginBottom: "0" }}>
+                      <div className="form-group" style={{ marginBottom: "0.75rem" }}>
                         <label>ESIC IP Number <span style={{ color: "var(--status-danger)" }}>*</span></label>
                         <input type="text" className={`form-control ${errors.esiNo ? 'is-invalid' : ''}`} value={formData.esiNo} onChange={e => handleInputChange('esiNo', e.target.value)} placeholder="10-digit ESIC Number" maxLength="10" />
                         {errors.esiNo && <div className="invalid-feedback">{errors.esiNo.msg || errors.esiNo}</div>}
+                      </div>
+                      <div className="form-group" style={{ marginBottom: "0" }}>
+                        <label>ESI Contribution Period End</label>
+                        <input type="date" className={`form-control ${errors.esiPeriodEnd ? 'is-error' : ''}`} value={formData.esiPeriodEnd}
+                          onChange={e => handleInputChange('esiPeriodEnd', e.target.value)} />
+                        {errors.esiPeriodEnd && <div className="field-msg error show">{errors.esiPeriodEnd.msg}</div>}
                       </div>
                     </div>
                   )}
@@ -918,7 +1005,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                 
                 {!isAdd && (
                   <div id="edit-footer-note" style={{ marginTop: "1.5rem", paddingTop: "1rem", borderTop: "1px solid var(--border-color)", textAlign: "center", fontSize: "0.85rem", color: "var(--text-muted)" }}>
-                    Looking to update bank details, salary, or statutory settings? Go to: <Link href="/bank-change-requests" style={{ color: "var(--primary-navy)", fontWeight: "600", textDecoration: "underline" }}>Bank Change Requests</Link> · <Link href={`/employees/${empId}/salary-revision`} style={{ color: "var(--primary-navy)", fontWeight: "600", textDecoration: "underline" }}>Revise Salary</Link>
+                    Looking to update bank details, salary, or statutory settings? Go to: <Link href={route('employees.bank-change-requests')} style={{ color: "var(--primary-navy)", fontWeight: "600", textDecoration: "underline" }}>Bank Change Requests</Link> · <Link href={route('employees.salary-revision.create', empId)} style={{ color: "var(--primary-navy)", fontWeight: "600", textDecoration: "underline" }}>Revise Salary</Link>
                   </div>
                 )}
 
@@ -939,7 +1026,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                 )}
 
                 <div style={{ display: "flex", gap: "1rem", justifyContent: "flex-end", marginTop: "2rem" }}>
-                  <Link href="/employees" className="btn btn-secondary">Cancel</Link>
+                  <Link href={route('employees.index')} className="btn btn-secondary">Cancel</Link>
                   <button type="submit" className="btn btn-primary" onClick={() => {
                     if (blockingErrors.size > 0) {
                       showToast({ type: 'error', title: 'Cannot Save Employee', message: Array.from(blockingErrors).join(' | ') });
