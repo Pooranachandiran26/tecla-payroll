@@ -136,7 +136,7 @@ export default function SalaryBulkUpdate() {
       <Head title="Bulk Salary Update" />
 
       <div className="mb-6">
-        <Link href="/employees" className="text-[0.85rem] font-semibold text-[#1F3864] hover:underline">
+        <Link href={route('employees.index')} className="text-[0.85rem] font-semibold text-[#1F3864] hover:underline">
           ← Back to Employees Directory
         </Link>
         <h2 className="text-2xl font-bold text-[#1F3864] mt-2 mb-1">Bulk Salary Revision Tool</h2>
@@ -165,7 +165,7 @@ export default function SalaryBulkUpdate() {
         <DataTable columns={columns} data={salaries} />
 
         <div className="flex justify-end gap-3 mt-6 border-t border-gray-200 p-6 pt-6">
-          <Link href="/employees">
+          <Link href={route('employees.index')}>
             <Button variant="secondary">Cancel</Button>
           </Link>
           <Button variant="primary" onClick={() => alert('Salaries updated successfully!')}>

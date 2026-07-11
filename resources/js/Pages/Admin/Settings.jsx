@@ -122,7 +122,7 @@ export default function Settings() {
   const fetchCompanySettings = async () => {
     setCompanyLoading(true);
     try {
-      const res = await axios.get('/admin/settings/company');
+      const res = await axios.get(route('admin.settings.company.show'));
       setCompanySettings(res.data);
     } catch (e) {
       showToast({ type: 'error', title: 'Error', message: 'Failed to load company settings' });
@@ -134,7 +134,7 @@ export default function Settings() {
   const fetchLocalizationSettings = async () => {
     setLocalizationLoading(true);
     try {
-      const res = await axios.get('/admin/settings/localization');
+      const res = await axios.get(route('admin.settings.localization.show'));
       setLocalizationSettings(prev => ({ ...prev, ...res.data }));
     } catch (e) {
       showToast({ type: 'error', title: 'Error', message: 'Failed to load localization settings' });
@@ -147,7 +147,7 @@ export default function Settings() {
     e.preventDefault();
     setLocalizationSaving(true);
     try {
-      await axios.put('/admin/settings/localization', localizationSettings);
+      await axios.put(route('admin.settings.localization.update'), localizationSettings);
       showToast({ type: 'success', title: 'Success', message: 'Localization settings updated!' });
     } catch (e) {
       showToast({ type: 'error', title: 'Error', message: e.response?.data?.message || 'Failed to save settings' });
@@ -159,7 +159,7 @@ export default function Settings() {
   const fetchUploadPolicySettings = async () => {
     setUploadPolicyLoading(true);
     try {
-      const res = await axios.get('/admin/settings/file-upload-policy');
+      const res = await axios.get(route('admin.settings.file-upload-policy.show'));
       if (res.data && Object.keys(res.data).length > 0) {
         // Parse JSON array if it comes as string
         const parsed = { ...res.data };
@@ -179,7 +179,7 @@ export default function Settings() {
     e.preventDefault();
     setUploadPolicySaving(true);
     try {
-      await axios.put('/admin/settings/file-upload-policy', uploadPolicySettings);
+      await axios.put(route('admin.settings.file-upload-policy.update'), uploadPolicySettings);
       showToast({ type: 'success', title: 'Success', message: 'File Upload Policy updated!' });
     } catch (e) {
       showToast({ type: 'error', title: 'Error', message: e.response?.data?.message || 'Failed to save settings' });
@@ -191,7 +191,7 @@ export default function Settings() {
   const fetchPtSlabs = async () => {
     setPtSlabsLoading(true);
     try {
-      const res = await axios.get('/admin/settings/pt-slabs');
+      const res = await axios.get(route('admin.settings.pt-slabs'));
       setPtSlabs(res.data);
     } catch (e) {
       showToast({ type: 'error', title: 'Error', message: 'Failed to load statutory slabs' });
@@ -207,7 +207,7 @@ export default function Settings() {
   const saveCompanySettings = async (e) => {
     e.preventDefault();
     try {
-      await axios.put('/admin/settings/company', companySettings);
+      await axios.put(route('admin.settings.company.update'), companySettings);
       showToast({ type: 'success', title: 'Success', message: 'Company Profile updated successfully!' });
     } catch (err) {
       showToast({ type: 'error', title: 'Error', message: err.response?.data?.message || 'Failed to save company settings' });
@@ -217,7 +217,7 @@ export default function Settings() {
   const fetchPayrollSettings = async () => {
     setPayrollLoading(true);
     try {
-      const res = await axios.get('/admin/settings/payroll');
+      const res = await axios.get(route('admin.settings.payroll.show'));
       setPayrollSettings(res.data);
     } catch (e) {
       showToast({ type: 'error', title: 'Error', message: 'Failed to load payroll settings' });
@@ -228,7 +228,7 @@ export default function Settings() {
 
   const savePayrollSettings = async (value) => {
     try {
-      await axios.put('/admin/settings/payroll', { default_lop_basis: value });
+      await axios.put(route('admin.settings.payroll.update'), { default_lop_basis: value });
       setPayrollSettings(prev => ({ ...prev, default_lop_basis: value }));
       showToast({ type: 'success', title: 'Success', message: 'Global LOP Basis updated.' });
     } catch (err) {
@@ -240,7 +240,7 @@ export default function Settings() {
   const fetchBrandingSettings = async () => {
     setBrandingLoading(true);
     try {
-      const res = await axios.get('/admin/settings/branding');
+      const res = await axios.get(route('admin.settings.branding.show'));
       setBrandingSettings(res.data);
       setBrandingColor(res.data.primary_color || '#1e3a8a');
       setBrandingTheme(res.data.theme_mode_default || 'system');
@@ -281,7 +281,7 @@ export default function Settings() {
       formData.append('primary_color', brandingColor);
       formData.append('theme_mode_default', brandingTheme);
 
-      await axios.post('/admin/settings/branding', formData);
+      await axios.post(route('admin.settings.branding.update'), formData);
 
       // Re-fetch to get updated URLs
       await fetchBrandingSettings();
@@ -298,7 +298,7 @@ export default function Settings() {
   const fetchAuthSettings = async () => {
     setAuthLoading(true);
     try {
-      const res = await axios.get('/admin/settings/auth-security');
+      const res = await axios.get(route('admin.settings.auth-security.show'));
       if (typeof res.data === 'string') {
         throw new Error('API returned HTML instead of JSON. You might not be logged in as an Admin.');
       }
@@ -313,7 +313,7 @@ export default function Settings() {
   const fetchWatchers = async () => {
     setWatchersLoading(true);
     try {
-      const res = await axios.get('/admin/watchers');
+      const res = await axios.get(route('watchers.index'));
       setWatchers(res.data);
     } catch (e) {
       showToast({ type: 'error', title: 'Error', message: 'Failed to load watchers' });
@@ -326,10 +326,10 @@ export default function Settings() {
     e.preventDefault();
     try {
       if (currentWatcher.id) {
-        await axios.put(`/admin/watchers/${currentWatcher.id}`, currentWatcher);
+        await axios.put(route('watchers.update', currentWatcher.id), currentWatcher);
         showToast({ type: 'success', title: 'Success', message: 'Watcher updated.' });
       } else {
-        await axios.post('/admin/watchers', currentWatcher);
+        await axios.post(route('watchers.store'), currentWatcher);
         showToast({ type: 'success', title: 'Success', message: 'Watcher added.' });
       }
       setShowWatcherForm(false);
@@ -342,7 +342,7 @@ export default function Settings() {
   const deleteWatcher = async (id) => {
     if(!confirm('Are you sure you want to delete this watcher?')) return;
     try {
-      await axios.delete(`/admin/watchers/${id}`);
+      await axios.delete(route('watchers.destroy', id));
       showToast({ type: 'success', title: 'Success', message: 'Watcher deleted.' });
       fetchWatchers();
     } catch (err) {
@@ -354,7 +354,7 @@ export default function Settings() {
   const fetchEmailSettings = async () => {
     setEmailLoading(true);
     try {
-      const res = await axios.get('/admin/settings/email');
+      const res = await axios.get(route('admin.settings.email.show'));
       setEmailSettings(res.data);
     } catch (e) {
       showToast({ type: 'error', title: 'Error', message: 'Failed to load email settings' });
@@ -380,7 +380,7 @@ export default function Settings() {
 
   const confirmEmailUpdate = async () => {
     try {
-      await axios.put('/admin/settings/email', emailSettings);
+      await axios.put(route('admin.settings.email.update'), emailSettings);
       showToast({ type: 'success', title: 'Success', message: 'Email settings saved successfully. Workers are restarting.' });
       setConfirmModal({ isOpen: false, key: null, newValue: null, reason: '', confirmText: '', type: null });
     } catch (e) {
@@ -391,7 +391,7 @@ export default function Settings() {
   const testEmailConnection = async () => {
     setTestingEmail(true);
     try {
-      await axios.post('/admin/settings/email/test', emailSettings);
+      await axios.post(route('admin.settings.email.test'), emailSettings);
       showToast({ type: 'success', title: 'Success', message: 'Test email sent successfully!' });
     } catch (e) {
       const errorReason = e.response?.data?.error;
@@ -432,7 +432,7 @@ export default function Settings() {
     };
 
     try {
-      await axios.put('/admin/settings/auth-security', payload);
+      await axios.put(route('admin.settings.auth-security.update'), payload);
       setAuthSettings(prev => ({
         ...prev,
         [key]: { ...prev[key], value: newValue }

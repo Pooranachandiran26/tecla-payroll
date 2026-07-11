@@ -22,7 +22,7 @@ export default function EmployeeDashboard({ employee: empProp, todayAttendance, 
     const showPanAlert = panCard && panCard.status === 'rejected';
 
     const handlePunchIn = () => {
-        post('/employee/attendance/punch-in', {
+        post(route('employee.attendance.punch-in'), {
             preserveScroll: true,
             onSuccess: (page) => {
                 if (page.props.flash?.success) {
@@ -33,7 +33,7 @@ export default function EmployeeDashboard({ employee: empProp, todayAttendance, 
     };
 
     const handlePunchOut = () => {
-        post('/employee/attendance/punch-out', {
+        post(route('employee.attendance.punch-out'), {
             preserveScroll: true,
             onSuccess: (page) => {
                 if (page.props.flash?.success) {
@@ -68,7 +68,7 @@ export default function EmployeeDashboard({ employee: empProp, todayAttendance, 
               <strong>Document Verification Alert:</strong> Your PAN Card upload was rejected. Please re-upload.
             </span>
           </div>
-          <Link href="/employee/profile" className="btn btn-danger btn-xs">View Profile</Link>
+          <Link href={route('employee.profile')} className="btn btn-danger btn-xs">View Profile</Link>
         </div>
       )}
 
@@ -143,7 +143,7 @@ export default function EmployeeDashboard({ employee: empProp, todayAttendance, 
           <div className="card">
             <div className="card-header" style={{ marginBottom: '1rem' }}>
               <h3 className="card-title">This Month Attendance</h3>
-              <Link href="/employee/attendance" className="btn btn-link btn-xs">View Log</Link>
+              <Link href={route('employee.attendance')} className="btn btn-link btn-xs">View Log</Link>
             </div>
             <div className="grid-cols-4" style={{ textAlign: 'center', gap: '0.75rem' }}>
               <div style={{ border: '1px solid var(--border-color)', padding: '0.75rem', borderRadius: 'var(--radius-sm)' }}>
@@ -168,7 +168,7 @@ export default function EmployeeDashboard({ employee: empProp, todayAttendance, 
           <div className="card">
             <div className="card-header" style={{ marginBottom: '1rem' }}>
               <h3 className="card-title">Leave Summary</h3>
-              <Link href="/employee/leave" className="btn btn-secondary btn-xs">Apply Leave</Link>
+              <Link href={route('employee.leave')} className="btn btn-secondary btn-xs">Apply Leave</Link>
             </div>
             
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border-color)' }}>
@@ -232,13 +232,13 @@ export default function EmployeeDashboard({ employee: empProp, todayAttendance, 
                 </span>
               </div>
             </div>
-            <Link href="/employee/profile" className="btn btn-secondary btn-xs" style={{ width: '100%', marginTop: '1rem' }}>View Full Profile</Link>
+            <Link href={route('employee.profile')} className="btn btn-secondary btn-xs" style={{ width: '100%', marginTop: '1rem' }}>View Full Profile</Link>
           </div>
 
           <div className="card">
             <div className="card-header">
               <h3 className="card-title">Recent Payslip</h3>
-              <Link href="/employee/payslips" className="btn btn-link btn-xs">All Payslips</Link>
+              <Link href={route('employee.payslips')} className="btn btn-link btn-xs">All Payslips</Link>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
               <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>No payslips generated yet.</span>

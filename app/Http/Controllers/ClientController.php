@@ -497,6 +497,23 @@ class ClientController extends Controller
             'bonusRatePercentage' => $client->bonus_rate_percentage,
             'ptState' => $client->pt_state,
             'lopBasisDays' => $client->lop_basis_days,
+            'noticePeriodDays' => $client->default_notice_period_days,
         ]);
+    }
+
+    /**
+     * Return active employees for a given client (for Reporting Manager dropdown).
+     */
+    public function activeEmployees(Client $client)
+    {
+        $this->authorize('view', $client);
+
+        $employees = \App\Models\Employee::where('client_id', $client->id)
+            ->where('status', 'active')
+            ->select('id', 'full_name', 'employee_code')
+            ->orderBy('full_name')
+            ->get();
+
+        return response()->json($employees);
     }
 }

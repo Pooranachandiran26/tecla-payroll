@@ -17,7 +17,7 @@ export default function VerifyOtp({ otpLength = 6, cooldownMinutes = 2 }) {
 
   const handleResend = (e) => {
     e.preventDefault();
-    postResend('/login/resend-otp', {
+    postResend(route('login.resend-otp'), {
       onSuccess: () => {
         setCooldown(cooldownMinutes * 60);
       }
@@ -56,7 +56,7 @@ export default function VerifyOtp({ otpLength = 6, cooldownMinutes = 2 }) {
     e.preventDefault();
     if (data.code.length !== length) return;
     
-    post('/login/verify-otp');
+    post(route('login.verify.post'));
   };
 
   return (

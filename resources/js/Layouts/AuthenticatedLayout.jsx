@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { adminNav, clientNav, candidateNav, subNavs, getActiveCategory } from '../Constants/navigation';
+import { adminNav, clientNav, candidateNav, subNavs, getActiveCategory, getPathname } from '../Constants/navigation';
 import { Bell, User, LogOut, Menu } from 'lucide-react';
 import { useState } from 'react';
 import ToastContainer from '../Components/ui/Toast';
@@ -80,8 +80,8 @@ export default function AuthenticatedLayout({ children }) {
 
               {dropdownOpen && (
                 <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '0.5rem', background: 'white', borderRadius: '4px', boxShadow: '0 2px 10px rgba(0,0,0,0.1)', minWidth: '150px', zIndex: 100 }}>
-                  <Link href="/account/sessions" style={{ display: 'block', padding: '0.5rem 1rem', color: '#333', textDecoration: 'none', borderBottom: '1px solid #eee' }}>My Sessions</Link>
-                  <Link href="/logout" method="post" as="button" style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.5rem 1rem', color: '#dc2626', textDecoration: 'none', background: 'none', border: 'none', cursor: 'pointer' }}>Sign Out</Link>
+                  <Link href={route('account.sessions')} style={{ display: 'block', padding: '0.5rem 1rem', color: '#333', textDecoration: 'none', borderBottom: '1px solid #eee' }}>My Sessions</Link>
+                  <Link href={route('logout')} method="post" as="button" style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.5rem 1rem', color: '#dc2626', textDecoration: 'none', background: 'none', border: 'none', cursor: 'pointer' }}>Sign Out</Link>
                 </div>
               )}
             </div>
@@ -94,14 +94,20 @@ export default function AuthenticatedLayout({ children }) {
             <ul className="sub-nav-tabs">
               {subNavItems.map((item, index) => {
                 let isActive = false;
-                  if (url === item.url) {
+                const itemPath = getPathname(item.url);
+                const currentPath = getPathname(url);
+                
+                if (currentPath === itemPath) {
+                  isActive = true;
+                } else if (itemPath !== '/' && itemPath !== '' && currentPath.startsWith(itemPath + '/')) {
+                  const betterMatch = subNavItems.find(other => {
+                    const otherPath = getPathname(other.url);
+                    return currentPath.startsWith(otherPath) && otherPath.length > itemPath.length;
+                  });
+                  if (!betterMatch) {
                     isActive = true;
-                  } else if (item.url !== '/' && url.startsWith(item.url + '/')) {
-                    const betterMatch = subNavItems.find(other => url.startsWith(other.url) && other.url.length > item.url.length);
-                    if (!betterMatch) {
-                      isActive = true;
-                    }
                   }
+                }
                 return (
                   <li key={index}>
                     <Link href={item.url} className={isActive ? 'active' : ''}>

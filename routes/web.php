@@ -22,26 +22,26 @@ use App\Http\Controllers\SessionController;
 Route::middleware('guest')->group(function () {
     Route::get('/', fn() => redirect('/login'));
     Route::get('/login', [LoginController::class, 'showLogin'])->name('login');
-    Route::post('/login', [LoginController::class, 'login'])->middleware('throttle:5,1');
-    Route::get('/login/verify-otp', [LoginController::class, 'showVerifyOtp']);
-    Route::post('/login/verify-otp', [LoginController::class, 'verifyOtp'])->middleware('throttle:5,1');
-    Route::post('/login/resend-otp', [LoginController::class, 'resendOtp'])->middleware('throttle:1,1');
+    Route::post('/login', [LoginController::class, 'login'])->middleware('throttle:5,1')->name('login.post');
+    Route::get('/login/verify-otp', [LoginController::class, 'showVerifyOtp'])->name('login.verify.show');
+    Route::post('/login/verify-otp', [LoginController::class, 'verifyOtp'])->middleware('throttle:5,1')->name('login.verify.post');
+    Route::post('/login/resend-otp', [LoginController::class, 'resendOtp'])->middleware('throttle:1,1')->name('login.resend-otp');
     
-    Route::get('/invitation/{token}', [InvitationController::class, 'show']);
-    Route::post('/invitation/{token}/complete', [InvitationController::class, 'complete']);
+    Route::get('/invitation/{token}', [InvitationController::class, 'show'])->name('invitation.show');
+    Route::post('/invitation/{token}/complete', [InvitationController::class, 'complete'])->name('invitation.complete');
     
-    Route::get('/forgot-password', [PasswordResetController::class, 'showForgotPassword']);
-    Route::post('/forgot-password', [PasswordResetController::class, 'sendResetOtp'])->middleware('throttle:3,15');
-    Route::get('/reset-password/verify-otp', [PasswordResetController::class, 'showVerifyResetOtp']);
-    Route::post('/reset-password/verify-otp', [PasswordResetController::class, 'verifyResetOtp']);
-    Route::get('/reset-password/new', [PasswordResetController::class, 'showNewPassword']);
-    Route::post('/reset-password/new', [PasswordResetController::class, 'resetPassword']);
+    Route::get('/forgot-password', [PasswordResetController::class, 'showForgotPassword'])->name('password.request');
+    Route::post('/forgot-password', [PasswordResetController::class, 'sendResetOtp'])->middleware('throttle:3,15')->name('password.email');
+    Route::get('/reset-password/verify-otp', [PasswordResetController::class, 'showVerifyResetOtp'])->name('password.reset.verify.show');
+    Route::post('/reset-password/verify-otp', [PasswordResetController::class, 'verifyResetOtp'])->name('password.reset.verify.post');
+    Route::get('/reset-password/new', [PasswordResetController::class, 'showNewPassword'])->name('password.reset.new.show');
+    Route::post('/reset-password/new', [PasswordResetController::class, 'resetPassword'])->name('password.reset.new.post');
 });
 
 // -----------------------------------------------------------------------
 // AUTHENTICATED ROUTES (Any Role)
 // -----------------------------------------------------------------------
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'active'])->group(function () {
     // Authenticated Home Redirect
     Route::get('/', function () {
         $role = Auth::user()->role;
@@ -53,11 +53,11 @@ Route::middleware('auth')->group(function () {
     Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
     
     // Force Password Change (Bypasses fresh-password middleware)
-    Route::get('/force-password-change', [ForcePasswordChangeController::class, 'show']);
-    Route::post('/force-password-change', [ForcePasswordChangeController::class, 'update']);
+    Route::get('/force-password-change', [ForcePasswordChangeController::class, 'show'])->name('password.force-change.show');
+    Route::post('/force-password-change', [ForcePasswordChangeController::class, 'update'])->name('password.force-change.post');
     
-    Route::get('/account/sessions', [SessionController::class, 'ownSessions']);
-    Route::delete('/account/sessions/{id}', [SessionController::class, 'revokeOwn']);
+    Route::get('/account/sessions', [SessionController::class, 'ownSessions'])->name('account.sessions');
+    Route::delete('/account/sessions/{id}', [SessionController::class, 'revokeOwn'])->name('account.sessions.destroy');
 
     // -------------------------------------------------------------------
     // FULLY ACTIVE ROUTES (Must have fresh password)
@@ -66,38 +66,39 @@ Route::middleware('auth')->group(function () {
         
         // ADMIN & MANAGER
         Route::middleware('role:admin,manager')->group(function () {
-            Route::get('/dashboard', fn() => Inertia::render('Dashboard/Dashboard'));
-            Route::get('/quick-access', fn() => Inertia::render('Dashboard/QuickAccess'));
+            Route::get('/dashboard', fn() => Inertia::render('Dashboard/Dashboard'))->name('dashboard');
+            Route::get('/quick-access', fn() => Inertia::render('Dashboard/QuickAccess'))->name('quick-access');
 
-            Route::post('/export/employees', [\App\Http\Controllers\ExportController::class, 'exportEmployeeData']);
+            Route::post('/export/employees', [\App\Http\Controllers\ExportController::class, 'exportEmployeeData'])->name('employees.export');
 
             // Clients
             Route::get('/clients', [ClientController::class,'index'])->middleware('can:viewAny,App\Models\Client')->name('clients.index');
-            Route::get('/clients/create', [ClientController::class,'create'])->middleware('can:create,App\Models\Client');
-            Route::post('/clients', [ClientController::class,'store']);
+            Route::get('/clients/create', [ClientController::class,'create'])->middleware('can:create,App\Models\Client')->name('clients.create');
+            Route::post('/clients', [ClientController::class,'store'])->name('clients.store');
             Route::get('/clients/{client}', [ClientController::class,'show'])->middleware('can:view,client')->name('clients.show');
             Route::get('/clients/{client}/statutory-defaults', [ClientController::class, 'statutoryDefaults'])->middleware('can:view,client')->name('clients.statutoryDefaults');
+            Route::get('/clients/{client}/active-employees', [ClientController::class, 'activeEmployees'])->middleware('can:view,client')->name('clients.activeEmployees');
             Route::get('/clients/{client}/edit', [ClientController::class,'edit'])->middleware('can:update,client')->name('clients.edit');
-            Route::put('/clients/{client}', [ClientController::class,'update'])->middleware('can:update,client');
+            Route::put('/clients/{client}', [ClientController::class,'update'])->middleware('can:update,client')->name('clients.update');
             Route::delete('/clients/{client}', [ClientController::class,'destroy'])->middleware('can:delete,client')->name('clients.destroy');
             Route::post('/clients/{client}/deactivate', [ClientController::class,'deactivate'])->middleware('can:update,client')->name('clients.deactivate');
             Route::post('/clients/{id}/restore', [ClientController::class,'restore'])->name('clients.restore');
-            Route::post('/clients/{client}/documents', [ClientController::class, 'uploadDocument'])->middleware('can:update,client');
-            Route::put('/clients/{client}/documents/{document}/verify', [ClientController::class, 'verifyDocument']);
-            Route::get('/clients/{client}/documents/{document}/download', [ClientController::class, 'downloadDocument']);
+            Route::post('/clients/{client}/documents', [ClientController::class, 'uploadDocument'])->middleware('can:update,client')->name('clients.documents.store');
+            Route::put('/clients/{client}/documents/{document}/verify', [ClientController::class, 'verifyDocument'])->name('clients.documents.verify');
+            Route::get('/clients/{client}/documents/{document}/download', [ClientController::class, 'downloadDocument'])->name('clients.documents.download');
 
             // Employees
-            Route::post('/employees/calculate-preview', [EmployeeController::class, 'calculatePreview']);
+            Route::post('/employees/calculate-preview', [EmployeeController::class, 'calculatePreview'])->name('employees.calculate-preview');
             Route::get('/employees', [EmployeeController::class, 'index'])->name('employees.index');
             Route::post('/employees', [EmployeeController::class, 'store'])->name('employees.store');
             Route::get('/employees/create', function() {
                 $clients = \App\Models\Client::where('status', 'active')->select('id', 'company_name')->get();
                 return Inertia::render('Employees/EmployeeForm', ['clients' => $clients]);
-            });
-            Route::get('/employees/bulk-upload', fn() => Inertia::render('Employees/BulkUpload'));
+            })->name('employees.create');
+            Route::get('/employees/bulk-upload', fn() => Inertia::render('Employees/BulkUpload'))->name('employees.bulk-upload');
             Route::post('/employees/bulk-upload/validate', [BulkUploadController::class, 'validateUpload'])->name('employees.bulk-upload.validate');
             Route::post('/employees/bulk-upload/execute', [BulkUploadController::class, 'executeImport'])->name('employees.bulk-upload.execute');
-            Route::get('/employees/salary-bulk-update', fn() => Inertia::render('Employees/SalaryBulkUpdate'));
+            Route::get('/employees/salary-bulk-update', fn() => Inertia::render('Employees/SalaryBulkUpdate'))->name('employees.salary-bulk-update');
             Route::get('/employees/{id}', [EmployeeController::class, 'show'])->name('employees.show');
             Route::get('/employees/{id}/edit', [EmployeeController::class, 'edit'])->name('employees.edit');
             Route::put('/employees/{id}', [EmployeeController::class, 'update'])->name('employees.update');
@@ -109,81 +110,81 @@ Route::middleware('auth')->group(function () {
             Route::post('/employees/{id}/documents', [EmployeeController::class, 'storeDocument'])->name('employees.documents.store');
             Route::put('/employees/{id}/documents/{docId}/verify', [EmployeeController::class, 'verifyDocument'])->name('employees.documents.verify');
             Route::get('/employees/{id}/exit', [\App\Http\Controllers\EmployeeExitController::class, 'show'])->name('employees.exit.show');
-            Route::post('/employees/{id}/exit/preview-settlement', [\App\Http\Controllers\EmployeeExitController::class, 'previewSettlement']);
-            Route::post('/employees/{id}/exit/stage/{stage}', [\App\Http\Controllers\EmployeeExitController::class, 'storeStage']);
-            Route::post('/employees/{id}/exit/approve', [\App\Http\Controllers\EmployeeExitController::class, 'approve']);
-            Route::post('/employees/{id}/exit/confirm', [\App\Http\Controllers\EmployeeExitController::class, 'confirm']);
+            Route::post('/employees/{id}/exit/preview-settlement', [\App\Http\Controllers\EmployeeExitController::class, 'previewSettlement'])->name('employees.exit.preview');
+            Route::post('/employees/{id}/exit/stage/{stage}', [\App\Http\Controllers\EmployeeExitController::class, 'storeStage'])->name('employees.exit.stage');
+            Route::post('/employees/{id}/exit/approve', [\App\Http\Controllers\EmployeeExitController::class, 'approve'])->name('employees.exit.approve');
+            Route::post('/employees/{id}/exit/confirm', [\App\Http\Controllers\EmployeeExitController::class, 'confirm'])->name('employees.exit.confirm');
             
             // Salary Revision
             Route::get('/employees/{id}/salary-revision', [SalaryRevisionController::class, 'create'])->name('employees.salary-revision.create');
             Route::post('/employees/{id}/salary-revision', [SalaryRevisionController::class, 'store'])->name('employees.salary-revision.store');
             Route::post('/employees/{id}/salary-revision/{revisionId}/approve', [SalaryRevisionController::class, 'approve'])->name('employees.salary-revision.approve');
             
-            Route::get('/bank-change-requests', fn() => Inertia::render('Employees/BankChangeRequests'));
+            Route::get('/bank-change-requests', fn() => Inertia::render('Employees/BankChangeRequests'))->name('employees.bank-change-requests');
             Route::get('/leave-requests', [\App\Http\Controllers\LeaveApprovalController::class, 'index'])->name('leave-requests.index');
             Route::post('/leave-requests/{id}/approve', [\App\Http\Controllers\LeaveApprovalController::class, 'approve'])->name('leave-requests.approve');
             Route::post('/leave-requests/{id}/reject', [\App\Http\Controllers\LeaveApprovalController::class, 'reject'])->name('leave-requests.reject');
-
+ 
             // Payroll & Invoicing & Reports
-            Route::get('/payroll/live-monitor', fn() => Inertia::render('Payroll/LiveAttendanceMonitor'));
-            Route::get('/payroll/attendance-upload', fn() => Inertia::render('Payroll/AttendanceUpload'));
-            Route::get('/payroll/attendance-review', fn() => Inertia::render('Payroll/AttendanceReview'));
-            Route::get('/payroll/processing', fn() => Inertia::render('Payroll/PayrollProcessing'));
-            Route::get('/payroll/approval', fn() => Inertia::render('Payroll/PayrollApproval'));
-            Route::get('/payroll/payslips', fn() => Inertia::render('Payroll/Payslip'));
-            Route::get('/payroll/reconciliation', fn() => Inertia::render('Payroll/PayrollReconciliation'));
-            Route::get('/invoices', fn() => Inertia::render('Invoicing/InvoicesList'));
-            Route::get('/invoices/generate', fn() => Inertia::render('Invoicing/InvoiceGenerate'));
-            Route::get('/compliance', fn() => Inertia::render('Compliance/ComplianceReports'));
-            Route::get('/reports', fn() => Inertia::render('Reports/ReportsAnalytics'));
-
+            Route::get('/payroll/live-monitor', fn() => Inertia::render('Payroll/LiveAttendanceMonitor'))->name('payroll.live-monitor');
+            Route::get('/payroll/attendance-upload', fn() => Inertia::render('Payroll/AttendanceUpload'))->name('payroll.attendance-upload');
+            Route::get('/payroll/attendance-review', fn() => Inertia::render('Payroll/AttendanceReview'))->name('payroll.attendance-review');
+            Route::get('/payroll/processing', fn() => Inertia::render('Payroll/PayrollProcessing'))->name('payroll.processing');
+            Route::get('/payroll/approval', fn() => Inertia::render('Payroll/PayrollApproval'))->name('payroll.approval');
+            Route::get('/payroll/payslips', fn() => Inertia::render('Payroll/Payslip'))->name('payroll.payslips');
+            Route::get('/payroll/reconciliation', fn() => Inertia::render('Payroll/PayrollReconciliation'))->name('payroll.reconciliation');
+            Route::get('/invoices', fn() => Inertia::render('Invoicing/InvoicesList'))->name('invoices.index');
+            Route::get('/invoices/generate', fn() => Inertia::render('Invoicing/InvoiceGenerate'))->name('invoices.generate');
+            Route::get('/compliance', fn() => Inertia::render('Compliance/ComplianceReports'))->name('compliance.index');
+            Route::get('/reports', fn() => Inertia::render('Reports/ReportsAnalytics'))->name('reports.index');
+ 
         });
-
+ 
         // ADMIN ONLY
         Route::middleware('role:admin')->group(function () {
-            Route::get('/admin/activity-log', [\App\Http\Controllers\Admin\ActivityLogController::class, 'index']);
-            Route::get('/admin/users', [UserController::class, 'index']);
-            Route::post('/admin/users', [UserController::class, 'store']);
-            Route::get('/admin/settings', fn() => Inertia::render('Admin/Settings'));
+            Route::get('/admin/activity-log', [\App\Http\Controllers\Admin\ActivityLogController::class, 'index'])->name('admin.activity-log');
+            Route::get('/admin/users', [UserController::class, 'index'])->name('admin.users');
+            Route::post('/admin/users', [UserController::class, 'store'])->name('admin.users.store');
+            Route::get('/admin/settings', fn() => Inertia::render('Admin/Settings'))->name('admin.settings');
             
             Route::apiResource('admin/watchers', \App\Http\Controllers\NotificationWatcherController::class)->except(['show']);
             
-            Route::get('/admin/settings/company', [SettingsController::class, 'getCompanyProfile']);
-            Route::put('/admin/settings/company', [SettingsController::class, 'updateCompanyProfile']);
+            Route::get('/admin/settings/company', [SettingsController::class, 'getCompanyProfile'])->name('admin.settings.company.show');
+            Route::put('/admin/settings/company', [SettingsController::class, 'updateCompanyProfile'])->name('admin.settings.company.update');
             
-            Route::get('/admin/settings/pt-slabs', [SettingsController::class, 'getPtSlabs']);
+            Route::get('/admin/settings/pt-slabs', [SettingsController::class, 'getPtSlabs'])->name('admin.settings.pt-slabs');
             
-            Route::get('/admin/settings/payroll', [SettingsController::class, 'getPayrollConfig']);
-            Route::put('/admin/settings/payroll', [SettingsController::class, 'updatePayrollConfig']);
+            Route::get('/admin/settings/payroll', [SettingsController::class, 'getPayrollConfig'])->name('admin.settings.payroll.show');
+            Route::put('/admin/settings/payroll', [SettingsController::class, 'updatePayrollConfig'])->name('admin.settings.payroll.update');
             
-            Route::get('/admin/settings/auth-security', [SettingsController::class, 'getAuthSecurity']);
-            Route::put('/admin/settings/auth-security', [SettingsController::class, 'updateAuthSecurity']);
+            Route::get('/admin/settings/auth-security', [SettingsController::class, 'getAuthSecurity'])->name('admin.settings.auth-security.show');
+            Route::put('/admin/settings/auth-security', [SettingsController::class, 'updateAuthSecurity'])->name('admin.settings.auth-security.update');
             
-            Route::get('/admin/settings/email', [SettingsController::class, 'getEmailSettings']);
-            Route::put('/admin/settings/email', [SettingsController::class, 'updateEmailSettings']);
-            Route::post('/admin/settings/email/test', [SettingsController::class, 'testEmailSettings'])->middleware('throttle:3,1');
+            Route::get('/admin/settings/email', [SettingsController::class, 'getEmailSettings'])->name('admin.settings.email.show');
+            Route::put('/admin/settings/email', [SettingsController::class, 'updateEmailSettings'])->name('admin.settings.email.update');
+            Route::post('/admin/settings/email/test', [SettingsController::class, 'testEmailSettings'])->middleware('throttle:3,1')->name('admin.settings.email.test');
             
-            Route::get('/admin/settings/branding', [SettingsController::class, 'getBranding']);
-            Route::post('/admin/settings/branding', [SettingsController::class, 'updateBranding']);
+            Route::get('/admin/settings/branding', [SettingsController::class, 'getBranding'])->name('admin.settings.branding.show');
+            Route::post('/admin/settings/branding', [SettingsController::class, 'updateBranding'])->name('admin.settings.branding.update');
             
-            Route::get('/admin/settings/localization', [SettingsController::class, 'getLocalization']);
-            Route::put('/admin/settings/localization', [SettingsController::class, 'updateLocalization']);
+            Route::get('/admin/settings/localization', [SettingsController::class, 'getLocalization'])->name('admin.settings.localization.show');
+            Route::put('/admin/settings/localization', [SettingsController::class, 'updateLocalization'])->name('admin.settings.localization.update');
             
-            Route::get('/admin/settings/file-upload-policy', [SettingsController::class, 'getFileUploadPolicy']);
-            Route::put('/admin/settings/file-upload-policy', [SettingsController::class, 'updateFileUploadPolicy']);
+            Route::get('/admin/settings/file-upload-policy', [SettingsController::class, 'getFileUploadPolicy'])->name('admin.settings.file-upload-policy.show');
+            Route::put('/admin/settings/file-upload-policy', [SettingsController::class, 'updateFileUploadPolicy'])->name('admin.settings.file-upload-policy.update');
             
-            Route::get('/admin/sessions', [SessionController::class, 'allSessions']);
-            Route::delete('/admin/sessions/{id}', [SessionController::class, 'revokeAny']);
-            Route::post('/admin/sessions/bulk-revoke', [SessionController::class, 'bulkRevoke']);
+            Route::get('/admin/sessions', [SessionController::class, 'allSessions'])->name('admin.sessions');
+            Route::delete('/admin/sessions/{id}', [SessionController::class, 'revokeAny'])->name('admin.sessions.destroy');
+            Route::post('/admin/sessions/bulk-revoke', [SessionController::class, 'bulkRevoke'])->name('admin.sessions.bulk-revoke');
         });
 
         // CLIENT ONLY
         Route::middleware('role:client')->group(function () {
-            Route::get('/client/dashboard', fn() => Inertia::render('ClientPortal/ClientDashboard'));
-            Route::get('/client/employees', fn() => Inertia::render('ClientPortal/ClientCandidates'));
-            Route::get('/client/attendance', fn() => Inertia::render('ClientPortal/ClientAttendanceApproval'));
-            Route::get('/client/invoices', fn() => Inertia::render('ClientPortal/ClientInvoices'));
-            Route::get('/client/profile', [ClientPortalController::class,'show']);
+            Route::get('/client/dashboard', fn() => Inertia::render('ClientPortal/ClientDashboard'))->name('client.dashboard');
+            Route::get('/client/employees', fn() => Inertia::render('ClientPortal/ClientCandidates'))->name('client.employees');
+            Route::get('/client/attendance', fn() => Inertia::render('ClientPortal/ClientAttendanceApproval'))->name('client.attendance');
+            Route::get('/client/invoices', fn() => Inertia::render('ClientPortal/ClientInvoices'))->name('client.invoices');
+            Route::get('/client/profile', [ClientPortalController::class,'show'])->name('client.profile');
         });
 
         // EMPLOYEE ONLY

@@ -61,6 +61,13 @@ class StoreEmployeeRequest extends FormRequest
             'declarations_accepted' => $this->declarations === 'yes' ? 1 : 0,
             'gratuity_mode' => $this->gratuityMode ?? 'part_of_ctc',
             'lop_basis_days' => $this->lopBasis ?? '26',
+            'emergency_contact_name' => $this->emergencyContactName,
+            'previous_employer_name' => $this->prevEmployerName,
+            'previous_employer_uan' => $this->prevEmployerUAN,
+            'probation_end_date' => $this->probationEndDate,
+            'reporting_manager_id' => $this->reportingManagerId,
+            'notice_period_days' => $this->noticePeriodDays,
+            'esi_contribution_period_end' => $this->esiPeriodEnd,
         ]);
     }
 
@@ -152,6 +159,16 @@ class StoreEmployeeRequest extends FormRequest
             'special_allowance' => 'required|numeric|min:0',
             'other_additions' => 'required|numeric|min:0',
             'pt_deduction_override' => 'nullable|numeric|min:0',
+
+            // Previously missing fields
+            'emergency_contact_name' => 'nullable|string|max:255',
+            'previous_employer_name' => 'nullable|string|max:255',
+            'previous_employer_uan' => 'nullable|string|max:255',
+            'probation_end_date' => 'nullable|date|after_or_equal:date_of_joining',
+            'reporting_manager_id' => 'nullable|exists:employees,id',
+            'notice_period_days' => 'nullable|integer|min:0',
+            'esi_contribution_period_end' => 'nullable|date',
+            'declarations_accepted' => 'required|boolean',
         ];
     }
 }

@@ -36,7 +36,7 @@ export default function VerifyResetOtp({ email, otpLength = 6 }) {
     e.preventDefault();
     if (data.code.length !== length) return;
     
-    post('/reset-password/verify-otp');
+    post(route('password.reset.verify.post'));
   };
 
   return (

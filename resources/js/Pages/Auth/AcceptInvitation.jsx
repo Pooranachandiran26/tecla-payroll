@@ -12,7 +12,7 @@ export default function AcceptInvitation({ email, role, token, passwordPolicyRul
 
   const submit = (e) => {
     e.preventDefault();
-    post(`/invitation/${token}/complete`);
+    post(route('invitation.complete', token));
   };
 
   return (

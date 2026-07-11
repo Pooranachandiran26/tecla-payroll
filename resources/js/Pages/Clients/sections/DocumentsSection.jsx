@@ -43,7 +43,7 @@ export default function DocumentsSection({ formData, hook }) {
     const reason = status === 'rejected' ? prompt("Enter rejection reason:") : null;
     if (status === 'rejected' && !reason) return;
     
-    router.put(`/clients/${hook.editId}/documents/${docDbId}/verify`, { status, reason }, { preserveScroll: true });
+    router.put(route('clients.documents.verify', { client: hook.editId, document: docDbId }), { status, reason }, { preserveScroll: true });
   };
 
   return (
@@ -115,7 +115,7 @@ export default function DocumentsSection({ formData, hook }) {
             
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               {doc.dbId && (
-                <a href={`/clients/${hook.editId}/documents/${doc.dbId}/download`} target="_blank" rel="noreferrer"
+                <a href={route('clients.documents.download', { client: hook.editId, document: doc.dbId })} target="_blank" rel="noreferrer"
                   style={{ fontSize: '0.8rem', color: 'var(--primary-blue)', textDecoration: 'none', fontWeight: 600 }}>
                   ⬇️ Download
                 </a>

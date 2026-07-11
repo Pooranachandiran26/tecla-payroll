@@ -28,8 +28,8 @@ export default function EmployeesList({ employees = { data: [], links: [] }, cli
           <p style={{"color":"var(--text-muted)","fontSize":"0.9rem"}}>Manage agency personnel, statutory rules, salary revisions, and leave balances.</p>
         </div>
         <div style={{"display":"flex","gap":"0.75rem"}}>
-          <Link href="/employees/bulk-upload" className="btn btn-secondary">📥 Bulk Upload Employees</Link>
-          <a href="/employees/create" className="btn btn-primary">➕ Add New Employee</a>
+          <Link href={route('employees.bulk-upload')} className="btn btn-secondary">📥 Bulk Upload Employees</Link>
+          <a href={route('employees.create')} className="btn btn-primary">➕ Add New Employee</a>
         </div>
       </div>
 
@@ -88,7 +88,7 @@ export default function EmployeesList({ employees = { data: [], links: [] }, cli
                   <tr key={emp.id}>
                     <td>{emp.employee_code}</td>
                     <td>
-                      <Link href={`/employees/${emp.id}`} style={{"fontWeight":"600","color":"var(--primary-navy)"}}>{emp.full_name}</Link>
+                      <Link href={route('employees.show', emp.id)} style={{"fontWeight":"600","color":"var(--primary-navy)"}}>{emp.full_name}</Link>
                       <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>UAN: {emp.uan_number || 'Pending'}</div>
                     </td>
                     <td>{emp.client_name || 'No Client'}</td>
@@ -112,8 +112,8 @@ export default function EmployeesList({ employees = { data: [], links: [] }, cli
                       </div>
                     </td>
                     <td>
-                      <Link href={`/employees/${emp.id}`} className="btn btn-secondary btn-xs" style={{"marginRight":"0.5rem"}}>View Profile</Link>
-                      <Link href={`/employees/${emp.id}/edit`} className="btn btn-navy btn-xs">Edit</Link>
+                      <Link href={route('employees.show', emp.id)} className="btn btn-secondary btn-xs" style={{"marginRight":"0.5rem"}}>View Profile</Link>
+                      <Link href={route('employees.edit', emp.id)} className="btn btn-navy btn-xs">Edit</Link>
                     </td>
                   </tr>
                 ))

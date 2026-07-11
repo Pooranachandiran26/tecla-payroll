@@ -28,6 +28,7 @@
       }
     })();
   </script>
+  @routes
   @inertiaHead
 </head>
 <body>@inertia</body>

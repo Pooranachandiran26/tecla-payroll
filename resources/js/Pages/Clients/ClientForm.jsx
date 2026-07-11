@@ -18,7 +18,7 @@ import PortalSection from './sections/PortalSection';
 import SlaSection from './sections/SlaSection';
 
 export default function ClientForm({ client, defaultLopBasis }) {
-  const hook = useClientForm(defaultLopBasis);
+  const hook = useClientForm(defaultLopBasis, client);
   const {
     formData, errors, hints, currentStep,
     sectionProgress, completionPct, completionCount, uploadedDocs,
@@ -42,7 +42,7 @@ export default function ClientForm({ client, defaultLopBasis }) {
         <div className="legacy-react-wrapper">
           {/* Page Header */}
           <div style={{ marginBottom: '1.5rem' }}>
-            <Link href="/clients" style={{ fontSize: '0.85rem', fontWeight: 600 }}>← Back to Clients Directory</Link>
+            <Link href={route('clients.index')} style={{ fontSize: '0.85rem', fontWeight: 600 }}>← Back to Clients Directory</Link>
             <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: '0.5rem' }}>
               <div>
                 <h2 style={{ marginBottom: '0.2rem' }}>{client ? 'Edit Client' : 'Add New Client'}</h2>
@@ -103,7 +103,7 @@ export default function ClientForm({ client, defaultLopBasis }) {
                   display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', alignItems: 'center',
                   marginTop: '2.5rem', paddingTop: '1.5rem', borderTop: '2px solid var(--border-color)'
                 }}>
-                  <Link href="/clients" className="btn btn-secondary" style={{ marginRight: 'auto' }}>Cancel</Link>
+                  <Link href={route('clients.index')} className="btn btn-secondary" style={{ marginRight: 'auto' }}>Cancel</Link>
                   <button type="button" className="btn btn-secondary" onClick={() => saveDraft(true)}>💾 Save as Draft</button>
                   
                   {currentStep > 1 && (

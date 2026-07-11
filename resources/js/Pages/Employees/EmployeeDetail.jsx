@@ -85,10 +85,10 @@ const renderDocumentRows = () => {
                         <div style={{"display":"flex","gap":"0.4rem","justifyContent":"flex-end","alignItems":"center"}}>
                             {uploadedDoc.status === "pending" && (
                                 <>
-                                    <button className="btn btn-xs" style={{"backgroundColor":"var(--status-success)","color":"white"}} onClick={() => router.put(`/employees/${employee.id}/documents/${uploadedDoc.id}/verify`, { status: "verified" })}>✓ Verify</button>
+                                    <button className="btn btn-xs" style={{"backgroundColor":"var(--status-success)","color":"white"}} onClick={() => router.put(route('employees.documents.verify', { id: employee.id, docId: uploadedDoc.id }), { status: "verified" })}>✓ Verify</button>
                                     <button className="btn btn-danger btn-xs" onClick={() => {
                                         const reason = prompt("Rejection Reason:");
-                                        if(reason) router.put(`/employees/${employee.id}/documents/${uploadedDoc.id}/verify`, { status: "rejected", rejection_reason: reason });
+                                        if(reason) router.put(route('employees.documents.verify', { id: employee.id, docId: uploadedDoc.id }), { status: "rejected", rejection_reason: reason });
                                     }}>✕ Reject</button>
                                 </>
                             )}
@@ -103,7 +103,7 @@ const renderDocumentRows = () => {
                                     const formData = new FormData();
                                     formData.append("document_type", docDef.type);
                                     formData.append("file", e.target.files[0]);
-                                    router.post(`/employees/${employee.id}/documents`, formData);
+                                    router.post(route('employees.documents.store', employee.id), formData);
                                 }
                             }} />
                             <button className="btn btn-navy btn-xs" onClick={() => document.getElementById(`file_${docDef.type}`).click()}>📤 Upload Document</button>
@@ -122,7 +122,7 @@ const renderDocumentRows = () => {
             <div className="legacy-react-wrapper">
                 
       <div style={{"marginBottom":"1.5rem"}}>
-        <a href="/employees" style={{"fontSize":"0.85rem","fontWeight":"600"}}>← Back to Employees Directory</a>
+        <a href={route('employees.index')} style={{"fontSize":"0.85rem","fontWeight":"600"}}>← Back to Employees Directory</a>
         <div className="flex-row-between" style={{"marginTop":"0.5rem","marginBottom":"0"}}>
           <div style={{"display":"flex","alignItems":"center","gap":"1rem"}}>
             <h2 id="page-emp-name">{employee.full_name || 'Employee Profile'}</h2>
@@ -138,7 +138,7 @@ const renderDocumentRows = () => {
                 <button 
                     onClick={() => {
                         if (confirm('Resend invitation email to this employee?')) {
-                            router.post(`/employees/${employee.id}/resend-invitation`);
+                            router.post(route('employees.resend-invitation', employee.id));
                         }
                     }} 
                     className="btn" 
@@ -147,16 +147,16 @@ const renderDocumentRows = () => {
                     ✉️ Resend Invite
                 </button>
             )}
-            <a href={`/employees/${employee.id}/salary-revision`} className="btn btn-navy">📈 Revise Salary</a>
-            <a href={`/employees/${employee.id}/exit?stage=1`} className="btn btn-danger">🚪 Initiate Exit Process</a>
-            <Link href={`/employees/${employee.id}/edit`} className="btn btn-secondary">✏️ Edit Profile</Link>
+            <a href={route('employees.salary-revision.create', employee.id)} className="btn btn-navy">📈 Revise Salary</a>
+            <a href={route('employees.exit.show', { id: employee.id, stage: 1 })} className="btn btn-danger">🚪 Initiate Exit Process</a>
+            <Link href={route('employees.edit', employee.id)} className="btn btn-secondary">✏️ Edit Profile</Link>
             
             {employee.status === 'suspended' ? (
               <button 
                   className="btn btn-primary" 
                   onClick={() => {
                       if (confirm('Are you sure you want to reactivate this employee?')) {
-                          router.post(`/employees/${employee.id}/activate`);
+                          router.post(route('employees.activate', employee.id));
                       }
                   }}
               >
@@ -167,7 +167,7 @@ const renderDocumentRows = () => {
                   className="btn btn-warning" 
                   onClick={() => {
                       if (confirm('Are you sure you want to suspend this employee?')) {
-                          router.post(`/employees/${employee.id}/deactivate`);
+                          router.post(route('employees.deactivate', employee.id));
                       }
                   }}
               >
@@ -202,7 +202,7 @@ const renderDocumentRows = () => {
             alert('Please provide a reason (min 10 characters).');
             return;
           }
-          router.delete(`/employees/${employee.id}`, {
+          router.delete(route('employees.destroy', employee.id), {
             data: { confirm_text: deleteDialog.confirmText, reason: deleteDialog.reason },
             onFinish: () => setDeleteDialog({ isOpen: false, confirmText: '', reason: '' })
           });
@@ -332,7 +332,7 @@ const renderDocumentRows = () => {
                 </div>
                 <div style={{"marginTop":"0.5rem","fontSize":"0.75rem","color":"var(--text-muted)"}}>
                   🔒 Bank details can only be changed via the
-                  <a href="/bank-change-requests" style={{"color":"var(--primary-navy)","fontWeight":"600"}}>Bank Change Requests</a> approval flow.
+                  <a href={route('employees.bank-change-requests')} style={{"color":"var(--primary-navy)","fontWeight":"600"}}>Bank Change Requests</a> approval flow.
                 </div>
               </div>
 
@@ -360,7 +360,7 @@ const renderDocumentRows = () => {
                   </div>
                 </div>
                 <div style={{"marginTop":"0.5rem","fontSize":"0.75rem","color":"var(--text-muted)"}}>
-                  🔒 Salary structure is read-only. Use <a href="/employees/1/salary-revision" style={{"color":"var(--primary-navy)","fontWeight":"600"}}>Revise Salary</a> to apply promotions or increments.
+                  🔒 Salary structure is read-only. Use <a href={route('employees.salary-revision.create', employee.id)} style={{"color":"var(--primary-navy)","fontWeight":"600"}}>Revise Salary</a> to apply promotions or increments.
                 </div>
               </div>
             </div>
@@ -409,7 +409,7 @@ const renderDocumentRows = () => {
 
                 <div style={{"marginTop":"1rem","paddingTop":"1rem","borderTop":"1px solid var(--border-color)","fontSize":"0.75rem","color":"var(--text-muted)"}}>
                   🔒 Statutory toggles (PF/ESI/PT/TDS) can only be changed via the
-                  <a href="/employees/create?id=88&amp;mode=edit-active" style={{"color":"var(--primary-navy)","fontWeight":"500"}}>Employee Configuration Form</a>
+                  <a href={`${route('employees.create')}?id=${employee.id}&mode=edit-active`} style={{"color":"var(--primary-navy)","fontWeight":"500"}}>Employee Configuration Form</a>
                   — not through Edit Profile.
                 </div>
               </div>
@@ -580,7 +580,7 @@ const renderDocumentRows = () => {
               <div style={{"marginTop":"1rem","padding":"0.75rem 1rem","background":"#F8FAFC","border":"1px solid var(--border-color)","borderRadius":"var(--radius-sm)","fontSize":"0.8rem","color":"var(--text-muted)","display":"flex","alignItems":"center","gap":"0.5rem"}}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style={{"opacity":"0.45","flexShrink":"0"}}><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                 Salary structure is <strong style={{"color":"var(--text-main)"}}>read-only</strong> for Active employees.
-                To update compensation, use <a href="/employees/1/salary-revision" style={{"color":"var(--primary-navy)","fontWeight":"600"}}>Revise Salary →</a>
+                To update compensation, use <a href={route('employees.salary-revision.create', employee.id)} style={{"color":"var(--primary-navy)","fontWeight":"600"}}>Revise Salary →</a>
               </div>
             </div>
 
@@ -1429,8 +1429,8 @@ const renderDocumentRows = () => {
             onInput={(event) => { window.onDesignationChange() }} />
           <div className="desig-changed-note" id="desig-changed-note">
             ⚠ Designation changed without a salary revision in this session.
-            <a href="/employees/1/salary-revision" style={{"color":"var(--status-warning)","fontWeight":"600"}}>Review Revise Salary →</a>
-            This will be flagged in the <a href="/admin/activity-log" style={{"color":"var(--status-warning)","fontWeight":"600"}}>Activity Log</a>.
+            <a href={route('employees.salary-revision.create', employee.id)} style={{"color":"var(--status-warning)","fontWeight":"600"}}>Review Revise Salary →</a>
+            This will be flagged in the <a href={route('admin.activity-log')} style={{"color":"var(--status-warning)","fontWeight":"600"}}>Activity Log</a>.
           </div>
         </div>
 
@@ -1496,7 +1496,7 @@ const renderDocumentRows = () => {
           <svg className="lock-icon" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
           <div className="lock-body">
             <div className="lock-title">Bank Details (HDFC Bank · ••••••••398571 · HDFC0000060)</div>
-            <div className="lock-note">Locked — use <a href="/bank-change-requests">Bank Change Requests</a> to update disbursement account.</div>
+            <div className="lock-note">Locked — use <a href={route('employees.bank-change-requests')}>Bank Change Requests</a> to update disbursement account.</div>
           </div>
         </div>
 
@@ -1505,7 +1505,7 @@ const renderDocumentRows = () => {
           <svg className="lock-icon" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
           <div className="lock-body">
             <div className="lock-title">Statutory IDs (PAN · Aadhaar · UAN · ESI No)</div>
-            <div className="lock-note">Locked — use <a href="/employees/create?id=88&mode=edit-active">Employee Configuration Form</a> to update statutory credentials.</div>
+            <div className="lock-note">Locked — use <a href={`${route('employees.create')}?id=${employee.id}&mode=edit-active`}>Employee Configuration Form</a> to update statutory credentials.</div>
           </div>
         </div>
 
@@ -1514,7 +1514,7 @@ const renderDocumentRows = () => {
           <svg className="lock-icon" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
           <div className="lock-body">
             <div className="lock-title">Salary Structure (Basic ₹22,000 · HRA ₹11,000 · Allowances ₹12,000 · CTC ₹45,000)</div>
-            <div className="lock-note">Locked — use <a href="/employees/1/salary-revision">Revise Salary →</a> to update compensation.</div>
+            <div className="lock-note">Locked — use <a href={route('employees.salary-revision.create', employee.id)}>Revise Salary →</a> to update compensation.</div>
           </div>
         </div>
 
@@ -1523,7 +1523,7 @@ const renderDocumentRows = () => {
           <svg className="lock-icon" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
           <div className="lock-body">
             <div className="lock-title">Statutory Applicability (PF · ESI · PT · TDS)</div>
-            <div className="lock-note">Locked — use <a href="/employees/create?id=88&mode=edit-active">Employee Configuration Form</a> to change statutory override toggles.</div>
+            <div className="lock-note">Locked — use <a href={`${route('employees.create')}?id=${employee.id}&mode=edit-active`}>Employee Configuration Form</a> to change statutory override toggles.</div>
           </div>
         </div>
 

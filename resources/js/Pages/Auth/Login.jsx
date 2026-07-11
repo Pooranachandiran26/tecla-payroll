@@ -20,7 +20,7 @@ export default function Login({ rememberMeEnabled = true }) {
 
   const submit = (e) => {
     e.preventDefault();
-    post('/login');
+    post(route('login.post'));
   };
 
   return (
@@ -77,7 +77,7 @@ export default function Login({ rememberMeEnabled = true }) {
               onChange={handleChange}
             />
           )}
-          <Link href="/forgot-password" style={{ fontSize: '0.8rem', color: 'var(--primary-navy)' }}>
+          <Link href={route('password.request')} style={{ fontSize: '0.8rem', color: 'var(--primary-navy)' }}>
             Forgot password?
           </Link>
         </div>
