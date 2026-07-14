@@ -205,7 +205,7 @@ class ClientController extends Controller
 
         Event::dispatch(new ClientCreated($client));
 
-        return redirect()->route('clients.show', $client)->with('success', 'Client created successfully.');
+        return redirect()->route('clients.index')->with('success', 'Client created successfully.');
     }
 
     public function show(Client $client)
@@ -321,7 +321,7 @@ class ClientController extends Controller
             ));
         }
 
-        return redirect()->back()->with('success', 'Client updated successfully');
+        return redirect()->route('clients.index')->with('success', 'Client updated successfully.');
     }
 
     public function uploadDocument(Request $request, Client $client)

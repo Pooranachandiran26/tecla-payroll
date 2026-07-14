@@ -10,7 +10,7 @@ export default function ClientDashboard() {
             <Head title="Client Dashboard" />
             
       <div style={{ marginBottom: '1.5rem' }}>
-        <a href="/clients-list" style={{ fontSize: '0.85rem', fontWeight: '600' }}>← Back to Clients Directory</a>
+        <Link href={route('clients.index')} style={{ fontSize: '0.85rem', fontWeight: '600' }}>← Back to Clients Directory</Link>
 
         <div className="flex-row-between" style={{ marginTop: '1rem' }}>
           <div>
@@ -68,7 +68,7 @@ export default function ClientDashboard() {
               June 2026 timesheet for your 42 deployed employees is awaiting your approval. Review and approve to unblock payroll.
             </p>
             <div style={{ display: 'flex', gap: '0.75rem' }}>
-              <a href="/client-attendance-approval" id="timesheet-review-link" className="btn btn-primary">Review & Approve →</a>
+              <Link href={route('client.attendance')} id="timesheet-review-link" className="btn btn-primary">Review & Approve →</Link>
             </div>
           </div>
 
@@ -76,8 +76,8 @@ export default function ClientDashboard() {
           <div className="card" id="candidates-card">
             <div className="card-header">
               <h3 className="card-title">Recent Employees Deployed</h3>
-              <a href="/client-candidates" id="candidates-view-all-link" className="btn btn-secondary btn-xs">View All
-                Employees</a>
+              <Link href={route('client.employees')} id="candidates-view-all-link" className="btn btn-secondary btn-xs">View All
+                Employees</Link>
             </div>
             <div className="table-responsive">
               <table className="data-table">
@@ -106,8 +106,8 @@ export default function ClientDashboard() {
           <div className="card" id="invoices-card">
             <div className="card-header">
               <h3 className="card-title">Invoices Summary</h3>
-              <a href="/client-detail#invoices" id="invoices-manage-link" className="btn btn-link btn-xs">Manage
-                Invoices</a>
+              <Link href={route('client.invoices')} id="invoices-manage-link" className="btn btn-link btn-xs">Manage
+                Invoices</Link>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }} id="invoice-summary-list">
               

@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { router } from '@inertiajs/react';
+import useToast from '@/Hooks/useToast';
 import {
   PATTERNS, PIN_MAPPING, GST_STATE_CODES, ALLOWED_FILE_TYPES,
   MAX_FILE_SIZE, DOC_TYPE_LABELS, DOC_TYPE_ICONS, REQUIRED_DOC_TYPES,
@@ -42,9 +43,9 @@ export default function useClientForm(defaultLopBasis = 'inherit') {
     return 1;
   };
 
-  const [toastMessage, setToastMessage] = useState(null);
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [editId, setEditId] = useState(null);
+  const { showToast: globalToast } = useToast();
+  const [isEditMode, setIsEditMode] = useState(!!initialClient);
+  const [editId, setEditId] = useState(initialClient ? initialClient.id : null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState('');
   const [pendingDocType, setPendingDocType] = useState('other');
@@ -82,10 +83,18 @@ export default function useClientForm(defaultLopBasis = 'inherit') {
   }, []);
 
   // ── Toast helper ─────────────────────────────────
-  const showToast = useCallback((message) => {
-    setToastMessage(message);
-    setTimeout(() => setToastMessage(''), 3000);
-  }, []);
+  const showToast = useCallback((msgOrObj) => {
+    if (typeof msgOrObj === 'string') {
+      let type = 'success';
+      if (msgOrObj.includes('❌') || msgOrObj.includes('🚫') || msgOrObj.includes('🔴')) type = 'error';
+      else if (msgOrObj.includes('⚠️')) type = 'warning';
+      
+      const cleanMsg = msgOrObj.replace(/^[❌🚫🔴⚠️✅✓💡💻🔐⚙️📅🤝⭐💼🧾🔢📍🏢⚡👤👔📱💰📋📚📁✔️]\s*/, '');
+      globalToast({ message: cleanMsg, type });
+    } else {
+      globalToast(msgOrObj);
+    }
+  }, [globalToast]);
 
   // ── Mark section progress ────────────────────────
   const markProgress = useCallback((section) => {
@@ -597,6 +606,8 @@ export default function useClientForm(defaultLopBasis = 'inherit') {
         { key: 'companyName', label: 'Company Name' },
         { key: 'companyType', label: 'Company Type' },
         { key: 'clientCode', label: 'Client Code' },
+        { key: 'workLocationsCount', label: 'Number of Work Locations' },
+        { key: 'clientStatus', label: 'Client Status' }
       );
       if (country === 'India') {
         if (compType !== 'govt' && compType !== 'trust') {
@@ -631,12 +642,17 @@ export default function useClientForm(defaultLopBasis = 'inherit') {
       if (formData.poRequired) {
         requiredFields.push({ key: 'poNumber', label: 'PO Number' });
       }
+      if (formData.billingModel === 'markup') {
+        requiredFields.push({ key: 'markupPct', label: 'Markup Percentage' });
+      }
+      if (formData.billingModel === 'fixed_per_candidate') {
+        requiredFields.push({ key: 'fixedFeeCandidate', label: 'Fixed Fee Per Candidate' });
+      }
     }
-    // Steps 5-8 have no required fields for step validation
 
     let isValid = true;
     let newErrors = { ...errors };
-    let firstErrorKey = null;
+    let missingLabels = [];
 
     requiredFields.forEach(field => {
       let value;
@@ -649,54 +665,65 @@ export default function useClientForm(defaultLopBasis = 'inherit') {
       if (!value || String(value).trim() === '') {
         newErrors[field.key] = true;
         isValid = false;
-        if (!firstErrorKey) firstErrorKey = field.key;
+        missingLabels.push(field.label);
       } else {
         delete newErrors[field.key];
       }
     });
 
-    // GSTIN pattern validation on step 1
     if (stepNum === 1 && country === 'India' && compType !== 'govt' && compType !== 'trust') {
       const gstin = (formData.gstin || '').toUpperCase();
       if (gstin && !PATTERNS.GSTIN.test(gstin)) {
         newErrors.gstin = true;
         isValid = false;
-        if (!firstErrorKey) firstErrorKey = 'gstin';
+        if (!missingLabels.includes('GSTIN (Invalid format)')) {
+            missingLabels.push('GSTIN (Invalid format)');
+        }
       }
     }
 
-    // Branch GSTIN validation on step 2
-    if (stepNum === 2 && !checkAllBranchesGSTIN()) {
-      isValid = false;
+    if (stepNum === 2) {
+      if (!checkAllBranchesGSTIN()) {
+        isValid = false;
+        missingLabels.push('Valid Branch GSTINs');
+      }
+      if (formData.workLocationsCount > 1 && clientBranches.length === 0) {
+        isValid = false;
+        missingLabels.push('At least one Branch (required for >1 locations)');
+      }
     }
 
     setErrors(newErrors);
 
     if (!isValid) {
+      const msg = `Missing required fields: ${missingLabels.join(', ')}`;
       if (isTabNavigation) {
-        showToast(`❌ You can't navigate to this tab without completing these required fields.`);
+        showToast({ message: `Cannot navigate: ${msg}`, type: 'error' });
       } else {
-        showToast(`❌ Section ${stepNum} has missing/invalid required fields.`);
+        showToast({ message: msg, type: 'error' });
       }
     }
 
     return isValid;
-  }, [formData, errors, checkAllBranchesGSTIN, showToast]);
+  }, [formData, errors, checkAllBranchesGSTIN, showToast, clientBranches.length]);
 
   const goToStep = useCallback((stepNum) => {
+    // SUGGESTION: implement real-time validation observer for sectionProgress instead of only checking on forward nav
     if (stepNum > currentStep) {
       for (let s = currentStep; s < stepNum; s++) {
         if (!validateStep(s, true)) return;
+        markProgress(s);
       }
     }
     setCurrentStep(stepNum);
-  }, [currentStep, validateStep]);
+  }, [currentStep, validateStep, markProgress]);
 
   const nextStep = useCallback(() => {
     if (validateStep(currentStep) && currentStep < 8) {
+      markProgress(currentStep);
       setCurrentStep(prev => prev + 1);
     }
-  }, [currentStep, validateStep]);
+  }, [currentStep, validateStep, markProgress]);
 
   const prevStep = useCallback(() => {
     if (currentStep > 1) setCurrentStep(prev => prev - 1);
@@ -831,13 +858,27 @@ export default function useClientForm(defaultLopBasis = 'inherit') {
     };
   }, [formData, editId, clientBranches, extraContacts, uploadedDocs]);
 
+  const getDraftKey = useCallback(() => {
+    return isEditMode && editId ? `tecla_client_draft_edit_${editId}` : `tecla_client_draft_create`;
+  }, [isEditMode, editId]);
+
   const saveDraft = useCallback((isAuto = false) => {
-    const code = formData.clientCode || 'temp';
-    const payload = getFormPayload();
-    localStorage.setItem(`tecla_client_draft_${code}`, JSON.stringify(payload));
+    const key = getDraftKey();
+    const draftPayload = {
+      _draftVersion: 2,
+      formData: { ...formData },
+      clientBranches: [...clientBranches],
+      extraContacts: [...extraContacts],
+      agencyBranches: [...agencyBranches],
+      stateRegistrations: [...stateRegistrations],
+      sectionProgress: { ...sectionProgress },
+      currentStep,
+      savedAt: new Date().toISOString(),
+    };
+    localStorage.setItem(key, JSON.stringify(draftPayload));
     if (!isAuto) showToast('💾 Draft saved successfully!');
     return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  }, [formData.clientCode, getFormPayload, showToast]);
+  }, [getDraftKey, formData, clientBranches, extraContacts, agencyBranches, stateRegistrations, sectionProgress, currentStep, showToast]);
 
   const errorKeyMap = useCallback((laravelErrors) => {
     const mapped = {};
@@ -917,8 +958,12 @@ export default function useClientForm(defaultLopBasis = 'inherit') {
 
     const handleSuccess = (page) => {
       setIsSubmitting(false);
-      setSubmitSuccess('✅ Client saved & activated successfully!');
-      localStorage.removeItem(`tecla_client_draft_${payload.code || 'temp'}`);
+      showToast('✅ Client saved & activated successfully!');
+      Object.keys(localStorage).forEach(k => {
+        if (k.startsWith('tecla_client_draft_')) {
+          localStorage.removeItem(k);
+        }
+      });
     };
 
     const handleError = (errors) => {
@@ -957,13 +1002,13 @@ export default function useClientForm(defaultLopBasis = 'inherit') {
       router.put(`/clients/${editId}`, payload, {
         onSuccess: handleSuccess,
         onError: handleError,
-        preserveScroll: true
+        preserveScroll: false
       });
     } else {
       router.post('/clients', payload, {
         onSuccess: handleSuccess,
         onError: handleError,
-        preserveScroll: true
+        preserveScroll: false
       });
     }
     return true;
@@ -1156,43 +1201,90 @@ export default function useClientForm(defaultLopBasis = 'inherit') {
   // ═══ INITIALIZATION ═══════════════════════════════
 
   useEffect(() => {
-    // If not in edit mode, set up demo data or load draft
+    // If not in edit mode, load draft if one exists for this exact key
     if (!isEditMode) {
-      const codeKey = formData.clientCode || 'temp';
-      const draftStr = localStorage.getItem(`tecla_client_draft_${codeKey}`);
+      const key = getDraftKey();
+      const draftStr = localStorage.getItem(key);
 
-        if (draftStr) {
-          try {
-            const draftData = JSON.parse(draftStr);
-            
-            // Map legacy string values to actual numbers or default
-            if (draftData.lopBasis === 'inherit' || draftData.lopBasis === '') {
-                draftData.lopBasis = defaultLopBasis;
-            } else if (draftData.lopBasis === '26_days') {
-                draftData.lopBasis = '26';
-            } else if (draftData.lopBasis === '30_days') {
-                draftData.lopBasis = '30';
+      if (draftStr) {
+        try {
+          const parsed = JSON.parse(draftStr);
+
+          if (parsed._draftVersion === 2 && parsed.formData) {
+            // ── Version 2 draft: raw formData was saved directly ──
+            const savedForm = parsed.formData;
+
+            // Normalise lopBasis
+            if (savedForm.lopBasis === 'inherit' || savedForm.lopBasis === '') {
+              savedForm.lopBasis = defaultLopBasis;
+            } else if (savedForm.lopBasis === '26_days') {
+              savedForm.lopBasis = '26';
+            } else if (savedForm.lopBasis === '30_days') {
+              savedForm.lopBasis = '30';
             }
 
-            setFormData(prev => ({ ...prev, ...draftData }));
-            // Note: contacts and branches from draft need special handling if we want full recovery,
-            // but for now, basic recovery is fine.
+            setFormData(prev => ({ ...prev, ...savedForm }));
+
+            // Restore client branches
+            if (Array.isArray(parsed.clientBranches)) {
+              setClientBranches(parsed.clientBranches);
+            }
+
+            // Restore extra contacts
+            if (Array.isArray(parsed.extraContacts)) {
+              setExtraContacts(parsed.extraContacts);
+            }
+
+            // Restore agency branches
+            if (Array.isArray(parsed.agencyBranches)) {
+              setAgencyBranches(parsed.agencyBranches);
+            }
+
+            // Restore state registrations
+            if (Array.isArray(parsed.stateRegistrations)) {
+              setStateRegistrations(parsed.stateRegistrations);
+            }
+
+            // Restore section progress
+            if (parsed.sectionProgress && typeof parsed.sectionProgress === 'object') {
+              setSectionProgress(parsed.sectionProgress);
+            }
+
+            // Restore step position
+            if (parsed.currentStep >= 1 && parsed.currentStep <= 8) {
+              setCurrentStep(parsed.currentStep);
+            }
+
             showToast('ℹ️ Loaded form from local draft.');
-          } catch (e) { console.error(e); }
-        } else {
-        DEMO_BRANCHES.forEach(b => addClientBranch(b));
+          }
+        } catch (e) { console.error('Draft restore error:', e); }
       }
     }
-  }, [isEditMode]);
+  }, [isEditMode, getDraftKey]);
 
-  // ═══ RETURN ═══════════════════════════════════════
+  const clearDraft = useCallback(() => {
+    Object.keys(localStorage).forEach(k => {
+      if (k.startsWith('tecla_client_draft_')) {
+        localStorage.removeItem(k);
+      }
+    });
+    const fresh = getDefaultFormData();
+    fresh.lopBasis = defaultLopBasis;
+    setFormData(fresh);
+    setClientBranches([]);
+    setExtraContacts([]);
+    setAgencyBranches([]);
+    setStateRegistrations([{ state: 'MH', ptRegNo: '', lwfRegNo: '' }]);
+    setSectionProgress({ 1: false, 2: false, 3: false, 4: false, 5: false, 6: false, 7: false, 8: false });
+    setCurrentStep(1);
+    showToast('🗑️ Draft cleared and form reset.');
+  }, [defaultLopBasis, showToast]);
 
   return {
     // State
     formData, errors, hints, currentStep, sectionProgress,
-    uploadedDocs, extraContacts, clientBranches, agencyBranches,
-    stateRegistrations, toastMessage, isEditMode, pendingDocType,
-    fileInputRef, logoInputRef,
+    uploadedDocs, extraContacts, clientBranches, agencyBranches, stateRegistrations,
+    isEditMode, editId, pendingDocType, fileInputRef, logoInputRef,
 
     // Generic handlers
     handleInputChange, handlePocChange, handlePocPrefChange,
@@ -1201,7 +1293,6 @@ export default function useClientForm(defaultLopBasis = 'inherit') {
     // Validators
     validateGSTIN, validatePAN, validateTAN, validateCIN, validatePIN,
     validateEmail, validatePhone, validateContractDates, validateStep,
-    validateBranchGSTIN, checkAllBranchesGSTIN, crossCheckPANGSTIN,
 
     // Field-specific handlers
     autoGenerateCode, handleCompanyType, handleCountryChange,
@@ -1239,7 +1330,7 @@ export default function useClientForm(defaultLopBasis = 'inherit') {
     completionPct, completionCount,
 
     // Form actions
-    saveDraft, submitForm, getFormPayload, loadClientData,
+    saveDraft, clearDraft, submitForm, getFormPayload, loadClientData,
     isSubmitting, submitSuccess,
   };
 }
