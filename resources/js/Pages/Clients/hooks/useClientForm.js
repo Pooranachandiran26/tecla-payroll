@@ -11,7 +11,7 @@ import {
 //  useClientForm — All form state, validation & logic
 // ═══════════════════════════════════════════════════
 
-export default function useClientForm(defaultLopBasis = 'inherit') {
+export default function useClientForm(defaultLopBasis = 'inherit', initialClient = null) {
   // ── Core state ───────────────────────────────────
   const initialFormData = getDefaultFormData();
   initialFormData.lopBasis = defaultLopBasis;
