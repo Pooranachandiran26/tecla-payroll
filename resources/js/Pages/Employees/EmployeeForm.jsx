@@ -486,7 +486,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Full Name</label>
+                    <label>Full Name <span style={{ color: "var(--status-danger)" }}>*</span></label>
                     <input type="text" className={`form-control ${errors.fullName ? `is-${errors.fullName.type}` : ''}`} value={formData.fullName}
                       onChange={e => { handleInputChange('fullName', e.target.value); handleInputChange('accountHolder', e.target.value); }}
                       onBlur={validateFullName} required />
@@ -602,7 +602,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                 <div className="form-row">
                   {isAdd && (
                     <div className="form-group">
-                      <label>Client Partner</label>
+                      <label>Client Partner <span style={{ color: "var(--status-danger)" }}>*</span></label>
                       <select className="form-control" value={formData.clientPartner} onChange={e => handleInputChange('clientPartner', e.target.value)} disabled={isActive} required>
                         <option value="">-- Select Client --</option>
                         {clients && clients.map(c => (
@@ -612,7 +612,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                     </div>
                   )}
                   <div className="form-group">
-                    <label>Designation</label>
+                    <label>Designation <span style={{ color: "var(--status-danger)" }}>*</span></label>
                     <input type="text" className="form-control" value={formData.designation} onChange={e => handleInputChange('designation', e.target.value)} required />
                   </div>
                 </div>
@@ -620,7 +620,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
 
                 <div className="form-row">
                   <div className="form-group">
-                      <label>Date of Joining</label>
+                      <label>Date of Joining <span style={{ color: "var(--status-danger)" }}>*</span></label>
                       <input type="date" className={`form-control ${isActive ? 'read-only-field' : ''} ${errors.doj ? `is-${errors.doj.type}` : ''}`} value={formData.doj}
                         onChange={e => { handleInputChange('doj', e.target.value); validateAgeAtJoining(); }} readOnly={isActive} required />
                       {errors.doj && <div className={`field-msg ${errors.doj.type} show`}>{errors.doj.msg}</div>}
@@ -649,7 +649,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                       </div>
                     </div>
                   <div className="form-group" style={{ flex: 1 }}>
-                    <label>Residential Address</label>
+                    <label>Residential Address <span style={{ color: "var(--status-danger)" }}>*</span></label>
                     <input type="text" className="form-control" value={formData.address} onChange={e => handleInputChange('address', e.target.value)} required />
                   </div>
                 </div>
@@ -751,7 +751,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                         <input type="text" className="form-control read-only-field" value={formData.bankBranch} readOnly />
                       </div>
                       <div className="form-group">
-                        <label>Account Holder Name</label>
+                        <label>Account Holder Name <span style={{ color: "var(--status-danger)" }}>*</span></label>
                         <input type="text" className="form-control" value={formData.accountHolder} onChange={e => handleInputChange('accountHolder', e.target.value)} required />
                       </div>
                     </div>
@@ -765,7 +765,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Permanent Account Number (PAN)</label>
+                    <label>Permanent Account Number (PAN) <span style={{ color: "var(--status-danger)" }}>*</span></label>
                     <input type="text" className={`form-control ${errors.pan ? `is-${errors.pan.type}` : ''}`} value={formData.pan}
                       onChange={e => handleInputChange('pan', e.target.value.toUpperCase())} onBlur={validatePAN} required />
                     {errors.pan && <div className={`field-msg ${errors.pan.type} show`}>{errors.pan.msg}</div>}
