@@ -142,6 +142,10 @@ Route::middleware(['auth', 'active'])->group(function () {
  
         // ADMIN ONLY
         Route::middleware('role:admin')->group(function () {
+            Route::post('/payroll/{id}/approve', [\App\Http\Controllers\PayrollController::class, 'approve'])->name('payroll.run.approve');
+            Route::post('/payroll/{id}/lock', [\App\Http\Controllers\PayrollController::class, 'lock'])->name('payroll.run.lock');
+            Route::post('/payroll/{id}/supplementary', [\App\Http\Controllers\PayrollController::class, 'runSupplementary'])->name('payroll.run.supplementary');
+
             Route::get('/admin/activity-log', [\App\Http\Controllers\Admin\ActivityLogController::class, 'index'])->name('admin.activity-log');
             Route::get('/admin/users', [UserController::class, 'index'])->name('admin.users');
             Route::post('/admin/users', [UserController::class, 'store'])->name('admin.users.store');

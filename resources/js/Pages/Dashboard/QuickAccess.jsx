@@ -109,7 +109,7 @@ export default function QuickAccess() {
               {renderBtn('qa-add-employee', '/employees/create', <UserPlus strokeWidth={1.6} />, 'Add New Employee')}
               {renderBtn('qa-employee-detail', '/employees/1', <UserCircle strokeWidth={1.6} />, 'Employee Detail')}
               {renderBtn('qa-bulk-upload', '/employees/bulk-upload', <UploadCloud strokeWidth={1.6} />, 'Bulk Upload')}
-              {renderBtn('qa-bulk-salary', '/employees/salary-bulk-update', <Banknote strokeWidth={1.6} />, 'Bulk Salary Update')}
+              {/* {renderBtn('qa-bulk-salary', '/employees/salary-bulk-update', <Banknote strokeWidth={1.6} />, 'Bulk Salary Update')} */}
               {renderBtn('qa-salary-revision', '/employees/1/salary-revision', <History strokeWidth={1.6} />, 'Salary Revision')}
               {renderBtn('qa-employee-exit', '/employees/1/exit', <ExternalLink strokeWidth={1.6} />, 'Employee Exit / F&F')}
               {renderBtn('qa-bank-change', '/employees/bank-change-requests', <Banknote strokeWidth={1.6} />, 'Bank Change Requests')}

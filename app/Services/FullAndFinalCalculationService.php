@@ -104,10 +104,38 @@ class FullAndFinalCalculationService
     }
 
     /**
-     * STUB: Replace in Phase 5 with actual payroll lock check.
+     * Check if payroll is locked/approved for the given employee's client.
      */
-    public function isPayrollLocked($month, $year)
+    public function isPayrollLocked($employeeOrClientIdOrMonth, $monthOrYear = null, $year = null)
     {
-        return false;
+        // If only 2 arguments are passed and the first is an integer/numeric, it's the old signature: isPayrollLocked($month, $year)
+        if (func_num_args() === 2 && is_numeric($employeeOrClientIdOrMonth) && is_numeric($monthOrYear)) {
+            $month = (int)$employeeOrClientIdOrMonth;
+            $year = (int)$monthOrYear;
+            $targetMonth = Carbon::create($year, $month, 1)->toDateString();
+            return \Illuminate\Support\Facades\DB::table('payroll_runs')
+                ->where('payroll_month', $targetMonth)
+                ->whereIn('status', ['approved', 'locked'])
+                ->exists();
+        }
+
+        $clientId = $employeeOrClientIdOrMonth instanceof \App\Models\Employee
+            ? $employeeOrClientIdOrMonth->client_id
+            : $employeeOrClientIdOrMonth;
+
+        if (!$clientId) {
+            return false;
+        }
+
+        $query = \Illuminate\Support\Facades\DB::table('payroll_runs')
+            ->where('client_id', $clientId)
+            ->whereIn('status', ['approved', 'locked']);
+
+        if ($monthOrYear !== null && $year !== null) {
+            $targetMonth = Carbon::create($year, $monthOrYear, 1)->toDateString();
+            $query->where('payroll_month', $targetMonth);
+        }
+
+        return $query->exists();
     }
 }

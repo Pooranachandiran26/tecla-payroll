@@ -13,6 +13,10 @@ return new class extends Migration
     {
         Schema::create('bank_change_requests', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('employee_id')->constrained('employees')->onDelete('cascade');
+            $table->string('status')->default('pending');
+            $table->string('new_bank_account_number')->nullable();
+            $table->string('new_bank_ifsc')->nullable();
             $table->timestamps();
         });
     }
