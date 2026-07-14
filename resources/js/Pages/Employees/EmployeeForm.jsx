@@ -396,6 +396,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     if (processing) return;
+    setProcessing(true);
     
     validatePersonalEmail();
     validatePhone();
@@ -406,6 +407,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
     validateAgeAtJoining();
 
     if (blockingErrors.size > 0) {
+      setProcessing(false);
       showToast({ 
         type: 'error', 
         title: 'Cannot Save Employee', 
@@ -436,7 +438,6 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
     const url = isAdd ? route('employees.store') : route('employees.update', empId);
     const method = isAdd ? 'post' : 'put';
     
-    setProcessing(true);
     router[method](url, formData, {
       onFinish: () => setProcessing(false),
       onError: (serverErrors) => {
@@ -477,7 +478,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
 
           <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 340px", gap: "2rem", alignItems: "start" }}>
             <div className="card">
-              <form id="emp-form" onSubmit={handleFormSubmit}>
+              <form id="emp-form" onSubmit={handleFormSubmit} noValidate>
                 
                 {/* 1. PERSONAL DETAILS */}
                 <h3 style={{ borderBottom: "1px solid var(--border-color)", paddingBottom: "0.5rem", marginBottom: "1.25rem", fontSize: "1.05rem" }}>
