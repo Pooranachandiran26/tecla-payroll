@@ -36,7 +36,7 @@ export const subNavs = {
     { name: 'All Employees', url: route('employees.index') },
     { name: 'Add New', url: route('employees.create') },
     { name: 'Bulk Upload', url: route('employees.bulk-upload') },
-    { name: 'Bulk Salary Update', url: route('employees.salary-bulk-update') },
+    // { name: 'Bulk Salary Update', url: route('employees.salary-bulk-update') },
     { name: 'Bank Change Requests', url: route('employees.bank-change-requests') },
     { name: 'Leave Approval Queue', url: route('leave-requests.index') },
   ],

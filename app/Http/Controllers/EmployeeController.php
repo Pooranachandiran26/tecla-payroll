@@ -50,16 +50,36 @@ class EmployeeController extends Controller
     {
         $data = $request->validated();
         
-        // Generate employee code (simple incremental for now)
-        $lastEmp = \App\Models\Employee::orderBy('id', 'desc')->first();
-        $nextId = $lastEmp ? $lastEmp->id + 1 : 1;
-        $data['employee_code'] = 'TEC-' . str_pad($nextId, 3, '0', STR_PAD_LEFT);
-        $data['status'] = 'onboarding';
-        
-        $clientBranch = \App\Models\ClientBranch::where('client_id', $data['client_id'])->first();
-        $data['branch_id'] = $clientBranch ? $clientBranch->id : 1;
+        $employee = \DB::transaction(function () use ($data) {
+            $attempts = 0;
+            $maxAttempts = 5;
+            
+            while ($attempts < $maxAttempts) {
+                try {
+                    // Lock the last employee record to prevent concurrent ID selection collision
+                    $lastEmp = \App\Models\Employee::lockForUpdate()->orderBy('id', 'desc')->first();
+                    $nextId = $lastEmp ? $lastEmp->id + 1 : 1;
+                    
+                    $data['employee_code'] = 'TEC-' . str_pad($nextId, 3, '0', STR_PAD_LEFT);
+                    $data['status'] = 'onboarding';
+                    
+                    $clientBranch = \App\Models\ClientBranch::where('client_id', $data['client_id'])->first();
+                    $data['branch_id'] = $clientBranch ? $clientBranch->id : 1;
 
-        $employee = \App\Models\Employee::create($data);
+                    return \App\Models\Employee::create($data);
+                } catch (\Illuminate\Database\QueryException $e) {
+                    if ($e->getCode() == 23000 || str_contains($e->getMessage(), 'Duplicate entry')) {
+                        $attempts++;
+                        if ($attempts >= $maxAttempts) {
+                            throw $e;
+                        }
+                        usleep(100000); // Wait 100ms before retrying
+                        continue;
+                    }
+                    throw $e;
+                }
+            }
+        });
 
         try {
             if (!\App\Models\User::where('employee_id', $employee->id)->exists()) {
@@ -204,10 +224,9 @@ class EmployeeController extends Controller
             return redirect()->back()->with('error', 'Cannot delete: this employee has an in-progress exit. Complete or cancel it first.');
         }
 
-        // BLOCKING CHECK 2: Payroll locked (stub)
-        // SUGGESTION: Future real check when payroll module is built
-        $isPayrollLocked = false;
-        if ($isPayrollLocked) {
+        // BLOCKING CHECK 2: Payroll locked check
+        $calcService = new \App\Services\FullAndFinalCalculationService();
+        if ($calcService->isPayrollLocked($employee)) {
             return redirect()->back()->with('error', 'Cannot delete: this employee has locked payroll records.');
         }
 
