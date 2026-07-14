@@ -25,7 +25,7 @@ export default function ClientForm({ client, defaultLopBasis }) {
     isSubmitting, submitSuccess,
     handleInputChange: handleChange, handlePocChange, handlePocPrefChange,
     goToStep, nextStep, prevStep,
-    saveDraft, submitForm, loadClientData
+    saveDraft, clearDraft, submitForm, loadClientData
   } = hook;
 
   useEffect(() => {
@@ -103,8 +103,8 @@ export default function ClientForm({ client, defaultLopBasis }) {
                   display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', alignItems: 'center',
                   marginTop: '2.5rem', paddingTop: '1.5rem', borderTop: '2px solid var(--border-color)'
                 }}>
-                  <Link href={route('clients.index')} className="btn btn-secondary" style={{ marginRight: 'auto' }}>Cancel</Link>
-                  <button type="button" className="btn btn-secondary" onClick={() => saveDraft(true)}>💾 Save as Draft</button>
+                  <button type="button" className="btn btn-secondary" onClick={clearDraft} style={{ marginRight: 'auto' }}>🗑️ Clear Draft</button>
+                  <button type="button" className="btn btn-secondary" onClick={() => saveDraft(false)}>💾 Save as Draft</button>
                   
                   {currentStep > 1 && (
                     <button type="button" className="btn btn-secondary" onClick={prevStep}>← Previous Step</button>

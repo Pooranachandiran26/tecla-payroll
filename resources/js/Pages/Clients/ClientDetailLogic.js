@@ -268,15 +268,15 @@ window.sendInvoiceReminder = sendInvoiceReminder;
       }
 
       // Update Edit Button link dynamically
-      const editBtn = document.querySelector('a[href^="/clients/create"]');
+      const editBtn = document.querySelector('a[href*="/clients/create"]');
       if (editBtn) {
-        editBtn.setAttribute('href', `/clients/create?code=${client.code}`);
+        editBtn.setAttribute('href', route('clients.create', { code: client.code }));
       }
 
       // Update Generate Invoice link dynamically
-      const invoiceBtn = document.querySelector('a[href^="/invoices/generate"]');
+      const invoiceBtn = document.querySelector('a[href*="/invoices/generate"]');
       if (invoiceBtn) {
-        invoiceBtn.setAttribute('href', `/invoices/generate?client=${client.code}`);
+        invoiceBtn.setAttribute('href', route('invoices.generate', { client: client.code }));
       }
     }
 
@@ -557,7 +557,7 @@ window.sendInvoiceReminder = sendInvoiceReminder;
               </td>
               <td>${cand.dateJoined || 'N/A'}</td>
               <td><span class="badge ${cand.status === 'active' ? 'badge-success' : 'badge-neutral'}">${cand.status}</span></td>
-              <td><a href="/employees/${cand.code}" class="btn btn-secondary btn-xs">View Profile</a></td>
+              <td><a href="${route('employees.show', cand.code)}" class="btn btn-secondary btn-xs">View Profile</a></td>
             </tr>
           `;
         });
