@@ -210,10 +210,10 @@ export default function QuickAccess() {
               <span className="text-[0.85rem] font-bold text-[#1F3864] uppercase tracking-wide">Client Portal</span>
             </div>
             <div className="grid grid-cols-[repeat(auto-fill,minmax(90px,1fr))] gap-0">
-              {renderBtn('qa-client-dash', route('client.dashboard'), <Activity strokeWidth={1.6} />, 'Client Dashboard', 'Client access only', 'client', 'Client Portal')}
-              {renderBtn('qa-client-employees', route('client.employees'), <Users strokeWidth={1.6} />, 'Client\'s Employees', 'Client access only', 'client', 'Client Portal')}
-              {renderBtn('qa-client-attendance', route('client.attendance'), <Calendar strokeWidth={1.6} />, 'Attendance Approval', 'Client access only', 'client', 'Client Portal')}
-              {renderBtn('qa-client-invoices', route('client.invoices'), <FileText strokeWidth={1.6} />, 'Client Invoices', 'Client access only', 'client', 'Client Portal')}
+              {renderBtn('qa-client-dash', typeof route === 'function' ? route('client.dashboard') : '/client/dashboard', <Activity strokeWidth={1.6} />, 'Client Dashboard', 'Client access only', 'client', 'Client Portal')}
+              {renderBtn('qa-client-employees', typeof route === 'function' ? route('client.employees') : '/client/employees', <Users strokeWidth={1.6} />, 'Client\'s Employees', 'Client access only', 'client', 'Client Portal')}
+              {renderBtn('qa-client-attendance', typeof route === 'function' ? route('client.attendance') : '/client/attendance', <Calendar strokeWidth={1.6} />, 'Attendance Approval', 'Client access only', 'client', 'Client Portal')}
+              {renderBtn('qa-client-invoices', typeof route === 'function' ? route('client.invoices') : '/client/invoices', <FileText strokeWidth={1.6} />, 'Client Invoices', 'Client access only', 'client', 'Client Portal')}
             </div>
           </div>
         )}
@@ -225,11 +225,11 @@ export default function QuickAccess() {
               <span className="text-[0.85rem] font-bold text-[#1F3864] uppercase tracking-wide">Employee Portal</span>
             </div>
             <div className="grid grid-cols-[repeat(auto-fill,minmax(90px,1fr))] gap-0">
-              {renderBtn('qa-emp-dash', route('employee.dashboard'), <Activity strokeWidth={1.6} />, 'Employee Dashboard', 'Employee access only', 'employee', 'Employee Portal')}
-              {renderBtn('qa-emp-attendance', route('employee.attendance'), <Calendar strokeWidth={1.6} />, 'Employee Attendance', 'Employee access only', 'employee', 'Employee Portal')}
-              {renderBtn('qa-emp-leave', route('employee.leave'), <History strokeWidth={1.6} />, 'Leave Request', 'Employee access only', 'employee', 'Employee Portal')}
-              {renderBtn('qa-emp-payslips', route('employee.payslips'), <FileText strokeWidth={1.6} />, 'Employee Payslips', 'Employee access only', 'employee', 'Employee Portal')}
-              {renderBtn('qa-emp-profile', route('employee.profile'), <UserCircle strokeWidth={1.6} />, 'Employee Profile', 'Employee access only', 'employee', 'Employee Portal')}
+              {renderBtn('qa-emp-dash', typeof route === 'function' ? route('employee.dashboard') : '/employee/dashboard', <Activity strokeWidth={1.6} />, 'Employee Dashboard', 'Employee access only', 'employee', 'Employee Portal')}
+              {renderBtn('qa-emp-attendance', typeof route === 'function' ? route('employee.attendance') : '/employee/attendance', <Calendar strokeWidth={1.6} />, 'Employee Attendance', 'Employee access only', 'employee', 'Employee Portal')}
+              {renderBtn('qa-emp-leave', typeof route === 'function' ? route('employee.leave') : '/employee/leave', <History strokeWidth={1.6} />, 'Leave Request', 'Employee access only', 'employee', 'Employee Portal')}
+              {renderBtn('qa-emp-payslips', typeof route === 'function' ? route('employee.payslips') : '/employee/payslips', <FileText strokeWidth={1.6} />, 'Employee Payslips', 'Employee access only', 'employee', 'Employee Portal')}
+              {renderBtn('qa-emp-profile', typeof route === 'function' ? route('employee.profile') : '/employee/profile', <UserCircle strokeWidth={1.6} />, 'Employee Profile', 'Employee access only', 'employee', 'Employee Portal')}
             </div>
           </div>
         )}
