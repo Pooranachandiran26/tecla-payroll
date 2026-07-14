@@ -31,12 +31,12 @@ export const subNavs = {
     { name: 'Add New Client', url: '/clients/create' },
   ],
   candidates: [
-    { name: 'All Employees', url: route('employees.index') },
-    { name: 'Add New', url: route('employees.create') },
-    { name: 'Bulk Upload', url: route('employees.bulk-upload') },
-    // { name: 'Bulk Salary Update', url: route('employees.salary-bulk-update') },
-    { name: 'Bank Change Requests', url: route('employees.bank-change-requests') },
-    { name: 'Leave Approval Queue', url: route('leave-requests.index') },
+    { name: 'All Employees', url: '/employees' },
+    { name: 'Add New', url: '/employees/create' },
+    { name: 'Bulk Upload', url: '/employees/bulk-upload' },
+    // { name: 'Bulk Salary Update', url: '/employees/salary-bulk-update' },
+    { name: 'Bank Change Requests', url: '/employees/bank-change-requests' },
+    { name: 'Leave Approval Queue', url: '/leave-requests' },
   ],
   payroll: [
     { name: 'Live Attendance Monitor', url: '/payroll/live-monitor' },
