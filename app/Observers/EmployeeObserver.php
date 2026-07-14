@@ -12,6 +12,12 @@ class EmployeeObserver
      */
     public function saving(Employee $employee): void
     {
+        // Resolve notice_period_days: inherit from client default, fall back to 30
+        if (is_null($employee->notice_period_days)) {
+            $client = $employee->client;
+            $employee->notice_period_days = $client ? ($client->default_notice_period_days ?? 30) : 30;
+        }
+
         $calculator = app(\App\Services\SalaryCalculationService::class);
         $calculations = $calculator->calculateStructuralSalary($employee->toArray());
 

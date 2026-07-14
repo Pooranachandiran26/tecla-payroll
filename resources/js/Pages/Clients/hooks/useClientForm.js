@@ -518,7 +518,7 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
         docFormData.append('type', pendingDocType);
         docFormData.append('file', file);
         
-        router.post(`/clients/${editId}/documents`, docFormData, {
+        router.post(route('clients.documents.store', editId), docFormData, {
           preserveScroll: true,
           onSuccess: () => {
             showToast(`✅ ${file.name} uploaded successfully`);
@@ -777,9 +777,9 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
         gstType: b.gstType, pocName: b.pocName, pocEmail: b.pocEmail,
         pocPhone: b.pocPhone, isPrimary: b.isPrimary,
       })),
-      poc1: { ...formData.poc1, preferences: Object.entries(formData.poc1.prefs).filter(([, v]) => v).map(([k]) => k === 'wa' ? 'WhatsApp' : k === 'sms' ? 'SMS' : 'Email') },
-      poc2: { ...formData.poc2, preferences: Object.entries(formData.poc2.prefs).filter(([, v]) => v).map(([k]) => k === 'wa' ? 'WhatsApp' : k === 'sms' ? 'SMS' : 'Email') },
-      poc3: { ...formData.poc3, preferences: Object.entries(formData.poc3.prefs).filter(([, v]) => v).map(([k]) => k === 'wa' ? 'WhatsApp' : k === 'sms' ? 'SMS' : 'Email') },
+      poc1: { ...formData.poc1, preferences: Object.entries(formData.poc1?.prefs || {}).filter(([, v]) => v).map(([k]) => k === 'wa' ? 'WhatsApp' : k === 'sms' ? 'SMS' : 'Email') },
+      poc2: { ...formData.poc2, preferences: Object.entries(formData.poc2?.prefs || {}).filter(([, v]) => v).map(([k]) => k === 'wa' ? 'WhatsApp' : k === 'sms' ? 'SMS' : 'Email') },
+      poc3: { ...formData.poc3, preferences: Object.entries(formData.poc3?.prefs || {}).filter(([, v]) => v).map(([k]) => k === 'wa' ? 'WhatsApp' : k === 'sms' ? 'SMS' : 'Email') },
       extraContacts: extraContacts.filter(c => c.name && c.email).map(c => ({ ...c })),
       contractType: formData.contractType,
       billingModel: formData.billingModel,
@@ -999,13 +999,13 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
     };
 
     if (isEditMode && editId) {
-      router.put(`/clients/${editId}`, payload, {
+      router.put(route('clients.update', editId), payload, {
         onSuccess: handleSuccess,
         onError: handleError,
         preserveScroll: false
       });
     } else {
-      router.post('/clients', payload, {
+      router.post(route('clients.store'), payload, {
         onSuccess: handleSuccess,
         onError: handleError,
         preserveScroll: false

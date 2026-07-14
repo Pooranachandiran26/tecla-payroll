@@ -12,7 +12,7 @@ export default function AdminSessions({ sessions }) {
   const revokeSelected = () => {
     if (selected.length === 0) return;
     if (confirm(`Are you sure you want to revoke ${selected.length} session(s)?`)) {
-      router.post('/admin/sessions/bulk-revoke', { ids: selected }, {
+      router.post(route('admin.sessions.bulk-revoke'), { ids: selected }, {
         onSuccess: () => setSelected([])
       });
     }
@@ -35,7 +35,7 @@ export default function AdminSessions({ sessions }) {
       label: 'Actions', 
       key: 'actions',
       render: (_, row) => (
-        <Button variant="danger" onClick={() => router.delete(`/admin/sessions/${row.id}`, { onBefore: () => confirm('Revoke this session?') })}>
+        <Button variant="danger" onClick={() => router.delete(route('admin.sessions.destroy', row.id), { onBefore: () => confirm('Revoke this session?') })}>
           Revoke
         </Button>
       )

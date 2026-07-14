@@ -46,7 +46,7 @@ export default function EmployeeAttendance({ employee, attendanceRecords, correc
 
     const submitCorrection = (e) => {
         e.preventDefault();
-        post('/employee/attendance/correction-request', {
+        post(route('employee.attendance.correction-request.store'), {
             preserveScroll: true,
             onSuccess: (page) => {
                 if (page.props.flash?.success) {

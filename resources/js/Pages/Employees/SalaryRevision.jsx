@@ -41,7 +41,7 @@ export default function SalaryRevision({ employee, revisions }) {
         try {
             // We reuse the existing endpoint, just passing the new components 
             // along with existing employee toggles
-            const res = await axios.post('/employees/calculate-preview', {
+            const res = await axios.post(route('employees.calculate-preview'), {
                 client_id: employee.client_id,
                 basic_pay: data.new_basic_pay,
                 hra: data.new_hra,
@@ -69,11 +69,11 @@ export default function SalaryRevision({ employee, revisions }) {
 
     const submit = (e) => {
         e.preventDefault();
-        post(`/employees/${employee.id}/salary-revision`);
+        post(route('employees.salary-revision.store', employee.id));
     };
 
     const handleAction = (revisionId, action, reason = null) => {
-        router.post(`/employees/${employee.id}/salary-revision/${revisionId}/approve`, {
+        router.post(route('employees.salary-revision.approve', { id: employee.id, revisionId }), {
             action,
             rejection_reason: reason
         });
@@ -91,7 +91,7 @@ export default function SalaryRevision({ employee, revisions }) {
                     
                     <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
-                            <Link href={`/employees/${employee.id}`} style={{ fontSize: '0.85rem', fontWeight: '600' }}>
+                            <Link href={route('employees.show', employee.id)} style={{ fontSize: '0.85rem', fontWeight: '600' }}>
                                 ← Back to {employee.full_name}'s Profile
                             </Link>
                             <h2 style={{ marginTop: '0.5rem' }}>Process Salary Revision</h2>
@@ -269,7 +269,7 @@ export default function SalaryRevision({ employee, revisions }) {
                                 </div>
 
                                 <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '2rem' }}>
-                                    <Link href={`/employees/${employee.id}`} className="btn btn-secondary">Cancel</Link>
+                                    <Link href={route('employees.show', employee.id)} className="btn btn-secondary">Cancel</Link>
                                     <button type="submit" className="btn btn-primary" disabled={processing}>Submit for Approval</button>
                                 </div>
                             </form>

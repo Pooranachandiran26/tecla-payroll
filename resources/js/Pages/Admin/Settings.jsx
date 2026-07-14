@@ -20,6 +20,8 @@ export default function Settings() {
 
   const tabs = [
     { key: 'company', label: 'Company Profile' },
+    { key: 'localization', label: 'Localization' },
+    { key: 'file_upload_policy', label: 'File Upload Policy' },
     { key: 'branding', label: 'Branding' },
     { key: 'email', label: 'Email Delivery' },
     { key: 'slabs', label: 'Statutory Slab Configurations' },
@@ -35,6 +37,25 @@ export default function Settings() {
   // Company Settings State
   const [companySettings, setCompanySettings] = useState({});
   const [companyLoading, setCompanyLoading] = useState(false);
+
+  // Localization State
+  const [localizationSettings, setLocalizationSettings] = useState({
+    timezone: 'Asia/Kolkata',
+    date_format: 'DD/MM/YYYY',
+    currency_symbol: '₹',
+    currency_code: 'INR',
+    financial_year_start_month: 4
+  });
+  const [localizationLoading, setLocalizationLoading] = useState(false);
+  const [localizationSaving, setLocalizationSaving] = useState(false);
+
+  // File Upload Policy State
+  const [uploadPolicySettings, setUploadPolicySettings] = useState({
+    max_file_size_mb: 10,
+    allowed_document_types: ['pdf', 'jpg', 'jpeg', 'png']
+  });
+  const [uploadPolicyLoading, setUploadPolicyLoading] = useState(false);
+  const [uploadPolicySaving, setUploadPolicySaving] = useState(false);
 
   // Auth & Security State
   const [authSettings, setAuthSettings] = useState({});
@@ -87,6 +108,12 @@ export default function Settings() {
     if (activeTab === 'branding' && Object.keys(brandingSettings).length === 0) {
       fetchBrandingSettings();
     }
+    if (activeTab === 'localization' && Object.keys(localizationSettings).length === 0 && !localizationLoading) {
+      fetchLocalizationSettings();
+    }
+    if (activeTab === 'file_upload_policy' && !uploadPolicyLoading) {
+      fetchUploadPolicySettings();
+    }
     if (activeTab === 'notif' && watchers.length === 0) {
       fetchWatchers();
     }
@@ -95,7 +122,7 @@ export default function Settings() {
   const fetchCompanySettings = async () => {
     setCompanyLoading(true);
     try {
-      const res = await axios.get('/admin/settings/company');
+      const res = await axios.get(route('admin.settings.company.show'));
       setCompanySettings(res.data);
     } catch (e) {
       showToast({ type: 'error', title: 'Error', message: 'Failed to load company settings' });
@@ -104,10 +131,67 @@ export default function Settings() {
     }
   };
 
+  const fetchLocalizationSettings = async () => {
+    setLocalizationLoading(true);
+    try {
+      const res = await axios.get(route('admin.settings.localization.show'));
+      setLocalizationSettings(prev => ({ ...prev, ...res.data }));
+    } catch (e) {
+      showToast({ type: 'error', title: 'Error', message: 'Failed to load localization settings' });
+    } finally {
+      setLocalizationLoading(false);
+    }
+  };
+
+  const saveLocalizationSettings = async (e) => {
+    e.preventDefault();
+    setLocalizationSaving(true);
+    try {
+      await axios.put(route('admin.settings.localization.update'), localizationSettings);
+      showToast({ type: 'success', title: 'Success', message: 'Localization settings updated!' });
+    } catch (e) {
+      showToast({ type: 'error', title: 'Error', message: e.response?.data?.message || 'Failed to save settings' });
+    } finally {
+      setLocalizationSaving(false);
+    }
+  };
+
+  const fetchUploadPolicySettings = async () => {
+    setUploadPolicyLoading(true);
+    try {
+      const res = await axios.get(route('admin.settings.file-upload-policy.show'));
+      if (res.data && Object.keys(res.data).length > 0) {
+        // Parse JSON array if it comes as string
+        const parsed = { ...res.data };
+        if (typeof parsed.allowed_document_types === 'string') {
+          try { parsed.allowed_document_types = JSON.parse(parsed.allowed_document_types); } catch(e){}
+        }
+        setUploadPolicySettings(prev => ({ ...prev, ...parsed }));
+      }
+    } catch (e) {
+      showToast({ type: 'error', title: 'Error', message: 'Failed to load file upload policy' });
+    } finally {
+      setUploadPolicyLoading(false);
+    }
+  };
+
+  const saveUploadPolicySettings = async (e) => {
+    e.preventDefault();
+    setUploadPolicySaving(true);
+    try {
+      await axios.put(route('admin.settings.file-upload-policy.update'), uploadPolicySettings);
+      showToast({ type: 'success', title: 'Success', message: 'File Upload Policy updated!' });
+    } catch (e) {
+      showToast({ type: 'error', title: 'Error', message: e.response?.data?.message || 'Failed to save settings' });
+    } finally {
+      setUploadPolicySaving(false);
+    }
+  };
+
   const fetchPtSlabs = async () => {
     setPtSlabsLoading(true);
     try {
-      const res = await axios.get('/admin/settings/pt-slabs');
+      const res = await axios.get(route('admin.settings.pt-slabs'));
       setPtSlabs(res.data);
     } catch (e) {
       showToast({ type: 'error', title: 'Error', message: 'Failed to load statutory slabs' });
@@ -123,7 +207,7 @@ export default function Settings() {
   const saveCompanySettings = async (e) => {
     e.preventDefault();
     try {
-      await axios.put('/admin/settings/company', companySettings);
+      await axios.put(route('admin.settings.company.update'), companySettings);
       showToast({ type: 'success', title: 'Success', message: 'Company Profile updated successfully!' });
     } catch (err) {
       showToast({ type: 'error', title: 'Error', message: err.response?.data?.message || 'Failed to save company settings' });
@@ -133,7 +217,7 @@ export default function Settings() {
   const fetchPayrollSettings = async () => {
     setPayrollLoading(true);
     try {
-      const res = await axios.get('/admin/settings/payroll');
+      const res = await axios.get(route('admin.settings.payroll.show'));
       setPayrollSettings(res.data);
     } catch (e) {
       showToast({ type: 'error', title: 'Error', message: 'Failed to load payroll settings' });
@@ -144,7 +228,7 @@ export default function Settings() {
 
   const savePayrollSettings = async (value) => {
     try {
-      await axios.put('/admin/settings/payroll', { default_lop_basis: value });
+      await axios.put(route('admin.settings.payroll.update'), { default_lop_basis: value });
       setPayrollSettings(prev => ({ ...prev, default_lop_basis: value }));
       showToast({ type: 'success', title: 'Success', message: 'Global LOP Basis updated.' });
     } catch (err) {
@@ -156,7 +240,7 @@ export default function Settings() {
   const fetchBrandingSettings = async () => {
     setBrandingLoading(true);
     try {
-      const res = await axios.get('/admin/settings/branding');
+      const res = await axios.get(route('admin.settings.branding.show'));
       setBrandingSettings(res.data);
       setBrandingColor(res.data.primary_color || '#1e3a8a');
       setBrandingTheme(res.data.theme_mode_default || 'system');
@@ -197,9 +281,7 @@ export default function Settings() {
       formData.append('primary_color', brandingColor);
       formData.append('theme_mode_default', brandingTheme);
 
-      await axios.post('/admin/settings/branding', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      await axios.post(route('admin.settings.branding.update'), formData);
 
       // Re-fetch to get updated URLs
       await fetchBrandingSettings();
@@ -216,7 +298,7 @@ export default function Settings() {
   const fetchAuthSettings = async () => {
     setAuthLoading(true);
     try {
-      const res = await axios.get('/admin/settings/auth-security');
+      const res = await axios.get(route('admin.settings.auth-security.show'));
       if (typeof res.data === 'string') {
         throw new Error('API returned HTML instead of JSON. You might not be logged in as an Admin.');
       }
@@ -231,7 +313,7 @@ export default function Settings() {
   const fetchWatchers = async () => {
     setWatchersLoading(true);
     try {
-      const res = await axios.get('/admin/watchers');
+      const res = await axios.get(route('watchers.index'));
       setWatchers(res.data);
     } catch (e) {
       showToast({ type: 'error', title: 'Error', message: 'Failed to load watchers' });
@@ -244,10 +326,10 @@ export default function Settings() {
     e.preventDefault();
     try {
       if (currentWatcher.id) {
-        await axios.put(`/admin/watchers/${currentWatcher.id}`, currentWatcher);
+        await axios.put(route('watchers.update', currentWatcher.id), currentWatcher);
         showToast({ type: 'success', title: 'Success', message: 'Watcher updated.' });
       } else {
-        await axios.post('/admin/watchers', currentWatcher);
+        await axios.post(route('watchers.store'), currentWatcher);
         showToast({ type: 'success', title: 'Success', message: 'Watcher added.' });
       }
       setShowWatcherForm(false);
@@ -260,7 +342,7 @@ export default function Settings() {
   const deleteWatcher = async (id) => {
     if(!confirm('Are you sure you want to delete this watcher?')) return;
     try {
-      await axios.delete(`/admin/watchers/${id}`);
+      await axios.delete(route('watchers.destroy', id));
       showToast({ type: 'success', title: 'Success', message: 'Watcher deleted.' });
       fetchWatchers();
     } catch (err) {
@@ -272,7 +354,7 @@ export default function Settings() {
   const fetchEmailSettings = async () => {
     setEmailLoading(true);
     try {
-      const res = await axios.get('/admin/settings/email');
+      const res = await axios.get(route('admin.settings.email.show'));
       setEmailSettings(res.data);
     } catch (e) {
       showToast({ type: 'error', title: 'Error', message: 'Failed to load email settings' });
@@ -298,7 +380,7 @@ export default function Settings() {
 
   const confirmEmailUpdate = async () => {
     try {
-      await axios.put('/admin/settings/email', emailSettings);
+      await axios.put(route('admin.settings.email.update'), emailSettings);
       showToast({ type: 'success', title: 'Success', message: 'Email settings saved successfully. Workers are restarting.' });
       setConfirmModal({ isOpen: false, key: null, newValue: null, reason: '', confirmText: '', type: null });
     } catch (e) {
@@ -309,7 +391,7 @@ export default function Settings() {
   const testEmailConnection = async () => {
     setTestingEmail(true);
     try {
-      await axios.post('/admin/settings/email/test', emailSettings);
+      await axios.post(route('admin.settings.email.test'), emailSettings);
       showToast({ type: 'success', title: 'Success', message: 'Test email sent successfully!' });
     } catch (e) {
       const errorReason = e.response?.data?.error;
@@ -350,7 +432,7 @@ export default function Settings() {
     };
 
     try {
-      await axios.put('/admin/settings/auth-security', payload);
+      await axios.put(route('admin.settings.auth-security.update'), payload);
       setAuthSettings(prev => ({
         ...prev,
         [key]: { ...prev[key], value: newValue }
@@ -397,10 +479,37 @@ export default function Settings() {
         <p className="text-gray-500 text-sm mt-1">Configure default agency rules, customize professional tax (PT) slabs, and manage notification targets.</p>
       </div>
 
-      <Card noPadding>
-        <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
-        
-        <div className="p-6">
+      <div className="grid grid-cols-1 md:grid-cols-[250px_1fr] gap-6 items-start">
+        {/* Left Sidebar Menu */}
+        <Card noPadding className="sticky top-6">
+          <div className="p-4 border-b border-gray-100">
+            <h3 className="font-semibold text-gray-800">Settings Menu</h3>
+          </div>
+          <ul className="flex flex-col py-2">
+            {tabs.map(tab => (
+              <li key={tab.key}>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
+                    activeTab === tab.key 
+                      ? 'bg-blue-50/50 text-blue-700 border-l-4 border-blue-600 font-medium' 
+                      : 'text-gray-600 hover:bg-gray-50 border-l-4 border-transparent hover:border-gray-200'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    {tab.icon && <tab.icon size={16} />}
+                    {tab.label}
+                  </div>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </Card>
+
+        {/* Right Content Area */}
+        <Card noPadding>
+          <div className="p-6">
           {activeTab === 'company' && (
             <div className="max-w-4xl">
               {companyLoading ? (
@@ -432,6 +541,136 @@ export default function Settings() {
                     </div>
                   </div>
                   <Button type="submit" variant="primary" className="mt-4">Update Basic Profile</Button>
+                </form>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'localization' && (
+            <div className="max-w-4xl">
+              <h3 className="text-lg font-bold text-gray-800 mb-1">Localization Settings</h3>
+              <p className="text-sm text-gray-500 mb-6">Manage timezone, currency symbols, and date formats used across the platform.</p>
+              
+              {localizationLoading ? (
+                <div>Loading Localization Settings...</div>
+              ) : (
+                <form onSubmit={saveLocalizationSettings} className="space-y-6">
+                  <Card title="Regional Defaults" noPadding>
+                    <div className="grid grid-cols-2 gap-6 p-4">
+                      <Select 
+                        label="Timezone" 
+                        value={localizationSettings.timezone || 'Asia/Kolkata'}
+                        onChange={e => setLocalizationSettings(prev => ({ ...prev, timezone: e.target.value }))}
+                        options={[
+                          { value: 'Asia/Kolkata', label: 'Asia/Kolkata (IST)' },
+                          { value: 'UTC', label: 'UTC' },
+                          { value: 'America/New_York', label: 'America/New_York (EST)' },
+                          { value: 'Europe/London', label: 'Europe/London (GMT)' },
+                        ]}
+                      />
+                      <Select 
+                        label="Date Format" 
+                        value={localizationSettings.date_format || 'DD/MM/YYYY'}
+                        onChange={e => setLocalizationSettings(prev => ({ ...prev, date_format: e.target.value }))}
+                        options={[
+                          { value: 'DD/MM/YYYY', label: 'DD/MM/YYYY (e.g. 25/12/2026)' },
+                          { value: 'MM/DD/YYYY', label: 'MM/DD/YYYY (e.g. 12/25/2026)' },
+                          { value: 'YYYY-MM-DD', label: 'YYYY-MM-DD (e.g. 2026-12-25)' },
+                        ]}
+                      />
+                    </div>
+                  </Card>
+                  
+                  <Card title="Financial Settings" noPadding>
+                    <div className="grid grid-cols-2 gap-6 p-4">
+                      <Input 
+                        label="Currency Symbol" 
+                        value={localizationSettings.currency_symbol || '₹'}
+                        onChange={e => setLocalizationSettings(prev => ({ ...prev, currency_symbol: e.target.value }))}
+                        placeholder="e.g. ₹ or $"
+                      />
+                      <Input 
+                        label="Currency Code" 
+                        value={localizationSettings.currency_code || 'INR'}
+                        onChange={e => setLocalizationSettings(prev => ({ ...prev, currency_code: e.target.value }))}
+                        placeholder="e.g. INR or USD"
+                      />
+                      <Select 
+                        label="Financial Year Start Month" 
+                        value={localizationSettings.financial_year_start_month || 4}
+                        onChange={e => setLocalizationSettings(prev => ({ ...prev, financial_year_start_month: parseInt(e.target.value) }))}
+                        options={[
+                          { value: 1, label: 'January' },
+                          { value: 4, label: 'April' },
+                          { value: 7, label: 'July' },
+                          { value: 10, label: 'October' },
+                        ]}
+                      />
+                    </div>
+                  </Card>
+                  
+                  <Button type="submit" variant="primary" disabled={localizationSaving}>
+                    {localizationSaving ? 'Saving...' : 'Save Localization'}
+                  </Button>
+                </form>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'file_upload_policy' && (
+            <div className="max-w-4xl">
+              <h3 className="text-lg font-bold text-gray-800 mb-1">File Upload Policy</h3>
+              <p className="text-sm text-gray-500 mb-6">Configure global defaults for document uploads across the platform.</p>
+              
+              {uploadPolicyLoading ? (
+                <div>Loading Upload Policy...</div>
+              ) : (
+                <form onSubmit={saveUploadPolicySettings} className="space-y-6">
+                  <Card title="Upload Constraints" noPadding>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4">
+                      <div>
+                        <Input 
+                          type="number"
+                          label="Max File Size (MB)" 
+                          value={uploadPolicySettings.max_file_size_mb || 10}
+                          onChange={e => setUploadPolicySettings(prev => ({ ...prev, max_file_size_mb: parseInt(e.target.value) || 10 }))}
+                          min={1}
+                          max={100}
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Maximum allowed size per file. Hard limit is 100MB.</p>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Allowed Document Types</label>
+                        <div className="grid grid-cols-2 gap-2">
+                          {['pdf', 'jpg', 'jpeg', 'png', 'docx', 'xlsx', 'csv'].map(type => (
+                            <label key={type} className="flex items-center gap-2 cursor-pointer">
+                              <input 
+                                type="checkbox" 
+                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                checked={(uploadPolicySettings.allowed_document_types || []).includes(type)}
+                                onChange={(e) => {
+                                  setUploadPolicySettings(prev => {
+                                    const types = prev.allowed_document_types || [];
+                                    if (e.target.checked) {
+                                      return { ...prev, allowed_document_types: [...types, type] };
+                                    } else {
+                                      return { ...prev, allowed_document_types: types.filter(t => t !== type) };
+                                    }
+                                  });
+                                }}
+                              />
+                              <span className="text-sm text-gray-700 uppercase">{type}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                  
+                  <Button type="submit" variant="primary" disabled={uploadPolicySaving}>
+                    {uploadPolicySaving ? 'Saving...' : 'Save Upload Policy'}
+                  </Button>
                 </form>
               )}
             </div>
@@ -677,7 +916,7 @@ export default function Settings() {
                     {/* Theme Mode */}
                     <Card>
                       <h4 className="font-semibold text-slate-800 mb-3">Default Theme Mode</h4>
-                      <p className="text-xs text-gray-500 mb-4">Default appearance for new users. Users can override this in their profile.</p>
+                      <p className="text-xs text-gray-500 mb-4">Default appearance across the agency portal.</p>
                       <div className="flex gap-2">
                         {[
                           { value: 'light', label: '☀️ Light', desc: 'Always light' },
@@ -872,6 +1111,11 @@ export default function Settings() {
                         label="Enable OTP Login" 
                         checked={renderAuthVal('otp_enabled', true) === true || renderAuthVal('otp_enabled', true) === 'true'} 
                         onChange={e => handleAuthChange('otp_enabled', e.target.checked)} 
+                      />
+                      <Checkbox 
+                        label="Enable 'Remember Me' (5-year persistent login)" 
+                        checked={renderAuthVal('remember_me_enabled', true) === true || renderAuthVal('remember_me_enabled', true) === 'true'} 
+                        onChange={e => handleAuthChange('remember_me_enabled', e.target.checked)} 
                       />
                       <Checkbox 
                         label="Enable Honeypot Anti-Bot Protection" 
@@ -1109,8 +1353,9 @@ export default function Settings() {
               )}
             </div>
           )}
-        </div>
-      </Card>
+          </div>
+        </Card>
+      </div>
 
       <ConfirmDialog
         isOpen={confirmModal.isOpen}

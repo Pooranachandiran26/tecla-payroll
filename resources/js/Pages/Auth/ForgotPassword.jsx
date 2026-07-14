@@ -10,7 +10,7 @@ export default function ForgotPassword() {
 
   const submit = (e) => {
     e.preventDefault();
-    post('/forgot-password');
+    post(route('password.email'));
   };
 
   return (
@@ -38,7 +38,7 @@ export default function ForgotPassword() {
         </Button>
         
         <div style={{ textAlign: 'center' }}>
-          <Link href="/login" style={{ fontSize: '0.85rem', color: 'var(--primary-navy)' }}>
+          <Link href={route('login')} style={{ fontSize: '0.85rem', color: 'var(--primary-navy)' }}>
             Back to Login
           </Link>
         </div>
