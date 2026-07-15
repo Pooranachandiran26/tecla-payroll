@@ -22,9 +22,10 @@ const defaultLabels = {
   inactive: 'Inactive', expiring: 'Expiring',
 };
 
-export default function Badge({ status, label, size = 'md', className = '' }) {
-  const badgeClass = statusMap[status] || 'badge-gold';
-  const displayLabel = label || defaultLabels[status] || status;
+export default function Badge({ status, label, size = 'md', className = '', variant, type, children }) {
+  const effectiveStatus = status || variant || type;
+  const badgeClass = statusMap[effectiveStatus] || (effectiveStatus ? `badge-${effectiveStatus}` : 'badge-gold');
+  const displayLabel = children || label || defaultLabels[effectiveStatus] || effectiveStatus;
 
   return (
     <span className={classNames(

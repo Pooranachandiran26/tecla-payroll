@@ -42,12 +42,11 @@ export const subNavs = {
     { name: 'Add New Client', url: safeRoute('clients.create', '/clients/create') },
   ],
   candidates: [
-    { name: 'All Employees', url: '/employees' },
-    { name: 'Add New', url: '/employees/create' },
-    { name: 'Bulk Upload', url: '/employees/bulk-upload' },
-    // { name: 'Bulk Salary Update', url: '/employees/salary-bulk-update' },
-    { name: 'Bank Change Requests', url: '/employees/bank-change-requests' },
-    { name: 'Leave Approval Queue', url: '/leave-requests' },
+    { name: 'All Employees', url: safeRoute('employees.index', '/employees') },
+    { name: 'Add New', url: safeRoute('employees.create', '/employees/create') },
+    { name: 'Bulk Upload', url: safeRoute('employees.bulk-upload', '/employees/bulk-upload') },
+    { name: 'Bank Change Requests', url: safeRoute('employees.bank-change-requests', '/employees/bank-change-requests') },
+    { name: 'Leave Approval Queue', url: safeRoute('leave-requests.index', '/leave-requests') },
   ],
   payroll: [
     { name: 'Live Attendance Monitor', url: safeRoute('payroll.live-monitor', '/payroll/live-monitor') },

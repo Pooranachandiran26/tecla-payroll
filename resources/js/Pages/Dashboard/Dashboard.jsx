@@ -30,7 +30,7 @@ export default function Dashboard() {
       <Alert 
         type="warning"
         title="Smart Alerts:"
-        action={<Button href="/bank-change-requests" variant="navy" size="xs" style={{ backgroundColor: 'var(--status-warning)' }}>Review Alerts</Button>}
+        action={<Button href={route('employees.bank-change-requests')} variant="navy" size="xs" style={{ backgroundColor: 'var(--status-warning)' }}>Review Alerts</Button>}
         style={{ marginBottom: '1.5rem', borderLeft: '5px solid var(--status-warning)' }}
       >
         <ul style={{ margin: '0.5rem 0 0 1.25rem', padding: 0 }}>

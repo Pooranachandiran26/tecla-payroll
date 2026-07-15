@@ -49,9 +49,11 @@ async function createTemplate() {
     
     const headers = [
         'employee_code', 'client_code', 'branch_code', 'full_name', 'personal_email', 'phone_number', 
-        'date_of_birth', 'date_of_joining', 'designation', 'gender', 'employment_model', 'prior_employment_flag', 
-        'residential_address', 'bank_account_number', 'bank_ifsc', 'account_holder_name', 'pan_number', 
-        'aadhaar_number', 'esic_number', 'tds_regime', 'gratuity_mode', 'lop_basis_days', 'basic_pay', 'hra', 
+        'emergency_contact_name', 'date_of_birth', 'date_of_joining', 'probation_end_date', 'designation', 
+        'gender', 'employment_model', 'prior_employment_flag', 'previous_employer_name', 'previous_employer_uan', 
+        'reporting_manager_code', 'residential_address', 'bank_account_number', 'bank_ifsc', 'account_holder_name', 
+        'pan_number', 'aadhaar_number', 'esic_number', 'esi_contribution_period_end', 'declarations_accepted', 
+        'tds_regime', 'gratuity_mode', 'lop_basis_days', 'basic_pay', 'hra', 
         'conveyance', 'da', 'medical_allowance', 'special_allowance', 'other_additions', 'pf_applicable', 
         'esi_applicable', 'pt_applicable'
     ];
@@ -64,16 +66,19 @@ async function createTemplate() {
         cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F3864' } };
         cell.alignment = { vertical: 'middle', horizontal: 'center' };
-        dataSheet.getColumn(colNumber).width = 20;
+        dataSheet.getColumn(colNumber).width = 22;
     });
 
     // Add sample row
     const sampleRow = [
         'EMP-001', 'SYNSTAR', 'MB-01', 'John Doe', 'john@example.com', '9876543210', 
-        '1990-01-01', '2023-01-01', 'Developer', 'male', 'agency_contract', 0, 
-        '123 Main St', '1234567890', 'HDFC0000001', 'John Doe', 'ABCDE1234F', 
-        '123412341234', '1111111111', 'new', 'part_of_ctc', 26, 15000, 5000, 
-        0, 0, 0, 0, 0, 1, 1, 1
+        'Robert Smith', '1990-01-01', '2023-01-01', '2023-06-30', 'Developer', 
+        'male', 'agency_contract', 0, '', '', 
+        '', '123 Main St', '1234567890', 'HDFC0000001', 'John Doe', 
+        'ABCDE1234F', '123412341234', '1111111111', '', 1, 
+        'new', 'part_of_ctc', 26, 15000, 5000, 
+        0, 0, 0, 0, 0, 1, 
+        1, 1
     ];
     const dataRow = dataSheet.addRow(sampleRow);
     dataRow.eachCell(cell => {

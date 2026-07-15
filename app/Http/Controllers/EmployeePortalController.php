@@ -95,8 +95,14 @@ class EmployeePortalController extends Controller
     public function profile()
     {
         $employee = $this->getEmployee();
+        $pendingBankRequest = \App\Models\BankChangeRequest::where('employee_id', $employee->id)
+            ->where('status', 'pending')
+            ->orderBy('created_at', 'desc')
+            ->first();
+
         return Inertia::render('EmployeePortal/EmployeeProfile', [
-            'employee' => new EmployeeResource($employee)
+            'employee' => new EmployeeResource($employee),
+            'pendingBankRequest' => $pendingBankRequest
         ]);
     }
 
