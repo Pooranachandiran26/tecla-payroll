@@ -90,6 +90,7 @@ Route::middleware(['auth', 'active'])->group(function () {
             Route::get('/clients/{client}/documents/{document}/download', [ClientController::class, 'downloadDocument'])->name('clients.documents.download');
 
             // Employees
+            Route::get('/employees/check-unique', [EmployeeController::class, 'checkUnique'])->name('employees.check-unique');
             Route::post('/employees/calculate-preview', [EmployeeController::class, 'calculatePreview'])->name('employees.calculate-preview');
             Route::get('/employees', [EmployeeController::class, 'index'])->name('employees.index');
             Route::post('/employees', [EmployeeController::class, 'store'])->name('employees.store');
@@ -122,7 +123,9 @@ Route::middleware(['auth', 'active'])->group(function () {
             Route::post('/employees/{id}/salary-revision', [SalaryRevisionController::class, 'store'])->name('employees.salary-revision.store');
             Route::post('/employees/{id}/salary-revision/{revisionId}/approve', [SalaryRevisionController::class, 'approve'])->name('employees.salary-revision.approve');
             
-            Route::get('/bank-change-requests', fn() => Inertia::render('Employees/BankChangeRequests'))->name('employees.bank-change-requests');
+            Route::get('/bank-change-requests', [BankChangeRequestController::class, 'index'])->name('employees.bank-change-requests');
+            Route::post('/bank-change-requests/{id}/approve', [BankChangeRequestController::class, 'approve'])->name('employees.bank-change-requests.approve');
+            Route::post('/bank-change-requests/{id}/reject', [BankChangeRequestController::class, 'reject'])->name('employees.bank-change-requests.reject');
             Route::get('/leave-requests', [\App\Http\Controllers\LeaveApprovalController::class, 'index'])->name('leave-requests.index');
             Route::post('/leave-requests/{id}/approve', [\App\Http\Controllers\LeaveApprovalController::class, 'approve'])->name('leave-requests.approve');
             Route::post('/leave-requests/{id}/reject', [\App\Http\Controllers\LeaveApprovalController::class, 'reject'])->name('leave-requests.reject');
@@ -204,6 +207,7 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::middleware('role:employee')->group(function () {
             Route::get('/employee/dashboard', [\App\Http\Controllers\EmployeePortalController::class, 'dashboard'])->name('employee.dashboard');
             Route::get('/employee/profile', [\App\Http\Controllers\EmployeePortalController::class, 'profile'])->name('employee.profile');
+            Route::post('/employee/bank-change-requests', [BankChangeRequestController::class, 'store'])->name('employee.bank-change-request.store');
             Route::get('/employee/attendance', [\App\Http\Controllers\EmployeePortalController::class, 'attendance'])->name('employee.attendance');
             Route::post('/employee/attendance/punch-in', [\App\Http\Controllers\EmployeePortalController::class, 'punchIn'])->name('employee.attendance.punch-in');
             Route::post('/employee/attendance/punch-out', [\App\Http\Controllers\EmployeePortalController::class, 'punchOut'])->name('employee.attendance.punch-out');
