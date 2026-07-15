@@ -24,7 +24,7 @@ export default function LiveAttendanceMonitor({ clients, punches, selectedClient
   };
 
   const handleRefresh = () => {
-    router.reload({ only: ['punches'] });
+    router.reload();
   };
 
   const filteredPunches = punches.filter(p => {
