@@ -184,17 +184,13 @@ class PayrollApprovalLockTest extends TestCase
         $response->assertSessionHas('error', 'Cannot delete: this employee has locked payroll records.');
     }
 
-    /**
-     * Test 5: Canonical PF Check
-     */
     public function test_canonical_pf_check()
     {
-        $this->employee->update([
-            'employer_pf_monthly' => 1950.00
-        ]);
-
         $emp = Employee::withTrashed()->where('employee_code', 'TEC-088')->first();
         $this->assertNotNull($emp);
-        $this->assertEquals(1950.00, $emp->employer_pf_monthly);
+
+        $expectedPf = min($emp->basic_pay, 15000) * 0.13;
+        $this->assertEquals(1950.00, $expectedPf);
+        $this->assertEquals($expectedPf, $emp->employer_pf_monthly);
     }
 }
