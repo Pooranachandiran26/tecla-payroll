@@ -70,6 +70,9 @@ class LiveAttendanceMonitorTest extends TestCase
             'aadhaar_number' => '100020003002',
         ]);
 
+        // Set localization timezone to UTC for predictable formatting in test
+        \App\Services\SettingsService::set('localization.timezone', 'UTC');
+
         // Seeding real attendance punch for employeeA on targetDate
         DB::table('attendance_records')->insert([
             'employee_id' => $this->employeeA->id,
