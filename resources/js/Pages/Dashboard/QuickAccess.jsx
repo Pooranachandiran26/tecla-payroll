@@ -7,9 +7,11 @@ import {
 } from 'lucide-react';
 import { useRole } from '../../Contexts/RoleContext.jsx';
 import RoleGuard from '../../Components/RoleGuard.jsx';
+import useToast from '../../Hooks/useToast';
 
 export default function QuickAccess() {
   const { role } = useRole();
+  const { showToast } = useToast();
 
   const config = {
     admin: {
@@ -37,9 +39,28 @@ export default function QuickAccess() {
 
   const currentConfig = config[role] || config.admin;
 
-  /* ... renderBtn stays the same ... */
+  const safeRoute = (routeName, fallbackPath, params) => {
+    try {
+      if (typeof route === 'function' && route().has(routeName)) {
+        return route(routeName, params);
+      }
+    } catch (e) {
+      // Return fallback URL if Ziggy route is not in user's route list
+    }
+    return fallbackPath;
+  };
 
-  const renderBtn = (id, href, icon, label, lockedTooltip = "Admin access only") => {
+  const handleRestrictedClick = (e, requiredRole, moduleName) => {
+    e.preventDefault();
+    const currentRoleTitle = role.charAt(0).toUpperCase() + role.slice(1);
+    showToast({
+      type: 'warning',
+      title: '403 — Unauthorized Access',
+      message: `Strict ${moduleName} Protection: Backend routes are strictly protected by role:${requiredRole} middleware check. Role Mismatch: Logged in as ${currentRoleTitle}, server blocks access with 403.`
+    });
+  };
+
+  const renderBtn = (id, href, icon, label, lockedTooltip = "Admin access only", requiredRole = null, moduleName = null) => {
     const isLocked = currentConfig.locked.includes(id);
 
     if (isLocked) {
@@ -62,8 +83,15 @@ export default function QuickAccess() {
       );
     }
 
+    const isRestricted = requiredRole && role !== requiredRole;
+
     return (
-      <Link href={href} className="qa-btn flex flex-col items-center justify-start gap-2 p-4 pb-3 border-r border-b border-gray-200 bg-white transition-all hover:bg-[#f7f9ff] hover:shadow-[0_4px_14px_rgba(31,56,100,0.12)] hover:-translate-y-0.5 hover:border-[#B8860B] hover:z-10 cursor-pointer relative" id={id}>
+      <Link 
+        href={href} 
+        onClick={isRestricted ? (e) => handleRestrictedClick(e, requiredRole, moduleName) : undefined}
+        className="qa-btn flex flex-col items-center justify-start gap-2 p-4 pb-3 border-r border-b border-gray-200 bg-white transition-all hover:bg-[#f7f9ff] hover:shadow-[0_4px_14px_rgba(31,56,100,0.12)] hover:-translate-y-0.5 hover:border-[#B8860B] hover:z-10 cursor-pointer relative" 
+        id={id}
+      >
         <div className="qa-btn-icon w-9 h-9 flex items-center justify-center rounded-lg bg-gradient-to-br from-[#1F3864]/8 to-[#1F3864]/4 shrink-0 transition-colors [&_svg]:stroke-[#1F3864]">
           {icon}
         </div>
@@ -105,14 +133,14 @@ export default function QuickAccess() {
               <span className="text-[0.85rem] font-bold text-[#1F3864] uppercase tracking-wide">Employees</span>
             </div>
             <div className="grid grid-cols-[repeat(auto-fill,minmax(90px,1fr))] gap-0">
-              {renderBtn('qa-all-employees', '/employees', <Users strokeWidth={1.6} />, 'All Employees')}
-              {renderBtn('qa-add-employee', '/employees/create', <UserPlus strokeWidth={1.6} />, 'Add New Employee')}
+              {renderBtn('qa-all-employees', safeRoute('employees.index', '/employees'), <Users strokeWidth={1.6} />, 'All Employees')}
+              {renderBtn('qa-add-employee', safeRoute('employees.create', '/employees/create'), <UserPlus strokeWidth={1.6} />, 'Add New Employee')}
               {renderBtn('qa-employee-detail', '/employees/1', <UserCircle strokeWidth={1.6} />, 'Employee Detail')}
-              {renderBtn('qa-bulk-upload', '/employees/bulk-upload', <UploadCloud strokeWidth={1.6} />, 'Bulk Upload')}
+              {renderBtn('qa-bulk-upload', safeRoute('employees.bulk-upload', '/employees/bulk-upload'), <UploadCloud strokeWidth={1.6} />, 'Bulk Upload')}
               {/* {renderBtn('qa-bulk-salary', '/employees/salary-bulk-update', <Banknote strokeWidth={1.6} />, 'Bulk Salary Update')} */}
               {renderBtn('qa-salary-revision', '/employees/1/salary-revision', <History strokeWidth={1.6} />, 'Salary Revision')}
               {renderBtn('qa-employee-exit', '/employees/1/exit', <ExternalLink strokeWidth={1.6} />, 'Employee Exit / F&F')}
-              {renderBtn('qa-bank-change', '/employees/bank-change-requests', <Banknote strokeWidth={1.6} />, 'Bank Change Requests')}
+              {renderBtn('qa-bank-change', safeRoute('employees.bank-change-requests', '/employees/bank-change-requests'), <Banknote strokeWidth={1.6} />, 'Bank Change Requests')}
             </div>
           </div>
         )}
@@ -124,11 +152,11 @@ export default function QuickAccess() {
               <span className="text-[0.85rem] font-bold text-[#1F3864] uppercase tracking-wide">Payroll</span>
             </div>
             <div className="grid grid-cols-[repeat(auto-fill,minmax(90px,1fr))] gap-0">
-              {renderBtn('qa-payroll-proc', '/payroll/processing', <Banknote strokeWidth={1.6} />, 'Payroll Processing')}
-              {renderBtn('qa-payroll-approval', '/payroll/approval', <CheckSquare strokeWidth={1.6} />, 'Payroll Approval')}
-              {renderBtn('qa-payslip', '/payroll/payslip', <FileText strokeWidth={1.6} />, 'Payslip Viewer')}
-              {renderBtn('qa-invoice-gen', '/invoices/generate', <FileText strokeWidth={1.6} />, 'Invoice Generation')}
-              {renderBtn('qa-invoices-list', '/invoices', <FileText strokeWidth={1.6} />, 'Invoices List')}
+              {renderBtn('qa-payroll-proc', safeRoute('payroll.processing', '/payroll/processing'), <Banknote strokeWidth={1.6} />, 'Payroll Processing')}
+              {renderBtn('qa-payroll-approval', safeRoute('payroll.approval', '/payroll/approval'), <CheckSquare strokeWidth={1.6} />, 'Payroll Approval')}
+              {renderBtn('qa-payslip', safeRoute('payroll.payslips', '/payroll/payslips'), <FileText strokeWidth={1.6} />, 'Payslip Viewer')}
+              {renderBtn('qa-invoice-gen', safeRoute('invoices.generate', '/invoices/generate'), <FileText strokeWidth={1.6} />, 'Invoice Generation')}
+              {renderBtn('qa-invoices-list', safeRoute('invoices.index', '/invoices'), <FileText strokeWidth={1.6} />, 'Invoices List')}
             </div>
           </div>
         )}
@@ -140,9 +168,9 @@ export default function QuickAccess() {
               <span className="text-[0.85rem] font-bold text-[#1F3864] uppercase tracking-wide">Attendance</span>
             </div>
             <div className="grid grid-cols-[repeat(auto-fill,minmax(90px,1fr))] gap-0">
-              {renderBtn('qa-live-attendance', '/payroll/live-attendance', <Activity strokeWidth={1.6} />, 'Live Monitor')}
-              {renderBtn('qa-attendance-upload', '/payroll/attendance-upload', <UploadCloud strokeWidth={1.6} />, 'Attendance Upload')}
-              {renderBtn('qa-attendance-review', '/payroll/attendance-review', <CheckSquare strokeWidth={1.6} />, 'Attendance Review')}
+              {renderBtn('qa-live-attendance', safeRoute('payroll.live-monitor', '/payroll/live-monitor'), <Activity strokeWidth={1.6} />, 'Live Monitor')}
+              {renderBtn('qa-attendance-upload', safeRoute('payroll.attendance-upload', '/payroll/attendance-upload'), <UploadCloud strokeWidth={1.6} />, 'Attendance Upload')}
+              {renderBtn('qa-attendance-review', safeRoute('payroll.attendance-review', '/payroll/attendance-review'), <CheckSquare strokeWidth={1.6} />, 'Attendance Review')}
             </div>
           </div>
         )}
@@ -154,7 +182,7 @@ export default function QuickAccess() {
               <span className="text-[0.85rem] font-bold text-[#1F3864] uppercase tracking-wide">Leave</span>
             </div>
             <div className="grid grid-cols-[repeat(auto-fill,minmax(90px,1fr))] gap-0">
-              {renderBtn('qa-leave-queue', '/leave-requests', <CheckSquare strokeWidth={1.6} />, 'Leave Approval Queue')}
+              {renderBtn('qa-leave-queue', safeRoute('leave-requests.index', '/leave-requests'), <CheckSquare strokeWidth={1.6} />, 'Leave Approval Queue')}
             </div>
           </div>
         )}
@@ -166,7 +194,7 @@ export default function QuickAccess() {
               <span className="text-[0.85rem] font-bold text-[#1F3864] uppercase tracking-wide">Compliance</span>
             </div>
             <div className="grid grid-cols-[repeat(auto-fill,minmax(90px,1fr))] gap-0">
-              {renderBtn('qa-statutory', '/compliance', <Shield strokeWidth={1.6} />, 'Statutory Reports')}
+              {renderBtn('qa-statutory', safeRoute('compliance.index', '/compliance'), <Shield strokeWidth={1.6} />, 'Statutory Reports')}
             </div>
           </div>
         )}
@@ -178,10 +206,10 @@ export default function QuickAccess() {
               <span className="text-[0.85rem] font-bold text-[#1F3864] uppercase tracking-wide">Reports & Admin</span>
             </div>
             <div className="grid grid-cols-[repeat(auto-fill,minmax(90px,1fr))] gap-0">
-              {renderBtn('qa-analytics', '/reports/analytics', <Activity strokeWidth={1.6} />, 'Analytics Dashboard')}
-              {renderBtn('qa-activity-log', '/admin/activity-log', <History strokeWidth={1.6} />, 'Activity Log')}
-              {renderBtn('qa-user-mgmt', '/admin/users', <Users strokeWidth={1.6} />, 'User Management')}
-              {renderBtn('qa-settings', '/admin/settings', <Settings strokeWidth={1.6} />, 'Settings')}
+              {renderBtn('qa-analytics', safeRoute('reports.index', '/reports'), <Activity strokeWidth={1.6} />, 'Analytics Dashboard')}
+              {renderBtn('qa-activity-log', safeRoute('admin.activity-log', '/admin/activity-log'), <History strokeWidth={1.6} />, 'Activity Log')}
+              {renderBtn('qa-user-mgmt', safeRoute('admin.users', '/admin/users'), <Users strokeWidth={1.6} />, 'User Management')}
+              {renderBtn('qa-settings', safeRoute('admin.settings', '/admin/settings'), <Settings strokeWidth={1.6} />, 'Settings')}
             </div>
           </div>
         )}
@@ -193,10 +221,10 @@ export default function QuickAccess() {
               <span className="text-[0.85rem] font-bold text-[#1F3864] uppercase tracking-wide">Client Portal</span>
             </div>
             <div className="grid grid-cols-[repeat(auto-fill,minmax(90px,1fr))] gap-0">
-              {renderBtn('qa-client-dash', '/client/dashboard', <Activity strokeWidth={1.6} />, 'Client Dashboard')}
-              {renderBtn('qa-client-employees', '/client/employees', <Users strokeWidth={1.6} />, 'Client\'s Employees')}
-              {renderBtn('qa-client-attendance', '/client/attendance', <Calendar strokeWidth={1.6} />, 'Attendance Approval')}
-              {renderBtn('qa-client-invoices', '/client/invoices', <FileText strokeWidth={1.6} />, 'Client Invoices')}
+              {renderBtn('qa-client-dash', safeRoute('client.dashboard', '/client/dashboard'), <Activity strokeWidth={1.6} />, 'Client Dashboard', 'Client access only', 'client', 'Client Portal')}
+              {renderBtn('qa-client-employees', safeRoute('client.employees', '/client/employees'), <Users strokeWidth={1.6} />, 'Client\'s Employees', 'Client access only', 'client', 'Client Portal')}
+              {renderBtn('qa-client-attendance', safeRoute('client.attendance', '/client/attendance'), <Calendar strokeWidth={1.6} />, 'Attendance Approval', 'Client access only', 'client', 'Client Portal')}
+              {renderBtn('qa-client-invoices', safeRoute('client.invoices', '/client/invoices'), <FileText strokeWidth={1.6} />, 'Client Invoices', 'Client access only', 'client', 'Client Portal')}
             </div>
           </div>
         )}
@@ -208,11 +236,11 @@ export default function QuickAccess() {
               <span className="text-[0.85rem] font-bold text-[#1F3864] uppercase tracking-wide">Employee Portal</span>
             </div>
             <div className="grid grid-cols-[repeat(auto-fill,minmax(90px,1fr))] gap-0">
-              {renderBtn('qa-emp-dash', '/employee/dashboard', <Activity strokeWidth={1.6} />, 'Employee Dashboard')}
-              {renderBtn('qa-emp-attendance', '/employee/attendance', <Calendar strokeWidth={1.6} />, 'Employee Attendance')}
-              {renderBtn('qa-emp-leave', '/employee/leave', <History strokeWidth={1.6} />, 'Leave Request')}
-              {renderBtn('qa-emp-payslips', '/employee/payslips', <FileText strokeWidth={1.6} />, 'Employee Payslips')}
-              {renderBtn('qa-emp-profile', '/employee/profile', <UserCircle strokeWidth={1.6} />, 'Employee Profile')}
+              {renderBtn('qa-emp-dash', safeRoute('employee.dashboard', '/employee/dashboard'), <Activity strokeWidth={1.6} />, 'Employee Dashboard', 'Employee access only', 'employee', 'Employee Portal')}
+              {renderBtn('qa-emp-attendance', safeRoute('employee.attendance', '/employee/attendance'), <Calendar strokeWidth={1.6} />, 'Employee Attendance', 'Employee access only', 'employee', 'Employee Portal')}
+              {renderBtn('qa-emp-leave', safeRoute('employee.leave', '/employee/leave'), <History strokeWidth={1.6} />, 'Leave Request', 'Employee access only', 'employee', 'Employee Portal')}
+              {renderBtn('qa-emp-payslips', safeRoute('employee.payslips', '/employee/payslips'), <FileText strokeWidth={1.6} />, 'Employee Payslips', 'Employee access only', 'employee', 'Employee Portal')}
+              {renderBtn('qa-emp-profile', safeRoute('employee.profile', '/employee/profile'), <UserCircle strokeWidth={1.6} />, 'Employee Profile', 'Employee access only', 'employee', 'Employee Portal')}
             </div>
           </div>
         )}

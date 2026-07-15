@@ -136,11 +136,22 @@ class LoginController extends Controller
             'last_login_ip' => $request->ip(),
         ]);
 
-        if ($this->settings->getAuthSecurity('prevent_concurrent_logins', true)) {
-            \Illuminate\Support\Facades\DB::table('sessions')
+        $maxSessions = (int) $this->settings->getAuthSecurity('max_concurrent_sessions_per_user', 0);
+        if ($maxSessions > 0) {
+            $sessions = \Illuminate\Support\Facades\DB::table('sessions')
                 ->where('user_id', $user->id)
                 ->where('id', '!=', $request->session()->getId())
-                ->delete();
+                ->orderBy('last_activity', 'desc')
+                ->get();
+
+            if ($sessions->count() >= $maxSessions) {
+                $sessionsToDelete = $sessions->slice($maxSessions - 1)->pluck('id');
+                if ($sessionsToDelete->isNotEmpty()) {
+                    \Illuminate\Support\Facades\DB::table('sessions')
+                        ->whereIn('id', $sessionsToDelete)
+                        ->delete();
+                }
+            }
         }
         app(\App\Services\AuditService::class)->log('login', $user);
 

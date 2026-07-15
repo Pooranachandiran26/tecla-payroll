@@ -12,29 +12,50 @@ use Illuminate\Support\Facades\DB;
 
 class LeaveApprovalController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        // Admin or Manager only (middleware typically handles this, but we'll enforce just to be safe if not strictly routed)
         if (!in_array(auth()->user()->role, ['admin', 'manager'])) {
             abort(403, 'Unauthorized access to leave approval queue.');
         }
 
-        // Fetch leave requests for the queue. In a real app with Managers, we'd scope this to their clients' employees.
-        // For now, as per instruction, admin/manager see pending leaves.
-        $leaves = LeaveRequest::with(['employee.client'])
-            ->orderBy('created_at', 'desc')
-            ->paginate(50);
+        $query = LeaveRequest::with(['employee.client']);
 
-        // Map data to what the UI expects
-        $mappedLeaves = $leaves->map(function($leave) {
+        if ($request->search) {
+            $search = $request->search;
+            $query->whereHas('employee', function ($q) use ($search) {
+                $q->where('full_name', 'like', "%{$search}%")
+                  ->orWhere('employee_code', 'like', "%{$search}%")
+                  ->orWhereHas('client', function ($cq) use ($search) {
+                      $cq->where('company_name', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        if ($request->client_id) {
+            $query->whereHas('employee', function ($q) use ($request) {
+                $q->where('client_id', $request->client_id);
+            });
+        }
+
+        if ($request->status && $request->status !== 'all') {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->leave_type && $request->leave_type !== 'all') {
+            $query->where('leave_type', $request->leave_type);
+        }
+
+        $leaves = $query->orderBy('created_at', 'desc')->paginate(15)->withQueryString();
+
+        $mappedLeaves = $leaves->through(function ($leave) {
             return [
                 'id' => $leave->id,
-                'empName' => $leave->employee->full_name,
-                'empCode' => $leave->employee->employee_code,
-                'client' => $leave->employee->client ? $leave->employee->client->name : 'N/A',
+                'empName' => $leave->employee ? $leave->employee->full_name : 'N/A',
+                'empCode' => $leave->employee ? $leave->employee->employee_code : 'N/A',
+                'client' => ($leave->employee && $leave->employee->client) ? $leave->employee->client->company_name : 'N/A',
                 'leaveType' => ucwords(str_replace('_', ' ', $leave->leave_type)) . ' Leave',
                 'leaveCode' => $leave->leave_type,
-                'dateRange' => $leave->from_date->format('F j, Y') . ' - ' . $leave->to_date->format('F j, Y'),
+                'dateRange' => $leave->from_date ? ($leave->from_date->format('F j, Y') . ' - ' . $leave->to_date->format('F j, Y')) : '',
                 'days' => (float)$leave->days_count,
                 'reason' => $leave->reason,
                 'status' => $leave->status,
@@ -42,8 +63,12 @@ class LeaveApprovalController extends Controller
             ];
         });
 
+        $clients = \App\Models\Client::where('status', 'active')->select('id', 'company_name')->get();
+
         return Inertia::render('Employees/LeaveApprovalQueue', [
-            'initialLeaves' => $mappedLeaves
+            'leaves' => $mappedLeaves,
+            'clients' => $clients,
+            'filters' => $request->only(['search', 'client_id', 'status', 'leave_type'])
         ]);
     }
 

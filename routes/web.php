@@ -16,6 +16,7 @@ use App\Http\Controllers\Auth\ForcePasswordChangeController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\SessionController;
 use App\Http\Controllers\AttendanceUploadController;
+use App\Http\Controllers\BankChangeRequestController;
 
 // -----------------------------------------------------------------------
 // GUEST ROUTES (Unauthenticated)

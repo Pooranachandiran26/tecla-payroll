@@ -185,7 +185,8 @@ export default function BulkUpload() {
           <span>⚠️</span> Important Guidelines for Bulk Upload
         </h4>
         <ul className="text-sm text-gray-700 list-disc pl-5 space-y-1">
-          <li><strong>Mandatory Fields:</strong> employee_code, client_code, branch_code, full_name, personal_email, phone_number, date_of_joining, designation, employment_model, basic_pay, hra.</li>
+          <li><strong>Reporting Manager:</strong> Use <strong>reporting_manager_code</strong> to assign a manager. The manager must belong to the same client.</li>
+          <li><strong>Declarations & Optional Gaps:</strong> Supported fields include <strong>declarations_accepted</strong> (1/yes or 0/no, defaults to 1), <strong>emergency_contact_name</strong>, <strong>previous_employer_name</strong>, <strong>previous_employer_uan</strong>, <strong>probation_end_date</strong>, and <strong>esi_contribution_period_end</strong>.</li>
           <li><strong>Statutory Toggles:</strong> Use <strong>1</strong> for Yes/True and <strong>0</strong> for No/False (e.g., pf_applicable, esi_applicable).</li>
           <li><strong>Dates Format:</strong> Must be in <strong>YYYY-MM-DD</strong> format (e.g., 2023-01-15).</li>
           <li><strong>Dropdown Values:</strong> Must match exact internal values (e.g., <strong>gender:</strong> male/female/other, <strong>tds_regime:</strong> old/new, <strong>gratuity_mode:</strong> part_of_ctc/over_and_above).</li>
