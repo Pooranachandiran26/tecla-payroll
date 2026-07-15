@@ -141,4 +141,27 @@ class LiveAttendanceMonitorTest extends TestCase
             ->where('punches.0.status', 'absent')
         );
     }
+
+    /**
+     * Test live monitor displays and converts UTC-stored times to local configured timezone (Asia/Kolkata).
+     */
+    public function test_live_monitor_formats_times_in_configured_timezone()
+    {
+        // 1. Set timezone to Asia/Kolkata (+05:30)
+        \App\Services\SettingsService::set('localization.timezone', 'Asia/Kolkata');
+
+        // 2. Fetch the live monitor page
+        $response = $this->actingAs($this->admin)->get('/payroll/live-monitor');
+
+        $response->assertStatus(200);
+
+        // 3. Assert that '09:15:00' UTC punch_in_time becomes '02:45 PM' local time (shifted by +5:30)
+        // and '18:15:00' UTC punch_out_time becomes '11:45 PM' local time
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('Payroll/LiveAttendanceMonitor')
+            ->where('punches.0.name', $this->employeeA->full_name)
+            ->where('punches.0.in', '02:45 PM')
+            ->where('punches.0.out', '11:45 PM')
+        );
+    }
 }
