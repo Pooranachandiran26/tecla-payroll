@@ -116,6 +116,25 @@ class PayrollEligibilityService
             $warnings[] = "Employee near the ESI ₹21,000 threshold";
         }
 
+        // D. Incomplete Punch & Unexpected Status Anomaly Warnings
+        $attendanceService = app(\App\Services\AttendanceResolutionService::class);
+        $resolution = $attendanceService->resolveForEmployee($employee, $monthStart, $monthEnd);
+        
+        $incompletePunches = $resolution['incomplete_punches'] ?? [];
+        $unexpectedRecords = $resolution['unexpected_records'] ?? [];
+
+        $incompleteCount = count($incompletePunches);
+        if ($incompleteCount > 0) {
+            $pluralPunch = $incompleteCount === 1 ? 'punch' : 'punches';
+            $pluralVerb = $incompleteCount === 1 ? 'is' : 'are';
+            $datesStr = implode(', ', $incompletePunches);
+            $warnings[] = "{$incompleteCount} incomplete {$pluralPunch} (no punch-out) {$pluralVerb} found on {$datesStr} — verify before processing";
+        }
+
+        foreach ($unexpectedRecords as $item) {
+            $warnings[] = "Unexpected attendance status '{$item['status']}' on {$item['date']} — data integrity issue, verify manually";
+        }
+
         return [
             'is_eligible' => empty($exclusions),
             'exclusions' => $exclusions,

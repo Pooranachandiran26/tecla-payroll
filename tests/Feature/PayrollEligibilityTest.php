@@ -321,4 +321,190 @@ class PayrollEligibilityTest extends TestCase
         $this->assertContains('Salary revision with effective date inside this payroll month', $result['warnings']);
         $this->assertContains('Employee near the ESI ₹21,000 threshold', $result['warnings']);
     }
+
+    /**
+     * Test 9: An incomplete punch record (punch-in set, punch-out null, status null)
+     * is resolved as LOP and returned in incomplete_punches.
+     */
+    public function test_punch_in_no_punch_out_is_flagged_as_anomaly_and_treated_as_lop()
+    {
+        $monthStart = '2026-06-01';
+        $monthEnd = '2026-06-30';
+        $start = Carbon::parse($monthStart);
+        $end = Carbon::parse($monthEnd);
+
+        // Seed 1 incomplete punch on June 15
+        DB::table('attendance_records')->insert([
+            'employee_id' => $this->employee->id,
+            'attendance_date' => '2026-06-15',
+            'punch_in_time' => '09:00:00',
+            'punch_out_time' => null,
+            'status' => null,
+            'source' => 'live_punch',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // Seed other weekdays as present
+        for ($date = $start->copy(); $date->lte($end); $date->addDay()) {
+            if (!$date->isWeekend() && $date->toDateString() !== '2026-06-15') {
+                DB::table('attendance_records')->insert([
+                    'employee_id' => $this->employee->id,
+                    'attendance_date' => $date->toDateString(),
+                    'status' => 'present',
+                    'source' => 'live_punch',
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+        }
+
+        $result = $this->attendanceService->resolveForEmployee($this->employee, $monthStart, $monthEnd);
+
+        $this->assertEquals(29, $result['paid_days']); // 30 - 1 incomplete = 29
+        $this->assertEquals(1, $result['lop_days']);
+        $this->assertContains('2026-06-15', $result['incomplete_punches']);
+    }
+
+    /**
+     * Test 10: An unrecognized status (e.g. 'unknown_status') is resolved as LOP
+     * and returned in unexpected_records (bypassing SQLite CHECK constraints using mocks).
+     */
+    public function test_unrecognized_status_is_flagged_as_anomaly_and_treated_as_lop()
+    {
+        $monthStart = '2026-06-01';
+        $monthEnd = '2026-06-30';
+        $start = Carbon::parse($monthStart);
+        $end = Carbon::parse($monthEnd);
+
+        $records = [];
+        for ($date = $start->copy(); $date->lte($end); $date->addDay()) {
+            if (!$date->isWeekend()) {
+                if ($date->toDateString() === '2026-06-15') {
+                    $records[] = (object)[
+                        'employee_id' => $this->employee->id,
+                        'attendance_date' => '2026-06-15',
+                        'punch_in_time' => '09:00:00',
+                        'punch_out_time' => '18:00:00',
+                        'status' => 'unknown_status',
+                        'source' => 'live_punch',
+                    ];
+                } else {
+                    $records[] = (object)[
+                        'employee_id' => $this->employee->id,
+                        'attendance_date' => $date->toDateString(),
+                        'punch_in_time' => '09:00:00',
+                        'punch_out_time' => '18:00:00',
+                        'status' => 'present',
+                        'source' => 'live_punch',
+                    ];
+                }
+            }
+        }
+
+        $mockQuery = \Mockery::mock();
+        $mockQuery->shouldReceive('where')->with('employee_id', $this->employee->id)->andReturnSelf();
+        $mockQuery->shouldReceive('whereBetween')->with('attendance_date', [$monthStart, $monthEnd])->andReturnSelf();
+        $mockQuery->shouldReceive('get')->andReturn(collect($records));
+
+        $originalDb = DB::getFacadeRoot();
+        DB::shouldReceive('table')->with('attendance_records')->andReturn($mockQuery);
+
+        $result = $this->attendanceService->resolveForEmployee($this->employee, $monthStart, $monthEnd);
+
+        DB::swap($originalDb);
+
+        $this->assertEquals(29, $result['paid_days']); // 30 - 1 unrecognized = 29
+        $this->assertEquals(1, $result['lop_days']);
+        
+        $unexpectedList = $result['unexpected_records'];
+        $this->assertCount(1, $unexpectedList);
+        $this->assertEquals('2026-06-15', $unexpectedList[0]['date']);
+        $this->assertEquals('unknown_status', $unexpectedList[0]['status']);
+    }
+
+    /**
+     * Test 11: Incomplete punch warning fires correctly in eligibility checks (single & multiple cases).
+     */
+    public function test_incomplete_punch_warning_fires_in_eligibility_service()
+    {
+        $monthStart = '2026-06-01';
+        $monthEnd = '2026-06-30';
+
+        // 1. Single incomplete punch
+        DB::table('attendance_records')->insert([
+            'employee_id' => $this->employee->id,
+            'attendance_date' => '2026-06-15',
+            'punch_in_time' => '09:00:00',
+            'punch_out_time' => null,
+            'status' => null,
+            'source' => 'live_punch',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $resultSingle = $this->eligibilityService->checkEmployee($this->employee, $this->client, $monthStart, $monthEnd);
+        $this->assertContains(
+            "1 incomplete punch (no punch-out) is found on 2026-06-15 — verify before processing",
+            $resultSingle['warnings']
+        );
+
+        // 2. Multiple incomplete punches (add a second one)
+        DB::table('attendance_records')->insert([
+            'employee_id' => $this->employee->id,
+            'attendance_date' => '2026-06-16',
+            'punch_in_time' => '09:00:00',
+            'punch_out_time' => null,
+            'status' => null,
+            'source' => 'live_punch',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $resultMultiple = $this->eligibilityService->checkEmployee($this->employee, $this->client, $monthStart, $monthEnd);
+        $this->assertContains(
+            "2 incomplete punches (no punch-out) are found on 2026-06-15, 2026-06-16 — verify before processing",
+            $resultMultiple['warnings']
+        );
+    }
+
+    /**
+     * Test 12: Unexpected status warning fires correctly in eligibility checks.
+     */
+    public function test_unexpected_status_warning_fires_in_eligibility_service()
+    {
+        $monthStart = '2026-06-01';
+        $monthEnd = '2026-06-30';
+
+        $mockResolution = [
+            'paid_days' => 29.0,
+            'lop_days' => 1.0,
+            'attendance_source' => 'live_punch',
+            'incomplete_punches' => [],
+            'unexpected_records' => [
+                [
+                    'date' => '2026-06-15',
+                    'status' => 'corrupt_val'
+                ]
+            ]
+        ];
+
+        $mockService = $this->createMock(AttendanceResolutionService::class);
+        $mockService->method('resolveForEmployee')->willReturn($mockResolution);
+        $this->app->instance(AttendanceResolutionService::class, $mockService);
+
+        // Seed at least one valid attendance record so that "No attendance data" exclusion does not trigger
+        DB::table('attendance_records')->insert([
+            'employee_id' => $this->employee->id,
+            'attendance_date' => '2026-06-10',
+            'status' => 'present',
+            'source' => 'live_punch',
+        ]);
+
+        $result = $this->eligibilityService->checkEmployee($this->employee, $this->client, $monthStart, $monthEnd);
+        $this->assertContains(
+            "Unexpected attendance status 'corrupt_val' on 2026-06-15 — data integrity issue, verify manually",
+            $result['warnings']
+        );
+    }
 }
