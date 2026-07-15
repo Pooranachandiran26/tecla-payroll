@@ -1,18 +1,29 @@
 import { Link, usePage } from '@inertiajs/react';
 import { adminNav, clientNav, candidateNav, subNavs, getActiveCategory, getPathname } from '../Constants/navigation';
 import { Bell, User, LogOut, Menu } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import ToastContainer from '../Components/ui/Toast';
 import { useRole } from '../Contexts/RoleContext.jsx';
+import useToast from '../Hooks/useToast';
 
 export default function AuthenticatedLayout({ children }) {
   const { url } = usePage();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
-  // Use auth and branding from usePage().props
-  const { auth, branding } = usePage().props;
+  // Use auth, branding, and flash from usePage().props
+  const { auth, branding, flash } = usePage().props;
+  const { showToast } = useToast();
   const role = auth?.user?.role || 'guest';
   const userName = auth?.user?.name || 'User';
+
+  useEffect(() => {
+    if (flash?.success) {
+      showToast({ type: 'success', title: 'Success', message: flash.success });
+    }
+    if (flash?.error) {
+      showToast({ type: 'error', title: 'Error', message: flash.error });
+    }
+  }, [flash, showToast]);
   
   const navLinks = role === 'client' ? clientNav
     : role === 'employee' ? candidateNav

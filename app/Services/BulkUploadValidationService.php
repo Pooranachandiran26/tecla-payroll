@@ -193,6 +193,36 @@ class BulkUploadValidationService
             $gratuityMode = $normalizedRow['gratuity_mode'] ?? 'part_of_ctc';
             $lopBasisDays = $normalizedRow['lop_basis_days'] ?? '26';
 
+            // Normalize declarations_accepted boolean (yes/no/true/false/1/0 string support, default to true)
+            $rawDecl = $normalizedRow['declarations_accepted'] ?? null;
+            if ($rawDecl === null || $rawDecl === '') {
+                $declarationsAccepted = true; // Default to true (accepted) matching single-employee form
+            } else {
+                $strDecl = strtolower(trim((string)$rawDecl));
+                if (in_array($strDecl, ['yes', 'true', '1'], true)) {
+                    $declarationsAccepted = true;
+                } elseif (in_array($strDecl, ['no', 'false', '0'], true)) {
+                    $declarationsAccepted = false;
+                } else {
+                    $declarationsAccepted = filter_var($rawDecl, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? true;
+                }
+            }
+
+            // Reporting Manager Resolution (Same Client Enforcement)
+            $reportingManagerId = null;
+            if (!empty($normalizedRow['reporting_manager_code'])) {
+                $managerCode = $normalizedRow['reporting_manager_code'];
+                $manager = Employee::where('employee_code', $managerCode)->first();
+                if (!$manager) {
+                    $errors[] = "Reporting manager code '{$managerCode}' not found.";
+                } elseif ($client && $manager->client_id !== $client->id) {
+                    $managerClientName = $manager->client ? $manager->client->company_name : 'Unknown';
+                    $errors[] = "Reporting manager '{$managerCode}' belongs to a different client ('{$managerClientName}'). Reporting manager must belong to the same client.";
+                } else {
+                    $reportingManagerId = $manager->id;
+                }
+            }
+
             $validationData = array_merge($normalizedRow, [
                 'pf_applicable' => $pfApplicable,
                 'esi_applicable' => $esiApplicable,
@@ -206,12 +236,20 @@ class BulkUploadValidationService
                 'bank_name' => $normalizedRow['bank_name'] ?? '',
                 'bank_branch' => $normalizedRow['bank_branch'] ?? '',
                 'uan_mode' => $normalizedRow['uan_mode'] ?? 'new',
+                'declarations_accepted' => $declarationsAccepted,
+                'reporting_manager_id' => $reportingManagerId,
+                'emergency_contact_name' => $normalizedRow['emergency_contact_name'] ?? null,
+                'previous_employer_name' => $normalizedRow['previous_employer_name'] ?? null,
+                'previous_employer_uan' => $normalizedRow['previous_employer_uan'] ?? null,
+                'probation_end_date' => $normalizedRow['probation_end_date'] ?? null,
+                'esi_contribution_period_end' => $normalizedRow['esi_contribution_period_end'] ?? null,
             ]);
 
             $rules = [
                 'full_name' => 'required|string|max:255',
                 'personal_email' => ['required', 'email', 'unique:employees,personal_email', 'unique:users,email'],
                 'phone_number' => 'required|string|max:15|unique:employees,phone_number',
+                'emergency_contact_name' => 'nullable|string|max:255',
                 'emergency_contact_phone' => 'nullable|string|max:15',
                 'date_of_birth' => 'required|date',
                 'date_of_joining' => 'required|date',
@@ -221,6 +259,12 @@ class BulkUploadValidationService
                 'marital_status' => 'nullable|in:single,married,other',
                 'employment_model' => 'required|in:eor,agency_contract',
                 'prior_employment_flag' => 'required|boolean',
+                'previous_employer_name' => 'nullable|string|max:255',
+                'previous_employer_uan' => 'nullable|digits:12',
+                'probation_end_date' => 'nullable|date',
+                'reporting_manager_id' => 'nullable|exists:employees,id',
+                'esi_contribution_period_end' => 'nullable|date',
+                'declarations_accepted' => 'required|boolean',
                 'residential_address' => 'required|string',
                 
                 // Banking
@@ -363,8 +407,8 @@ class BulkUploadValidationService
                 $dbPayload['client_id'] = $client->id;
                 $dbPayload['branch_id'] = $branchId;
                 $dbPayload['status'] = 'onboarding'; // same as manual creation
-                // Remove client_code or branch_name which are not in Employee table
-                unset($dbPayload['client_code'], $dbPayload['branch_name'], $dbPayload['branch_code']);
+                // Remove client_code or branch_name or reporting_manager_code which are not in Employee table
+                unset($dbPayload['client_code'], $dbPayload['branch_name'], $dbPayload['branch_code'], $dbPayload['reporting_manager_code']);
                 
                 $rowData['db_payload'] = $dbPayload;
             }

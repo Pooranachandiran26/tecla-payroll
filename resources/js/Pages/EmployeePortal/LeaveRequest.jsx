@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, useForm, usePage } from '@inertiajs/react';
+import { Head, useForm, usePage, router } from '@inertiajs/react';
 import RoleGuard from '../../Components/RoleGuard.jsx';
 import Modal from '../../Components/ui/Modal';
 import Button from '../../Components/ui/Button';
+import Badge from '../../Components/ui/Badge';
+import Pagination from '../../Components/ui/Pagination';
 import useToast from '../../Hooks/useToast.jsx';
 
 export default function LeaveRequest({ employee, leaveRequests }) {
@@ -35,22 +37,22 @@ export default function LeaveRequest({ employee, leaveRequests }) {
         });
     };
 
-    const getLeaveBadgeColor = (type) => {
+    const getLeaveBadgeVariant = (type) => {
         switch (type) {
-            case 'casual': return 'var(--primary)';
-            case 'sick': return 'var(--warning)';
-            case 'earned': return 'var(--success)';
-            case 'unpaid': return 'var(--danger)';
-            default: return 'var(--info)';
+            case 'casual': return 'info';
+            case 'sick': return 'warning';
+            case 'earned': return 'success';
+            case 'unpaid': return 'danger';
+            default: return 'info';
         }
     };
 
-    const getStatusBadgeColor = (status) => {
+    const getStatusBadgeVariant = (status) => {
         switch (status) {
-            case 'approved': return 'var(--success)';
-            case 'rejected': return 'var(--danger)';
-            case 'pending': return 'var(--warning)';
-            default: return 'var(--secondary)';
+            case 'approved': return 'success';
+            case 'rejected': return 'danger';
+            case 'pending': return 'warning';
+            default: return 'neutral';
         }
     };
 
@@ -97,18 +99,18 @@ export default function LeaveRequest({ employee, leaveRequests }) {
                                         <tr key={req.id}>
                                             <td>#LR-{req.id}</td>
                                             <td>
-                                                <span className="badge" style={{ backgroundColor: getLeaveBadgeColor(req.leave_type), color: '#fff' }}>
+                                                <Badge variant={getLeaveBadgeVariant(req.leave_type)}>
                                                     {formatType(req.leave_type)}
-                                                </span>
+                                                </Badge>
                                             </td>
                                             <td>{new Date(req.from_date).toLocaleDateString()}</td>
                                             <td>{new Date(req.to_date).toLocaleDateString()}</td>
                                             <td style={{ fontWeight: 'bold', textAlign: 'center' }}>{req.days_count} Days</td>
                                             <td>{req.reason}</td>
                                             <td>
-                                                <span className="badge" style={{ backgroundColor: getStatusBadgeColor(req.status), color: '#fff' }}>
+                                                <Badge variant={getStatusBadgeVariant(req.status)}>
                                                     {req.status.toUpperCase()}
-                                                </span>
+                                                </Badge>
                                             </td>
                                         </tr>
                                     ))
@@ -116,6 +118,19 @@ export default function LeaveRequest({ employee, leaveRequests }) {
                             </tbody>
                         </table>
                     </div>
+                    {leaveRequests.total > 0 && (
+                        <div style={{ marginTop: '1.5rem' }}>
+                            <Pagination 
+                                currentPage={leaveRequests.current_page}
+                                totalPages={leaveRequests.last_page}
+                                totalItems={leaveRequests.total}
+                                itemsPerPage={leaveRequests.per_page}
+                                onPageChange={(page) => {
+                                    router.get(route('employee.leave'), { page }, { preserveState: true, preserveScroll: true });
+                                }}
+                            />
+                        </div>
+                    )}
                 </div>
 
                 <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Apply for Leave">

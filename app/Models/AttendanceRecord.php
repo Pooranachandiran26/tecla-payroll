@@ -27,6 +27,26 @@ class AttendanceRecord extends Model
         'hours_worked' => 'decimal:2',
     ];
 
+    protected static function booted()
+    {
+        $invalidateVerification = function ($record) {
+            // Retrieve client_id from employee relation
+            $employee = $record->employee;
+            if ($employee && $employee->client_id) {
+                // Determine target month start date (e.g. YYYY-MM-01)
+                $monthStart = \Carbon\Carbon::parse($record->attendance_date)->startOfMonth()->toDateString();
+                
+                // Delete verification record
+                \App\Models\ClientAttendanceVerification::where('client_id', $employee->client_id)
+                    ->whereDate('target_month', $monthStart)
+                    ->delete();
+            }
+        };
+
+        static::saved($invalidateVerification);
+        static::deleted($invalidateVerification);
+    }
+
     public function employee()
     {
         return $this->belongsTo(Employee::class);

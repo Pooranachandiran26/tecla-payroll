@@ -327,6 +327,7 @@ export default function ClientsList({ clients, stats = {} }) {
                               else if (val === 'deactivate') setDeactivateClient(c);
                               else if (val === 'restore') handleRestore(c.id);
                               else if (val === 'delete') setDeleteDialog({ client: c, confirmText: '', reason: '' });
+                              else if (val === 'onboard') router.visit(route('employees.create', { client_id: c.id }));
                               else if (val) alert("Coming soon: This feature is pending the next phase.");
                             }}
                           >

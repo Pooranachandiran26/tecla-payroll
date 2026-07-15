@@ -80,7 +80,7 @@ export default function ClientDetail({ client, employees }) {
         <div className="legacy-react-wrapper">
                 
       <div style={{"marginBottom":"1.5rem"}}>
-        <a href={route('clients.index')} style={{"fontSize":"0.85rem","fontWeight":"600"}}>← Back to Clients Directory</a>
+        <Link href={route('clients.index')} style={{"fontSize":"0.85rem","fontWeight":"600"}}>← Back to Clients Directory</Link>
 
         <div className="client-header-container">
           <div>
@@ -283,7 +283,7 @@ export default function ClientDetail({ client, employees }) {
                 <option value="resigned">Resigned</option>
               </select>
             </div>
-             <a href={route('employees.create')} className="btn btn-primary btn-xs" style={{"padding":"0.4rem 0.75rem"}}>➕ Add Candidate</a>
+             <Link href={route('employees.create')} className="btn btn-primary btn-xs" style={{"padding":"0.4rem 0.75rem"}}>➕ Add Candidate</Link>
           </div>
 
           <div className="table-responsive">
@@ -315,7 +315,7 @@ export default function ClientDetail({ client, employees }) {
                       </td>
                       <td>{formatDate(emp.date_of_joining) || 'N/A'}</td>
                       <td><span className={`badge badge-${emp.status === 'active' ? 'success' : 'secondary'}`} style={{textTransform: 'capitalize'}}>{emp.status}</span></td>
-                       <td><a href={route('employees.show', emp.id)} className="btn btn-secondary btn-xs">View Profile</a></td>
+                       <td><Link href={route('employees.show', emp.id)} className="btn btn-secondary btn-xs">View Profile</Link></td>
                     </tr>
                   ))
                 ) : (

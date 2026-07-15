@@ -146,7 +146,7 @@ class EmployeeController extends Controller
         
         $employee->update($request->validated());
 
-        return redirect()->back()->with('success', 'Employee updated successfully.');
+        return redirect()->route('employees.index')->with('success', 'Employee updated successfully.');
     }
 
     public function storeDocument(\App\Http\Requests\StoreEmployeeDocumentRequest $request, $id)
@@ -364,4 +364,62 @@ class EmployeeController extends Controller
 
         return redirect()->back()->with('success', 'Employee restored successfully.');
     }
+
+    /**
+     * Check field uniqueness for live frontend UX validation.
+     * Strictly masks identifying data to prevent privacy leaks.
+     */
+    public function checkUnique(Request $request)
+    {
+        $validated = $request->validate([
+            'field' => 'required|in:personal_email,phone_number',
+            'value' => 'required|string',
+            'ignore_id' => 'nullable|integer',
+        ]);
+
+        $field = $validated['field'];
+        $value = trim($validated['value']);
+        $ignoreId = $validated['ignore_id'] ?? null;
+
+        if ($field === 'personal_email') {
+            $employeeQuery = \App\Models\Employee::where('personal_email', $value);
+            if ($ignoreId) {
+                $employeeQuery->where('id', '!=', $ignoreId);
+            }
+            $existsInEmployees = $employeeQuery->exists();
+
+            $userQuery = \App\Models\User::where('email', $value);
+            if ($ignoreId) {
+                $userQuery->where(function ($q) use ($ignoreId) {
+                    $q->whereNull('employee_id')
+                      ->orWhere('employee_id', '!=', $ignoreId);
+                });
+            }
+            $existsInUsers = $userQuery->exists();
+
+            if ($existsInEmployees || $existsInUsers) {
+                return response()->json([
+                    'available' => false,
+                    'message' => 'This email address is already registered in the system.'
+                ]);
+            }
+        } elseif ($field === 'phone_number') {
+            $employeeQuery = \App\Models\Employee::where('phone_number', $value);
+            if ($ignoreId) {
+                $employeeQuery->where('id', '!=', $ignoreId);
+            }
+            if ($employeeQuery->exists()) {
+                return response()->json([
+                    'available' => false,
+                    'message' => 'This phone number is already registered in the system.'
+                ]);
+            }
+        }
+
+        return response()->json([
+            'available' => true,
+            'message' => null,
+        ]);
+    }
 }
+

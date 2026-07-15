@@ -10,7 +10,7 @@ export default function ClientAttendanceApproval() {
             <Head title="Client Attendance Approval" />
             
       <div style={{ marginBottom: '1.5rem' }}>
-        <a href="/clients-list" style={{ fontSize: '0.85rem', fontWeight: '600' }}>← Back to Clients Directory</a>
+        <Link href={route('clients.index')} style={{ fontSize: '0.85rem', fontWeight: '600' }}>← Back to Clients Directory</Link>
         
         <div className="flex-row-between" style={{ marginTop: '1rem' }}>
           <div>
