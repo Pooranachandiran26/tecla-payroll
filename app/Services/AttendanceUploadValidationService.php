@@ -112,13 +112,19 @@ class AttendanceUploadValidationService
                     $daysPresent = (int) $rawDaysPresent;
                     $daysLOP = (int) $rawDaysLOP;
 
+                    // Bound working days by the employee's date_of_joining
+                    $employeeStart = Carbon::parse($employee->date_of_joining)->startOfDay();
+                    $effectiveStart = $monthStart->gt($employeeStart) ? $monthStart->copy() : $employeeStart->copy();
+                    $employeeWeekdays = $this->getWeekdaysInRange($effectiveStart, $monthEnd);
+                    $employeeWorkingDays = count($employeeWeekdays);
+
                     // Count existing live_punch/override records for this employee in the target month
                     $existingPunchCount = AttendanceRecord::where('employee_id', $employee->id)
                         ->whereBetween('attendance_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
                         ->whereIn('source', ['live_punch', 'override'])
                         ->count();
 
-                    $availableSlots = $totalWorkingDays - $existingPunchCount;
+                    $availableSlots = $employeeWorkingDays - $existingPunchCount;
                     $uploadedTotal = $daysPresent + $daysLOP;
 
                     if ($uploadedTotal === $availableSlots) {
@@ -133,7 +139,7 @@ class AttendanceUploadValidationService
                             $employee->id,
                             $reconciledPresent,
                             $reconciledLop,
-                            $monthStart,
+                            $effectiveStart,
                             $monthEnd
                         );
                     } elseif ($uploadedTotal < $availableSlots) {
@@ -148,14 +154,14 @@ class AttendanceUploadValidationService
                             $employee->id,
                             $reconciledPresent,
                             $reconciledLop,
-                            $monthStart,
+                            $effectiveStart,
                             $monthEnd
                         );
                     } else {
                         // Over-count
                         if ($daysLOP > 0) {
                             // Reject over-count with LOP
-                            $notes = "Error: Uploaded total ({$uploadedTotal}) exceeds available slots ({$availableSlots}) with non-zero LOP. Original: {$daysPresent} present / {$daysLOP} LOP. Only {$totalWorkingDays} weekdays exist in this period, and {$existingPunchCount} are already recorded.";
+                            $notes = "Error: Uploaded total ({$uploadedTotal}) exceeds available slots ({$availableSlots}) with non-zero LOP. Original: {$daysPresent} present / {$daysLOP} LOP. Only {$employeeWorkingDays} weekdays exist in this period, and {$existingPunchCount} are already recorded.";
                             $errorCount++;
                         } else {
                             // Cap present days if LOP is 0
@@ -169,7 +175,7 @@ class AttendanceUploadValidationService
                                 $employee->id,
                                 $reconciledPresent,
                                 $reconciledLop,
-                                $monthStart,
+                                $effectiveStart,
                                 $monthEnd
                             );
                         }

@@ -130,6 +130,10 @@ class EmployeePortalController extends Controller
         $employee = $this->getEmployee();
         $today = Carbon::today()->toDateString();
 
+        if ($employee->date_of_joining && Carbon::today()->lt(Carbon::parse($employee->date_of_joining)->startOfDay())) {
+            return redirect()->back()->with('error', "Cannot punch in before your date of joining ({$employee->date_of_joining}).");
+        }
+
         $existing = AttendanceRecord::where('employee_id', $employee->id)
             ->where('attendance_date', $today)
             ->first();

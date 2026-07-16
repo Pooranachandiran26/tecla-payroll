@@ -490,7 +490,9 @@ class PayrollController extends Controller
             'attendance_records.source as db_source',
         ])->get();
 
-        $punches = $records->map(function ($row) {
+        $tz = \App\Services\SettingsService::get('localization.timezone', 'Asia/Kolkata');
+
+        $punches = $records->map(function ($row) use ($tz) {
             $inTime = '—';
             $outTime = '—';
             $hours = '0h 0m';
@@ -499,10 +501,12 @@ class PayrollController extends Controller
 
             if ($row->punch_in_time) {
                 $status = 'present';
-                $inTime = \Carbon\Carbon::parse($row->punch_in_time)->format('h:i A');
+                $inCarbon = \Carbon\Carbon::parse($row->punch_in_time)->setTimezone($tz);
+                $inTime = $inCarbon->format('h:i A');
 
                 if ($row->punch_out_time) {
-                    $outTime = \Carbon\Carbon::parse($row->punch_out_time)->format('h:i A');
+                    $outCarbon = \Carbon\Carbon::parse($row->punch_out_time)->setTimezone($tz);
+                    $outTime = $outCarbon->format('h:i A');
                 } else {
                     $outTime = 'working';
                 }
@@ -513,9 +517,16 @@ class PayrollController extends Controller
                     $m = $totalMinutes % 60;
                     $hours = "{$h}h {$m}m";
                 } else {
-                    // Calculate dynamic active duration if still working
-                    $diff = \Carbon\Carbon::parse($row->punch_in_time)->diff(now());
-                    $hours = "{$diff->h}h {$diff->i}m";
+                    // Calculate dynamic active duration in the configured timezone if still working
+                    $now = \Carbon\Carbon::now($tz);
+                    if ($inCarbon->greaterThan($now)) {
+                        $hours = "0h 0m";
+                    } else {
+                        $diffInMinutes = $inCarbon->diffInMinutes($now);
+                        $h = floor($diffInMinutes / 60);
+                        $m = $diffInMinutes % 60;
+                        $hours = "{$h}h {$m}m";
+                    }
                 }
             }
 

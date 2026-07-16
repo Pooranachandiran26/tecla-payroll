@@ -42,19 +42,43 @@ export default function InvoicesList({ invoices }) {
                                 {invoices && invoices.length > 0 ? (
                                     invoices.map((inv) => (
                                         <tr key={inv.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                                            <td className="p-3"><strong>{inv.invoice_number}</strong></td>
-                                            <td className="p-3">{inv.client ? inv.client.company_name : 'Unknown Client'}</td>
-                                            <td className="p-3">{inv.branch ? inv.branch.branch_name : (inv.place_of_supply_state || '—')}</td>
-                                            <td className="p-3 font-bold">₹{parseFloat(inv.grand_total).toLocaleString()}</td>
-                                            <td className="p-3">{inv.due_date}</td>
-                                            {role !== 'manager' && (
-                                                <td className="p-3 text-green-600 font-semibold">₹{parseFloat(inv.agency_service_fee).toLocaleString()}</td>
-                                            )}
-                                            <td className="p-3">
-                                                {inv.status === 'draft' && <Badge type="warning">Draft</Badge>}
-                                                {inv.status === 'paid' && <Badge type="success">Paid</Badge>}
-                                                {inv.status === 'overdue' && <Badge type="danger">Overdue</Badge>}
-                                            </td>
+                                             <td className="p-3">
+                                                 <strong>{inv.invoice_number}</strong>
+                                                 {inv.warning_notes && (
+                                                     <div className="text-xs text-amber-600 font-medium mt-1" title={inv.warning_notes}>
+                                                         ⚠️ Credit Limit Warning
+                                                     </div>
+                                                 )}
+                                             </td>
+                                             <td className="p-3">{inv.client ? inv.client.company_name : 'Unknown Client'}</td>
+                                             <td className="p-3">{inv.branch ? inv.branch.branch_name : (inv.place_of_supply_state || '—')}</td>
+                                             <td className="p-3 font-bold">₹{parseFloat(inv.grand_total).toLocaleString()}</td>
+                                             <td className="p-3">
+                                                 <div>{inv.due_date}</div>
+                                                 {inv.dispute_window_expires_at && (
+                                                     <div className="text-xs text-gray-400 font-medium mt-0.5">
+                                                         Dispute Closes: {inv.dispute_window_expires_at}
+                                                     </div>
+                                                 )}
+                                             </td>
+                                             {role !== 'manager' && (
+                                                 <td className="p-3 text-green-600 font-semibold">₹{parseFloat(inv.agency_service_fee).toLocaleString()}</td>
+                                             )}
+                                             <td className="p-3">
+                                                 {inv.status === 'draft' && <Badge type="warning">Draft</Badge>}
+                                                 {inv.status === 'raised' && <Badge type="active">Raised</Badge>}
+                                                 {inv.status === 'paid' && <Badge type="success">Paid</Badge>}
+                                                 {inv.status === 'overdue' && (
+                                                     <div className="flex items-center">
+                                                         <Badge type="danger">Overdue</Badge>
+                                                         {parseFloat(inv.late_penalty_amount) > 0 && (
+                                                             <span className="text-xs text-red-500 font-semibold ml-2" title="Late payment penalty accumulated">
+                                                                 +₹{parseFloat(inv.late_penalty_amount).toLocaleString()} penalty
+                                                             </span>
+                                                         )}
+                                                     </div>
+                                                 )}
+                                             </td>
                                             <td className="p-3 font-mono text-xs">{inv.gst_type === 'cgst_sgst' ? 'CGST + SGST (Intrastate)' : 'IGST (Interstate)'}</td>
                                         </tr>
                                     ))

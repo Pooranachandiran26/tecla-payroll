@@ -7,8 +7,11 @@ import Badge from '../../Components/ui/Badge';
 import Select from '../../Components/ui/Select';
 import Input from '../../Components/ui/Input';
 import RoleGuard from '../../Components/RoleGuard.jsx';
+import useToast from '../../Hooks/useToast';
 
 export default function LiveAttendanceMonitor({ clients, punches, selectedClientId, selectedDate }) {
+  const { showToast } = useToast();
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [clientId, setClientId] = useState(selectedClientId || '');
   const [date, setDate] = useState(selectedDate);
   const [search, setSearch] = useState('');
@@ -24,7 +27,17 @@ export default function LiveAttendanceMonitor({ clients, punches, selectedClient
   };
 
   const handleRefresh = () => {
-    router.reload({ only: ['punches'] });
+    setIsRefreshing(true);
+    router.reload({
+      onFinish: () => {
+        setIsRefreshing(false);
+        showToast({
+          type: 'success',
+          title: 'Live Feeds Updated',
+          message: 'The attendance list has been successfully refreshed.',
+        });
+      }
+    });
   };
 
   const filteredPunches = punches.filter(p => {
@@ -116,7 +129,7 @@ export default function LiveAttendanceMonitor({ clients, punches, selectedClient
             <p className="text-gray-500 text-sm">Today's live punch feed — showing who is clocked in right now. Monthly totals for payroll are computed in Attendance Review after the month closes.</p>
           </div>
           <div className="flex gap-3">
-            <Button variant="secondary" onClick={handleRefresh}>
+            <Button variant="secondary" onClick={handleRefresh} loading={isRefreshing}>
               🔄 Refresh Live Punches
             </Button>
             <Link href="/payroll/attendance-upload">
