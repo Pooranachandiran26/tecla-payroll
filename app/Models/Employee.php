@@ -71,4 +71,18 @@ class Employee extends Model
                                ->where('status', 'verified')
                                ->count();
     }
+
+    public function getEmployeePfMonthlyAttribute()
+    {
+        if (!$this->pf_applicable) return 0.00;
+        return round(min((float)$this->basic_pay, \App\Services\SalaryCalculationService::PF_WAGE_CEILING) * 0.12, 2);
+    }
+
+    public function getEmployeeEsiMonthlyAttribute()
+    {
+        if (!$this->esi_applicable) return 0.00;
+        $gross = (float)$this->gross_monthly_salary;
+        $esiLimit = \App\Services\SalaryCalculationService::ESI_WAGE_CEILING;
+        return $gross <= $esiLimit ? round($gross * 0.0075, 2) : 0.00;
+    }
 }
