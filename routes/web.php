@@ -76,6 +76,7 @@ Route::middleware(['auth', 'active'])->group(function () {
             // Clients
             Route::get('/clients', [ClientController::class,'index'])->middleware('can:viewAny,App\Models\Client')->name('clients.index');
             Route::get('/clients/create', [ClientController::class,'create'])->middleware('can:create,App\Models\Client')->name('clients.create');
+            Route::get('/clients/check-unique', [ClientController::class, 'checkUnique'])->name('clients.check-unique');
             Route::post('/clients', [ClientController::class,'store'])->name('clients.store');
             Route::get('/clients/{client}', [ClientController::class,'show'])->middleware('can:view,client')->name('clients.show');
             Route::get('/clients/{client}/statutory-defaults', [ClientController::class, 'statutoryDefaults'])->middleware('can:view,client')->name('clients.statutoryDefaults');

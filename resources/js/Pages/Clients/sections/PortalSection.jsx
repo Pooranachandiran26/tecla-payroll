@@ -11,7 +11,7 @@ export default function PortalSection({ formData, onChange, hook }) {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
       if (file.size > 2 * 1024 * 1024) {
-        alert('Logo must be less than 2MB');
+        if (hook?.showToast) hook.showToast('❌ Logo must be less than 2MB');
         return;
       }
       onChange('portalLogo', file);
