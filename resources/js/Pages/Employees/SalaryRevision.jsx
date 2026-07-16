@@ -267,6 +267,50 @@ export default function SalaryRevision({ employee, revisions }) {
                                             <span className="text-slate-600 font-semibold">7. Other Additions</span>
                                             <span className="font-bold text-slate-900">{formatCurrency(employee.other_additions)}</span>
                                         </div>
+
+                                        {/* Gross Monthly Total */}
+                                        <div className="flex justify-between items-center py-2.5 px-4 bg-slate-100 rounded-lg border border-slate-300 font-bold text-sm text-[#1F3864]">
+                                            <span>Calculated Gross Earnings</span>
+                                            <span>{formatCurrency(employee.gross_monthly_salary)}</span>
+                                        </div>
+
+                                        {/* Current Deductions Breakdown */}
+                                        <div className="pt-2 border-t border-slate-200">
+                                            <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Current Deductions</div>
+                                            <div className="space-y-1.5 text-xs">
+                                                <div className="flex justify-between items-center text-slate-600">
+                                                    <span>• Employee PF (12%)</span>
+                                                    <span className="font-semibold">{formatCurrency(employee.employee_pf_monthly)}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center text-slate-600">
+                                                    <span>• Employee ESIC (0.75%)</span>
+                                                    <span className="font-semibold">{formatCurrency(employee.employee_esi_monthly)}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center text-slate-600">
+                                                    <span>• Professional Tax (PT)</span>
+                                                    <span className="font-semibold">{formatCurrency(employee.pt_monthly)}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center pt-1 font-bold text-rose-600 border-t border-slate-200">
+                                                    <span>Total Employee Deductions</span>
+                                                    <span>- {formatCurrency((employee.gross_monthly_salary || 0) - (employee.net_take_home_monthly || 0))}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Current Employer Contributions */}
+                                        <div className="pt-2 border-t border-slate-200">
+                                            <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Employer Contributions</div>
+                                            <div className="space-y-1.5 text-xs">
+                                                <div className="flex justify-between items-center text-slate-600">
+                                                    <span>• Employer PF (13%)</span>
+                                                    <span className="font-semibold">{formatCurrency(employee.employer_pf_monthly)}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center text-slate-600">
+                                                    <span>• Employer ESIC (3.25%)</span>
+                                                    <span className="font-semibold">{formatCurrency(employee.employer_esi_monthly)}</span>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
 
                                     {/* Summary Cards */}
@@ -402,6 +446,50 @@ export default function SalaryRevision({ employee, revisions }) {
                                                     onChange={e => setData('new_other_additions', e.target.value)} 
                                                     required
                                                 />
+                                            </div>
+                                        </div>
+
+                                        {/* New Proposed Gross Monthly Total */}
+                                        <div className="flex justify-between items-center py-2.5 px-4 bg-blue-100/80 rounded-lg border border-blue-300 font-bold text-sm text-[#1F3864]">
+                                            <span>New Gross Earnings</span>
+                                            <span>{previewLoading ? 'Calculating...' : (preview ? formatCurrency(preview.gross_monthly_salary) : '—')}</span>
+                                        </div>
+
+                                        {/* Proposed Deductions Breakdown */}
+                                        <div className="pt-2 border-t border-blue-200">
+                                            <div className="text-xs font-bold text-blue-700 uppercase tracking-wider mb-2">New Proposed Deductions</div>
+                                            <div className="space-y-1.5 text-xs">
+                                                <div className="flex justify-between items-center text-slate-700">
+                                                    <span>• Employee PF (12%)</span>
+                                                    <span className="font-semibold">{previewLoading ? '...' : (preview ? formatCurrency(preview.employee_pf_monthly) : '—')}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center text-slate-700">
+                                                    <span>• Employee ESIC (0.75%)</span>
+                                                    <span className="font-semibold">{previewLoading ? '...' : (preview ? formatCurrency(preview.employee_esi_monthly) : '—')}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center text-slate-700">
+                                                    <span>• Professional Tax (PT)</span>
+                                                    <span className="font-semibold">{previewLoading ? '...' : (preview ? formatCurrency(preview.pt_monthly) : '—')}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center pt-1 font-bold text-rose-600 border-t border-blue-200">
+                                                    <span>New Total Deductions</span>
+                                                    <span>- {previewLoading ? '...' : (preview ? formatCurrency((preview.gross_monthly_salary || 0) - (preview.net_take_home_monthly || 0)) : '—')}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Proposed Employer Contributions */}
+                                        <div className="pt-2 border-t border-blue-200">
+                                            <div className="text-xs font-bold text-blue-700 uppercase tracking-wider mb-2">New Employer Contributions</div>
+                                            <div className="space-y-1.5 text-xs">
+                                                <div className="flex justify-between items-center text-slate-700">
+                                                    <span>• Employer PF (13%)</span>
+                                                    <span className="font-semibold">{previewLoading ? '...' : (preview ? formatCurrency(preview.employer_pf_monthly) : '—')}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center text-slate-700">
+                                                    <span>• Employer ESIC (3.25%)</span>
+                                                    <span className="font-semibold">{previewLoading ? '...' : (preview ? formatCurrency(preview.employer_esi_monthly) : '—')}</span>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
