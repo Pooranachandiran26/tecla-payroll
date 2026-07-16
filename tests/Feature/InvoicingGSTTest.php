@@ -620,10 +620,11 @@ class InvoicingGSTTest extends TestCase
 
     public function test_canonical_pf_check()
     {
-        $this->empPF->update(['employer_pf_monthly' => 1950.00]);
-
         $emp = Employee::where('employee_code', 'TEC-088')->first();
         $this->assertNotNull($emp);
-        $this->assertEquals(1950.00, $emp->employer_pf_monthly);
+
+        $expectedPf = min($emp->basic_pay, 15000) * 0.13;
+        $this->assertEquals(1950.00, $expectedPf);
+        $this->assertEquals($expectedPf, $emp->employer_pf_monthly);
     }
 }

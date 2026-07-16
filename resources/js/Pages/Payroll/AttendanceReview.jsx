@@ -1,64 +1,100 @@
 import React, { useState } from 'react';
 import AuthenticatedLayout from '../../Layouts/AuthenticatedLayout';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import Button from '../../Components/ui/Button';
 import DataTable from '../../Components/ui/DataTable';
 import Badge from '../../Components/ui/Badge';
-import Checkbox from '../../Components/ui/Checkbox';
 import Modal from '../../Components/ui/Modal';
+import Select from '../../Components/ui/Select';
 import useToast from '../../Hooks/useToast';
-
+import axios from 'axios';
 import RoleGuard from '../../Components/RoleGuard.jsx';
-const initialBatches = [
-  {
-    id: 1,
-    client: 'Mahindra Corp',
-    month: 'June 2026',
-    empCount: '42 Employees',
-    source: 'Biometric portal / Punch-in',
-    reqApproval: true,
-    status: 'awaiting',
-    sync: 'Pending'
-  },
-  {
-    id: 2,
-    client: 'Tata Consultancy Services',
-    month: 'June 2026',
-    empCount: '90 Employees',
-    source: 'Spreadsheet Upload',
-    reqApproval: true,
-    status: 'awaiting',
-    sync: 'Yesterday, 04:15 PM (Upload)'
-  },
-  {
-    id: 3,
-    client: 'Reliance Digital',
-    month: 'June 2026',
-    empCount: '22 Employees',
-    source: 'Biometric portal / Punch-in',
-    reqApproval: false,
-    status: 'approved',
-    sync: 'June 20, 2026 (Rule base)'
-  }
-];
+import { ShieldCheck, CheckCircle2, AlertTriangle, HelpCircle, Loader2 } from 'lucide-react';
 
-export default function AttendanceReview() {
+export default function AttendanceReview({ initialBatches, clients, selectedMonth }) {
   const { showToast } = useToast();
-  const [batches, setBatches] = useState(initialBatches);
+  const [batches, setBatches] = useState(initialBatches || []);
+  const [targetMonth, setTargetMonth] = useState(selectedMonth || '2026-07');
 
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
-  const [nudgeModalOpen, setNudgeModalOpen] = useState(false);
   const [verifyModalOpen, setVerifyModalOpen] = useState(false);
-  const [selectedClient, setSelectedClient] = useState('');
-  const [isVerified, setIsVerified] = useState(false);
+  const [selectedClientId, setSelectedClientId] = useState(null);
+  const [selectedClientName, setSelectedClientName] = useState('');
 
-  const toggleApprovalReq = (id) => {
-    setBatches(prev => prev.map(b => b.id === id ? { ...b, reqApproval: !b.reqApproval } : b));
-    showToast({ message: 'Approval workflow updated.' });
+  // Details Preview Modal State
+  const [detailData, setDetailData] = useState([]);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  // Pre-approval Log Verification Modal State
+  const [verifyData, setVerifyData] = useState(null);
+  const [verifyLoading, setVerifyLoading] = useState(false);
+  const [verifySaving, setVerifySaving] = useState(false);
+
+  const handleMonthChange = (e) => {
+    const nextMonth = e.target.value;
+    setTargetMonth(nextMonth);
+    router.get('/payroll/attendance-review', { month: nextMonth }, { preserveState: true });
   };
 
-  const simulateApprove = (id) => {
-    setBatches(prev => prev.map(b => b.id === id ? { ...b, status: 'approved', sync: 'Today (Client Rep)' } : b));
+  const openDetails = (clientId, clientName) => {
+    setSelectedClientId(clientId);
+    setSelectedClientName(clientName);
+    setDetailsModalOpen(true);
+    setDetailLoading(true);
+
+    axios.get(`/payroll/attendance-review/${clientId}/details`, {
+      params: { month: targetMonth }
+    })
+    .then(res => {
+      setDetailData(res.data.rows || []);
+      setDetailLoading(false);
+    })
+    .catch(err => {
+      showToast({ message: 'Failed to fetch attendance details.', type: 'error' });
+      setDetailLoading(false);
+      setDetailsModalOpen(false);
+    });
+  };
+
+  const openVerification = (clientId, clientName) => {
+    setSelectedClientId(clientId);
+    setSelectedClientName(clientName);
+    setVerifyModalOpen(true);
+    setVerifyLoading(true);
+    setVerifyData(null);
+
+    axios.get(`/payroll/attendance-review/${clientId}/verify`, {
+      params: { month: targetMonth }
+    })
+    .then(res => {
+      setVerifyData(res.data);
+      setVerifyLoading(false);
+    })
+    .catch(err => {
+      showToast({ message: 'Failed to run eligibility log verification.', type: 'error' });
+      setVerifyLoading(false);
+      setVerifyModalOpen(false);
+    });
+  };
+
+  const markVerified = () => {
+    if (!selectedClientId) return;
+    setVerifySaving(true);
+
+    axios.post(`/payroll/attendance-review/${selectedClientId}/verify`, {
+      month: targetMonth
+    })
+    .then(res => {
+      showToast({ message: `Attendance logs for ${selectedClientName} marked as verified.` });
+      setVerifySaving(false);
+      setVerifyModalOpen(false);
+      // Reload Inertia props to show updated verified badge
+      router.get('/payroll/attendance-review', { month: targetMonth }, { preserveState: false });
+    })
+    .catch(err => {
+      showToast({ message: 'Failed to save verification status.', type: 'error' });
+      setVerifySaving(false);
+    });
   };
 
   const columns = [
@@ -78,7 +114,16 @@ export default function AttendanceReview() {
     },
     {
       header: 'Source Model',
-      accessor: 'source'
+      accessor: 'source',
+      cell: (row) => {
+        if (row.source === 'Spreadsheet Upload') {
+          return <span className="text-[#1F3864] font-medium">🔵 Spreadsheet Upload</span>;
+        } else if (row.source === 'Biometric portal / Punch-in') {
+          return <span className="text-green-700 font-medium">🟢 Biometric portal / Punch-in</span>;
+        } else {
+          return <span className="text-gray-400 italic">No Data Yet</span>;
+        }
+      }
     },
     {
       header: (
@@ -92,23 +137,34 @@ export default function AttendanceReview() {
       ),
       accessor: 'reqApproval',
       cell: (row) => (
-        <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
-          {/* Note: I don't have a toggle switch component, so I'll use Checkbox for now */}
-          <Checkbox checked={row.reqApproval} onChange={() => toggleApprovalReq(row.id)} />
-          <span>{row.reqApproval ? 'Approval Required' : 'Skip Approval'}</span>
-        </label>
+        <div className="flex items-center gap-2 text-sm text-gray-500">
+          <Badge type="secondary">Coming Soon</Badge>
+          <span className="text-[0.8rem] opacity-75">Agency Approved</span>
+        </div>
       )
     },
     {
-      header: 'Status',
+      header: 'Review Verification Status',
       accessor: 'status',
       cell: (row) => {
-        if (row.status === 'awaiting') return <Badge type="warning">Awaiting Client Approval</Badge>;
-        if (row.status === 'approved') {
-          if (row.client === 'Reliance Digital') return <Badge type="info">Auto-Approved</Badge>;
-          return <Badge type="success">✓ Client Approved</Badge>;
+        if (row.status === 'verified') {
+          return (
+            <div className="flex flex-col gap-0.5">
+              <Badge type="success">✓ Verified</Badge>
+              <span className="text-[0.7rem] text-green-700 font-semibold max-w-[200px] leading-tight">
+                {row.verifiedText}
+              </span>
+            </div>
+          );
         }
-        return null;
+        return (
+          <div className="flex flex-col gap-0.5">
+            <Badge type="warning">Not Verified</Badge>
+            <span className="text-[0.7rem] text-amber-700 font-semibold max-w-[200px] leading-tight">
+              Pre-payroll checklist pending verification.
+            </span>
+          </div>
+        );
       }
     },
     {
@@ -122,39 +178,20 @@ export default function AttendanceReview() {
       cell: (row) => {
         return (
           <div className="flex gap-2 flex-wrap items-center">
-            <Button size="xs" variant="secondary" onClick={() => { setSelectedClient(row.client); setDetailsModalOpen(true); }}>
+            <Button size="xs" variant="secondary" onClick={() => openDetails(row.id, row.client)}>
               View Details
             </Button>
             
-            {row.status === 'awaiting' && row.client === 'Mahindra Corp' && (
-              <Button size="xs" variant="secondary" onClick={() => simulateApprove(row.id)}>
-                Demo: Simulate Approving
+            {row.source !== 'No Data Yet' && (
+              <Button size="xs" variant="navy" onClick={() => openVerification(row.id, row.client)}>
+                {row.status === 'verified' ? 'Re-verify logs' : 'Verify Logs'}
               </Button>
             )}
             
-            {row.status === 'awaiting' && row.client === 'Tata Consultancy Services' && (
-              <>
-                <Button size="xs" variant="secondary" onClick={() => setNudgeModalOpen(true)}>Nudge Client</Button>
-                {isVerified ? (
-                  <Badge type="success" className="mr-1">✓ Verified</Badge>
-                ) : null}
-                <Button size="xs" variant="navy" onClick={() => setVerifyModalOpen(true)}>
-                  {isVerified ? 'Re-verify' : 'Verify Logs'}
-                </Button>
-              </>
-            )}
-            
-            {row.status === 'approved' && (
-              <>
-                <Link href="/payroll/processing">
-                  <Button size="xs" variant="navy">Process Payroll</Button>
-                </Link>
-                {row.client === 'Mahindra Corp' && (
-                  <Button size="xs" variant="secondary" onClick={() => alert('Timesheet unlocked. Client notification dispatched.')}>
-                    Unlock
-                  </Button>
-                )}
-              </>
+            {row.source !== 'No Data Yet' && (
+              <Link href="/payroll/processing">
+                <Button size="xs" variant="primary">Process Payroll</Button>
+              </Link>
             )}
           </div>
         );
@@ -165,9 +202,9 @@ export default function AttendanceReview() {
   const detailColumns = [
     { header: 'Employee Name', accessor: 'name' },
     { header: 'Emp Code', accessor: 'code' },
-    { header: 'Days Present', accessor: 'present' },
-    { header: 'Days LOP', accessor: 'lop' },
-    { header: 'Leave Days', accessor: 'leave' },
+    { header: 'Days Present', accessor: 'present', cell: (row) => <span>{row.present} Days</span> },
+    { header: 'Days LOP', accessor: 'lop', cell: (row) => <span>{row.lop} Days</span> },
+    { header: 'Leave Days', accessor: 'leave', cell: (row) => <span>{row.leave} Days</span> },
     { header: 'Source', accessor: 'source' },
     { 
       header: 'Status', 
@@ -176,91 +213,134 @@ export default function AttendanceReview() {
     }
   ];
 
-  const detailData = [
-    { name: 'Aarav Sharma', code: 'TEC-088', present: 24, lop: 0, leave: 2, source: '🟢 Live Punch', status: 'Ready' },
-    { name: 'Neha Patil', code: 'TEC-121', present: 0, lop: 26, leave: 0, source: '🔴 No Attendance', status: 'Check Required' },
-    { name: 'Vikram Rao', code: 'TEC-168', present: 26, lop: 0, leave: 0, source: '🔵 Uploaded', status: 'Ready' },
-    { name: 'Karan Malhotra', code: 'TEC-142', present: 26, lop: 0, leave: 0, source: '🟢 Live Punch', status: 'Ready' },
-    { name: 'Priya Singh', code: 'TEC-199', present: 26, lop: 0, leave: 0, source: '🟢 Live Punch', status: 'Ready' }
-  ];
-
   return (
     <RoleGuard allowedRoles={['admin', 'manager']}>
-    <AuthenticatedLayout>
-      <Head title="Attendance Review" />
+      <AuthenticatedLayout>
+        <Head title="Attendance Review" />
 
-      <div className="flex justify-between items-end mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-[#1F3864] mb-1">Attendance Timesheets Review</h2>
-          <p className="text-gray-500 text-sm">Verify client approval status, unlock timesheets, or initiate calculations for payroll runs.</p>
+        <div className="flex justify-between items-end mb-6">
+          <div>
+            <h2 className="text-2xl font-bold text-[#1F3864] mb-1">Attendance Timesheets Review</h2>
+            <p className="text-gray-500 text-sm">Verify client approval status, unlock timesheets, or initiate calculations for payroll runs.</p>
+          </div>
+          <Link href="/payroll/attendance-upload">
+            <Button variant="primary">📤 Upload New Sheet</Button>
+          </Link>
         </div>
-        <Link href="/payroll/attendance-upload">
-          <Button variant="primary">📤 Upload New Sheet</Button>
-        </Link>
-      </div>
 
-      <div className="flex items-center gap-2 text-[0.9rem] font-semibold text-gray-500 bg-white p-3 px-4 rounded-lg border border-gray-200 mb-6 flex-wrap">
-        <span>Live Punches / Upload</span>
-        <span className="text-gray-300">→</span>
-        <span className="text-amber-700 bg-amber-50 px-2.5 py-1 rounded border border-amber-200">Attendance Review — YOU ARE HERE</span>
-        <span className="text-gray-300">→</span>
-        <span>Processing</span>
-        <span className="text-gray-300">→</span>
-        <span>Approval</span>
-        <span className="text-gray-300">→</span>
-        <span>Payslips</span>
-      </div>
-
-      <div className="card p-0 mb-6">
-        <DataTable columns={columns} data={batches} />
-      </div>
-
-      {/* Details Modal */}
-      <Modal isOpen={detailsModalOpen} onClose={() => setDetailsModalOpen(false)} title={`${selectedClient} - Monthly Attendance Details`}>
-        <div className="p-4">
-          <p className="text-[0.85rem] text-gray-500 mb-4">Showing 5 of 42 employees — export full list for complete view.</p>
-          <div className="border rounded">
-            <DataTable columns={detailColumns} data={detailData} />
+        <div className="flex items-center justify-between gap-4 bg-white p-3 px-4 rounded-lg border border-gray-200 mb-6 flex-wrap">
+          <div className="flex items-center gap-2 text-[0.9rem] font-semibold text-gray-500 flex-wrap">
+            <span>Live Punches / Upload</span>
+            <span className="text-gray-300">→</span>
+            <span className="text-amber-700 bg-amber-50 px-2.5 py-1 rounded border border-amber-200">Attendance Review — YOU ARE HERE</span>
+            <span className="text-gray-300">→</span>
+            <span>Processing</span>
+            <span className="text-gray-300">→</span>
+            <span>Approval</span>
+            <span className="text-gray-300">→</span>
+            <span>Payslips</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-bold text-gray-700 uppercase">Review Month:</label>
+            <Select value={targetMonth} onChange={handleMonthChange} className="w-[180px] text-sm">
+              <option value="2026-07">July 2026</option>
+              <option value="2026-06">June 2026</option>
+              <option value="2026-05">May 2026</option>
+            </Select>
           </div>
         </div>
-        <div className="flex justify-end gap-3 p-4 border-t border-gray-200 bg-gray-50 rounded-b-lg">
-          <Button variant="secondary" onClick={() => setDetailsModalOpen(false)}>Close</Button>
-          <Button variant="primary">📥 Export Full List</Button>
-        </div>
-      </Modal>
 
-      {/* Nudge Modal */}
-      <Modal isOpen={nudgeModalOpen} onClose={() => setNudgeModalOpen(false)} title="Send attendance approval reminder to Tata Consultancy Services?">
-        <div className="p-4">
-          <p className="text-[0.85rem] mb-4">POC: Sunita Verma (sunita@tcs.com)</p>
+        <div className="card p-0 mb-6">
+          <DataTable columns={columns} data={batches} />
         </div>
-        <div className="flex justify-end gap-3 p-4 border-t border-gray-200 bg-gray-50 rounded-b-lg">
-          <Button variant="secondary" onClick={() => setNudgeModalOpen(false)}>Cancel</Button>
-          <Button variant="primary" onClick={() => {
-            setNudgeModalOpen(false);
-            setBatches(prev => prev.map(b => b.id === 2 ? { ...b, sync: `Reminder sent today at ${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} — awaiting response.` } : b));
-          }}>Send Reminder</Button>
-        </div>
-      </Modal>
 
-      {/* Verify Modal */}
-      <Modal isOpen={verifyModalOpen} onClose={() => setVerifyModalOpen(false)} title="Pre-Approval Log Verification — TCS June 2026">
-        <div className="p-4">
-          <ul className="text-[0.85rem] leading-loose">
-            <li className="text-green-600">✓ Employee count matches: 90 of 90 records found in system</li>
-            <li className="text-green-600">✓ No duplicate employee codes detected</li>
-            <li className="text-green-600">✓ Date range valid: June 1–30 (30 calendar days)</li>
-            <li className="text-yellow-600 font-bold">⚠ 3 employees have present days &gt; 27 — verify if OT or data entry error</li>
-            <li className="text-green-600">✓ No negative LOP values</li>
-          </ul>
-        </div>
-        <div className="flex justify-end gap-3 p-4 border-t border-gray-200 bg-gray-50 rounded-b-lg">
-          <Button variant="warning" onClick={() => setVerifyModalOpen(false)}>Flag for Review</Button>
-          <Button variant="success" onClick={() => { setIsVerified(true); setVerifyModalOpen(false); }}>Mark as Verified</Button>
-        </div>
-      </Modal>
+        {/* Details Modal */}
+        <Modal isOpen={detailsModalOpen} onClose={() => setDetailsModalOpen(false)} title={`${selectedClientName} - Monthly Attendance Details`}>
+          <div className="p-4">
+            <p className="text-[0.85rem] text-gray-500 mb-4">Showing actual aggregated counts computed from daily attendance database records.</p>
+            {detailLoading ? (
+              <div className="flex flex-col items-center justify-center p-12 text-gray-500">
+                <Loader2 className="w-8 h-8 animate-spin text-[#1F3864] mb-2" />
+                <span>Loading employee data...</span>
+              </div>
+            ) : (
+              <div className="border rounded max-h-[400px] overflow-y-auto">
+                <DataTable columns={detailColumns} data={detailData} />
+              </div>
+            )}
+          </div>
+          <div className="flex justify-end gap-3 p-4 border-t border-gray-200 bg-gray-50 rounded-b-lg">
+            <Button variant="secondary" onClick={() => setDetailsModalOpen(false)}>Close</Button>
+          </div>
+        </Modal>
 
-    </AuthenticatedLayout>
+        {/* Verify Modal */}
+        <Modal isOpen={verifyModalOpen} onClose={() => setVerifyModalOpen(false)} title={`Pre-Approval Log Verification — ${selectedClientName}`}>
+          <div className="p-4">
+            {verifyLoading ? (
+              <div className="flex flex-col items-center justify-center p-12 text-gray-500">
+                <Loader2 className="w-8 h-8 animate-spin text-[#1F3864] mb-2" />
+                <span>Running eligibility checks...</span>
+              </div>
+            ) : verifyData ? (
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded text-blue-800 text-sm">
+                  <ShieldCheck className="w-5 h-5 flex-shrink-0" />
+                  <div>
+                    Checked <strong>{verifyData.total_checked}</strong> active employees.
+                    <strong> {verifyData.eligible_count}</strong> are fully eligible for payroll processing.
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-3">
+                  <h4 className="text-sm font-bold text-gray-700">Pre-Payroll Eligibility Checklist</h4>
+                  
+                  <div className="flex flex-col gap-2 max-h-[250px] overflow-y-auto">
+                    {/* Eligible Green Markers */}
+                    {verifyData.eligible_count === verifyData.total_checked && (
+                      <div className="flex items-start gap-2 text-green-700 text-sm">
+                        <CheckCircle2 className="w-4 h-4 mt-0.5 flex-shrink-0 text-green-600" />
+                        <span>All active employees passed all baseline validation tests successfully.</span>
+                      </div>
+                    )}
+
+                    {/* Exclusions List */}
+                    {verifyData.exclusions.map((exclusion, idx) => (
+                      <div key={`ex-${idx}`} className="flex items-start gap-2 text-red-700 text-sm bg-red-50 p-2 rounded border border-red-100">
+                        <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0 text-red-600" />
+                        <span><strong>Exclusion:</strong> {exclusion}</span>
+                      </div>
+                    ))}
+
+                    {/* Warnings List */}
+                    {verifyData.warnings.map((warning, idx) => (
+                      <div key={`wa-${idx}`} className="flex items-start gap-2 text-amber-700 text-sm bg-amber-50 p-2 rounded border border-amber-100">
+                        <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-500" />
+                        <span><strong>Warning:</strong> {warning}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="text-xs text-gray-500 italic border-t border-gray-100 pt-2 mt-2">
+                  * Note: Verification is a point-in-time snapshot. It checks current document validity, bank info, and exit requests. Initiating a payroll run always re-evaluates eligibility live.
+                </div>
+              </div>
+            ) : null}
+          </div>
+          <div className="flex justify-end gap-3 p-4 border-t border-gray-200 bg-gray-50 rounded-b-lg">
+            <Button variant="secondary" onClick={() => setVerifyModalOpen(false)}>Cancel</Button>
+            <Button 
+              variant="success" 
+              onClick={markVerified} 
+              disabled={verifyLoading || verifySaving || !verifyData}
+            >
+              {verifySaving ? 'Saving...' : 'Mark as Verified'}
+            </Button>
+          </div>
+        </Modal>
+
+      </AuthenticatedLayout>
     </RoleGuard>
   );
 }

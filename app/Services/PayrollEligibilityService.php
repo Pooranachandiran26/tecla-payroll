@@ -23,6 +23,21 @@ class PayrollEligibilityService
         $exclusions = [];
         $warnings = [];
 
+        // Date of Joining Validation
+        if ($employee->date_of_joining) {
+            $doj = Carbon::parse($employee->date_of_joining)->startOfDay();
+            $endLimit = Carbon::parse($monthEnd)->endOfDay();
+            if ($doj->gt($endLimit)) {
+                $exclusions[] = "Employee's date of joining ({$employee->date_of_joining}) is after this payroll period";
+                
+                return [
+                    'is_eligible' => false,
+                    'exclusions' => $exclusions,
+                    'warnings' => [],
+                ];
+            }
+        }
+
         // 1. Employee Status Validation
         if ($employee->status !== 'active') {
             $exclusions[] = "Employee status: " . $employee->status;
@@ -114,6 +129,25 @@ class PayrollEligibilityService
 
         if ($grossSalary >= 19000 && $grossSalary <= 21000) {
             $warnings[] = "Employee near the ESI ₹21,000 threshold";
+        }
+
+        // D. Incomplete Punch & Unexpected Status Anomaly Warnings
+        $attendanceService = app(\App\Services\AttendanceResolutionService::class);
+        $resolution = $attendanceService->resolveForEmployee($employee, $monthStart, $monthEnd);
+        
+        $incompletePunches = $resolution['incomplete_punches'] ?? [];
+        $unexpectedRecords = $resolution['unexpected_records'] ?? [];
+
+        $incompleteCount = count($incompletePunches);
+        if ($incompleteCount > 0) {
+            $pluralPunch = $incompleteCount === 1 ? 'punch' : 'punches';
+            $pluralVerb = $incompleteCount === 1 ? 'is' : 'are';
+            $datesStr = implode(', ', $incompletePunches);
+            $warnings[] = "{$incompleteCount} incomplete {$pluralPunch} (no punch-out) {$pluralVerb} found on {$datesStr} — verify before processing";
+        }
+
+        foreach ($unexpectedRecords as $item) {
+            $warnings[] = "Unexpected attendance status '{$item['status']}' on {$item['date']} — data integrity issue, verify manually";
         }
 
         return [

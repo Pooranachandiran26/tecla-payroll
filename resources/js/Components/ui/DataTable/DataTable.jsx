@@ -7,8 +7,8 @@ export default function DataTable({ columns = [], data = [], keyField = 'id', cl
         <thead>
           <tr>
             {columns.map((col, index) => (
-              <th key={col.key || index} style={col.style} className={col.className}>
-                {col.label}
+              <th key={col.key || col.accessor || index} style={col.style} className={col.className}>
+                {col.label || col.header}
               </th>
             ))}
           </tr>
@@ -23,11 +23,28 @@ export default function DataTable({ columns = [], data = [], keyField = 'id', cl
           ) : (
             data.map((row, rowIndex) => (
               <tr key={row[keyField] || rowIndex}>
-                {columns.map((col, colIndex) => (
-                  <td key={col.key || colIndex} style={col.style} className={col.className}>
-                    {col.render ? col.render(row[col.key], row, rowIndex) : row[col.key]}
-                  </td>
-                ))}
+                {columns.map((col, colIndex) => {
+                  const cellKey = col.key || col.accessor;
+                  if (col.cell) {
+                    return (
+                      <td key={cellKey || colIndex} style={col.style} className={col.className}>
+                        {col.cell(row, rowIndex)}
+                      </td>
+                    );
+                  }
+                  if (col.render) {
+                    return (
+                      <td key={cellKey || colIndex} style={col.style} className={col.className}>
+                        {col.render(row[cellKey], row, rowIndex)}
+                      </td>
+                    );
+                  }
+                  return (
+                    <td key={cellKey || colIndex} style={col.style} className={col.className}>
+                      {row[cellKey]}
+                    </td>
+                  );
+                })}
               </tr>
             ))
           )}

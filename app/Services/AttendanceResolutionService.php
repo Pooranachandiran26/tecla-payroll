@@ -20,6 +20,22 @@ class AttendanceResolutionService
     {
         $startDate = Carbon::parse($monthStart);
         $endDate = Carbon::parse($monthEnd);
+
+        // Bound the resolution window by the employee's date_of_joining.
+        // Days before date_of_joining are completely excluded — they are neither paid nor LOP.
+        $doj = Carbon::parse($employee->date_of_joining)->startOfDay();
+        $effectiveStart = $startDate->gt($doj) ? $startDate->copy() : $doj->copy();
+
+        // Defensive: if date_of_joining is after the entire target month, return zeroes
+        if ($effectiveStart->gt($endDate)) {
+            return [
+                'paid_days' => 0.0,
+                'lop_days' => 0.0,
+                'attendance_source' => 'live_punch',
+                'incomplete_punches' => [],
+                'unexpected_records' => [],
+            ];
+        }
         
         // Fetch all attendance records for the month
         $records = DB::table('attendance_records')
@@ -31,9 +47,11 @@ class AttendanceResolutionService
         $paidDays = 0.0;
         $lopDays = 0.0;
         $sources = [];
+        $incompletePunches = [];
+        $unexpectedRecords = [];
         
-        // Iterate through each calendar date of the month
-        for ($date = $startDate->copy(); $date->lte($endDate); $date->addDay()) {
+        // Iterate from the effective start date (bounded by date_of_joining) to month end
+        for ($date = $effectiveStart->copy(); $date->lte($endDate); $date->addDay()) {
             $dateStr = $date->toDateString();
             
             // Check if there is an attendance record
@@ -58,8 +76,19 @@ class AttendanceResolutionService
                         $lopDays += 1.0;
                         break;
                     default:
-                        // Fallback/Safety
-                        $paidDays += 1.0;
+                        // Fallback/Safety - strictly treat all anomalies as LOP and flag them
+                        if (!empty($record->punch_in_time) && empty($record->punch_out_time) && empty($record->status)) {
+                            // Case 1: Genuine incomplete punch (punch_in set, punch_out null, status null)
+                            $lopDays += 1.0;
+                            $incompletePunches[] = $dateStr;
+                        } else {
+                            // Case 2: Anything else genuinely unexpected (unrecognized status or structural corruption)
+                            $lopDays += 1.0;
+                            $unexpectedRecords[] = [
+                                'date' => $dateStr,
+                                'status' => $record->status ?? 'NULL',
+                            ];
+                        }
                         break;
                 }
             } else {
@@ -88,6 +117,8 @@ class AttendanceResolutionService
             'paid_days' => $paidDays,
             'lop_days' => $lopDays,
             'attendance_source' => $attendanceSource,
+            'incomplete_punches' => $incompletePunches,
+            'unexpected_records' => $unexpectedRecords,
         ];
     }
 }
