@@ -17,6 +17,7 @@ export default function AddressSection({ formData, errors, onChange, hook }) {
         <input type="text" className={`form-control ${errors.regAddressLine1 ? 'invalid' : ''}`}
           placeholder="Building Name, Street" value={formData.regAddressLine1}
           onChange={e => onChange('regAddressLine1', e.target.value)} />
+        {errors.regAddressLine1 && <div className={`field-msg ${errors.regAddressLine1?.type || 'error'} show`}>{errors.regAddressLine1?.msg || errors.regAddressLine1}</div>}
       </div>
 
       <div className="form-row">
@@ -31,6 +32,7 @@ export default function AddressSection({ formData, errors, onChange, hook }) {
           <input type="text" className={`form-control ${errors.regCity ? 'invalid' : ''}`}
             placeholder="e.g. Mumbai" value={formData.regCity}
             onChange={e => onChange('regCity', e.target.value)} />
+          {errors.regCity && <div className={`field-msg ${errors.regCity?.type || 'error'} show`}>{errors.regCity?.msg || errors.regCity}</div>}
         </div>
       </div>
 
@@ -43,6 +45,7 @@ export default function AddressSection({ formData, errors, onChange, hook }) {
             <option value="">-- Select State --</option>
             {INDIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
+          {errors.regState && <div className={`field-msg ${errors.regState?.type || 'error'} show`}>{errors.regState?.msg || errors.regState}</div>}
         </div>
         <div className="form-group">
           <label>PIN Code <span style={{ color: 'var(--status-danger)' }}>*</span></label>
@@ -52,6 +55,7 @@ export default function AddressSection({ formData, errors, onChange, hook }) {
               const val = hook.validatePIN(e.target.value);
               onChange('regPin', val);
             }} />
+          {errors.regPin && <div className={`field-msg ${errors.regPin?.type || 'error'} show`}>{errors.regPin?.msg || errors.regPin}</div>}
         </div>
         <div className="form-group">
           <label>Country</label>
@@ -70,12 +74,14 @@ export default function AddressSection({ formData, errors, onChange, hook }) {
             <input type="text" className={`form-control ${errors.taxId ? 'invalid' : ''}`}
               placeholder="e.g. EIN-12345678" value={formData.taxId}
               onChange={e => onChange('taxId', e.target.value)} />
+            {errors.taxId && <div className={`field-msg ${errors.taxId?.type || 'error'} show`}>{errors.taxId?.msg || errors.taxId}</div>}
           </div>
           <div className="form-group">
             <label>Registration Number <span style={{ color: 'var(--status-danger)' }}>*</span></label>
             <input type="text" className={`form-control ${errors.regNo ? 'invalid' : ''}`}
               placeholder="e.g. REG-87654321" value={formData.regNo}
               onChange={e => onChange('regNo', e.target.value)} />
+            {errors.regNo && <div className={`field-msg ${errors.regNo?.type || 'error'} show`}>{errors.regNo?.msg || errors.regNo}</div>}
           </div>
         </div>
       )}

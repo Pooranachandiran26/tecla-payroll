@@ -23,6 +23,7 @@ export default function ContractSection({ formData, errors, onChange, hook }) {
             <option value="">-- Select --</option>
             {CONTRACT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
           </select>
+          {errors.contractType && <div className={`field-msg ${errors.contractType?.type || 'error'} show`}>{errors.contractType?.msg || errors.contractType}</div>}
         </div>
         <div className="form-group">
           <label>Billing Model <span style={{ color: 'var(--status-danger)' }}>*</span></label>
@@ -31,6 +32,7 @@ export default function ContractSection({ formData, errors, onChange, hook }) {
             <option value="">-- Select --</option>
             {BILLING_MODELS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
           </select>
+          {errors.billingModel && <div className={`field-msg ${errors.billingModel?.type || 'error'} show`}>{errors.billingModel?.msg || errors.billingModel}</div>}
         </div>
       </div>
 
@@ -42,6 +44,7 @@ export default function ContractSection({ formData, errors, onChange, hook }) {
               <label>Markup / Commission Percentage (%) <span style={{ color: 'var(--status-danger)' }}>*</span></label>
               <input type="number" className="form-control" placeholder="e.g. 8.5" step="0.1" min="0" max="100"
                 value={formData.markupPct} onChange={e => onChange('markupPct', e.target.value)} />
+              {errors.markupPct && <div className={`field-msg ${errors.markupPct?.type || 'error'} show`}>{errors.markupPct?.msg || errors.markupPct}</div>}
               <div className="field-hint">Applied on total CTC. Invoice = CTC × (1 + markup%).</div>
             </div>
             <div className="form-group">
@@ -62,6 +65,7 @@ export default function ContractSection({ formData, errors, onChange, hook }) {
             <label>Fixed Fee Per Candidate (₹) <span style={{ color: 'var(--status-danger)' }}>*</span></label>
             <input type="number" className="form-control" placeholder="e.g. 1500" min="0"
               value={formData.fixedFeeCandidate} onChange={e => onChange('fixedFeeCandidate', e.target.value)} />
+            {errors.fixedFeeCandidate && <div className={`field-msg ${errors.fixedFeeCandidate?.type || 'error'} show`}>{errors.fixedFeeCandidate?.msg || errors.fixedFeeCandidate}</div>}
             <div className="field-hint">Charged per active candidate per billing cycle.</div>
           </div>
         </div>
@@ -116,6 +120,7 @@ export default function ContractSection({ formData, errors, onChange, hook }) {
           <label>Contract Start Date <span style={{ color: 'var(--status-danger)' }}>*</span></label>
           <input type="date" className={`form-control ${errors.contractStart ? 'invalid' : ''}`}
             value={formData.contractStart} onChange={e => onChange('contractStart', e.target.value)} />
+          {errors.contractStart && <div className={`field-msg ${errors.contractStart?.type || 'error'} show`}>{errors.contractStart?.msg || errors.contractStart}</div>}
         </div>
         <div className="form-group">
           <label>Contract End Date</label>
@@ -123,6 +128,7 @@ export default function ContractSection({ formData, errors, onChange, hook }) {
             value={formData.contractEnd}
             onChange={e => onChange('contractEnd', e.target.value)}
             onBlur={hook.validateContractDates} />
+          {errors.contractEnd && <div className={`field-msg ${errors.contractEnd?.type || 'error'} show`}>{errors.contractEnd?.msg || errors.contractEnd}</div>}
           <div className="field-hint">Leave blank for open-ended contracts.</div>
           {hook.hints.contractEnd && (
             <div className={`field-hint ${hook.hints.contractEnd.type === 'error' ? 'error' : hook.hints.contractEnd.type === 'success' ? 'success' : ''}`}>
@@ -156,6 +162,7 @@ export default function ContractSection({ formData, errors, onChange, hook }) {
               <input type="text" className={`form-control ${errors.poNumber ? 'invalid' : ''}`}
                 placeholder="e.g. PO/2026/00142"
                 value={formData.poNumber} onChange={e => onChange('poNumber', e.target.value)} />
+              {errors.poNumber && <div className={`field-msg ${errors.poNumber?.type || 'error'} show`}>{errors.poNumber?.msg || errors.poNumber}</div>}
               <div className="field-hint">Invoice held as Draft until PO number is entered here.</div>
             </div>
             <div className="form-group">
