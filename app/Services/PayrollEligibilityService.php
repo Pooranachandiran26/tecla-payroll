@@ -23,6 +23,21 @@ class PayrollEligibilityService
         $exclusions = [];
         $warnings = [];
 
+        // Date of Joining Validation
+        if ($employee->date_of_joining) {
+            $doj = Carbon::parse($employee->date_of_joining)->startOfDay();
+            $endLimit = Carbon::parse($monthEnd)->endOfDay();
+            if ($doj->gt($endLimit)) {
+                $exclusions[] = "Employee's date of joining ({$employee->date_of_joining}) is after this payroll period";
+                
+                return [
+                    'is_eligible' => false,
+                    'exclusions' => $exclusions,
+                    'warnings' => [],
+                ];
+            }
+        }
+
         // 1. Employee Status Validation
         if ($employee->status !== 'active') {
             $exclusions[] = "Employee status: " . $employee->status;

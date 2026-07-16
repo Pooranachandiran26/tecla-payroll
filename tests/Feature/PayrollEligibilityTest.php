@@ -507,4 +507,90 @@ class PayrollEligibilityTest extends TestCase
             $result['warnings']
         );
     }
+
+    /**
+     * Test 13: Mid-month hire (DOJ = June 16) only counts days from June 16 onward.
+     * June 16-30 = 15 calendar days (11 weekdays + 4 weekends).
+     * All weekdays present → paid_days = 15, lop_days = 0.
+     * Pre-DOJ days (June 1-15) are completely excluded.
+     */
+    public function test_mid_month_hire_attendance_resolution_bounded_by_doj()
+    {
+        // Set DOJ to June 16
+        $this->employee->update(['date_of_joining' => '2026-06-16']);
+
+        $monthStart = '2026-06-01';
+        $monthEnd = '2026-06-30';
+
+        // Seed attendance records for weekdays from June 16 onward
+        $start = Carbon::parse('2026-06-16');
+        $end = Carbon::parse('2026-06-30');
+        for ($date = $start->copy(); $date->lte($end); $date->addDay()) {
+            if (!$date->isWeekend()) {
+                DB::table('attendance_records')->insert([
+                    'employee_id' => $this->employee->id,
+                    'attendance_date' => $date->toDateString(),
+                    'status' => 'present',
+                    'source' => 'live_punch',
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+        }
+
+        $result = $this->attendanceService->resolveForEmployee($this->employee, $monthStart, $monthEnd);
+
+        // June 16-30: 11 weekdays (present) + 4 weekends (paid) = 15 paid days
+        $this->assertEquals(15.0, $result['paid_days']);
+        $this->assertEquals(0.0, $result['lop_days']);
+        $this->assertEmpty($result['incomplete_punches']);
+        $this->assertEmpty($result['unexpected_records']);
+    }
+
+    /**
+     * Test 14: Full-month employee (DOJ well before the target month) is byte-for-byte unchanged.
+     * DOJ = 2024-01-01, target month = June 2026 → effectiveStart = June 1 (unchanged).
+     */
+    public function test_full_month_employee_resolution_unchanged_after_doj_fix()
+    {
+        // DOJ is already 2024-01-01 (well before June 2026)
+        $monthStart = '2026-06-01';
+        $monthEnd = '2026-06-30';
+
+        $start = Carbon::parse($monthStart);
+        $end = Carbon::parse($monthEnd);
+
+        // Seed full month weekdays as present
+        for ($date = $start->copy(); $date->lte($end); $date->addDay()) {
+            if (!$date->isWeekend()) {
+                DB::table('attendance_records')->insert([
+                    'employee_id' => $this->employee->id,
+                    'attendance_date' => $date->toDateString(),
+                    'status' => 'present',
+                    'source' => 'live_punch',
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+        }
+
+        $result = $this->attendanceService->resolveForEmployee($this->employee, $monthStart, $monthEnd);
+
+        // Full month: 22 weekdays (present) + 8 weekends (paid) = 30 paid days, 0 LOP
+        $this->assertEquals(30.0, $result['paid_days']);
+        $this->assertEquals(0.0, $result['lop_days']);
+    }
+
+    /**
+     * Test 15: Employee with DOJ after the target month returns zero paid/LOP days.
+     */
+    public function test_doj_after_target_month_returns_zeroes()
+    {
+        $this->employee->update(['date_of_joining' => '2026-08-01']);
+
+        $result = $this->attendanceService->resolveForEmployee($this->employee, '2026-06-01', '2026-06-30');
+
+        $this->assertEquals(0.0, $result['paid_days']);
+        $this->assertEquals(0.0, $result['lop_days']);
+    }
 }

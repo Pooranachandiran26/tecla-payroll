@@ -151,10 +151,10 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
                                                             <th>Employee Name</th>
                                                             <th>Paid Days</th>
                                                             <th>Gross</th>
+                                                            <th>Unpaid LOP (Info)</th>
                                                             <th>PF</th>
                                                             <th>ESI</th>
                                                             <th>PT</th>
-                                                            <th>LOP Deduct.</th>
                                                             <th>TDS</th>
                                                             <th>Loan EMI</th>
                                                             <th>Net Pay</th>
@@ -167,10 +167,10 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
                                                                 <td><strong>{r.full_name}</strong></td>
                                                                 <td>{parseFloat(r.paid_days).toFixed(1)} days</td>
                                                                 <td>₹{parseFloat(r.gross_total).toLocaleString()}</td>
+                                                                <td style={{ background: "#F8FAFC" }}>₹{parseFloat(r.lop_deduction).toLocaleString()}</td>
                                                                 <td>₹{parseFloat(r.employee_pf).toLocaleString()}</td>
                                                                 <td>₹{parseFloat(r.employee_esi).toLocaleString()}</td>
                                                                 <td>₹{parseFloat(r.professional_tax).toLocaleString()}</td>
-                                                                <td>₹{parseFloat(r.lop_deduction).toLocaleString()}</td>
                                                                 <td>₹{parseFloat(r.tds_deduction).toLocaleString()}</td>
                                                                 <td>₹{parseFloat(r.loan_emi_deduction).toLocaleString()}</td>
                                                                 <td style={{ color: "var(--primary-navy)" }}><strong>₹{parseFloat(r.net_pay).toLocaleString()}</strong></td>

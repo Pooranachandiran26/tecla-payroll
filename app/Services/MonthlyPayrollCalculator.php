@@ -36,18 +36,34 @@ class MonthlyPayrollCalculator
 
         $lopBasisDays = (int)$employee->lop_basis_days ?: 30;
 
-        // a. Get attendance details
-        $attendance = $this->attendanceService->resolveForEmployee($employee, $monthStartStr, $monthEndStr);
-        $paidDays = $attendance['paid_days'];
-        $lopDays = $attendance['lop_days'];
-        $attendanceSource = $attendance['attendance_source'];
-
         // b. Check for mid-month salary revision
         $revision = DB::table('salary_revisions')
             ->where('employee_id', $employee->id)
             ->where('status', 'approved')
             ->whereBetween('effective_date', [$monthStartStr, $monthEndStr])
             ->first();
+
+        // a. Get attendance details (segmented if revision exists)
+        if ($revision) {
+            $effectiveDate = Carbon::parse($revision->effective_date)->startOfDay();
+            $preEnd = $effectiveDate->copy()->subDay();
+
+            $attendanceBefore = $this->attendanceService->resolveForEmployee($employee, $monthStartStr, $preEnd->toDateString());
+            $attendanceAfter = $this->attendanceService->resolveForEmployee($employee, $effectiveDate->toDateString(), $monthEndStr);
+
+            $paidDays = $attendanceBefore['paid_days'] + $attendanceAfter['paid_days'];
+            $lopDays = $attendanceBefore['lop_days'] + $attendanceAfter['lop_days'];
+
+            $sources = [];
+            if ($attendanceBefore['attendance_source'] !== 'live_punch') $sources[] = $attendanceBefore['attendance_source'];
+            if ($attendanceAfter['attendance_source'] !== 'live_punch') $sources[] = $attendanceAfter['attendance_source'];
+            $attendanceSource = empty($sources) ? 'live_punch' : (count(array_unique($sources)) === 1 ? reset($sources) : 'mixed');
+        } else {
+            $attendance = $this->attendanceService->resolveForEmployee($employee, $monthStartStr, $monthEndStr);
+            $paidDays = $attendance['paid_days'];
+            $lopDays = $attendance['lop_days'];
+            $attendanceSource = $attendance['attendance_source'];
+        }
 
         $proRatedComponents = [];
         $components = [
@@ -68,6 +84,9 @@ class MonthlyPayrollCalculator
             $daysBefore = $monthStart->diffInDays($effectiveDate);
             $daysAfter = $effectiveDate->diffInDays($monthEnd) + 1;
 
+            $paidDaysBefore = $attendanceBefore['paid_days'];
+            $paidDaysAfter = $attendanceAfter['paid_days'];
+
             foreach ($components as $key => $column) {
                 // Determine revision column naming
                 $oldCol = 'old_' . $column;
@@ -76,9 +95,9 @@ class MonthlyPayrollCalculator
                 $oldVal = (float)($revision->$oldCol ?? 0);
                 $newVal = (float)($revision->$newCol ?? 0);
 
-                // Prorate old component and new component using formula scaled by attendance fraction
-                $oldComponentProrated = $oldVal * ($daysBefore / $lopBasisDays) * $paidFraction;
-                $newComponentProrated = $newVal * ($daysAfter / $lopBasisDays) * $paidFraction;
+                // Prorate old component and new component using formula scaled by actual segment paid days
+                $oldComponentProrated = $oldVal * ($paidDaysBefore / $lopBasisDays);
+                $newComponentProrated = $newVal * ($paidDaysAfter / $lopBasisDays);
 
                 $proRatedComponents[$key] = round($oldComponentProrated + $newComponentProrated, 2);
             }

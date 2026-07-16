@@ -58,7 +58,7 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
             t.lop += parseFloat(item.lop_deduction || 0);
             t.tds += parseFloat(item.tds_deduction || 0);
             t.loan += parseFloat(item.loan_emi_deduction || 0);
-            t.totalDeduct += (parseFloat(item.employee_pf || 0) + parseFloat(item.employee_esi || 0) + parseFloat(item.professional_tax || 0) + parseFloat(item.lop_deduction || 0) + parseFloat(item.tds_deduction || 0) + parseFloat(item.loan_emi_deduction || 0));
+            t.totalDeduct += (parseFloat(item.employee_pf || 0) + parseFloat(item.employee_esi || 0) + parseFloat(item.professional_tax || 0) + parseFloat(item.tds_deduction || 0) + parseFloat(item.loan_emi_deduction || 0));
             t.net += parseFloat(item.net_pay || 0);
         });
         return t;
@@ -178,7 +178,8 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
                                     <th rowSpan="2">Paid Days</th>
                                     {earnVisible && <th colSpan="7" className="col-group-earn">Earnings</th>}
                                     <th rowSpan="2" className="col-group-total">Gross Total</th>
-                                    {deductVisible && <th colSpan="7" className="col-group-deduct">Deductions</th>}
+                                    <th rowSpan="2" className="col-group-total" style={{ background: "#F8FAFC", color: "#475569" }}>Unpaid LOP <span style={{ fontWeight: "normal", fontSize: "0.75em", display: "block" }}>(Already Subtracted)</span></th>
+                                    {deductVisible && <th colSpan="6" className="col-group-deduct">Deductions</th>}
                                     <th rowSpan="2" className="col-group-total">Total Deduct.</th>
                                     <th rowSpan="2" className="col-group-total" style={{ color: "var(--primary-navy)" }}>Net Pay</th>
                                     <th rowSpan="2">Status</th>
@@ -201,7 +202,6 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
                                             <th className="col-group-deduct">ESI</th>
                                             <th className="col-group-deduct">PT</th>
                                             <th className="col-group-deduct">Welfare</th>
-                                            <th className="col-group-deduct">LOP</th>
                                             <th className="col-group-deduct">TDS</th>
                                             <th className="col-group-deduct">Loan EMI</th>
                                         </>
@@ -216,7 +216,7 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
                                                 <tr key={`ex-${row.id}`} style={{ opacity: 0.6, background: "#F8FAFC" }}>
                                                     <td>{row.employee_code}</td>
                                                     <td><strong>{row.full_name}</strong></td>
-                                                    <td colSpan={earnVisible ? (deductVisible ? 18 : 11) : (deductVisible ? 10 : 3)} style={{ color: "var(--status-danger)", paddingLeft: "1.5rem" }}>
+                                                    <td colSpan={earnVisible ? (deductVisible ? 19 : 12) : (deductVisible ? 11 : 4)} style={{ color: "var(--status-danger)", paddingLeft: "1.5rem" }}>
                                                         Excluded: {row.exclusion_reason}
                                                     </td>
                                                     <td><span className="badge badge-danger">Excluded</span></td>
@@ -224,7 +224,7 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
                                             );
                                         }
 
-                                        const itemDeductions = (parseFloat(row.employee_pf) + parseFloat(row.employee_esi) + parseFloat(row.professional_tax) + parseFloat(row.lwf_deduction) + parseFloat(row.lop_deduction) + parseFloat(row.tds_deduction) + parseFloat(row.loan_emi_deduction));
+                                        const itemDeductions = (parseFloat(row.employee_pf) + parseFloat(row.employee_esi) + parseFloat(row.professional_tax) + parseFloat(row.lwf_deduction) + parseFloat(row.tds_deduction) + parseFloat(row.loan_emi_deduction));
 
                                         return (
                                             <tr key={row.id}>
@@ -245,6 +245,7 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
                                                 )}
                                                 
                                                 <td className="col-group-total">₹{parseFloat(row.gross_total).toLocaleString()}</td>
+                                                <td className="col-group-total" style={{ background: "#F8FAFC" }}>₹{parseFloat(row.lop_deduction).toLocaleString()}</td>
                                                 
                                                 {deductVisible && (
                                                     <>
@@ -252,7 +253,6 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
                                                         <td>₹{parseFloat(row.employee_esi).toLocaleString()}</td>
                                                         <td>₹{parseFloat(row.professional_tax).toLocaleString()}</td>
                                                         <td>₹{parseFloat(row.lwf_deduction).toLocaleString()}</td>
-                                                        <td>₹{parseFloat(row.lop_deduction).toLocaleString()}</td>
                                                         <td>₹{parseFloat(row.tds_deduction).toLocaleString()}</td>
                                                         <td>₹{parseFloat(row.loan_emi_deduction).toLocaleString()}</td>
                                                     </>
@@ -284,6 +284,7 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
                                             </>
                                         )}
                                         <td className="col-group-total">₹{totals.gross.toLocaleString()}</td>
+                                        <td className="col-group-total" style={{ background: "#F8FAFC" }}>₹{totals.lop.toLocaleString()}</td>
                                         
                                         {deductVisible && (
                                             <>
@@ -291,7 +292,6 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
                                                 <td>₹{totals.esi.toLocaleString()}</td>
                                                 <td>₹{totals.pt.toLocaleString()}</td>
                                                 <td>—</td>
-                                                <td>₹{totals.lop.toLocaleString()}</td>
                                                 <td>₹{totals.tds.toLocaleString()}</td>
                                                 <td>₹{totals.loan.toLocaleString()}</td>
                                             </>

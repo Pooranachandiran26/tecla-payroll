@@ -108,14 +108,39 @@ class InvoiceGenerationService
                 ->where('payroll_run_id', $targetRunId)
                 ->first();
 
+            // Calculate dispute window expiration date
+            $windowDays = $client->invoice_dispute_window_days !== null ? (int)$client->invoice_dispute_window_days : 7;
+            $disputeExpires = now()->addDays($windowDays)->toDateString();
+
+            // Calculate credit limit warning
+            $creditLimit = (float) ($client->credit_limit ?? 0);
+
             if ($existingInvoice) {
+                $newGrandTotal = round((float) $existingInvoice->grand_total + $grandTotal, 2);
+                $warningNotes = null;
+                if ($creditLimit > 0) {
+                    $outstanding = Invoice::where('client_id', $client->id)
+                        ->whereIn('status', ['draft', 'raised', 'overdue'])
+                        ->where('id', '!=', $existingInvoice->id)
+                        ->sum('grand_total');
+                    $totalOutstanding = $outstanding + $newGrandTotal;
+                    if ($totalOutstanding > $creditLimit) {
+                        $warningNotes = "Warning: Credit limit of ₹" . number_format($creditLimit, 2) . " exceeded. Outstanding unpaid total: ₹" . number_format($totalOutstanding, 2);
+                    }
+                }
+
                 // MERGE: Update existing invoice totals and add new line items
-                $existingInvoice->update([
+                $updatePayload = [
                     'gross_salary_passthrough' => round((float) $existingInvoice->gross_salary_passthrough + $branchGross, 2),
                     'agency_service_fee' => round((float) $existingInvoice->agency_service_fee + $branchServiceFee, 2),
                     'gst_amount' => round((float) $existingInvoice->gst_amount + $gstAmount, 2),
-                    'grand_total' => round((float) $existingInvoice->grand_total + $grandTotal, 2),
-                ]);
+                    'grand_total' => $newGrandTotal,
+                    'warning_notes' => $warningNotes,
+                ];
+                if (is_null($existingInvoice->dispute_window_expires_at)) {
+                    $updatePayload['dispute_window_expires_at'] = $disputeExpires;
+                }
+                $existingInvoice->update($updatePayload);
 
                 foreach ($lineItemData as $lid) {
                     InvoiceLineItem::create(array_merge($lid, [
@@ -127,6 +152,26 @@ class InvoiceGenerationService
             } else {
                 // CREATE: New invoice for this branch
                 $invoiceNumber = $this->generateInvoiceNumber($payrollRun, $branchId);
+
+                $warningNotes = null;
+                if ($creditLimit > 0) {
+                    $outstanding = Invoice::where('client_id', $client->id)
+                        ->whereIn('status', ['draft', 'raised', 'overdue'])
+                        ->sum('grand_total');
+                    $totalOutstanding = $outstanding + $grandTotal;
+                    if ($totalOutstanding > $creditLimit) {
+                        $warningNotes = "Warning: Credit limit of ₹" . number_format($creditLimit, 2) . " exceeded. Outstanding unpaid total: ₹" . number_format($totalOutstanding, 2);
+                    }
+                }
+
+                $netTerms = $client->payment_net_terms;
+                $days = 30; // fallback default
+                if ($netTerms === 'immediate') {
+                    $days = 0;
+                } elseif (is_string($netTerms) && str_starts_with($netTerms, 'net')) {
+                    $days = (int) substr($netTerms, 3);
+                }
+                $dueDate = now()->addDays($days)->toDateString();
 
                 $invoice = Invoice::create([
                     'invoice_number' => $invoiceNumber,
@@ -143,7 +188,9 @@ class InvoiceGenerationService
                     'gst_amount' => $gstAmount,
                     'grand_total' => $grandTotal,
                     'status' => 'draft',
-                    'due_date' => now()->addDays(30)->toDateString(),
+                    'due_date' => $dueDate,
+                    'warning_notes' => $warningNotes,
+                    'dispute_window_expires_at' => $disputeExpires,
                 ]);
 
                 foreach ($lineItemData as $lid) {
