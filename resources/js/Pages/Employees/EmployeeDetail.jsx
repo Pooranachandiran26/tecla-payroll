@@ -73,8 +73,8 @@ const renderDocumentRows = () => {
                 <td>{requirementBadge}</td>
                 <td>{statusBadge}</td>
                 <td style={{"textAlign":"right"}}>
-                    {uploadedDoc ? (
-                        <div style={{"display":"flex","gap":"0.4rem","justifyContent":"flex-end","alignItems":"center"}}>
+                    <div style={{"display":"flex","gap":"0.4rem","justifyContent":"flex-end","alignItems":"center"}}>
+                        {uploadedDoc && (
                             <a 
                                 href={route('employees.documents.view', { id: employee.id, docId: uploadedDoc.id })} 
                                 target="_blank" 
@@ -84,29 +84,30 @@ const renderDocumentRows = () => {
                             >
                                 👁 View
                             </a>
-                            {uploadedDoc.status === "pending" && (
-                                <>
-                                    <button className="btn btn-xs" style={{"backgroundColor":"var(--status-success)","color":"white"}} onClick={() => router.put(route('employees.documents.verify', { id: employee.id, docId: uploadedDoc.id }), { status: "verified" })}>✓ Verify</button>
-                                    <button className="btn btn-danger btn-xs" onClick={() => {
-                                        const reason = prompt("Rejection Reason:");
-                                        if(reason) router.put(route('employees.documents.verify', { id: employee.id, docId: uploadedDoc.id }), { status: "rejected", rejection_reason: reason });
-                                    }}>✕ Reject</button>
-                                </>
-                            )}
-                        </div>
-                    ) : (
-                        <div>
-                            <input type="file" id={`file_${docDef.type}`} style={{display: "none"}} onChange={(e) => {
-                                if(e.target.files[0]) {
-                                    const formData = new FormData();
-                                    formData.append("document_type", docDef.type);
-                                    formData.append("file", e.target.files[0]);
-                                    router.post(route('employees.documents.store', employee.id), formData);
-                                }
-                            }} />
-                            <button className="btn btn-navy btn-xs" onClick={() => document.getElementById(`file_${docDef.type}`).click()}>📤 Upload Document</button>
-                        </div>
-                    )}
+                        )}
+                        {uploadedDoc && uploadedDoc.status === "pending" && (
+                            <>
+                                <button className="btn btn-xs" style={{"backgroundColor":"var(--status-success)","color":"white"}} onClick={() => router.put(route('employees.documents.verify', { id: employee.id, docId: uploadedDoc.id }), { status: "verified" })}>✓ Verify</button>
+                                <button className="btn btn-danger btn-xs" onClick={() => {
+                                    const reason = prompt("Rejection Reason:");
+                                    if(reason) router.put(route('employees.documents.verify', { id: employee.id, docId: uploadedDoc.id }), { status: "rejected", rejection_reason: reason });
+                                }}>✕ Reject</button>
+                            </>
+                        )}
+                        {(!uploadedDoc || uploadedDoc.status === "rejected") && (
+                            <div>
+                                <input type="file" id={`file_${docDef.type}`} style={{display: "none"}} onChange={(e) => {
+                                    if(e.target.files[0]) {
+                                        const formData = new FormData();
+                                        formData.append("document_type", docDef.type);
+                                        formData.append("file", e.target.files[0]);
+                                        router.post(route('employees.documents.store', employee.id), formData);
+                                    }
+                                }} />
+                                <button className="btn btn-navy btn-xs" onClick={() => document.getElementById(`file_${docDef.type}`).click()}>📤 Upload Document</button>
+                            </div>
+                        )}
+                    </div>
                 </td>
             </tr>
         );

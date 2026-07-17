@@ -153,6 +153,16 @@ class EmployeeController extends Controller
     {
         $employee = \App\Models\Employee::findOrFail($id);
         
+        // Find existing document of the same type and delete it (including file)
+        $existing = \App\Models\EmployeeDocument::where('employee_id', $employee->id)
+            ->where('document_type', $request->document_type)
+            ->first();
+            
+        if ($existing) {
+            \Illuminate\Support\Facades\Storage::delete($existing->file_path);
+            $existing->delete();
+        }
+
         $path = $request->file('file')->store('employee_documents');
         
         \App\Models\EmployeeDocument::create([
