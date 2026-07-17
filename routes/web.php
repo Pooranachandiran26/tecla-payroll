@@ -99,7 +99,8 @@ Route::middleware(['auth', 'active'])->group(function () {
                 $clients = \App\Models\Client::where('status', 'active')->select('id', 'company_name')->get();
                 return Inertia::render('Employees/EmployeeForm', ['clients' => $clients]);
             })->name('employees.create');
-            Route::get('/employees/bulk-upload', fn() => Inertia::render('Employees/BulkUpload'))->name('employees.bulk-upload');
+            Route::get('/employees/bulk-upload', [BulkUploadController::class, 'showUploadForm'])->name('employees.bulk-upload');
+            Route::get('/employees/bulk-upload/download-template', [BulkUploadController::class, 'downloadTemplate'])->name('employees.bulk-upload.download-template');
             Route::post('/employees/bulk-upload/validate', [BulkUploadController::class, 'validateUpload'])->name('employees.bulk-upload.validate');
             Route::post('/employees/bulk-upload/execute', [BulkUploadController::class, 'executeImport'])->name('employees.bulk-upload.execute');
             Route::get('/employees/salary-bulk-update', fn() => Inertia::render('Employees/SalaryBulkUpdate'))->name('employees.salary-bulk-update');

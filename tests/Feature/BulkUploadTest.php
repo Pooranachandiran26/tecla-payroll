@@ -146,6 +146,7 @@ class BulkUploadTest extends TestCase
 
         $mockService->shouldReceive('validateFile')->andReturn([
             'error_count' => 0,
+            'valid_count' => 5,
             'rows' => $rows
         ]);
 
