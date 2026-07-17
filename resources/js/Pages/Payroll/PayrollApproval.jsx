@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import RoleGuard from '../../Components/RoleGuard.jsx';
+import useToast from '../../Hooks/useToast';
 import './PayrollApproval.css';
 
 export default function PayrollApproval({ clients, selectedClientId, selectedMonth, run, items, preflight, cycleInfo }) {
+    const { showToast } = useToast();
     const [clientId, setClientId] = useState(selectedClientId);
     const [month, setMonth] = useState(selectedMonth);
     const [showBreakdown, setShowBreakdown] = useState(false);
@@ -54,16 +56,23 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
                 // Once approved, run lock
                 router.post(`/payroll/${run.id}/lock`, {}, {
                     onSuccess: () => {
-                        alert("Batch approved and locked! Invoice generated successfully.");
                         router.visit('/invoices');
                     },
                     onError: (errors) => {
-                        alert("Error locking batch: " + (errors.error || 'Unknown error'));
+                        showToast({
+                            type: 'error',
+                            title: 'Lock Error',
+                            message: errors.error || 'Unknown error locking batch'
+                        });
                     }
                 });
             },
             onError: (errors) => {
-                alert("Error approving batch: " + (errors.error || 'Unknown error'));
+                showToast({
+                    type: 'error',
+                    title: 'Approval Error',
+                    message: errors.error || 'Unknown error approving batch'
+                });
             }
         });
     };
@@ -73,12 +82,15 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
         if (!run) return;
         router.post(`/payroll/${run.id}/supplementary`, {}, {
             onSuccess: () => {
-                alert("Supplementary run created successfully!");
                 setShowSupplementaryModal(false);
                 router.reload();
             },
             onError: (errors) => {
-                alert("Error creating supplementary run: " + (errors.error || 'Unknown error'));
+                showToast({
+                    type: 'error',
+                    title: 'Supplementary Run Error',
+                    message: errors.error || 'Unknown error creating supplementary run'
+                });
             }
         });
     };
