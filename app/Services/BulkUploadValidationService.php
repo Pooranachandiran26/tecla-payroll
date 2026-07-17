@@ -42,13 +42,14 @@ class BulkUploadValidationService
         $seenPans = [];
         $seenAadhaars = [];
         $seenBankAccounts = [];
+        $seenEmpCodes = [];
 
         $clientsCache = [];
 
         $rowIndex = 1; // Header is usually row 1 in Excel terms, so data starts at row 2, but we'll use a simple counter.
 
         $reader->getRows()->each(function(array $row) use (
-            &$results, &$seenEmails, &$seenPhones, &$seenPans, &$seenAadhaars, &$seenBankAccounts, &$clientsCache, &$rowIndex
+            &$results, &$seenEmpCodes, &$seenEmails, &$seenPhones, &$seenPans, &$seenAadhaars, &$seenBankAccounts, &$clientsCache, &$rowIndex
         ) {
             $rowIndex++;
             
@@ -61,9 +62,19 @@ class BulkUploadValidationService
             $errors = [];
             $warnings = [];
 
-            // 1. Mandatory Employee Code
-            if (empty($normalizedRow['employee_code'])) {
+            // 1. Mandatory Employee Code & Global/Intra-file Uniqueness
+            $empCode = $normalizedRow['employee_code'] ?? null;
+            if (empty($empCode)) {
                 $errors[] = "Mandatory Employee Code is missing.";
+            } else {
+                if (in_array($empCode, $seenEmpCodes)) {
+                    $errors[] = "Duplicate employee_code '{$empCode}' within this file.";
+                }
+                $seenEmpCodes[] = $empCode;
+
+                if (Employee::where('employee_code', $empCode)->exists()) {
+                    $errors[] = "Employee code '{$empCode}' is already registered to another employee in the system.";
+                }
             }
 
             // 2. Client Resolution
@@ -357,14 +368,18 @@ class BulkUploadValidationService
 
             // 7. Salary Calculation Preview
             $salaryPreview = null;
-            if (empty($errors)) {
-                $salaryPreview = $this->salaryService->calculateStructuralSalary($validationData);
-                
-                // 8. Wage Code Warning
-                $basic = $validationData['basic_pay'] ?? 0;
-                $ctc = $salaryPreview['ctc_monthly'] ?? 0;
-                if ($ctc > 0 && $basic < ($ctc * 0.5)) {
-                    $warnings[] = "Basic pay ($basic) is less than 50% of CTC ($ctc) (Wage Code Warning).";
+            if (is_numeric($validationData['basic_pay'] ?? null) && is_numeric($validationData['hra'] ?? null)) {
+                try {
+                    $salaryPreview = $this->salaryService->calculateStructuralSalary($validationData);
+                    
+                    // 8. Wage Code Warning
+                    $basic = $validationData['basic_pay'] ?? 0;
+                    $ctc = $salaryPreview['ctc_monthly'] ?? 0;
+                    if ($ctc > 0 && $basic < ($ctc * 0.5)) {
+                        $warnings[] = "Basic pay ($basic) is less than 50% of CTC ($ctc) (Wage Code Warning).";
+                    }
+                } catch (\Exception $e) {
+                    // Ignore salary calculation errors for the preview if inputs were weird
                 }
             }
 
@@ -393,6 +408,7 @@ class BulkUploadValidationService
                 'ctc' => $salaryPreview ? $salaryPreview['ctc_monthly'] : null,
                 'message' => implode(' | ', $messages),
                 'status' => $status,
+                'raw_data' => $normalizedRow,
                 'statutory' => [
                     'pf' => $pfApplicable,
                     'esi' => $esiApplicable,
