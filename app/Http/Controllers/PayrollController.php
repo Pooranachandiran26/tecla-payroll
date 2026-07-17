@@ -481,21 +481,24 @@ class PayrollController extends Controller
      */
     public function indexPayslips(Request $request)
     {
-        $items = \Illuminate\Support\Facades\DB::table('payroll_run_items')
-            ->join('employees', 'payroll_run_items.employee_id', '=', 'employees.id')
-            ->join('payroll_runs', 'payroll_run_items.payroll_run_id', '=', 'payroll_runs.id')
-            ->where('payroll_runs.status', 'locked')
-            ->where('payroll_run_items.is_excluded', false)
-            ->select(
-                'payroll_run_items.*', 
-                'employees.full_name', 
-                'employees.employee_code', 
-                'employees.designation', 
-                'employees.bank_name', 
-                'employees.bank_account_number'
-            )
-            ->orderBy('payroll_run_items.created_at', 'desc')
+        $runItems = \App\Models\PayrollRunItem::with(['employee', 'payrollRun'])
+            ->whereHas('payrollRun', function ($query) {
+                $query->where('status', 'locked');
+            })
+            ->where('is_excluded', false)
+            ->orderBy('created_at', 'desc')
             ->get();
+
+        $items = $runItems->map(function ($item) {
+            $employee = $item->employee;
+            return array_merge($item->toArray(), [
+                'full_name' => $employee ? $employee->full_name : '—',
+                'employee_code' => $employee ? $employee->employee_code : '—',
+                'designation' => $employee ? $employee->designation : '—',
+                'bank_name' => $employee ? $employee->bank_name : '—',
+                'bank_account_number' => $employee ? $employee->bank_account_number : '—',
+            ]);
+        });
 
         return \Inertia\Inertia::render('Payroll/Payslip', [
             'items' => $items,
