@@ -54,4 +54,61 @@ class EmployeeDocumentViewTest extends TestCase
         $doc->refresh();
         $this->assertEquals('verified', $doc->status);
     }
+
+    public function test_uploading_new_document_replaces_existing_rejected_document()
+    {
+        Storage::fake('local');
+
+        $admin = User::factory()->create(['role' => 'admin']);
+        $client = Client::factory()->create();
+        $branch = ClientBranch::factory()->create(['client_id' => $client->id]);
+
+        $employee = Employee::factory()->create([
+            'client_id' => $client->id,
+            'branch_id' => $branch->id,
+            'status' => 'onboarding'
+        ]);
+
+        // Create old rejected file
+        $oldFile = UploadedFile::fake()->create('old_pan_card.pdf', 500, 'application/pdf');
+        $oldPath = $oldFile->store('employee_documents', 'local');
+
+        $oldDoc = EmployeeDocument::create([
+            'employee_id' => $employee->id,
+            'document_type' => 'pan_card',
+            'file_path' => $oldPath,
+            'status' => 'rejected',
+            'rejection_reason' => 'Blurry image'
+        ]);
+
+        // Upload new file
+        $newFile = UploadedFile::fake()->create('new_pan_card.pdf', 800, 'application/pdf');
+
+        $response = $this->actingAs($admin)->post(route('employees.documents.store', $employee->id), [
+            'document_type' => 'pan_card',
+            'file' => $newFile
+        ]);
+
+        $response->assertSessionHasNoErrors();
+        $response->assertRedirect();
+
+        // Assert old document and file are soft deleted
+        $this->assertSoftDeleted('employee_documents', [
+            'id' => $oldDoc->id
+        ]);
+        Storage::disk('local')->assertMissing($oldPath);
+
+        // Assert new document is created
+        $this->assertDatabaseHas('employee_documents', [
+            'employee_id' => $employee->id,
+            'document_type' => 'pan_card',
+            'status' => 'pending'
+        ]);
+        
+        $newDoc = EmployeeDocument::where('employee_id', $employee->id)
+            ->where('document_type', 'pan_card')
+            ->first();
+            
+        Storage::disk('local')->assertExists($newDoc->file_path);
+    }
 }

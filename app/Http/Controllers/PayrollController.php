@@ -326,7 +326,7 @@ class PayrollController extends Controller
         $clients = \App\Models\Client::where('status', 'active')
             ->select('id', 'company_name')
             ->get();
-
+        
         $selectedClientId = $request->query('client_id', $clients->first()?->id);
         
         $defaultMonth = now()->subMonth()->startOfMonth()->toDateString();
@@ -335,8 +335,17 @@ class PayrollController extends Controller
         $run = null;
         $items = [];
         $preflight = [];
+        $client = null;
 
         if ($selectedClientId) {
+            $client = \App\Models\Client::find($selectedClientId);
+            if ($client) {
+                $cycleWarning = app(\App\Services\PayrollCycleWarningService::class)->checkCycleTiming($client, $selectedMonth);
+                if ($cycleWarning) {
+                    $preflight[] = $cycleWarning;
+                }
+            }
+
             $run = PayrollRun::where('client_id', $selectedClientId)
                 ->where('payroll_month', $selectedMonth)
                 ->first();
@@ -371,6 +380,13 @@ class PayrollController extends Controller
             'run' => $run ? $run->load('client') : null,
             'items' => $items,
             'preflight' => $preflight,
+            'cycleInfo' => $client ? [
+                'payroll_lock_day' => $client->payroll_lock_day,
+                'salary_credit_day' => $client->salary_credit_day,
+                'cycle_end_date' => $client->getCycleEndDate($selectedMonth)->format('M j, Y'),
+                'target_lock_date' => $client->getTargetLockDate($selectedMonth),
+                'target_salary_credit_date' => $client->getTargetSalaryCreditDate($selectedMonth),
+            ] : null,
         ]);
     }
 
@@ -390,8 +406,18 @@ class PayrollController extends Controller
 
         $run = null;
         $items = [];
+        $preflight = [];
+        $client = null;
 
         if ($selectedClientId) {
+            $client = \App\Models\Client::find($selectedClientId);
+            if ($client) {
+                $cycleWarning = app(\App\Services\PayrollCycleWarningService::class)->checkCycleTiming($client, $selectedMonth);
+                if ($cycleWarning) {
+                    $preflight[] = $cycleWarning;
+                }
+            }
+
             $run = PayrollRun::where('client_id', $selectedClientId)
                 ->where('payroll_month', $selectedMonth)
                 ->first();
@@ -402,6 +428,20 @@ class PayrollController extends Controller
                     ->where('payroll_run_id', $run->id)
                     ->select('payroll_run_items.*', 'employees.full_name', 'employees.employee_code')
                     ->get();
+
+                foreach ($items as $item) {
+                    if ($item->is_excluded) {
+                        $preflight[] = [
+                            'type' => 'red',
+                            'msg' => "{$item->full_name} ({$item->employee_code}) excluded: {$item->exclusion_reason}"
+                        ];
+                    } elseif (!empty($item->warning_notes)) {
+                        $preflight[] = [
+                            'type' => 'amber',
+                            'msg' => "{$item->full_name} ({$item->employee_code}) warning: {$item->warning_notes}"
+                        ];
+                    }
+                }
             }
         }
 
@@ -411,6 +451,14 @@ class PayrollController extends Controller
             'selectedMonth' => $selectedMonth,
             'run' => $run ? $run->load('client') : null,
             'items' => $items,
+            'preflight' => $preflight,
+            'cycleInfo' => $client ? [
+                'payroll_lock_day' => $client->payroll_lock_day,
+                'salary_credit_day' => $client->salary_credit_day,
+                'cycle_end_date' => $client->getCycleEndDate($selectedMonth)->format('M j, Y'),
+                'target_lock_date' => $client->getTargetLockDate($selectedMonth),
+                'target_salary_credit_date' => $client->getTargetSalaryCreditDate($selectedMonth),
+            ] : null,
         ]);
     }
 

@@ -29,5 +29,11 @@ class DatabaseSeeder extends Seeder
             EmailSettingsSeeder::class,
             TestUsersSeeder::class,
         ]);
+
+        if (app()->environment() !== 'testing') {
+            $this->call([
+                PayrollFieldsDemoSeeder::class,
+            ]);
+        }
     }
 }

@@ -4,7 +4,7 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import RoleGuard from '../../Components/RoleGuard.jsx';
 import './PayrollApproval.css';
 
-export default function PayrollApproval({ clients, selectedClientId, selectedMonth, run, items }) {
+export default function PayrollApproval({ clients, selectedClientId, selectedMonth, run, items, preflight, cycleInfo }) {
     const [clientId, setClientId] = useState(selectedClientId);
     const [month, setMonth] = useState(selectedMonth);
     const [showBreakdown, setShowBreakdown] = useState(false);
@@ -94,18 +94,65 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
                     )}
                 </div>
 
-                <div className="card" style={{ padding: "1rem", marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: "1rem" }}>
-                    <label style={{ fontWeight: 500, marginBottom: 0 }}>Select Client Batch:</label>
-                    <select className="form-control" style={{ width: "300px" }} value={clientId} onChange={e => handleClientChange(e.target.value)}>
-                        {clients.map(c => (
-                            <option key={c.id} value={c.id}>{c.company_name}</option>
-                        ))}
-                    </select>
-                    <select className="form-control" style={{ width: "150px" }} value={month} onChange={e => handleMonthChange(e.target.value)}>
-                        <option value="2026-06-01">June 2026</option>
-                        <option value="2026-05-01">May 2026</option>
-                        <option value="2026-07-01">July 2026</option>
-                    </select>
+                <div className="card" style={{ padding: "1rem", marginBottom: "1.5rem" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: cycleInfo ? "1rem" : 0 }}>
+                        <label style={{ fontWeight: 500, marginBottom: 0 }}>Select Client Batch:</label>
+                        <select className="form-control" style={{ width: "300px" }} value={clientId} onChange={e => handleClientChange(e.target.value)}>
+                            {clients.map(c => (
+                                <option key={c.id} value={c.id}>{c.company_name}</option>
+                            ))}
+                        </select>
+                        <select className="form-control" style={{ width: "150px" }} value={month} onChange={e => handleMonthChange(e.target.value)}>
+                            <option value="2026-06-01">June 2026</option>
+                            <option value="2026-05-01">May 2026</option>
+                            <option value="2026-07-01">July 2026</option>
+                        </select>
+                    </div>
+
+                    {cycleInfo && (
+                        <div className="cycle-info-row" style={{ display: "flex", gap: "1.5rem", borderTop: "1px solid var(--border-color)", paddingTop: "0.75rem", fontSize: "0.85rem", color: "var(--text-muted)", flexWrap: "wrap" }}>
+                            <span>📅 Cycle Ends: <strong>{cycleInfo.cycle_end_date}</strong></span>
+                            {cycleInfo.target_lock_date && (
+                                <span>🔒 Target Lock Date: <strong>{cycleInfo.target_lock_date}</strong></span>
+                            )}
+                            {cycleInfo.target_salary_credit_date && (
+                                <span>💰 Target Salary Credit: <strong>{cycleInfo.target_salary_credit_date}</strong></span>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                {/* Pre-Flight Validation Gates (Timing & blocker checks) */}
+                <div className="card" style={{ marginBottom: "1.5rem" }}>
+                    <div className="card-header" style={{ backgroundColor: "#F8FAFC", borderBottom: "1px solid var(--border-color)" }}>
+                        <h3 className="card-title" style={{ margin: 0, fontSize: "1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                            <span>✈️ Pre-Flight Validation Gates</span>
+                            <span className={`badge ${preflight && preflight.some(f => f.type === 'red') ? 'badge-danger' : 'badge-success'}`}>
+                                {preflight && preflight.some(f => f.type === 'red') ? 'Blockers Found' : 'All Clear'}
+                            </span>
+                        </h3>
+                    </div>
+                    <div style={{ padding: "1rem" }}>
+                        {preflight && preflight.length > 0 ? (
+                            preflight.map((f, i) => (
+                                <div key={i} className={`preflight-item status-${f.type}`}>
+                                    <div className="preflight-icon">
+                                        {f.type === 'red' ? '❌' : f.type === 'info' ? 'ℹ️' : '⚠️'}
+                                    </div>
+                                    <div className="preflight-content">
+                                        <strong>{f.type === 'red' ? 'BLOCKER' : f.type === 'info' ? 'INFO' : 'WARNING'}:</strong> {f.msg}
+                                    </div>
+                                </div>
+                            ))
+                        ) : (
+                            <div className="preflight-item status-green">
+                                <div className="preflight-icon">✅</div>
+                                <div className="preflight-content">
+                                    <strong>ALL CLEAR:</strong> No blockers or warnings found for this client and month.
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 {run ? (

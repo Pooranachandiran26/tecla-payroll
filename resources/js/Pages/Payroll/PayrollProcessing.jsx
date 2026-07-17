@@ -4,7 +4,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import RoleGuard from '../../Components/RoleGuard.jsx';
 import './PayrollProcessing.css';
 
-export default function PayrollProcessing({ clients, selectedClientId, selectedMonth, run, items, preflight }) {
+export default function PayrollProcessing({ clients, selectedClientId, selectedMonth, run, items, preflight, cycleInfo }) {
     const [clientId, setClientId] = useState(selectedClientId);
     const [month, setMonth] = useState(selectedMonth);
     const [earnVisible, setEarnVisible] = useState(true);
@@ -103,9 +103,11 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
                         {preflight && preflight.length > 0 ? (
                             preflight.map((f, i) => (
                                 <div key={i} className={`preflight-item status-${f.type}`}>
-                                    <div className="preflight-icon">{f.type === 'red' ? '❌' : '⚠️'}</div>
+                                    <div className="preflight-icon">
+                                        {f.type === 'red' ? '❌' : f.type === 'info' ? 'ℹ️' : '⚠️'}
+                                    </div>
                                     <div className="preflight-content">
-                                        <strong>{f.type === 'red' ? 'BLOCKER' : 'WARNING'}:</strong> {f.msg}
+                                        <strong>{f.type === 'red' ? 'BLOCKER' : f.type === 'info' ? 'INFO' : 'WARNING'}:</strong> {f.msg}
                                     </div>
                                 </div>
                             ))
@@ -121,32 +123,46 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
                 </div>
 
                 {/* Client and Payout Month selection */}
-                <div className="card" style={{ padding: "1rem", marginBottom: "1.5rem", display: "flex", gap: "1.5rem", alignItems: "center", flexWrap: "wrap" }}>
-                    <div className="form-group" style={{ marginBottom: 0, flex: 1, minWidth: "250px" }}>
-                        <label style={{ marginBottom: "0.25rem" }}>Target Client Contract</label>
-                        <select className="form-control" value={clientId} onChange={e => handleClientChange(e.target.value)}>
-                            {clients.map(c => (
-                                <option key={c.id} value={c.id}>{c.company_name}</option>
-                            ))}
-                        </select>
+                <div className="card" style={{ padding: "1rem", marginBottom: "1.5rem" }}>
+                    <div style={{ display: "flex", gap: "1.5rem", alignItems: "center", flexWrap: "wrap", marginBottom: cycleInfo ? "1rem" : 0 }}>
+                        <div className="form-group" style={{ marginBottom: 0, flex: 1, minWidth: "250px" }}>
+                            <label style={{ marginBottom: "0.25rem" }}>Target Client Contract</label>
+                            <select className="form-control" value={clientId} onChange={e => handleClientChange(e.target.value)}>
+                                {clients.map(c => (
+                                    <option key={c.id} value={c.id}>{c.company_name}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 0, flex: 1, minWidth: "200px" }}>
+                            <label style={{ marginBottom: "0.25rem" }}>Select Payout Month</label>
+                            <select className="form-control" value={month} onChange={e => handleMonthChange(e.target.value)}>
+                                <option value="2026-06-01">June 2026</option>
+                                <option value="2026-05-01">May 2026</option>
+                                <option value="2026-07-01">July 2026</option>
+                            </select>
+                        </div>
+                        <div style={{ marginTop: "1.2rem" }}>
+                            <button 
+                                className="btn btn-navy" 
+                                onClick={handleProcess}
+                                disabled={run && (run.status === 'approved' || run.status === 'locked')}
+                            >
+                                {run ? 'Recalculate Run' : 'Calculate & Process'}
+                            </button>
+                        </div>
                     </div>
-                    <div className="form-group" style={{ marginBottom: 0, flex: 1, minWidth: "200px" }}>
-                        <label style={{ marginBottom: "0.25rem" }}>Select Payout Month</label>
-                        <select className="form-control" value={month} onChange={e => handleMonthChange(e.target.value)}>
-                            <option value="2026-06-01">June 2026</option>
-                            <option value="2026-05-01">May 2026</option>
-                            <option value="2026-07-01">July 2026</option>
-                        </select>
-                    </div>
-                    <div style={{ marginTop: "1.2rem" }}>
-                        <button 
-                            className="btn btn-navy" 
-                            onClick={handleProcess}
-                            disabled={run && (run.status === 'approved' || run.status === 'locked')}
-                        >
-                            {run ? 'Recalculate Run' : 'Calculate & Process'}
-                        </button>
-                    </div>
+
+                    {cycleInfo && (
+                        <div className="cycle-info-row" style={{ display: "flex", gap: "1.5rem", borderTop: "1px solid var(--border-color)", paddingTop: "0.75rem", fontSize: "0.85rem", color: "var(--text-muted)", flexWrap: "wrap" }}>
+                            <span>📅 Cycle Ends: <strong>{cycleInfo.cycle_end_date}</strong></span>
+                            {cycleInfo.target_lock_date && (
+                                <span>🔒 Target Lock Date: <strong>{cycleInfo.target_lock_date}</strong></span>
+                            )}
+                            {cycleInfo.target_salary_credit_date && (
+                                <span>💰 Target Salary Credit: <strong>{cycleInfo.target_salary_credit_date}</strong></span>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 <div className="card">
