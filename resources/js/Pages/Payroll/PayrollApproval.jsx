@@ -263,7 +263,7 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
                                         >
                                             {run.status === 'locked' ? '✓ Locked and Finalized' : '✓ Approve & Lock Batch'}
                                         </button>
-                                        <Link href="/payroll/processing" className="btn btn-secondary" style={{ width: "100%", marginTop: "0.5rem", padding: "0.6rem", display: "block", textAlign: "center", boxSizing: "border-box" }}>
+                                        <Link href={`/payroll/processing?client_id=${clientId}&payroll_month=${month}`} className="btn btn-secondary" style={{ width: "100%", marginTop: "0.5rem", padding: "0.6rem", display: "block", textAlign: "center", boxSizing: "border-box" }}>
                                             Return to Calculations
                                         </Link>
                                     </div>

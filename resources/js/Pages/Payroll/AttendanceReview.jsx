@@ -189,7 +189,7 @@ export default function AttendanceReview({ initialBatches, clients, selectedMont
             )}
             
             {row.source !== 'No Data Yet' && (
-              <Link href="/payroll/processing">
+              <Link href={`/payroll/processing?client_id=${row.id}&payroll_month=${targetMonth}-01`}>
                 <Button size="xs" variant="primary">Process Payroll</Button>
               </Link>
             )}
