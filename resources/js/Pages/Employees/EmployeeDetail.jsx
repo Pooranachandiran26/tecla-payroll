@@ -14,14 +14,6 @@ export default function EmployeeDetail({ employee: empProp }) {
     const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, confirmText: '', reason: '' });
 
     useEffect(() => {
-        if (flash?.success) {
-            showToast({ type: 'success', title: 'Success', message: flash.success });
-        }
-        if (flash?.error) {
-            showToast({ type: 'error', title: 'Error', message: flash.error });
-        }
-    }, [flash, showToast]);
-    useEffect(() => {
         // Load the legacy logic dynamically so it runs on client side after render
         import('./EmployeeDetailLogic.js').then(module => {
             console.log('Legacy logic loaded for EmployeeDetail');
