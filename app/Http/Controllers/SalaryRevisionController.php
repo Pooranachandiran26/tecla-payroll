@@ -23,7 +23,7 @@ class SalaryRevisionController extends Controller
             ->get();
 
         return inertia('Employees/SalaryRevision', [
-            'employee' => new \App\Http\Resources\EmployeeResource($employee),
+            'employee' => (new \App\Http\Resources\EmployeeResource($employee))->resolve(),
             'revisions' => $revisions,
         ]);
     }

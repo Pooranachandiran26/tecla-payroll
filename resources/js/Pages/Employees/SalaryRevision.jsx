@@ -7,15 +7,16 @@ import { ArrowLeft, History, CheckCircle2, XCircle, Clock, TrendingUp, Calendar,
 
 export default function SalaryRevision({ employee, revisions }) {
     const { auth } = usePage().props;
+    const emp = employee?.data || employee || {};
 
     const { data, setData, post, processing, errors } = useForm({
-        new_basic_pay: employee.basic_pay || 0,
-        new_hra: employee.hra || 0,
-        new_conveyance: employee.conveyance || 0,
-        new_da: employee.da || 0,
-        new_medical_allowance: employee.medical_allowance || 0,
-        new_special_allowance: employee.special_allowance || 0,
-        new_other_additions: employee.other_additions || 0,
+        new_basic_pay: emp.basic_pay || 0,
+        new_hra: emp.hra || 0,
+        new_conveyance: emp.conveyance || 0,
+        new_da: emp.da || 0,
+        new_medical_allowance: emp.medical_allowance || 0,
+        new_special_allowance: emp.special_allowance || 0,
+        new_other_additions: emp.other_additions || 0,
         effective_date: new Date().toISOString().split('T')[0],
         reason_for_revision: 'appraisal',
     });
@@ -41,7 +42,7 @@ export default function SalaryRevision({ employee, revisions }) {
         setPreviewError(null);
         try {
             const res = await axios.post(route('employees.calculate-preview'), {
-                client_id: employee.client_id,
+                client_id: emp.client_id,
                 basic_pay: data.new_basic_pay,
                 hra: data.new_hra,
                 conveyance: data.new_conveyance,
@@ -50,11 +51,11 @@ export default function SalaryRevision({ employee, revisions }) {
                 special_allowance: data.new_special_allowance,
                 other_additions: data.new_other_additions,
                 
-                pf_applicable: employee.pf_applicable,
-                esi_applicable: employee.esi_applicable,
-                pt_applicable: employee.pt_applicable,
-                lwf_applicable: employee.lwf_applicable,
-                pt_deduction_override: employee.pt_deduction_override,
+                pf_applicable: emp.pf_applicable,
+                esi_applicable: emp.esi_applicable,
+                pt_applicable: emp.pt_applicable,
+                lwf_applicable: emp.lwf_applicable,
+                pt_deduction_override: emp.pt_deduction_override,
             });
             setPreview(res.data);
         } catch (error) {
@@ -90,7 +91,7 @@ export default function SalaryRevision({ employee, revisions }) {
 
     const calcCtcDelta = () => {
         if (!preview) return null;
-        const currentCtc = parseFloat(employee.ctc_monthly || 0);
+        const currentCtc = parseFloat(emp.ctc_monthly || 0);
         const newCtc = parseFloat(preview.ctc_monthly || 0);
         const diff = newCtc - currentCtc;
         const pct = currentCtc > 0 ? ((diff / currentCtc) * 100).toFixed(1) : 0;
@@ -102,7 +103,7 @@ export default function SalaryRevision({ employee, revisions }) {
     return (
         <RoleGuard allowedRoles={['admin', 'manager']}>
             <AuthenticatedLayout>
-                <Head title={`Salary Revision — ${employee.full_name}`} />
+                <Head title={`Salary Revision — ${emp.full_name || 'Staff'}`} />
                 
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
                     
@@ -110,24 +111,24 @@ export default function SalaryRevision({ employee, revisions }) {
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
                         <div>
                             <Link 
-                                href={route('employees.show', employee.id)} 
+                                href={route('employees.show', emp.id || 0)} 
                                 className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#1F3864] hover:text-[#B8860B] transition-colors mb-2"
                             >
-                                <ArrowLeft className="w-4 h-4" /> Back to {employee.full_name}'s Profile
+                                <ArrowLeft className="w-4 h-4" /> Back to {emp.full_name || 'Staff'}'s Profile
                             </Link>
                             <h1 className="text-2xl sm:text-3xl font-extrabold text-[#1F3864] tracking-tight">Process Salary Revision</h1>
                             <p className="text-sm text-slate-500 mt-1">
-                                Perform monthly CTC increments, salary component updates, or statutory corrections for <span className="font-semibold text-slate-700">{employee.full_name}</span>.
+                                Perform monthly CTC increments, salary component updates, or statutory corrections for <span className="font-semibold text-slate-700">{emp.full_name || 'Staff'}</span>.
                             </p>
                         </div>
                         
                         <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl p-3.5 shrink-0">
                             <div className="w-11 h-11 rounded-full bg-[#1F3864]/10 text-[#1F3864] flex items-center justify-center font-bold text-lg">
-                                {employee.full_name ? employee.full_name.charAt(0).toUpperCase() : 'E'}
+                                {emp.full_name ? emp.full_name.charAt(0).toUpperCase() : 'E'}
                             </div>
                             <div>
-                                <div className="text-sm font-bold text-[#1F3864]">{employee.full_name}</div>
-                                <div className="text-xs text-slate-500 mt-0.5">Code: <span className="font-semibold text-slate-700">{employee.employee_code || 'N/A'}</span> • {employee.designation || 'Staff'}</div>
+                                <div className="text-sm font-bold text-[#1F3864]">{emp.full_name || 'Staff'}</div>
+                                <div className="text-xs text-slate-500 mt-0.5">Code: <span className="font-semibold text-slate-700">{emp.employee_code || 'N/A'}</span> • {emp.designation || 'Staff'}</div>
                             </div>
                         </div>
                     </div>
@@ -241,37 +242,37 @@ export default function SalaryRevision({ employee, revisions }) {
                                     <div className="space-y-3">
                                         <div className="flex justify-between items-center py-2.5 px-4 bg-white rounded-lg border border-slate-200/80 text-sm">
                                             <span className="text-slate-600 font-semibold">1. Basic Pay</span>
-                                            <span className="font-bold text-slate-900">{formatCurrency(employee.basic_pay)}</span>
+                                            <span className="font-bold text-slate-900">{formatCurrency(emp.basic_pay)}</span>
                                         </div>
                                         <div className="flex justify-between items-center py-2.5 px-4 bg-white rounded-lg border border-slate-200/80 text-sm">
                                             <span className="text-slate-600 font-semibold">2. HRA</span>
-                                            <span className="font-bold text-slate-900">{formatCurrency(employee.hra)}</span>
+                                            <span className="font-bold text-slate-900">{formatCurrency(emp.hra)}</span>
                                         </div>
                                         <div className="flex justify-between items-center py-2.5 px-4 bg-white rounded-lg border border-slate-200/80 text-sm">
                                             <span className="text-slate-600 font-semibold">3. Conveyance</span>
-                                            <span className="font-bold text-slate-900">{formatCurrency(employee.conveyance)}</span>
+                                            <span className="font-bold text-slate-900">{formatCurrency(emp.conveyance)}</span>
                                         </div>
                                         <div className="flex justify-between items-center py-2.5 px-4 bg-white rounded-lg border border-slate-200/80 text-sm">
                                             <span className="text-slate-600 font-semibold">4. DA</span>
-                                            <span className="font-bold text-slate-900">{formatCurrency(employee.da)}</span>
+                                            <span className="font-bold text-slate-900">{formatCurrency(emp.da)}</span>
                                         </div>
                                         <div className="flex justify-between items-center py-2.5 px-4 bg-white rounded-lg border border-slate-200/80 text-sm">
                                             <span className="text-slate-600 font-semibold">5. Medical Allowance</span>
-                                            <span className="font-bold text-slate-900">{formatCurrency(employee.medical_allowance)}</span>
+                                            <span className="font-bold text-slate-900">{formatCurrency(emp.medical_allowance)}</span>
                                         </div>
                                         <div className="flex justify-between items-center py-2.5 px-4 bg-white rounded-lg border border-slate-200/80 text-sm">
                                             <span className="text-slate-600 font-semibold">6. Special Allowance</span>
-                                            <span className="font-bold text-slate-900">{formatCurrency(employee.special_allowance)}</span>
+                                            <span className="font-bold text-slate-900">{formatCurrency(emp.special_allowance)}</span>
                                         </div>
                                         <div className="flex justify-between items-center py-2.5 px-4 bg-white rounded-lg border border-slate-200/80 text-sm">
                                             <span className="text-slate-600 font-semibold">7. Other Additions</span>
-                                            <span className="font-bold text-slate-900">{formatCurrency(employee.other_additions)}</span>
+                                            <span className="font-bold text-slate-900">{formatCurrency(emp.other_additions)}</span>
                                         </div>
 
                                         {/* Gross Monthly Total */}
                                         <div className="flex justify-between items-center py-2.5 px-4 bg-slate-100 rounded-lg border border-slate-300 font-bold text-sm text-[#1F3864]">
                                             <span>Calculated Gross Earnings</span>
-                                            <span>{formatCurrency(employee.gross_monthly_salary)}</span>
+                                            <span>{formatCurrency(emp.gross_monthly_salary)}</span>
                                         </div>
 
                                         {/* Current Deductions Breakdown */}
@@ -280,19 +281,19 @@ export default function SalaryRevision({ employee, revisions }) {
                                             <div className="space-y-1.5 text-xs">
                                                 <div className="flex justify-between items-center text-slate-600">
                                                     <span>• Employee PF (12%)</span>
-                                                    <span className="font-semibold">{formatCurrency(employee.employee_pf_monthly)}</span>
+                                                    <span className="font-semibold">{formatCurrency(emp.employee_pf_monthly)}</span>
                                                 </div>
                                                 <div className="flex justify-between items-center text-slate-600">
                                                     <span>• Employee ESIC (0.75%)</span>
-                                                    <span className="font-semibold">{formatCurrency(employee.employee_esi_monthly)}</span>
+                                                    <span className="font-semibold">{formatCurrency(emp.employee_esi_monthly)}</span>
                                                 </div>
                                                 <div className="flex justify-between items-center text-slate-600">
                                                     <span>• Professional Tax (PT)</span>
-                                                    <span className="font-semibold">{formatCurrency(employee.pt_monthly)}</span>
+                                                    <span className="font-semibold">{formatCurrency(emp.pt_monthly)}</span>
                                                 </div>
                                                 <div className="flex justify-between items-center pt-1 font-bold text-rose-600 border-t border-slate-200">
                                                     <span>Total Employee Deductions</span>
-                                                    <span>- {formatCurrency((employee.gross_monthly_salary || 0) - (employee.net_take_home_monthly || 0))}</span>
+                                                    <span>- {formatCurrency((emp.gross_monthly_salary || 0) - (emp.net_take_home_monthly || 0))}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -303,11 +304,11 @@ export default function SalaryRevision({ employee, revisions }) {
                                             <div className="space-y-1.5 text-xs">
                                                 <div className="flex justify-between items-center text-slate-600">
                                                     <span>• Employer PF (13%)</span>
-                                                    <span className="font-semibold">{formatCurrency(employee.employer_pf_monthly)}</span>
+                                                    <span className="font-semibold">{formatCurrency(emp.employer_pf_monthly)}</span>
                                                 </div>
                                                 <div className="flex justify-between items-center text-slate-600">
                                                     <span>• Employer ESIC (3.25%)</span>
-                                                    <span className="font-semibold">{formatCurrency(employee.employer_esi_monthly)}</span>
+                                                    <span className="font-semibold">{formatCurrency(emp.employer_esi_monthly)}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -318,13 +319,13 @@ export default function SalaryRevision({ employee, revisions }) {
                                         <div className="bg-[#1F3864] text-white p-4 rounded-xl shadow-sm text-center">
                                             <div className="text-xs uppercase font-bold text-slate-300 tracking-wider">Net Take Home</div>
                                             <div className="text-xl sm:text-2xl font-extrabold text-[#B8860B] mt-1">
-                                                {formatCurrency(employee.net_take_home_monthly)}
+                                                {formatCurrency(emp.net_take_home_monthly)}
                                             </div>
                                         </div>
                                         <div className="bg-slate-200 text-slate-800 p-4 rounded-xl text-center">
                                             <div className="text-xs uppercase font-bold text-slate-600 tracking-wider">Monthly CTC</div>
                                             <div className="text-xl sm:text-2xl font-extrabold text-slate-900 mt-1">
-                                                {formatCurrency(employee.ctc_monthly)}
+                                                {formatCurrency(emp.ctc_monthly)}
                                             </div>
                                         </div>
                                     </div>
@@ -530,7 +531,7 @@ export default function SalaryRevision({ employee, revisions }) {
                                                 Revision CTC Projection
                                             </div>
                                             <div className="text-base font-semibold mt-0.5">
-                                                {formatCurrency(employee.ctc_monthly)} → <span className="font-extrabold underline">{formatCurrency(preview.ctc_monthly)}</span>
+                                                {formatCurrency(emp.ctc_monthly)} → <span className="font-extrabold underline">{formatCurrency(preview.ctc_monthly)}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -583,7 +584,7 @@ export default function SalaryRevision({ employee, revisions }) {
                             {/* Bottom Action Footer */}
                             <div className="flex items-center justify-end gap-4 pt-4 border-t border-slate-200">
                                 <Link 
-                                    href={route('employees.show', employee.id)} 
+                                    href={route('employees.show', emp.id || 0)} 
                                     className="px-5 py-2.5 text-sm font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
                                 >
                                     Cancel

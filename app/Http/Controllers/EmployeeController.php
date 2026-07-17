@@ -204,6 +204,24 @@ class EmployeeController extends Controller
         return redirect()->back()->with('success', 'Document verified successfully.');
     }
 
+    public function viewDocument($id, $docId)
+    {
+        $employee = \App\Models\Employee::findOrFail($id);
+        \Illuminate\Support\Facades\Gate::authorize('viewDocuments', $employee);
+
+        $document = \App\Models\EmployeeDocument::where('employee_id', $employee->id)->findOrFail($docId);
+
+        if (!\Illuminate\Support\Facades\Storage::disk('local')->exists($document->file_path)) {
+            abort(404, 'Document file not found.');
+        }
+
+        return \Illuminate\Support\Facades\Storage::disk('local')->response(
+            $document->file_path,
+            null,
+            ['Content-Disposition' => 'inline']
+        );
+    }
+
     public function destroy(Request $request, $id)
     {
         $employee = \App\Models\Employee::withTrashed()->findOrFail($id);

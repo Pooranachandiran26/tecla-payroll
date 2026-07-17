@@ -83,6 +83,15 @@ const renderDocumentRows = () => {
                 <td style={{"textAlign":"right"}}>
                     {uploadedDoc ? (
                         <div style={{"display":"flex","gap":"0.4rem","justifyContent":"flex-end","alignItems":"center"}}>
+                            <a 
+                                href={route('employees.documents.view', { id: employee.id, docId: uploadedDoc.id })} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="btn btn-xs" 
+                                style={{"backgroundColor":"var(--primary-navy)","color":"white","textDecoration":"none","display":"inline-flex","alignItems":"center","gap":"0.25rem"}}
+                            >
+                                👁 View
+                            </a>
                             {uploadedDoc.status === "pending" && (
                                 <>
                                     <button className="btn btn-xs" style={{"backgroundColor":"var(--status-success)","color":"white"}} onClick={() => router.put(route('employees.documents.verify', { id: employee.id, docId: uploadedDoc.id }), { status: "verified" })}>✓ Verify</button>
@@ -91,9 +100,6 @@ const renderDocumentRows = () => {
                                         if(reason) router.put(route('employees.documents.verify', { id: employee.id, docId: uploadedDoc.id }), { status: "rejected", rejection_reason: reason });
                                     }}>✕ Reject</button>
                                 </>
-                            )}
-                            {(uploadedDoc.status === "verified" || uploadedDoc.status === "rejected") && (
-                                <span style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>No actions available</span>
                             )}
                         </div>
                     ) : (
