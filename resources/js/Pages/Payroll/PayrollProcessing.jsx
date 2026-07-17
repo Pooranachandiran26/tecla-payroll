@@ -11,6 +11,23 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
     const [deductVisible, setDeductVisible] = useState(true);
     const [showSourceBanner, setShowSourceBanner] = useState(true);
 
+    const getMonthOptions = () => {
+        const options = [];
+        const startDate = new Date(2026, 4, 1); // May 2026 (index 4)
+        const endDate = new Date();
+        endDate.setMonth(endDate.getMonth() + 2); // Current date + 2 months
+
+        const currentDate = new Date(startDate);
+        while (currentDate <= endDate) {
+            const year = currentDate.getFullYear();
+            const monthNum = String(currentDate.getMonth() + 1).padStart(2, '0');
+            const label = currentDate.toLocaleString('default', { month: 'long' }) + ' ' + year;
+            options.push({ value: `${year}-${monthNum}-01`, label });
+            currentDate.setMonth(currentDate.getMonth() + 1);
+        }
+        return options.reverse();
+    };
+
     const handleClientChange = (newClientId) => {
         setClientId(newClientId);
         router.get('/payroll/processing', { client_id: newClientId, payroll_month: month }, { preserveState: false });
@@ -136,9 +153,9 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
                         <div className="form-group" style={{ marginBottom: 0, flex: 1, minWidth: "200px" }}>
                             <label style={{ marginBottom: "0.25rem" }}>Select Payout Month</label>
                             <select className="form-control" value={month} onChange={e => handleMonthChange(e.target.value)}>
-                                <option value="2026-06-01">June 2026</option>
-                                <option value="2026-05-01">May 2026</option>
-                                <option value="2026-07-01">July 2026</option>
+                                {getMonthOptions().map(opt => (
+                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                ))}
                             </select>
                         </div>
                         <div style={{ marginTop: "1.2rem" }}>

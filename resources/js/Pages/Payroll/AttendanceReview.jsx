@@ -16,6 +16,23 @@ export default function AttendanceReview({ initialBatches, clients, selectedMont
   const [batches, setBatches] = useState(initialBatches || []);
   const [targetMonth, setTargetMonth] = useState(selectedMonth || '2026-07');
 
+  const getMonthOptions = () => {
+    const options = [];
+    const startDate = new Date(2026, 4, 1); // May 2026 (index 4)
+    const endDate = new Date();
+    endDate.setMonth(endDate.getMonth() + 2); // Current date + 2 months
+
+    const currentDate = new Date(startDate);
+    while (currentDate <= endDate) {
+      const year = currentDate.getFullYear();
+      const monthNum = String(currentDate.getMonth() + 1).padStart(2, '0');
+      const label = currentDate.toLocaleString('default', { month: 'long' }) + ' ' + year;
+      options.push({ value: `${year}-${monthNum}`, label });
+      currentDate.setMonth(currentDate.getMonth() + 1);
+    }
+    return options.reverse();
+  };
+
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [verifyModalOpen, setVerifyModalOpen] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState(null);
@@ -243,9 +260,9 @@ export default function AttendanceReview({ initialBatches, clients, selectedMont
           <div className="flex items-center gap-2">
             <label className="text-xs font-bold text-gray-700 uppercase">Review Month:</label>
             <Select value={targetMonth} onChange={handleMonthChange} className="w-[180px] text-sm">
-              <option value="2026-07">July 2026</option>
-              <option value="2026-06">June 2026</option>
-              <option value="2026-05">May 2026</option>
+              {getMonthOptions().map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
             </Select>
           </div>
         </div>

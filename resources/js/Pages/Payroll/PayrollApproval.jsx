@@ -11,6 +11,23 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
     const [showDisbursementModal, setShowDisbursementModal] = useState(false);
     const [showSupplementaryModal, setShowSupplementaryModal] = useState(false);
 
+    const getMonthOptions = () => {
+        const options = [];
+        const startDate = new Date(2026, 4, 1); // May 2026 (index 4)
+        const endDate = new Date();
+        endDate.setMonth(endDate.getMonth() + 2); // Current date + 2 months
+
+        const currentDate = new Date(startDate);
+        while (currentDate <= endDate) {
+            const year = currentDate.getFullYear();
+            const monthNum = String(currentDate.getMonth() + 1).padStart(2, '0');
+            const label = currentDate.toLocaleString('default', { month: 'long' }) + ' ' + year;
+            options.push({ value: `${year}-${monthNum}-01`, label });
+            currentDate.setMonth(currentDate.getMonth() + 1);
+        }
+        return options.reverse();
+    };
+
     const { auth } = usePage().props;
     const role = auth?.user?.role || 'manager';
 
@@ -103,9 +120,9 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
                             ))}
                         </select>
                         <select className="form-control" style={{ width: "150px" }} value={month} onChange={e => handleMonthChange(e.target.value)}>
-                            <option value="2026-06-01">June 2026</option>
-                            <option value="2026-05-01">May 2026</option>
-                            <option value="2026-07-01">July 2026</option>
+                            {getMonthOptions().map(opt => (
+                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
                         </select>
                     </div>
 
