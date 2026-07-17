@@ -39,7 +39,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       designation: emp?.designation || '',
       doj: emp?.date_of_joining || '',
       empType: emp?.employment_model || 'eor',
-      priorEmploymentFlag: emp ? emp.prior_employment_flag === 1 : true,
+      priorEmploymentFlag: emp ? Boolean(emp.prior_employment_flag) : true,
       address: emp?.residential_address || '',
       accountNo: emp?.bank_account_number || '',
       accountNoConfirm: emp?.bank_account_number || '',
@@ -60,14 +60,14 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       specialSal: emp?.special_allowance ?? '',
       otherSal: emp?.other_additions ?? '',
       ptDeduction: emp?.pt_deduction_override ?? '',
-      pfToggle: emp ? emp.pf_applicable === 1 : true,
-      esiToggle: emp ? emp.esi_applicable === 1 : true,
-      tdsToggle: emp ? emp.tds_applicable === 1 : true,
-      ptToggle: emp ? emp.pt_applicable === 1 : true,
-      lwfToggle: emp ? emp.lwf_applicable === 1 : true,
-      bonusToggle: emp ? emp.bonus_toggle === 1 : true,
+      pfToggle: emp ? Boolean(emp.pf_applicable) : true,
+      esiToggle: emp ? Boolean(emp.esi_applicable) : true,
+      tdsToggle: emp ? Boolean(emp.tds_applicable) : true,
+      ptToggle: emp ? Boolean(emp.pt_applicable) : true,
+      lwfToggle: emp ? Boolean(emp.lwf_applicable) : true,
+      bonusToggle: emp ? Boolean(emp.bonus_toggle) : true,
       taxRegime: emp?.tds_regime || 'new',
-      declarations: emp ? (emp.declarations_accepted === 1 ? 'yes' : 'no') : 'yes',
+      declarations: emp ? (Boolean(emp.declarations_accepted) ? 'yes' : 'no') : 'yes',
       gratuityMode: emp?.gratuity_mode || 'part_of_ctc',
       lopBasis: emp?.lop_basis_days || '30',
       emergencyContactName: emp?.emergency_contact_name || '',
@@ -397,13 +397,18 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       if (formMode !== 'add' && formData.esiToggle) {
         setErrorMsg('esiWarning', `ℹ Gross salary now exceeds ESI threshold (₹${limit}). ESI contribution continues until end of period.`, 'warn');
       } else {
-        handleInputChange('esiToggle', false);
+        if (!overrides.esi) {
+          handleInputChange('esiToggle', false);
+        }
         setErrorMsg('esiWarning', `⚠ Gross salary exceeds ESI threshold (₹${limit}) — ESI does not apply.`, 'error');
       }
     } else {
       clearErrorMsg('esiWarning');
+      if (grossCTC > 0 && !overrides.esi) {
+        handleInputChange('esiToggle', true);
+      }
     }
-  }, [grossCTC, formData.esiToggle, activeClientDefaults, formMode]);
+  }, [grossCTC, activeClientDefaults, formMode]);
 
   // Handlers
   const handleEmpTypeChange = (e) => {

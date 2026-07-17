@@ -113,6 +113,7 @@ Route::middleware(['auth', 'active'])->group(function () {
             Route::post('/employees/{id}/resend-invitation', [EmployeeController::class, 'resendInvitation'])->name('employees.resend-invitation');
             Route::post('/employees/{id}/documents', [EmployeeController::class, 'storeDocument'])->name('employees.documents.store');
             Route::put('/employees/{id}/documents/{docId}/verify', [EmployeeController::class, 'verifyDocument'])->name('employees.documents.verify');
+            Route::get('/employees/{id}/documents/{docId}/view', [EmployeeController::class, 'viewDocument'])->name('employees.documents.view');
             Route::get('/employees/{id}/exit', [\App\Http\Controllers\EmployeeExitController::class, 'show'])->name('employees.exit.show');
             Route::post('/employees/{id}/exit/preview-settlement', [\App\Http\Controllers\EmployeeExitController::class, 'previewSettlement'])->name('employees.exit.preview');
             Route::post('/employees/{id}/exit/stage/{stage}', [\App\Http\Controllers\EmployeeExitController::class, 'storeStage'])->name('employees.exit.stage');

@@ -249,7 +249,12 @@ class MonthlyPayrollCalculator
         }
         $lopDeduction = max(0.00, $structuralGross - $grossTotal);
 
-        // g. Write the result to a new payroll_run_items row
+        // g. Write the result to a new payroll_run_items row (clearing any duplicate prior item for this run)
+        DB::table('payroll_run_items')
+            ->where('payroll_run_id', $payrollRun->id)
+            ->where('employee_id', $employee->id)
+            ->delete();
+
         $runItemId = DB::table('payroll_run_items')->insertGetId([
             'payroll_run_id' => $payrollRun->id,
             'employee_id' => $employee->id,

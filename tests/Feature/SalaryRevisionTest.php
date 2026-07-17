@@ -307,9 +307,10 @@ class SalaryRevisionTest extends TestCase
         
         $page = $responsePage->viewData('page');
         if (isset($page['props']['employee'])) {
-            echo "Page rendered with 200 OK\n";
-            echo "Inertia Component: {$page['component']}\n";
-            echo "Employee Prop: ID {$page['props']['employee']['id']}, Name {$page['props']['employee']['full_name']}\n";
+            $empProp = $page['props']['employee'];
+            $empId = is_array($empProp) ? ($empProp['id'] ?? null) : ($empProp->id ?? null);
+            $empName = is_array($empProp) ? ($empProp['full_name'] ?? null) : ($empProp->full_name ?? null);
+            echo "Employee Prop: ID {$empId}, Name {$empName}\n";
             echo "Revisions Passed to Frontend: " . count($page['props']['revisions']) . "\n";
             echo "Latest Revision Status on Frontend: {$page['props']['revisions'][0]['status']}\n\n";
         }
