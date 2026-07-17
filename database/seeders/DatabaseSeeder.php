@@ -28,6 +28,7 @@ class DatabaseSeeder extends Seeder
             AuthSecuritySettingsSeeder::class,
             EmailSettingsSeeder::class,
             TestUsersSeeder::class,
+            PayrollFieldsDemoSeeder::class,
         ]);
     }
 }
