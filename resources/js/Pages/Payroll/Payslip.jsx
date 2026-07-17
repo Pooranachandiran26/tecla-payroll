@@ -52,12 +52,12 @@ export default function Payslip({ items, clients = [], selectedClientId, selecte
 
     const handleClientChange = (newClientId) => {
         setClientId(newClientId);
-        router.get('/payroll/payslips', { client_id: newClientId, payroll_month: month }, { preserveState: false });
+        router.get(route('payroll.payslips'), { client_id: newClientId, payroll_month: month }, { preserveState: false });
     };
 
     const handleMonthChange = (newMonth) => {
         setMonth(newMonth);
-        router.get('/payroll/payslips', { client_id: clientId, payroll_month: newMonth }, { preserveState: false });
+        router.get(route('payroll.payslips'), { client_id: clientId, payroll_month: newMonth }, { preserveState: false });
     };
 
     const getMonthOptions = () => {

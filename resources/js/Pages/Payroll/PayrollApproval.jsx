@@ -35,12 +35,12 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
 
     const handleClientChange = (newClientId) => {
         setClientId(newClientId);
-        router.get('/payroll/approval', { client_id: newClientId, payroll_month: month }, { preserveState: false });
+        router.get(route('payroll.approval'), { client_id: newClientId, payroll_month: month }, { preserveState: false });
     };
 
     const handleMonthChange = (newMonth) => {
         setMonth(newMonth);
-        router.get('/payroll/approval', { client_id: clientId, payroll_month: newMonth }, { preserveState: false });
+        router.get(route('payroll.approval'), { client_id: clientId, payroll_month: newMonth }, { preserveState: false });
     };
 
     // Filter items into active and excluded
@@ -51,12 +51,12 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
     const handleApproveAndLock = () => {
         if (!run) return;
         
-        router.post(`/payroll/${run.id}/approve`, {}, {
+        router.post(route('payroll.run.approve', run.id), {}, {
             onSuccess: () => {
                 // Once approved, run lock
-                router.post(`/payroll/${run.id}/lock`, {}, {
+                router.post(route('payroll.run.lock', run.id), {}, {
                     onSuccess: () => {
-                        router.visit('/invoices');
+                        router.visit(route('invoices.index'));
                     },
                     onError: (errors) => {
                         showToast({
@@ -80,7 +80,7 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
     // Trigger Supplementary Run
     const handleCreateSupplementary = () => {
         if (!run) return;
-        router.post(`/payroll/${run.id}/supplementary`, {}, {
+        router.post(route('payroll.run.supplementary', run.id), {}, {
             onSuccess: () => {
                 setShowSupplementaryModal(false);
                 router.reload();
@@ -292,7 +292,7 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
                                         >
                                             {run.status === 'locked' ? '✓ Locked and Finalized' : '✓ Approve & Lock Batch'}
                                         </button>
-                                        <Link href={`/payroll/processing?client_id=${clientId}&payroll_month=${month}`} className="btn btn-secondary" style={{ width: "100%", marginTop: "0.5rem", padding: "0.6rem", display: "block", textAlign: "center", boxSizing: "border-box" }}>
+                                        <Link href={route('payroll.processing', { client_id: clientId, payroll_month: month })} className="btn btn-secondary" style={{ width: "100%", marginTop: "0.5rem", padding: "0.6rem", display: "block", textAlign: "center", boxSizing: "border-box" }}>
                                             Return to Calculations
                                         </Link>
                                     </div>
@@ -310,7 +310,7 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
                     </>
                 ) : (
                     <div className="card" style={{ padding: "3rem", textAlign: "center", color: "var(--text-muted)" }}>
-                        No active draft payroll run exists for this month. Go back to <Link href="/payroll/processing" style={{ textDecoration: "underline", color: "var(--primary-blue)" }}>Payroll Processing</Link> to generate calculations first.
+                        No active draft payroll run exists for this month. Go back to <Link href={route('payroll.processing')} style={{ textDecoration: "underline", color: "var(--primary-blue)" }}>Payroll Processing</Link> to generate calculations first.
                     </div>
                 )}
 

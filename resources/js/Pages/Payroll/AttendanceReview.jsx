@@ -50,7 +50,7 @@ export default function AttendanceReview({ initialBatches, clients, selectedMont
   const handleMonthChange = (e) => {
     const nextMonth = e.target.value;
     setTargetMonth(nextMonth);
-    router.get('/payroll/attendance-review', { month: nextMonth }, { preserveState: true });
+    router.get(route('payroll.attendance-review'), { month: nextMonth }, { preserveState: true });
   };
 
   const openDetails = (clientId, clientName) => {
@@ -59,7 +59,7 @@ export default function AttendanceReview({ initialBatches, clients, selectedMont
     setDetailsModalOpen(true);
     setDetailLoading(true);
 
-    axios.get(`/payroll/attendance-review/${clientId}/details`, {
+    axios.get(route('payroll.attendance-review.details', clientId), {
       params: { month: targetMonth }
     })
     .then(res => {
@@ -80,7 +80,7 @@ export default function AttendanceReview({ initialBatches, clients, selectedMont
     setVerifyLoading(true);
     setVerifyData(null);
 
-    axios.get(`/payroll/attendance-review/${clientId}/verify`, {
+    axios.get(route('payroll.attendance-review.verify', clientId), {
       params: { month: targetMonth }
     })
     .then(res => {
@@ -98,7 +98,7 @@ export default function AttendanceReview({ initialBatches, clients, selectedMont
     if (!selectedClientId) return;
     setVerifySaving(true);
 
-    axios.post(`/payroll/attendance-review/${selectedClientId}/verify`, {
+    axios.post(route('payroll.attendance-review.verify.save', selectedClientId), {
       month: targetMonth
     })
     .then(res => {
@@ -106,7 +106,7 @@ export default function AttendanceReview({ initialBatches, clients, selectedMont
       setVerifySaving(false);
       setVerifyModalOpen(false);
       // Reload Inertia props to show updated verified badge
-      router.get('/payroll/attendance-review', { month: targetMonth }, { preserveState: false });
+      router.get(route('payroll.attendance-review'), { month: targetMonth }, { preserveState: false });
     })
     .catch(err => {
       showToast({ message: 'Failed to save verification status.', type: 'error' });
@@ -206,7 +206,7 @@ export default function AttendanceReview({ initialBatches, clients, selectedMont
             )}
             
             {row.source !== 'No Data Yet' && (
-              <Link href={`/payroll/processing?client_id=${row.id}&payroll_month=${targetMonth}-01`}>
+              <Link href={route('payroll.processing', { client_id: row.id, payroll_month: `${targetMonth}-01` })}>
                 <Button size="xs" variant="primary">Process Payroll</Button>
               </Link>
             )}
@@ -240,7 +240,7 @@ export default function AttendanceReview({ initialBatches, clients, selectedMont
             <h2 className="text-2xl font-bold text-[#1F3864] mb-1">Attendance Timesheets Review</h2>
             <p className="text-gray-500 text-sm">Verify client approval status, unlock timesheets, or initiate calculations for payroll runs.</p>
           </div>
-          <Link href="/payroll/attendance-upload">
+          <Link href={route('payroll.attendance-upload')}>
             <Button variant="primary">📤 Upload New Sheet</Button>
           </Link>
         </div>

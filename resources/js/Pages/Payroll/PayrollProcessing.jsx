@@ -30,25 +30,18 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
 
     const handleClientChange = (newClientId) => {
         setClientId(newClientId);
-        router.get('/payroll/processing', { client_id: newClientId, payroll_month: month }, { preserveState: false });
+        router.get(route('payroll.processing'), { client_id: newClientId, payroll_month: month }, { preserveState: false });
     };
 
     const handleMonthChange = (newMonth) => {
         setMonth(newMonth);
-        router.get('/payroll/processing', { client_id: clientId, payroll_month: newMonth }, { preserveState: false });
+        router.get(route('payroll.processing'), { client_id: clientId, payroll_month: newMonth }, { preserveState: false });
     };
 
     const handleProcess = () => {
-        router.post('/payroll/runs', {
+        router.post(route('payroll.run.process'), {
             client_id: clientId,
             payroll_month: month
-        }, {
-            onSuccess: () => {
-                alert('Payroll run processed successfully!');
-            },
-            onError: (errors) => {
-                alert('Error processing run: ' + (errors.error || 'Unknown error'));
-            }
         });
     };
 
