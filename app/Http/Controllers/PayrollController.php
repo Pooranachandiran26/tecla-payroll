@@ -481,13 +481,35 @@ class PayrollController extends Controller
      */
     public function indexPayslips(Request $request)
     {
-        $runItems = \App\Models\PayrollRunItem::with(['employee', 'payrollRun'])
-            ->whereHas('payrollRun', function ($query) {
-                $query->where('status', 'locked');
-            })
-            ->where('is_excluded', false)
-            ->orderBy('created_at', 'desc')
+        $clients = \App\Models\Client::where('status', 'active')
+            ->select('id', 'company_name')
             ->get();
+
+        $selectedClientId = $request->query('client_id');
+        if (!$selectedClientId && $clients->isNotEmpty()) {
+            $selectedClientId = $clients->first()->id;
+        }
+
+        $selectedMonth = $request->query('payroll_month');
+        if (!$selectedMonth) {
+            $latestRun = \App\Models\PayrollRun::where('status', 'locked')->latest('payroll_month')->first();
+            $selectedMonth = $latestRun ? $latestRun->payroll_month : '2026-07-01';
+        }
+
+        $runItemsQuery = \App\Models\PayrollRunItem::with(['employee', 'payrollRun'])
+            ->whereHas('payrollRun', function ($query) use ($selectedMonth) {
+                $query->where('status', 'locked')
+                      ->where('payroll_month', $selectedMonth);
+            })
+            ->where('is_excluded', false);
+
+        if ($selectedClientId) {
+            $runItemsQuery->whereHas('employee', function ($query) use ($selectedClientId) {
+                $query->where('client_id', $selectedClientId);
+            });
+        }
+
+        $runItems = $runItemsQuery->orderBy('created_at', 'desc')->get();
 
         $items = $runItems->map(function ($item) {
             $employee = $item->employee;
@@ -502,6 +524,9 @@ class PayrollController extends Controller
 
         return \Inertia\Inertia::render('Payroll/Payslip', [
             'items' => $items,
+            'clients' => $clients,
+            'selectedClientId' => $selectedClientId ? (int)$selectedClientId : null,
+            'selectedMonth' => $selectedMonth,
         ]);
     }
 
