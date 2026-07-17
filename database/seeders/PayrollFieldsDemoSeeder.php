@@ -106,6 +106,10 @@ class PayrollFieldsDemoSeeder extends Seeder
             'special_allowance' => 2000,
             'other_additions' => 1000,
             'gross_monthly_salary' => 36000,
+            'employer_pf_monthly' => 1800,
+            'employer_esi_monthly' => 0,
+            'net_take_home_monthly' => 34200,
+            'ctc_monthly' => 37800,
             
             // Statutory
             'pf_applicable' => true,
