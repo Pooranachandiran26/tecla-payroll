@@ -276,23 +276,10 @@ class BulkUploadController extends Controller
                     ['count' => $importedCount, 'client_ids' => array_keys($clientIds), 'file_name' => $file->getClientOriginalName()]
                 );
 
-                // Provision users for successfully created employees
-                $invitationService = app(\App\Services\InvitationService::class);
-                foreach ($createdEmployees as $employee) {
-                    try {
-                        if (!\App\Models\User::where('employee_id', $employee->id)->exists()) {
-                            $invitationService->createInvitation([
-                                'name' => $employee->full_name,
-                                'email' => $employee->personal_email,
-                                'role' => 'employee',
-                                'employee_id' => $employee->id,
-                            ], true); // Force queue
-                        }
-                    } catch (\Illuminate\Database\QueryException $e) {
-                        \Illuminate\Support\Facades\Log::error("Failed to provision user for bulk imported employee {$employee->id} (QueryException): " . $e->getMessage());
-                    } catch (\Exception $e) {
-                        \Illuminate\Support\Facades\Log::error("Failed to provision user for bulk imported employee {$employee->id}: " . $e->getMessage());
-                    }
+                // Provision users in the background for ALL successfully created employees
+                if ($importedCount > 0) {
+                    $employeeIds = array_map(fn($emp) => $emp->id, $createdEmployees);
+                    \App\Jobs\ProvisionBulkUploadUsersJob::dispatch($employeeIds, $request->user()->id);
                 }
 
             } catch (\Exception $e) {
