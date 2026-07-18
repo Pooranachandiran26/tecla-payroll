@@ -3,19 +3,23 @@ import AuthenticatedLayout from '../../Layouts/AuthenticatedLayout';
 import { Head, Link } from '@inertiajs/react';
 import Button from '../../Components/ui/Button';
 import DataTable from '../../Components/ui/DataTable';
+import Pagination from '../../Components/ui/Pagination';
 import Badge from '../../Components/ui/Badge';
 import { UploadCloud, Loader2 } from 'lucide-react';
 import axios from 'axios';
 import RoleGuard from '../../Components/RoleGuard.jsx';
 import useToast from '../../Hooks/useToast';
+import { downloadErrorRowsXlsx } from '../../Utils/excelExport';
 
-export default function BulkUpload() {
+export default function BulkUpload({ clients = [] }) {
   const { showToast } = useToast();
+  const [selectedClientId, setSelectedClientId] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const [validationResults, setValidationResults] = useState(null);
   const [executionResults, setExecutionResults] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   const fileInputRef = useRef(null);
 
   const columns = [
@@ -88,6 +92,7 @@ export default function BulkUpload() {
     setIsUploading(true);
     setValidationResults(null);
     setExecutionResults(null);
+    setCurrentPage(1);
     const formData = new FormData();
     formData.append('file', file);
     
@@ -107,6 +112,7 @@ export default function BulkUpload() {
       }
     }
   };
+  const [partialImportAcknowledged, setPartialImportAcknowledged] = useState(false);
 
   const handleExecute = async () => {
     if (!selectedFile) return;
@@ -114,6 +120,9 @@ export default function BulkUpload() {
     setIsExecuting(true);
     const formData = new FormData();
     formData.append('file', selectedFile);
+    if (validationResults?.error_count > 0 && partialImportAcknowledged) {
+        formData.append('partial_import', '1');
+    }
     
     try {
       const response = await axios.post(route('employees.bulk-upload.execute'), formData, {
@@ -156,12 +165,22 @@ export default function BulkUpload() {
     document.body.removeChild(a);
   };
 
+  const itemsPerPage = 10;
+  const validationRows = validationResults?.rows || [];
+  const totalRows = validationRows.length;
+  const startIdx = (currentPage - 1) * itemsPerPage;
+  const endIdx = startIdx + itemsPerPage;
+  const paginatedRows = validationRows.slice(startIdx, endIdx);
+  const totalPages = Math.ceil(totalRows / itemsPerPage);
+  
+  const canConfirmImport = validationResults?.error_count === 0 || partialImportAcknowledged;
+
   return (
     <RoleGuard allowedRoles={['admin', 'manager']}>
     <AuthenticatedLayout>
       <Head title="Bulk Upload Employees" />
 
-      <div className="mb-6 flex justify-between items-end">
+      <div className="mb-6 flex justify-between items-end flex-wrap gap-4">
         <div>
           <Link href={route('employees.index')} className="text-[0.85rem] font-semibold text-[#1F3864] hover:underline mb-2 inline-block">
             ← Back to Employees Directory
@@ -169,23 +188,38 @@ export default function BulkUpload() {
           <h2 className="text-2xl font-bold text-[#1F3864] mt-1 mb-1">Excel Bulk Employee Uploader</h2>
           <p className="text-gray-500 text-sm">Upload spreadsheet templates to onboard multiple employees and assign their client defaults instantly.</p>
         </div>
-        <a 
-          href={route('employees.bulk-upload').replace('/employees/bulk-upload', '/templates/employee_bulk_upload_template.xlsx')} 
-          download 
-          className="btn btn-outline flex items-center gap-2 text-sm font-semibold border-gray-300 shadow-sm"
-        >
-          <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd"></path></svg>
-          Download Excel Template
-        </a>
+
+        <div className="flex items-center gap-3">
+          <select
+            value={selectedClientId}
+            onChange={(e) => setSelectedClientId(e.target.value)}
+            className="px-3 py-2 text-sm font-semibold rounded-lg border border-gray-300 bg-white shadow-sm focus:border-[#1F3864] focus:ring-1 focus:ring-[#1F3864]"
+          >
+            <option value="">-- Select Client for Template --</option>
+            {clients.map(c => (
+              <option key={c.id} value={c.id}>
+                {c.company_name} ({c.client_code})
+              </option>
+            ))}
+          </select>
+          <a 
+            href={selectedClientId ? route('employees.bulk-upload.download-template', { client_id: selectedClientId }) : '#'} 
+            download 
+            className={`btn btn-outline flex items-center gap-2 text-sm font-semibold border-gray-300 shadow-sm ${!selectedClientId ? 'opacity-50 pointer-events-none cursor-not-allowed' : ''}`}
+          >
+            <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd"></path></svg>
+            Download Excel Template
+          </a>
+        </div>
       </div>
 
-      {/* Important Notes */}
       <div className="card bg-blue-50 border border-blue-100 p-4 mb-6 shadow-sm rounded-lg">
         <h4 className="text-[#1F3864] font-bold mb-2 flex items-center gap-2">
           <span>⚠️</span> Important Guidelines for Bulk Upload
         </h4>
         <ul className="text-sm text-gray-700 list-disc pl-5 space-y-1">
-          <li><strong>Mandatory Fields:</strong> employee_code, client_code, branch_code, full_name, personal_email, phone_number, date_of_joining, designation, employment_model, basic_pay, hra.</li>
+          <li><strong>Reporting Manager:</strong> Use <strong>reporting_manager_code</strong> to assign a manager. The manager must belong to the same client.</li>
+          <li><strong>Declarations & Optional Gaps:</strong> Supported fields include <strong>declarations_accepted</strong> (1/yes or 0/no, defaults to 1), <strong>emergency_contact_name</strong>, <strong>previous_employer_name</strong>, <strong>previous_employer_uan</strong>, <strong>probation_end_date</strong>, and <strong>esi_contribution_period_end</strong>.</li>
           <li><strong>Statutory Toggles:</strong> Use <strong>1</strong> for Yes/True and <strong>0</strong> for No/False (e.g., pf_applicable, esi_applicable).</li>
           <li><strong>Dates Format:</strong> Must be in <strong>YYYY-MM-DD</strong> format (e.g., 2023-01-15).</li>
           <li><strong>Dropdown Values:</strong> Must match exact internal values (e.g., <strong>gender:</strong> male/female/other, <strong>tds_regime:</strong> old/new, <strong>gratuity_mode:</strong> part_of_ctc/over_and_above).</li>
@@ -193,7 +227,6 @@ export default function BulkUpload() {
         </ul>
       </div>
 
-      {/* Drag and Drop Box */}
       {!executionResults && (
       <div 
         className={`card mb-6 flex flex-col items-center justify-center p-12 border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer rounded-lg text-center ${isUploading || isExecuting ? 'opacity-50 pointer-events-none' : ''}`}
@@ -219,13 +252,25 @@ export default function BulkUpload() {
       </div>
       )}
 
-      {/* Excel Validation Preview Grid */}
       {!executionResults && validationResults && (
         <div className="card p-0">
           <div className="p-5 pb-4 border-b border-gray-100 flex justify-between items-center flex-wrap gap-4">
             <h3 className="text-lg font-bold text-[#1F3864] m-0">File Import Validation Status</h3>
-            <div className="bg-gray-100 px-3 py-1.5 rounded-md text-xs font-semibold text-[#1F3864]">
-              📊 Summary: {validationResults.total_rows} rows found — <span className="text-green-600">{validationResults.valid_count} Ready</span>, <span className="text-yellow-600">{validationResults.warning_count} Warnings</span>, <span className="text-red-600">{validationResults.error_count} Errors</span>
+            <div className="flex items-center gap-3">
+              {validationResults.error_count > 0 && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => downloadErrorRowsXlsx(validationResults.rows)}
+                  className="flex items-center gap-1.5 text-xs text-red-700 border-red-300 bg-red-50 hover:bg-red-100"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                  Download Error Rows ({validationResults.error_count})
+                </Button>
+              )}
+              <div className="bg-gray-100 px-3 py-1.5 rounded-md text-xs font-semibold text-[#1F3864]">
+                📊 Summary: {validationResults.total_rows} rows found — <span className="text-green-600">{validationResults.valid_count} Ready</span>, <span className="text-yellow-600">{validationResults.warning_count} Warnings</span>, <span className="text-red-600">{validationResults.error_count} Errors</span>
+              </div>
             </div>
           </div>
 
@@ -233,15 +278,45 @@ export default function BulkUpload() {
             ⚠️ Rows with errors cannot be imported. Resolve warnings below or fix them in your spreadsheet and upload again.
           </p>
 
-          <DataTable columns={columns} data={validationResults.rows} />
+          <DataTable columns={columns} data={paginatedRows} />
 
-          <div className="flex justify-end gap-3 mt-6 border-t border-gray-200 p-6 pt-6">
-            <Link href={route('employees.index')}>
-              <Button variant="secondary">Cancel</Button>
-            </Link>
-            <Button variant="primary" disabled={validationResults.error_count > 0 || isExecuting} onClick={handleExecute}>
-              {isExecuting ? 'Importing...' : `Confirm & Import (${validationResults.valid_count + validationResults.warning_count} employees)`}
-            </Button>
+          {totalRows > 0 && (
+            <div className="px-6 py-4 border-t border-gray-100">
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={totalRows}
+                itemsPerPage={itemsPerPage}
+                onPageChange={setCurrentPage}
+              />
+            </div>
+          )}
+
+          <div className="flex flex-col items-end gap-3 border-t border-gray-200 p-6 bg-gray-50">
+            {validationResults.error_count > 0 && (
+              <div className="mb-2 p-3 bg-white border border-red-200 rounded-md shadow-sm w-full max-w-2xl text-sm">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    className="mt-1 w-4 h-4 text-[#1F3864] rounded border-gray-300 focus:ring-[#1F3864]"
+                    checked={partialImportAcknowledged}
+                    onChange={(e) => setPartialImportAcknowledged(e.target.checked)}
+                  />
+                  <span className="text-gray-700 leading-tight font-medium">
+                    I acknowledge that only the <strong className="text-green-600">{validationResults.valid_count} Valid</strong> rows will be imported. 
+                    The <strong className="text-red-600">{validationResults.error_count} Error</strong> rows will be discarded, and I must download the Error Sheet to fix and upload them separately later.
+                  </span>
+                </label>
+              </div>
+            )}
+            <div className="flex justify-end gap-3">
+              <Link href={route('employees.index')}>
+                <Button variant="secondary">Cancel</Button>
+              </Link>
+              <Button variant="primary" disabled={!canConfirmImport || isExecuting || validationResults.valid_count === 0} onClick={handleExecute}>
+                {isExecuting ? 'Importing...' : `Confirm & Import (${validationResults.valid_count} valid employees)`}
+              </Button>
+            </div>
           </div>
         </div>
       )}
@@ -251,8 +326,12 @@ export default function BulkUpload() {
         <div className="card p-0 mt-6 border-green-500 border-2 shadow-lg overflow-hidden">
           <div className="bg-green-50 p-6 border-b border-green-100 flex items-center justify-between">
             <div>
-              <h3 className="text-xl font-bold text-green-800 m-0">✅ {executionResults.message}</h3>
-              <p className="text-green-600 text-sm mt-1">All employees have been successfully saved to the database.</p>
+              <h3 className="text-xl font-bold text-green-800 m-0">✅ {executionResults.imported_count || 0} Employees Imported Successfully</h3>
+              <p className="text-green-600 text-sm mt-1">
+                {executionResults.ignored_errors_count > 0 
+                  ? <span className="font-bold text-red-600">❌ {executionResults.ignored_errors_count} error rows were ignored and not imported.</span>
+                  : 'All valid employees have been successfully saved to the database.'}
+              </p>
             </div>
             <div className="flex gap-3">
               <Button variant="outline" onClick={downloadCSV}>

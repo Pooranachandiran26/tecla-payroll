@@ -20,6 +20,12 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
 
   const [formData, setFormData] = useState(() => {
     const emp = employee ? (employee.data || employee) : null;
+    let clientIdParam = '';
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      clientIdParam = urlParams.get('client_id') || '';
+    }
+    
     return {
       fullName: emp?.full_name || '',
       gender: emp?.gender || '',
@@ -29,11 +35,11 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       personalEmail: emp?.personal_email || '',
       phone: emp?.phone_number || '',
       emergencyContact: emp?.emergency_contact_phone || '',
-      clientPartner: emp?.client_id || '',
+      clientPartner: emp?.client_id || clientIdParam || '',
       designation: emp?.designation || '',
       doj: emp?.date_of_joining || '',
       empType: emp?.employment_model || 'eor',
-      priorEmploymentFlag: emp ? emp.prior_employment_flag === 1 : true,
+      priorEmploymentFlag: emp ? Boolean(emp.prior_employment_flag) : true,
       address: emp?.residential_address || '',
       accountNo: emp?.bank_account_number || '',
       accountNoConfirm: emp?.bank_account_number || '',
@@ -46,22 +52,22 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       uanMode: emp?.uan_mode || 'new',
       uan: emp?.uan_number || '',
       esiNo: emp?.esic_number || '',
-      basicSal: emp?.basic_pay || 0,
-      hraSal: emp?.hra || 0,
-      conveyanceSal: emp?.conveyance || 0,
-      daSal: emp?.da || 0,
-      medicalSal: emp?.medical_allowance || 0,
-      specialSal: emp?.special_allowance || 0,
-      otherSal: emp?.other_additions || 0,
-      ptDeduction: emp?.pt_deduction_override || 0,
-      pfToggle: emp ? emp.pf_applicable === 1 : true,
-      esiToggle: emp ? emp.esi_applicable === 1 : true,
-      tdsToggle: emp ? emp.tds_applicable === 1 : true,
-      ptToggle: emp ? emp.pt_applicable === 1 : true,
-      lwfToggle: emp ? emp.lwf_applicable === 1 : true,
-      bonusToggle: emp ? emp.bonus_toggle === 1 : true,
+      basicSal: emp?.basic_pay ?? '',
+      hraSal: emp?.hra ?? '',
+      conveyanceSal: emp?.conveyance ?? '',
+      daSal: emp?.da ?? '',
+      medicalSal: emp?.medical_allowance ?? '',
+      specialSal: emp?.special_allowance ?? '',
+      otherSal: emp?.other_additions ?? '',
+      ptDeduction: emp?.pt_deduction_override ?? '',
+      pfToggle: emp ? Boolean(emp.pf_applicable) : true,
+      esiToggle: emp ? Boolean(emp.esi_applicable) : true,
+      tdsToggle: emp ? Boolean(emp.tds_applicable) : true,
+      ptToggle: emp ? Boolean(emp.pt_applicable) : true,
+      lwfToggle: emp ? Boolean(emp.lwf_applicable) : true,
+      bonusToggle: emp ? Boolean(emp.bonus_toggle) : true,
       taxRegime: emp?.tds_regime || 'new',
-      declarations: emp ? (emp.declarations_accepted === 1 ? 'yes' : 'no') : 'yes',
+      declarations: emp ? (Boolean(emp.declarations_accepted) ? 'yes' : 'no') : 'yes',
       gratuityMode: emp?.gratuity_mode || 'part_of_ctc',
       lopBasis: emp?.lop_basis_days || '30',
       emergencyContactName: emp?.emergency_contact_name || '',
@@ -79,6 +85,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
   });
 
   const [errors, setErrors] = useState({});
+  const [processing, setProcessing] = useState(false);
   const [blockingErrors, setBlockingErrors] = useState(new Set());
   
   const [phoneDupChoiceVisible, setPhoneDupChoiceVisible] = useState(false);
@@ -263,7 +270,30 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
     }
   };
 
-  const validatePersonalEmail = () => {
+  const checkLiveUniqueness = async (field, value) => {
+    if (!value) return;
+    try {
+      const res = await axios.get(route('employees.check-unique'), {
+        params: {
+          field,
+          value,
+          ignore_id: !isAdd ? empId : null
+        }
+      });
+      const fieldKey = field === 'personal_email' ? 'personalEmail' : 'phone';
+      const labelStr = field === 'personal_email' ? 'Personal email' : 'Phone number';
+      if (res.data && res.data.available === false) {
+        setErrorMsg(fieldKey, `⛔ ${res.data.message}`, 'error');
+        addBlocker(`${labelStr} is already registered`);
+      } else {
+        removeBlocker(`${labelStr} is already registered`);
+      }
+    } catch (e) {
+      // Ignore network errors in live check UX helper
+    }
+  };
+
+  const validatePersonalEmail = async () => {
     if (!formData.personalEmail) {
       setErrorMsg('personalEmail', '⛔ Personal email is required.', 'error');
       addBlocker('Personal email is required and must be valid');
@@ -275,9 +305,10 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       return;
     }
     removeBlocker('Personal email is required and must be valid');
+    await checkLiveUniqueness('personal_email', formData.personalEmail);
   };
 
-  const validatePhone = () => {
+  const validatePhone = async () => {
     setPhoneDupChoiceVisible(false);
     removeBlocker('Phone number must be exactly 10 digits');
     if (!formData.phone || !/^\d{10}$/.test(formData.phone)) {
@@ -285,8 +316,8 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       addBlocker('Phone number must be exactly 10 digits');
       return;
     }
-    // Real duplicate phone checks happen server-side via unique DB index.
     clearErrorMsg('phone');
+    await checkLiveUniqueness('phone_number', formData.phone);
   };
 
   const acceptDuplicatePhone = () => {
@@ -366,13 +397,18 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       if (formMode !== 'add' && formData.esiToggle) {
         setErrorMsg('esiWarning', `ℹ Gross salary now exceeds ESI threshold (₹${limit}). ESI contribution continues until end of period.`, 'warn');
       } else {
-        handleInputChange('esiToggle', false);
+        if (!overrides.esi) {
+          handleInputChange('esiToggle', false);
+        }
         setErrorMsg('esiWarning', `⚠ Gross salary exceeds ESI threshold (₹${limit}) — ESI does not apply.`, 'error');
       }
     } else {
       clearErrorMsg('esiWarning');
+      if (grossCTC > 0 && !overrides.esi) {
+        handleInputChange('esiToggle', true);
+      }
     }
-  }, [grossCTC, formData.esiToggle, activeClientDefaults, formMode]);
+  }, [grossCTC, activeClientDefaults, formMode]);
 
   // Handlers
   const handleEmpTypeChange = (e) => {
@@ -394,6 +430,9 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
 
   const handleFormSubmit = async (e) => {
     e.preventDefault();
+    if (processing) return;
+    setProcessing(true);
+    
     validatePersonalEmail();
     validatePhone();
     validatePAN();
@@ -403,6 +442,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
     validateAgeAtJoining();
 
     if (blockingErrors.size > 0) {
+      setProcessing(false);
       showToast({ 
         type: 'error', 
         title: 'Cannot Save Employee', 
@@ -427,20 +467,23 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       'emergency_contact_name': 'emergencyContactName', 'previous_employer_name': 'prevEmployerName',
       'previous_employer_uan': 'prevEmployerUAN', 'probation_end_date': 'probationEndDate',
       'reporting_manager_id': 'reportingManagerId', 'notice_period_days': 'noticePeriodDays',
-      'esi_contribution_period_end': 'esiPeriodEnd',
+      'esi_contribution_period_end': 'esiPeriodEnd', 'designation': 'designation', 'branch_id': 'branch_id',
     };
     
     const url = isAdd ? route('employees.store') : route('employees.update', empId);
     const method = isAdd ? 'post' : 'put';
     
     router[method](url, formData, {
+      onFinish: () => setProcessing(false),
       onError: (serverErrors) => {
+        setProcessing(false);
         const mappedErrors = {};
         const errorMessages = [];
         Object.keys(serverErrors).forEach(key => {
           const frontendKey = errorKeyMap[key] || key;
-          mappedErrors[frontendKey] = { msg: serverErrors[key], type: 'error' };
-          errorMessages.push(serverErrors[key]);
+          const msgText = Array.isArray(serverErrors[key]) ? serverErrors[key][0] : String(serverErrors[key]);
+          mappedErrors[frontendKey] = { msg: msgText, type: 'error' };
+          errorMessages.push(msgText);
         });
         setErrors(prev => ({ ...prev, ...mappedErrors }));
         showToast({ type: 'error', title: 'Validation Failed', message: errorMessages.join(' | ') });
@@ -471,7 +514,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
 
           <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 340px", gap: "2rem", alignItems: "start" }}>
             <div className="card">
-              <form id="emp-form" onSubmit={handleFormSubmit}>
+              <form id="emp-form" onSubmit={handleFormSubmit} noValidate>
                 
                 {/* 1. PERSONAL DETAILS */}
                 <h3 style={{ borderBottom: "1px solid var(--border-color)", paddingBottom: "0.5rem", marginBottom: "1.25rem", fontSize: "1.05rem" }}>
@@ -480,11 +523,11 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Full Name</label>
-                    <input type="text" className={`form-control ${errors.fullName ? `is-${errors.fullName.type}` : ''}`} value={formData.fullName}
+                    <label>Full Name <span style={{ color: "var(--status-danger)" }}>*</span></label>
+                    <input type="text" className={`form-control ${errors.fullName ? `is-${errors.fullName.type || 'error'}` : ''}`} value={formData.fullName}
                       onChange={e => { handleInputChange('fullName', e.target.value); handleInputChange('accountHolder', e.target.value); }}
-                      onBlur={validateFullName} />
-                    {errors.fullName && <div className={`field-msg ${errors.fullName.type} show`}>{errors.fullName.msg}</div>}
+                      onBlur={validateFullName} required />
+                    {errors.fullName && <div className={`field-msg ${errors.fullName.type || 'error'} show`}>{errors.fullName.msg}</div>}
                     
                     {nameChangeUploadVisible && (
                       <div style={{ marginTop: "0.75rem", padding: "0.75rem 1rem", background: "var(--status-warning-bg)", borderLeft: "3px solid var(--status-warning)", borderRadius: "var(--radius-sm)" }}>
@@ -509,9 +552,9 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                   {isAdd && (
                     <div className="form-group">
                       <label>Date of Birth <span style={{ color: "var(--status-danger)" }}>*</span></label>
-                      <input type="date" max={maxDobDate} className={`form-control ${errors.dob ? `is-${errors.dob.type}` : ''}`} value={formData.dob}
-                        onChange={e => { handleInputChange('dob', e.target.value); validateAgeAtJoining(); }} />
-                      {errors.dob && <div className={`field-msg ${errors.dob.type} show`}>{errors.dob.msg}</div>}
+                      <input type="date" max={maxDobDate} className={`form-control ${errors.dob ? `is-${errors.dob.type || 'error'}` : ''}`} value={formData.dob}
+                        onChange={e => { handleInputChange('dob', e.target.value); validateAgeAtJoining(); }} required />
+                      {errors.dob && <div className={`field-msg ${errors.dob.type || 'error'} show`}>{errors.dob.msg}</div>}
                     </div>
                   )}
 
@@ -554,9 +597,9 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                   </div>
                   <div className="form-group">
                     <label>Personal Email <span style={{ color: "var(--status-danger)" }}>*</span></label>
-                    <input type="email" className={`form-control ${errors.personalEmail ? `is-${errors.personalEmail.type}` : ''}`} value={formData.personalEmail}
-                      onChange={e => handleInputChange('personalEmail', e.target.value)} onBlur={validatePersonalEmail} />
-                    {errors.personalEmail && <div className={`field-msg ${errors.personalEmail.type} show`}>{errors.personalEmail.msg}</div>}
+                    <input type="email" className={`form-control ${errors.personalEmail ? `is-${errors.personalEmail.type || 'error'}` : ''}`} value={formData.personalEmail}
+                      onChange={e => handleInputChange('personalEmail', e.target.value)} onBlur={validatePersonalEmail} required />
+                    {errors.personalEmail && <div className={`field-msg ${errors.personalEmail.type || 'error'} show`}>{errors.personalEmail.msg}</div>}
                     {!isAdd && employee && formData.personalEmail !== (employee.data?.personal_email || employee.personal_email) && (
                       <div style={{ marginTop: "0.4rem", fontSize: "0.8rem", color: "#64748B", fontStyle: "italic" }}>
                         A notification will be sent to the previous email address confirming this change.
@@ -568,9 +611,9 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                 <div className="form-row">
                   <div className="form-group">
                     <label>Phone Number <span style={{ color: "var(--status-danger)" }}>*</span></label>
-                    <input type="text" className={`form-control ${errors.phone ? `is-${errors.phone.type}` : ''}`} value={formData.phone} maxLength="10"
-                      onChange={e => handleInputChange('phone', e.target.value)} onBlur={validatePhone} />
-                    {errors.phone && <div className={`field-msg ${errors.phone.type} show`}>{errors.phone.msg}</div>}
+                    <input type="text" className={`form-control ${errors.phone ? `is-${errors.phone.type || 'error'}` : ''}`} value={formData.phone} maxLength="10"
+                      onChange={e => handleInputChange('phone', e.target.value)} onBlur={validatePhone} required />
+                    {errors.phone && <div className={`field-msg ${errors.phone.type || 'error'} show`}>{errors.phone.msg}</div>}
                     {phoneDupChoiceVisible && (
                       <div className="inline-choice" style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
                         <button type="button" className="btn btn-primary btn-xs" onClick={acceptDuplicatePhone}>Yes, Continue</button>
@@ -596,8 +639,8 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                 <div className="form-row">
                   {isAdd && (
                     <div className="form-group">
-                      <label>Client Partner</label>
-                      <select className="form-control" value={formData.clientPartner} onChange={e => handleInputChange('clientPartner', e.target.value)} disabled={isActive}>
+                      <label>Client Partner <span style={{ color: "var(--status-danger)" }}>*</span></label>
+                      <select className="form-control" value={formData.clientPartner} onChange={e => handleInputChange('clientPartner', e.target.value)} disabled={isActive} required>
                         <option value="">-- Select Client --</option>
                         {clients && clients.map(c => (
                           <option key={c.id} value={c.id}>{c.company_name}</option>
@@ -606,7 +649,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                     </div>
                   )}
                   <div className="form-group">
-                    <label>Designation</label>
+                    <label>Designation <span style={{ color: "var(--status-danger)" }}>*</span></label>
                     <input type="text" className="form-control" value={formData.designation} onChange={e => handleInputChange('designation', e.target.value)} required />
                   </div>
                 </div>
@@ -614,10 +657,10 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
 
                 <div className="form-row">
                   <div className="form-group">
-                      <label>Date of Joining</label>
-                      <input type="date" className={`form-control ${isActive ? 'read-only-field' : ''} ${errors.doj ? `is-${errors.doj.type}` : ''}`} value={formData.doj}
-                        onChange={e => { handleInputChange('doj', e.target.value); validateAgeAtJoining(); }} readOnly={isActive} />
-                      {errors.doj && <div className={`field-msg ${errors.doj.type} show`}>{errors.doj.msg}</div>}
+                      <label>Date of Joining <span style={{ color: "var(--status-danger)" }}>*</span></label>
+                      <input type="date" className={`form-control ${isActive ? 'read-only-field' : ''} ${errors.doj ? `is-${errors.doj.type || 'error'}` : ''}`} value={formData.doj}
+                        onChange={e => { handleInputChange('doj', e.target.value); validateAgeAtJoining(); }} readOnly={isActive} required />
+                      {errors.doj && <div className={`field-msg ${errors.doj.type || 'error'} show`}>{errors.doj.msg}</div>}
                     </div>
                     <div className="form-group">
                       <label>Employment Model</label>
@@ -636,35 +679,35 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                       <label>Prior Employment Flag <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>(Required for Previous Employer KYC docs)</span></label>
                       <div style={{ marginTop: "0.5rem" }}>
                         <label className="toggle-container">
-                          <input type="checkbox" className="toggle-input" checked={formData.priorEmploymentFlag} onChange={e => handleInputChange('priorEmploymentFlag', e.target.checked)} disabled={isActive} />
-                          <span className="toggle-switch"></span>
-                          <span style={{ fontWeight: "600", color: "var(--primary-navy)" }}>{formData.priorEmploymentFlag ? 'Yes' : 'No'}</span>
+                           <input type="checkbox" className="toggle-input" checked={formData.priorEmploymentFlag} onChange={e => handleInputChange('priorEmploymentFlag', e.target.checked)} disabled={isActive} />
+                           <span className="toggle-switch"></span>
+                           <span style={{ fontWeight: "600", color: "var(--primary-navy)" }}>{formData.priorEmploymentFlag ? 'Yes' : 'No'}</span>
                         </label>
                       </div>
                     </div>
                   <div className="form-group" style={{ flex: 1 }}>
-                    <label>Residential Address</label>
-                    <input type="text" className="form-control" value={formData.address} onChange={e => handleInputChange('address', e.target.value)} />
+                    <label>Residential Address <span style={{ color: "var(--status-danger)" }}>*</span></label>
+                    <input type="text" className="form-control" value={formData.address} onChange={e => handleInputChange('address', e.target.value)} required />
                   </div>
                 </div>
 
                 <div className="form-row">
                   <div className="form-group">
                     <label>Probation End Date</label>
-                    <input type="date" className={`form-control ${errors.probationEndDate ? 'is-error' : ''}`} value={formData.probationEndDate}
+                    <input type="date" className={`form-control ${errors.probationEndDate ? `is-${errors.probationEndDate.type || 'error'}` : ''}`} value={formData.probationEndDate}
                       onChange={e => handleInputChange('probationEndDate', e.target.value)} />
-                    {errors.probationEndDate && <div className="field-msg error show">{errors.probationEndDate.msg}</div>}
+                    {errors.probationEndDate && <div className={`field-msg ${errors.probationEndDate.type || 'error'} show`}>{errors.probationEndDate.msg}</div>}
                   </div>
                   <div className="form-group">
                     <label>Reporting Manager</label>
-                    <select className={`form-control ${errors.reportingManagerId ? 'is-error' : ''}`} value={formData.reportingManagerId}
+                    <select className={`form-control ${errors.reportingManagerId ? `is-${errors.reportingManagerId.type || 'error'}` : ''}`} value={formData.reportingManagerId}
                       onChange={e => handleInputChange('reportingManagerId', e.target.value)}>
                       <option value="">-- None --</option>
                       {clientActiveEmployees.map(emp => (
                         <option key={emp.id} value={emp.id}>{emp.full_name} ({emp.employee_code})</option>
                       ))}
                     </select>
-                    {errors.reportingManagerId && <div className="field-msg error show">{errors.reportingManagerId.msg}</div>}
+                    {errors.reportingManagerId && <div className={`field-msg ${errors.reportingManagerId.type || 'error'} show`}>{errors.reportingManagerId.msg}</div>}
                   </div>
                 </div>
 
@@ -674,9 +717,9 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                       Notice Period (Days)
                       <span className={`badge ${overrides.noticePeriod ? 'badge-gold' : 'badge-neutral'}`}>{overrides.noticePeriod ? 'Overridden' : 'Inherited'}</span>
                     </label>
-                    <input type="number" className={`form-control ${errors.noticePeriodDays ? 'is-error' : ''}`} value={formData.noticePeriodDays} min="0"
+                    <input type="number" className={`form-control ${errors.noticePeriodDays ? `is-${errors.noticePeriodDays.type || 'error'}` : ''}`} value={formData.noticePeriodDays} min="0"
                       onChange={e => { handleInputChange('noticePeriodDays', e.target.value); toggleOverride('noticePeriod'); }} placeholder="e.g. 30" />
-                    {errors.noticePeriodDays && <div className="field-msg error show">{errors.noticePeriodDays.msg}</div>}
+                    {errors.noticePeriodDays && <div className={`field-msg ${errors.noticePeriodDays.type || 'error'} show`}>{errors.noticePeriodDays.msg}</div>}
                   </div>
                 </div>
 
@@ -715,23 +758,23 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                     <div className="form-row">
                       <div className="form-group">
                         <label>Account Number <span style={{ color: "var(--status-danger)" }}>*</span></label>
-                        <input type="text" className={`form-control ${errors.accountNo ? `is-${errors.accountNo.type}` : ''}`} value={formData.accountNo}
-                          onChange={e => handleInputChange('accountNo', e.target.value)} onBlur={validateAccountMatch} />
+                        <input type="text" className={`form-control ${errors.accountNo ? `is-${errors.accountNo.type || 'error'}` : ''}`} value={formData.accountNo}
+                          onChange={e => handleInputChange('accountNo', e.target.value)} onBlur={validateAccountMatch} required />
                       </div>
-                      <div className="form-group">
+                      <div className="form-group" style={{ marginBottom: "0" }}>
                         <label>Confirm Account Number <span style={{ color: "var(--status-danger)" }}>*</span></label>
-                        <input type="text" className={`form-control ${errors.accountNoConfirm ? `is-${errors.accountNoConfirm.type}` : ''}`} value={formData.accountNoConfirm}
-                          onChange={e => handleInputChange('accountNoConfirm', e.target.value)} onBlur={validateAccountMatch} />
-                        {errors.accountNoConfirm && <div className={`field-msg ${errors.accountNoConfirm.type} show`}>{errors.accountNoConfirm.msg}</div>}
+                        <input type="text" className={`form-control ${errors.accountNoConfirm ? `is-${errors.accountNoConfirm.type || 'error'}` : ''}`} value={formData.accountNoConfirm}
+                          onChange={e => handleInputChange('accountNoConfirm', e.target.value)} onBlur={validateAccountMatch} required />
+                        {errors.accountNoConfirm && <div className={`field-msg ${errors.accountNoConfirm.type || 'error'} show`}>{errors.accountNoConfirm.msg}</div>}
                       </div>
                     </div>
 
                     <div className="form-row">
-                      <div className="form-group">
+                      <div className="form-group" style={{ marginBottom: "0" }}>
                         <label>IFSC Code <span style={{ color: "var(--status-danger)" }}>*</span></label>
-                        <input type="text" className={`form-control ${errors.ifsc ? `is-${errors.ifsc.type}` : ''}`} value={formData.ifsc}
-                          onChange={e => handleInputChange('ifsc', e.target.value.toUpperCase())} onBlur={validateIFSC} />
-                        {errors.ifsc && <div className={`field-msg ${errors.ifsc.type} show`}>{errors.ifsc.msg}</div>}
+                        <input type="text" className={`form-control ${errors.ifsc ? `is-${errors.ifsc.type || 'error'}` : ''}`} value={formData.ifsc}
+                          onChange={e => handleInputChange('ifsc', e.target.value.toUpperCase())} onBlur={validateIFSC} required />
+                        {errors.ifsc && <div className={`field-msg ${errors.ifsc.type || 'error'} show`}>{errors.ifsc.msg}</div>}
                       </div>
                       <div className="form-group">
                         <label>Bank Name</label>
@@ -745,8 +788,8 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                         <input type="text" className="form-control read-only-field" value={formData.bankBranch} readOnly />
                       </div>
                       <div className="form-group">
-                        <label>Account Holder Name</label>
-                        <input type="text" className="form-control" value={formData.accountHolder} onChange={e => handleInputChange('accountHolder', e.target.value)} />
+                        <label>Account Holder Name <span style={{ color: "var(--status-danger)" }}>*</span></label>
+                        <input type="text" className="form-control" value={formData.accountHolder} onChange={e => handleInputChange('accountHolder', e.target.value)} required />
                       </div>
                     </div>
                   </div>
@@ -759,10 +802,10 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Permanent Account Number (PAN)</label>
-                    <input type="text" className={`form-control ${errors.pan ? `is-${errors.pan.type}` : ''}`} value={formData.pan}
-                      onChange={e => handleInputChange('pan', e.target.value.toUpperCase())} onBlur={validatePAN} />
-                    {errors.pan && <div className={`field-msg ${errors.pan.type} show`}>{errors.pan.msg}</div>}
+                    <label>Permanent Account Number (PAN) <span style={{ color: "var(--status-danger)" }}>*</span></label>
+                    <input type="text" className={`form-control ${errors.pan ? `is-${errors.pan.type || 'error'}` : ''}`} value={formData.pan}
+                      onChange={e => handleInputChange('pan', e.target.value.toUpperCase())} onBlur={validatePAN} required />
+                    {errors.pan && <div className={`field-msg ${errors.pan.type || 'error'} show`}>{errors.pan.msg}</div>}
                     <small style={{ color: "var(--text-muted)", display: "block", marginTop: "4px" }}>Note: Name on PAN must exactly match the Full Name entered above to avoid statutory rejection.</small>
                   </div>
                   <div className="form-group">
@@ -799,13 +842,13 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                     <div className="form-row">
                       <div className="form-group">
                         <label>1. Basic Pay (₹)</label>
-                        <input type="number" className={`form-control ${errors.basicSal ? `is-${errors.basicSal.type}` : ''}`} value={formData.basicSal}
-                          onChange={e => handleInputChange('basicSal', e.target.value)} onBlur={validateBasicPct} />
-                        {errors.basicSal && <div className={`field-msg ${errors.basicSal.type} show`}>{errors.basicSal.msg}</div>}
+                        <input type="number" className={`form-control ${errors.basicSal ? `is-${errors.basicSal.type || 'error'}` : ''}`} value={formData.basicSal}
+                          onChange={e => handleInputChange('basicSal', e.target.value)} onBlur={validateBasicPct} min="0" required />
+                        {errors.basicSal && <div className={`field-msg ${errors.basicSal.type || 'error'} show`}>{errors.basicSal.msg}</div>}
                       </div>
                       <div className="form-group">
                         <label>2. HRA (₹)</label>
-                        <input type="number" className="form-control" value={formData.hraSal} onChange={e => handleInputChange('hraSal', e.target.value)} />
+                        <input type="number" className="form-control" value={formData.hraSal} onChange={e => handleInputChange('hraSal', e.target.value)} min="0" required />
                       </div>
                       <div className="form-group">
                         <label>3. Conveyance (₹)</label>
@@ -881,13 +924,13 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                             <option value="new">Pending / New Registration</option>
                             <option value="existing_transfer">Existing UAN</option>
                           </select>
-                          {errors.uanMode && <div className="invalid-feedback">{errors.uanMode.msg || errors.uanMode}</div>}
+                          {errors.uanMode && <div className={`field-msg ${errors.uanMode.type || 'error'} show`}>{errors.uanMode.msg || errors.uanMode}</div>}
                         </div>
                         {formData.uanMode === 'existing_transfer' && (
                           <div className="form-group" style={{ marginBottom: "0" }}>
                             <label>UAN Number <span style={{ color: "var(--status-danger)" }}>*</span></label>
                             <input type="text" className={`form-control ${errors.uan ? 'is-invalid' : ''}`} value={formData.uan} onChange={e => handleInputChange('uan', e.target.value)} placeholder="12-digit UAN" maxLength="12" />
-                            {errors.uan && <div className="invalid-feedback">{errors.uan.msg || errors.uan}</div>}
+                            {errors.uan && <div className={`field-msg ${errors.uan.type || 'error'} show`}>{errors.uan.msg || errors.uan}</div>}
                           </div>
                         )}
                       </div>
@@ -920,13 +963,13 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                       <div className="form-group" style={{ marginBottom: "0.75rem" }}>
                         <label>ESIC IP Number <span style={{ color: "var(--status-danger)" }}>*</span></label>
                         <input type="text" className={`form-control ${errors.esiNo ? 'is-invalid' : ''}`} value={formData.esiNo} onChange={e => handleInputChange('esiNo', e.target.value)} placeholder="10-digit ESIC Number" maxLength="10" />
-                        {errors.esiNo && <div className="invalid-feedback">{errors.esiNo.msg || errors.esiNo}</div>}
+                        {errors.esiNo && <div className={`field-msg ${errors.esiNo.type || 'error'} show`}>{errors.esiNo.msg || errors.esiNo}</div>}
                       </div>
                       <div className="form-group" style={{ marginBottom: "0" }}>
                         <label>ESI Contribution Period End</label>
-                        <input type="date" className={`form-control ${errors.esiPeriodEnd ? 'is-error' : ''}`} value={formData.esiPeriodEnd}
+                        <input type="date" className={`form-control ${errors.esiPeriodEnd ? `is-${errors.esiPeriodEnd.type || 'error'}` : ''}`} value={formData.esiPeriodEnd}
                           onChange={e => handleInputChange('esiPeriodEnd', e.target.value)} />
-                        {errors.esiPeriodEnd && <div className="field-msg error show">{errors.esiPeriodEnd.msg}</div>}
+                        {errors.esiPeriodEnd && <div className={`field-msg ${errors.esiPeriodEnd.type || 'error'} show`}>{errors.esiPeriodEnd.msg}</div>}
                       </div>
                     </div>
                   )}
@@ -1027,12 +1070,12 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
 
                 <div style={{ display: "flex", gap: "1rem", justifyContent: "flex-end", marginTop: "2rem" }}>
                   <Link href={route('employees.index')} className="btn btn-secondary">Cancel</Link>
-                  <button type="submit" className="btn btn-primary" onClick={() => {
+                  <button type="submit" className="btn btn-primary" disabled={processing} onClick={() => {
                     if (blockingErrors.size > 0) {
                       showToast({ type: 'error', title: 'Cannot Save Employee', message: Array.from(blockingErrors).join(' | ') });
                     }
                   }}>
-                    Save Employee Configuration
+                    {processing ? 'Saving...' : 'Save Employee Configuration'}
                   </button>
                 </div>
               </form>

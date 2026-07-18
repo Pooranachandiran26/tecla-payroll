@@ -15,7 +15,7 @@ return new class extends Migration
             ['group' => 'company_profile', 'key' => 'tan_number', 'type' => 'string', 'value' => json_encode('MUMT01234B'), 'is_locked' => false],
             ['group' => 'company_profile', 'key' => 'default_authorized_signatory', 'type' => 'string', 'value' => json_encode('Rajesh Kumar'), 'is_locked' => false],
             ['group' => 'company_profile', 'key' => 'registered_office_address', 'type' => 'string', 'value' => json_encode('BKC, Bandra East, Mumbai, Maharashtra'), 'is_locked' => false],
-            ['group' => 'company_profile', 'key' => 'agency_gstin', 'type' => 'string', 'value' => json_encode('27AAAAA0000A1Z5'), 'is_locked' => false],
+            ['group' => 'company_profile', 'key' => 'agency_gstin', 'type' => 'string', 'value' => json_encode('27AABCM1234N1ZQ'), 'is_locked' => false],
         ];
 
         foreach ($settings as $setting) {

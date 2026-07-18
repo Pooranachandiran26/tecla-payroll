@@ -50,16 +50,36 @@ class EmployeeController extends Controller
     {
         $data = $request->validated();
         
-        // Generate employee code (simple incremental for now)
-        $lastEmp = \App\Models\Employee::orderBy('id', 'desc')->first();
-        $nextId = $lastEmp ? $lastEmp->id + 1 : 1;
-        $data['employee_code'] = 'TEC-' . str_pad($nextId, 3, '0', STR_PAD_LEFT);
-        $data['status'] = 'onboarding';
-        
-        $clientBranch = \App\Models\ClientBranch::where('client_id', $data['client_id'])->first();
-        $data['branch_id'] = $clientBranch ? $clientBranch->id : 1;
+        $employee = \DB::transaction(function () use ($data) {
+            $attempts = 0;
+            $maxAttempts = 5;
+            
+            while ($attempts < $maxAttempts) {
+                try {
+                    // Lock the last employee record to prevent concurrent ID selection collision
+                    $lastEmp = \App\Models\Employee::lockForUpdate()->orderBy('id', 'desc')->first();
+                    $nextId = $lastEmp ? $lastEmp->id + 1 : 1;
+                    
+                    $data['employee_code'] = 'TEC-' . str_pad($nextId, 3, '0', STR_PAD_LEFT);
+                    $data['status'] = 'onboarding';
+                    
+                    $clientBranch = \App\Models\ClientBranch::where('client_id', $data['client_id'])->first();
+                    $data['branch_id'] = $clientBranch ? $clientBranch->id : 1;
 
-        $employee = \App\Models\Employee::create($data);
+                    return \App\Models\Employee::create($data);
+                } catch (\Illuminate\Database\QueryException $e) {
+                    if ($e->getCode() == 23000 || str_contains($e->getMessage(), 'Duplicate entry')) {
+                        $attempts++;
+                        if ($attempts >= $maxAttempts) {
+                            throw $e;
+                        }
+                        usleep(100000); // Wait 100ms before retrying
+                        continue;
+                    }
+                    throw $e;
+                }
+            }
+        });
 
         try {
             if (!\App\Models\User::where('employee_id', $employee->id)->exists()) {
@@ -76,6 +96,13 @@ class EmployeeController extends Controller
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error("Failed to provision user for employee {$employee->id}: " . $e->getMessage());
         }
+
+        \App\Jobs\NotifyWatchersJob::dispatch(
+            'system_alerts',
+            'New Employee Registered',
+            "Employee {$employee->full_name} ({$employee->employee_code}) has been added to the system.",
+            null
+        );
 
         return redirect()->route('employees.index')->with('success', 'Employee created successfully.');
     }
@@ -112,11 +139,33 @@ class EmployeeController extends Controller
         ]);
     }
 
-    public function show($id)
+    public function show(\Illuminate\Http\Request $request, $id)
     {
         $employee = \App\Models\Employee::with(['salaryRevisions.approver', 'client', 'exitRequest', 'documents'])->findOrFail($id);
+        
+        $targetDate = $request->query('month') ? \Carbon\Carbon::parse($request->query('month').'-01') : now();
+        $monthStart = $targetDate->copy()->startOfMonth()->toDateString();
+        $monthEnd = $targetDate->copy()->endOfMonth()->toDateString();
+        
+        $attendanceRecords = \App\Models\AttendanceRecord::where('employee_id', $employee->id)
+            ->whereBetween('attendance_date', [$monthStart, $monthEnd])
+            ->orderBy('attendance_date', 'asc')
+            ->get();
+
+        $stats = [
+            'present' => $attendanceRecords->where('status', 'present')->count(),
+            'leave' => $attendanceRecords->where('status', 'leave')->count(),
+            'absent' => $attendanceRecords->where('status', 'absent')->count(),
+            'targetMonth' => $targetDate->format('Y-m'),
+            'targetMonthDisplay' => $targetDate->format('F Y'),
+            'daysInMonth' => $targetDate->daysInMonth,
+            'startDayOfWeek' => $targetDate->copy()->startOfMonth()->dayOfWeekIso, // 1 (Mon) - 7 (Sun)
+        ];
+
         return \Inertia\Inertia::render('Employees/EmployeeDetail', [
-            'employee' => new \App\Http\Resources\EmployeeResource($employee)
+            'employee' => new \App\Http\Resources\EmployeeResource($employee),
+            'attendanceRecords' => $attendanceRecords,
+            'attendanceStats' => $stats
         ]);
     }
 
@@ -126,13 +175,23 @@ class EmployeeController extends Controller
         
         $employee->update($request->validated());
 
-        return redirect()->back()->with('success', 'Employee updated successfully.');
+        return redirect()->route('employees.index')->with('success', 'Employee updated successfully.');
     }
 
     public function storeDocument(\App\Http\Requests\StoreEmployeeDocumentRequest $request, $id)
     {
         $employee = \App\Models\Employee::findOrFail($id);
         
+        // Find existing document of the same type and delete it (including file)
+        $existing = \App\Models\EmployeeDocument::where('employee_id', $employee->id)
+            ->where('document_type', $request->document_type)
+            ->first();
+            
+        if ($existing) {
+            \Illuminate\Support\Facades\Storage::delete($existing->file_path);
+            $existing->delete();
+        }
+
         $path = $request->file('file')->store('employee_documents');
         
         \App\Models\EmployeeDocument::create([
@@ -163,12 +222,25 @@ class EmployeeController extends Controller
             'verified_at' => now(),
         ]);
 
+        if ($request->status === 'verified' && $employee->personal_email) {
+            \Illuminate\Support\Facades\Mail::to($employee->personal_email)
+                ->queue(new \App\Mail\DocumentVerifiedMail($document->document_type, $employee->full_name));
+        } elseif ($request->status === 'rejected' && $employee->personal_email) {
+            \Illuminate\Support\Facades\Mail::to($employee->personal_email)
+                ->queue(new \App\Mail\DocumentRejectedMail($document->document_type, $employee->full_name, $request->rejection_reason));
+        }
+
         // Check for auto-activation
         if ($request->status === 'verified' && $employee->status === 'onboarding') {
             $employee->load('documents'); // reload to get latest status
             if ($employee->documents_verified_count >= $employee->documents_required_count) {
                 $employee->update(['status' => 'active']);
                 
+                if ($employee->personal_email) {
+                    \Illuminate\Support\Facades\Mail::to($employee->personal_email)
+                        ->queue(new \App\Mail\ProfileActivatedMail($employee->full_name));
+                }
+
                 $auditService = app(\App\Services\AuditService::class);
                 $auditService->log(
                     'employee.auto_activated',
@@ -182,6 +254,24 @@ class EmployeeController extends Controller
         }
 
         return redirect()->back()->with('success', 'Document verified successfully.');
+    }
+
+    public function viewDocument($id, $docId)
+    {
+        $employee = \App\Models\Employee::findOrFail($id);
+        \Illuminate\Support\Facades\Gate::authorize('viewDocuments', $employee);
+
+        $document = \App\Models\EmployeeDocument::where('employee_id', $employee->id)->findOrFail($docId);
+
+        if (!\Illuminate\Support\Facades\Storage::disk('local')->exists($document->file_path)) {
+            abort(404, 'Document file not found.');
+        }
+
+        return \Illuminate\Support\Facades\Storage::disk('local')->response(
+            $document->file_path,
+            null,
+            ['Content-Disposition' => 'inline']
+        );
     }
 
     public function destroy(Request $request, $id)
@@ -204,10 +294,9 @@ class EmployeeController extends Controller
             return redirect()->back()->with('error', 'Cannot delete: this employee has an in-progress exit. Complete or cancel it first.');
         }
 
-        // BLOCKING CHECK 2: Payroll locked (stub)
-        // SUGGESTION: Future real check when payroll module is built
-        $isPayrollLocked = false;
-        if ($isPayrollLocked) {
+        // BLOCKING CHECK 2: Payroll locked check
+        $calcService = new \App\Services\FullAndFinalCalculationService();
+        if ($calcService->isPayrollLocked($employee)) {
             return redirect()->back()->with('error', 'Cannot delete: this employee has locked payroll records.');
         }
 
@@ -345,4 +434,62 @@ class EmployeeController extends Controller
 
         return redirect()->back()->with('success', 'Employee restored successfully.');
     }
+
+    /**
+     * Check field uniqueness for live frontend UX validation.
+     * Strictly masks identifying data to prevent privacy leaks.
+     */
+    public function checkUnique(Request $request)
+    {
+        $validated = $request->validate([
+            'field' => 'required|in:personal_email,phone_number',
+            'value' => 'required|string',
+            'ignore_id' => 'nullable|integer',
+        ]);
+
+        $field = $validated['field'];
+        $value = trim($validated['value']);
+        $ignoreId = $validated['ignore_id'] ?? null;
+
+        if ($field === 'personal_email') {
+            $employeeQuery = \App\Models\Employee::where('personal_email', $value);
+            if ($ignoreId) {
+                $employeeQuery->where('id', '!=', $ignoreId);
+            }
+            $existsInEmployees = $employeeQuery->exists();
+
+            $userQuery = \App\Models\User::where('email', $value);
+            if ($ignoreId) {
+                $userQuery->where(function ($q) use ($ignoreId) {
+                    $q->whereNull('employee_id')
+                      ->orWhere('employee_id', '!=', $ignoreId);
+                });
+            }
+            $existsInUsers = $userQuery->exists();
+
+            if ($existsInEmployees || $existsInUsers) {
+                return response()->json([
+                    'available' => false,
+                    'message' => 'This email address is already registered in the system.'
+                ]);
+            }
+        } elseif ($field === 'phone_number') {
+            $employeeQuery = \App\Models\Employee::where('phone_number', $value);
+            if ($ignoreId) {
+                $employeeQuery->where('id', '!=', $ignoreId);
+            }
+            if ($employeeQuery->exists()) {
+                return response()->json([
+                    'available' => false,
+                    'message' => 'This phone number is already registered in the system.'
+                ]);
+            }
+        }
+
+        return response()->json([
+            'available' => true,
+            'message' => null,
+        ]);
+    }
 }
+

@@ -263,7 +263,7 @@ export default function InvoiceGenerate() {
       <Head title="Generate Invoice" />
 
       <div className="mb-6">
-        <Link href="/invoices" className="text-[0.85rem] font-semibold text-[#1F3864] hover:underline">← Back to Invoices</Link>
+        <Link href={route('invoices.index')} className="text-[0.85rem] font-semibold text-[#1F3864] hover:underline">← Back to Invoices</Link>
         <h2 className="text-2xl font-bold text-[#1F3864] mt-2 mb-1">Client Invoice Generation</h2>
         <p className="text-gray-500 text-[0.9rem]">Compile monthly employee expenditures, agency commissions, and service tax liabilities into invoice records.</p>
       </div>
@@ -331,7 +331,7 @@ export default function InvoiceGenerate() {
               )}
 
               <div className="flex gap-4 justify-end mt-8">
-                <Link href="/invoices">
+                <Link href={route('invoices.index')}>
                   <Button variant="secondary">Cancel</Button>
                 </Link>
                 <Button 
@@ -360,7 +360,7 @@ export default function InvoiceGenerate() {
         <div className="bg-[#ECFDF5] border-l-4 border-green-500 p-4 rounded-md mb-6">
           <strong className="text-green-600">✓ Success:</strong> <span dangerouslySetInnerHTML={{ __html: success }} />
           <div className="mt-4">
-            <Link href="/invoices">
+            <Link href={route('invoices.index')}>
               <Button size="xs" variant="secondary">Back to Invoices</Button>
             </Link>
           </div>

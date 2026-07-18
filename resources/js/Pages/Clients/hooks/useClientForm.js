@@ -163,7 +163,7 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
         setErrors(prev => { const n = { ...prev }; delete n.tan; return n; });
       } else {
         setHints(prev => ({ ...prev, tan: { text: '✗ Invalid TAN. Format: MUMD12345A (4 alpha + 5 digits + 1 alpha)', type: 'error' } }));
-        setErrors(prev => ({ ...prev, tan: true }));
+        setErrors(prev => ({ ...prev, tan: { msg: 'Invalid TAN format (e.g. MUMD12345A). Format: 4 letters + 5 digits + 1 letter.', type: 'error' } }));
       }
     } else {
       setHints(prev => ({ ...prev, tan: { text: 'Required for TDS deduction filing.', type: '' } }));
@@ -613,7 +613,7 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
         if (compType !== 'govt' && compType !== 'trust') {
           requiredFields.push({ key: 'gstin', label: 'GSTIN' });
         }
-        requiredFields.push({ key: 'pan', label: 'PAN' });
+        requiredFields.push({ key: 'pan', label: 'PAN' }, { key: 'tan', label: 'TAN' });
       } else {
         requiredFields.push({ key: 'taxId', label: 'Tax ID' }, { key: 'regNo', label: 'Registration Number' });
       }
@@ -663,7 +663,7 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
         value = formData[field.key];
       }
       if (!value || String(value).trim() === '') {
-        newErrors[field.key] = true;
+        newErrors[field.key] = { msg: `${field.label} is required.`, type: 'error' };
         isValid = false;
         missingLabels.push(field.label);
       } else {
@@ -674,11 +674,24 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
     if (stepNum === 1 && country === 'India' && compType !== 'govt' && compType !== 'trust') {
       const gstin = (formData.gstin || '').toUpperCase();
       if (gstin && !PATTERNS.GSTIN.test(gstin)) {
-        newErrors.gstin = true;
+        newErrors.gstin = { msg: 'Invalid GSTIN format. Must be 15 alphanumeric characters.', type: 'error' };
         isValid = false;
         if (!missingLabels.includes('GSTIN (Invalid format)')) {
             missingLabels.push('GSTIN (Invalid format)');
         }
+      }
+
+      const isTdsActive = formData.tdsApplicableAgency && formData.tdsApplicableAgency !== 'na';
+      const tan = (formData.tan || '').toUpperCase().trim();
+
+      if (isTdsActive && !tan) {
+        newErrors.tan = { msg: 'TAN is required when TDS deduction is applicable on agency invoices.', type: 'error' };
+        isValid = false;
+        missingLabels.push('TAN (Required for TDS)');
+      } else if (tan && !PATTERNS.TAN.test(tan)) {
+        newErrors.tan = { msg: 'Invalid TAN format (e.g. MUMD12345A). Format: 4 letters + 5 digits + 1 letter.', type: 'error' };
+        isValid = false;
+        missingLabels.push('TAN (Invalid format)');
       }
     }
 
@@ -916,7 +929,6 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
         else if (index === 2) mappedKey = `poc3.${field}`;
         else mappedKey = `extraContacts[${index - 3}].${field}`;
       } else if (key.startsWith('branches.')) {
-        // branches.0.gstin -> branches.0.gstin or let's use brackets for array
         const parts = key.split('.');
         const index = parseInt(parts[1]);
         const field = parts.slice(2).join('.');
@@ -934,12 +946,16 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
 
         mappedKey = `branches.${index}.${branchField}`;
       }
-      mapped[mappedKey] = laravelErrors[key];
+      const rawVal = laravelErrors[key];
+      const msgText = Array.isArray(rawVal) ? rawVal[0] : (typeof rawVal === 'object' && rawVal?.msg ? rawVal.msg : String(rawVal));
+      mapped[mappedKey] = { msg: msgText, type: 'error' };
     });
     return mapped;
   }, []);
 
   const submitForm = useCallback(() => {
+    if (isSubmitting) return;
+
     const payload = getFormPayload();
 
     setIsSubmitting(true);

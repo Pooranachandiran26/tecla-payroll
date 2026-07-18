@@ -62,3 +62,27 @@
     font-weight: bold;
     margin-bottom: 0.5rem;
 }
+
+.preflight-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border-color);
+}
+.preflight-item:last-child {
+    border-bottom: none;
+}
+.preflight-icon {
+    font-size: 1.2rem;
+    line-height: 1;
+}
+.preflight-content {
+    flex: 1;
+    font-size: 0.85rem;
+}
+.status-red { color: var(--status-danger); }
+.status-amber { color: var(--status-warning); }
+.status-green { color: var(--status-success); }
+.status-info { color: #3B82F6; }
+

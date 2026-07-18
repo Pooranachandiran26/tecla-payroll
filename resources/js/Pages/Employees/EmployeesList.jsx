@@ -1,10 +1,29 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import './EmployeesList.css';
 
 import RoleGuard from '../../Components/RoleGuard.jsx';
 export default function EmployeesList({ employees = { data: [], links: [] }, clients = [], filters = {} }) {
+    const [search, setSearch] = useState(filters.search || '');
+    const [clientId, setClientId] = useState(filters.client_id || '');
+    const [empModel, setEmpModel] = useState(filters.employment_model || '');
+    const [status, setStatus] = useState(filters.status || '');
+
+    const applyFilters = () => {
+        router.get(route('employees.index'), {
+            search,
+            client_id: clientId,
+            employment_model: empModel,
+            status: status
+        }, { preserveState: true, preserveScroll: true });
+    };
+
+    const handleKeyPress = (e) => {
+        if (e.key === 'Enter') {
+            applyFilters();
+        }
+    };
     useEffect(() => {
         // Load the legacy logic dynamically so it runs on client side after render
         import('./EmployeesListLogic.js').then(module => {
@@ -37,10 +56,10 @@ export default function EmployeesList({ employees = { data: [], links: [] }, cli
       <div className="card" style={{"padding":"1rem","marginBottom":"1.5rem","display":"flex","gap":"1rem","alignItems":"center","flexWrap":"wrap"}}>
         <div style={{"fontSize":"0.85rem","fontWeight":"600","color":"var(--primary-navy)"}}>Filters:</div>
         <div style={{"flex":"1","minWidth":"200px"}}>
-          <input type="text" className="form-control" placeholder="Search by Employee Code, Name or UAN..." style={{"padding":"0.4rem 0.75rem"}} defaultValue={filters.search} />
+          <input type="text" className="form-control" placeholder="Search by Employee Code, Name or UAN..." style={{"padding":"0.4rem 0.75rem"}} value={search} onChange={e => setSearch(e.target.value)} onKeyPress={handleKeyPress} />
         </div>
         <div>
-          <select className="form-control" style={{"padding":"0.4rem 0.75rem"}} title="Select Client" defaultValue={filters.client_id}>
+          <select className="form-control" style={{"padding":"0.4rem 0.75rem"}} title="Select Client" value={clientId} onChange={e => setClientId(e.target.value)}>
             <option value="">All Clients</option>
             {clients && clients.map(c => (
                <option key={c.id} value={c.id}>{c.company_name}</option>
@@ -48,7 +67,7 @@ export default function EmployeesList({ employees = { data: [], links: [] }, cli
           </select>
         </div>
         <div>
-          <select className="form-control" style={{"padding":"0.4rem 0.75rem"}} title="Select Employment Type" defaultValue={filters.employment_model}>
+          <select className="form-control" style={{"padding":"0.4rem 0.75rem"}} title="Select Employment Type" value={empModel} onChange={e => setEmpModel(e.target.value)}>
             <option value="">All Employment Types</option>
             <option value="agency_contract">Agency Contract</option>
             <option value="eor">Pass-through EOR</option>
@@ -56,14 +75,14 @@ export default function EmployeesList({ employees = { data: [], links: [] }, cli
           </select>
         </div>
         <div>
-          <select className="form-control" style={{"padding":"0.4rem 0.75rem"}} title="Select Status" defaultValue={filters.status}>
+          <select className="form-control" style={{"padding":"0.4rem 0.75rem"}} title="Select Status" value={status} onChange={e => setStatus(e.target.value)}>
             <option value="">All Statuses</option>
             <option value="active">Active</option>
             <option value="exited">Exited</option>
             <option value="onboarding">Onboarding</option>
           </select>
         </div>
-        <button className="btn btn-navy" style={{"padding":"0.4rem 1rem"}}>Apply</button>
+        <button className="btn btn-navy" style={{"padding":"0.4rem 1rem"}} onClick={applyFilters}>Apply</button>
       </div>
 
       {/*  Table Card  */}
@@ -100,18 +119,25 @@ export default function EmployeesList({ employees = { data: [], links: [] }, cli
                     </td>
                     <td>{emp.date_of_joining ? new Date(emp.date_of_joining).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}</td>
                     <td>
-                      <div style={{"display":"flex","alignItems":"center","gap":"0.5rem"}}>
-                        <span className={`badge badge-${emp.status === 'active' ? 'success' : emp.status === 'exited' ? 'danger' : 'warning'}`}>
+                      <div style={{"display":"flex","flexDirection":"column","gap":"0.4rem","alignItems":"flex-start"}}>
+                        <span className={`badge badge-${emp.status === 'active' ? 'success' : emp.status === 'exited' ? 'danger' : 'warning'}`} style={{ whiteSpace: 'nowrap' }}>
                           {emp.status ? (emp.status.charAt(0).toUpperCase() + emp.status.slice(1)) : 'Unknown'}
                         </span>
-                        {emp.status === 'onboarding' && (
-                          <span className="badge badge-gold" style={{"fontSize":"0.75rem"}}>
-                            {emp.documents_verified_count || 0}/{emp.documents_required_count || 5} Docs
-                          </span>
-                        )}
+                        <div style={{"display":"flex","gap":"0.4rem","flexWrap":"nowrap"}}>
+                            {emp.status === 'onboarding' && (
+                              <span className="badge badge-gold" style={{"fontSize":"0.75rem", whiteSpace: 'nowrap'}}>
+                                {emp.documents_verified_count || 0}/{emp.documents_required_count || 5} Docs
+                              </span>
+                            )}
+                            {emp.documents && emp.documents.filter(d => d.status === 'pending').length > 0 && (
+                                <span className="badge badge-danger" style={{"fontSize":"0.7rem", "padding":"0.2rem 0.4rem", whiteSpace: 'nowrap'}}>
+                                    🔴 Action Required
+                                </span>
+                            )}
+                        </div>
                       </div>
                     </td>
-                    <td>
+                    <td style={{ whiteSpace: 'nowrap' }}>
                       <Link href={route('employees.show', emp.id)} className="btn btn-secondary btn-xs" style={{"marginRight":"0.5rem"}}>View Profile</Link>
                       <Link href={route('employees.edit', emp.id)} className="btn btn-navy btn-xs">Edit</Link>
                     </td>

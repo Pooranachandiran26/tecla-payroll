@@ -11,21 +11,6 @@ let toastIdCounter = 0;
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
 
-  const showToast = useCallback(({ type = 'info', title, message, duration = 4000 }) => {
-    const id = ++toastIdCounter;
-    const toast = { id, type, title, message, duration, exiting: false };
-
-    setToasts(prev => [...prev, toast]);
-
-    if (duration > 0) {
-      setTimeout(() => {
-        dismissToast(id);
-      }, duration);
-    }
-
-    return id;
-  }, []);
-
   const dismissToast = useCallback((id) => {
     // Mark as exiting for animation
     setToasts(prev => prev.map(t => t.id === id ? { ...t, exiting: true } : t));
@@ -34,6 +19,32 @@ export function ToastProvider({ children }) {
       setToasts(prev => prev.filter(t => t.id !== id));
     }, 300);
   }, []);
+
+  const showToast = useCallback(({ type = 'info', title, message, duration = 4000 }) => {
+    if (!message) return null;
+
+    let createdId = null;
+
+    setToasts(prev => {
+      // Prevent adding duplicate active toasts with the exact same message and type
+      if (prev.some(t => !t.exiting && t.message === message && t.type === type)) {
+        return prev;
+      }
+
+      const id = ++toastIdCounter;
+      createdId = id;
+      const toast = { id, type, title, message, duration, exiting: false };
+      return [...prev, toast];
+    });
+
+    if (duration > 0 && createdId) {
+      setTimeout(() => {
+        dismissToast(createdId);
+      }, duration);
+    }
+
+    return createdId;
+  }, [dismissToast]);
 
   return (
     <ToastContext.Provider value={{ toasts, showToast, dismissToast }}>

@@ -19,6 +19,8 @@
 .status-red { color: var(--status-danger); }
 .status-amber { color: var(--status-warning); }
 .status-green { color: var(--status-success); }
+.status-info { color: #3B82F6; }
+
 
 .table-scroll-wrapper {
     width: 100%;

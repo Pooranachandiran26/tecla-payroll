@@ -516,4 +516,61 @@ class ClientController extends Controller
 
         return response()->json($employees);
     }
+
+    /**
+     * Live uniqueness check for Client fields (client_code, gstin).
+     * Strictly masks identifying data to prevent privacy leaks.
+     */
+    public function checkUnique(Request $request)
+    {
+        $validated = $request->validate([
+            'field' => 'required|in:client_code,gstin',
+            'value' => 'required|string',
+            'ignore_id' => 'nullable|integer',
+        ]);
+
+        $field = $validated['field'];
+        $value = trim($validated['value']);
+        $ignoreId = $validated['ignore_id'] ?? null;
+
+        if ($field === 'client_code') {
+            $query = Client::where('client_code', $value);
+            if ($ignoreId) {
+                $query->where('id', '!=', $ignoreId);
+            }
+            if ($query->exists()) {
+                return response()->json([
+                    'available' => false,
+                    'message' => 'This Client Code is already in use by another client.'
+                ]);
+            }
+        } elseif ($field === 'gstin') {
+            $upperVal = mb_strtoupper($value);
+            $clientQuery = Client::query();
+            if ($ignoreId) {
+                $clientQuery->where('id', '!=', $ignoreId);
+            }
+            $existsInMain = $clientQuery->get()->contains(function ($c) use ($upperVal) {
+                return $c->gstin && mb_strtoupper($c->gstin) === $upperVal;
+            });
+
+            $branchQuery = \App\Models\ClientBranch::where('gstin', $upperVal);
+            if ($ignoreId) {
+                $branchQuery->where('client_id', '!=', $ignoreId);
+            }
+            $existsInBranch = $branchQuery->exists();
+
+            if ($existsInMain || $existsInBranch) {
+                return response()->json([
+                    'available' => false,
+                    'message' => 'This GSTIN is already registered for another client or branch.'
+                ]);
+            }
+        }
+
+        return response()->json([
+            'available' => true,
+            'message' => null,
+        ]);
+    }
 }
