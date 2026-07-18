@@ -18,12 +18,12 @@ export default function LiveAttendanceMonitor({ clients, punches, selectedClient
 
   const handleClientChange = (newClientId) => {
     setClientId(newClientId);
-    router.get('/payroll/live-monitor', { client_id: newClientId, date: date }, { preserveState: false });
+    router.get(route('payroll.live-monitor'), { client_id: newClientId, date: date }, { preserveState: false });
   };
 
   const handleDateChange = (newDate) => {
     setDate(newDate);
-    router.get('/payroll/live-monitor', { client_id: clientId, date: newDate }, { preserveState: false });
+    router.get(route('payroll.live-monitor'), { client_id: clientId, date: newDate }, { preserveState: false });
   };
 
   const handleRefresh = () => {

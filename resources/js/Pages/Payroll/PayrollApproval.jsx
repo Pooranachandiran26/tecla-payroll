@@ -2,26 +2,45 @@ import React, { useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import RoleGuard from '../../Components/RoleGuard.jsx';
+import useToast from '../../Hooks/useToast';
 import './PayrollApproval.css';
 
 export default function PayrollApproval({ clients, selectedClientId, selectedMonth, run, items, preflight, cycleInfo }) {
+    const { showToast } = useToast();
     const [clientId, setClientId] = useState(selectedClientId);
     const [month, setMonth] = useState(selectedMonth);
     const [showBreakdown, setShowBreakdown] = useState(false);
     const [showDisbursementModal, setShowDisbursementModal] = useState(false);
     const [showSupplementaryModal, setShowSupplementaryModal] = useState(false);
 
+    const getMonthOptions = () => {
+        const options = [];
+        const startDate = new Date(2026, 4, 1); // May 2026 (index 4)
+        const endDate = new Date();
+        endDate.setMonth(endDate.getMonth() + 2); // Current date + 2 months
+
+        const currentDate = new Date(startDate);
+        while (currentDate <= endDate) {
+            const year = currentDate.getFullYear();
+            const monthNum = String(currentDate.getMonth() + 1).padStart(2, '0');
+            const label = currentDate.toLocaleString('default', { month: 'long' }) + ' ' + year;
+            options.push({ value: `${year}-${monthNum}-01`, label });
+            currentDate.setMonth(currentDate.getMonth() + 1);
+        }
+        return options.reverse();
+    };
+
     const { auth } = usePage().props;
     const role = auth?.user?.role || 'manager';
 
     const handleClientChange = (newClientId) => {
         setClientId(newClientId);
-        router.get('/payroll/approval', { client_id: newClientId, payroll_month: month }, { preserveState: false });
+        router.get(route('payroll.approval'), { client_id: newClientId, payroll_month: month }, { preserveState: false });
     };
 
     const handleMonthChange = (newMonth) => {
         setMonth(newMonth);
-        router.get('/payroll/approval', { client_id: clientId, payroll_month: newMonth }, { preserveState: false });
+        router.get(route('payroll.approval'), { client_id: clientId, payroll_month: newMonth }, { preserveState: false });
     };
 
     // Filter items into active and excluded
@@ -32,21 +51,28 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
     const handleApproveAndLock = () => {
         if (!run) return;
         
-        router.post(`/payroll/${run.id}/approve`, {}, {
+        router.post(route('payroll.run.approve', run.id), {}, {
             onSuccess: () => {
                 // Once approved, run lock
-                router.post(`/payroll/${run.id}/lock`, {}, {
+                router.post(route('payroll.run.lock', run.id), {}, {
                     onSuccess: () => {
-                        alert("Batch approved and locked! Invoice generated successfully.");
-                        router.visit('/invoices');
+                        router.visit(route('invoices.index'));
                     },
                     onError: (errors) => {
-                        alert("Error locking batch: " + (errors.error || 'Unknown error'));
+                        showToast({
+                            type: 'error',
+                            title: 'Lock Error',
+                            message: errors.error || 'Unknown error locking batch'
+                        });
                     }
                 });
             },
             onError: (errors) => {
-                alert("Error approving batch: " + (errors.error || 'Unknown error'));
+                showToast({
+                    type: 'error',
+                    title: 'Approval Error',
+                    message: errors.error || 'Unknown error approving batch'
+                });
             }
         });
     };
@@ -54,14 +80,17 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
     // Trigger Supplementary Run
     const handleCreateSupplementary = () => {
         if (!run) return;
-        router.post(`/payroll/${run.id}/supplementary`, {}, {
+        router.post(route('payroll.run.supplementary', run.id), {}, {
             onSuccess: () => {
-                alert("Supplementary run created successfully!");
                 setShowSupplementaryModal(false);
                 router.reload();
             },
             onError: (errors) => {
-                alert("Error creating supplementary run: " + (errors.error || 'Unknown error'));
+                showToast({
+                    type: 'error',
+                    title: 'Supplementary Run Error',
+                    message: errors.error || 'Unknown error creating supplementary run'
+                });
             }
         });
     };
@@ -103,9 +132,9 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
                             ))}
                         </select>
                         <select className="form-control" style={{ width: "150px" }} value={month} onChange={e => handleMonthChange(e.target.value)}>
-                            <option value="2026-06-01">June 2026</option>
-                            <option value="2026-05-01">May 2026</option>
-                            <option value="2026-07-01">July 2026</option>
+                            {getMonthOptions().map(opt => (
+                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
                         </select>
                     </div>
 
@@ -263,7 +292,7 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
                                         >
                                             {run.status === 'locked' ? '✓ Locked and Finalized' : '✓ Approve & Lock Batch'}
                                         </button>
-                                        <Link href={route('payroll.processing')} className="btn btn-secondary" style={{ width: "100%", marginTop: "0.5rem", padding: "0.6rem", display: "block", textAlign: "center", boxSizing: "border-box" }}>
+                                        <Link href={route('payroll.processing', { client_id: clientId, payroll_month: month })} className="btn btn-secondary" style={{ width: "100%", marginTop: "0.5rem", padding: "0.6rem", display: "block", textAlign: "center", boxSizing: "border-box" }}>
                                             Return to Calculations
                                         </Link>
                                     </div>
