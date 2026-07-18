@@ -189,7 +189,7 @@ export default function AttendanceReview({ initialBatches, clients, selectedMont
             )}
             
             {row.source !== 'No Data Yet' && (
-              <Link href="/payroll/processing">
+              <Link href={route('payroll.processing')}>
                 <Button size="xs" variant="primary">Process Payroll</Button>
               </Link>
             )}
@@ -223,7 +223,7 @@ export default function AttendanceReview({ initialBatches, clients, selectedMont
             <h2 className="text-2xl font-bold text-[#1F3864] mb-1">Attendance Timesheets Review</h2>
             <p className="text-gray-500 text-sm">Verify client approval status, unlock timesheets, or initiate calculations for payroll runs.</p>
           </div>
-          <Link href="/payroll/attendance-upload">
+          <Link href={route('payroll.attendance-upload')}>
             <Button variant="primary">📤 Upload New Sheet</Button>
           </Link>
         </div>

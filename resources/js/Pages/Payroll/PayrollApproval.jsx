@@ -263,7 +263,7 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
                                         >
                                             {run.status === 'locked' ? '✓ Locked and Finalized' : '✓ Approve & Lock Batch'}
                                         </button>
-                                        <Link href="/payroll/processing" className="btn btn-secondary" style={{ width: "100%", marginTop: "0.5rem", padding: "0.6rem", display: "block", textAlign: "center", boxSizing: "border-box" }}>
+                                        <Link href={route('payroll.processing')} className="btn btn-secondary" style={{ width: "100%", marginTop: "0.5rem", padding: "0.6rem", display: "block", textAlign: "center", boxSizing: "border-box" }}>
                                             Return to Calculations
                                         </Link>
                                     </div>
@@ -281,7 +281,7 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
                     </>
                 ) : (
                     <div className="card" style={{ padding: "3rem", textAlign: "center", color: "var(--text-muted)" }}>
-                        No active draft payroll run exists for this month. Go back to <Link href="/payroll/processing" style={{ textDecoration: "underline", color: "var(--primary-blue)" }}>Payroll Processing</Link> to generate calculations first.
+                        No active draft payroll run exists for this month. Go back to <Link href={route('payroll.processing')} style={{ textDecoration: "underline", color: "var(--primary-blue)" }}>Payroll Processing</Link> to generate calculations first.
                     </div>
                 )}
 

@@ -132,7 +132,7 @@ export default function LiveAttendanceMonitor({ clients, punches, selectedClient
             <Button variant="secondary" onClick={handleRefresh} loading={isRefreshing}>
               🔄 Refresh Live Punches
             </Button>
-            <Link href="/payroll/attendance-upload">
+            <Link href={route('payroll.attendance-upload')}>
               <Button variant="primary">📤 Upload Spreadsheet Attendance</Button>
             </Link>
           </div>
@@ -184,7 +184,7 @@ export default function LiveAttendanceMonitor({ clients, punches, selectedClient
             <strong>Summary: </strong>
             <span>{presentCount} Present / Clocked In | {absentCount} Not Clocked In | {leaveCount} On Approved Leave</span>
           </div>
-          <Link href="/payroll/attendance-review">
+          <Link href={route('payroll.attendance-review')}>
             <Button variant="primary" size="xs">→ Go to Attendance Review</Button>
           </Link>
         </div>

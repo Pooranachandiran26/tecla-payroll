@@ -166,13 +166,13 @@ export default function AttendanceUpload({ clients }) {
         <Head title="Upload Attendance" />
 
         <div className="mb-6">
-          <Link href="/payroll/live-monitor" className="text-[0.85rem] font-semibold text-[#1F3864] hover:underline">
+          <Link href={route('payroll.live-monitor')} className="text-[0.85rem] font-semibold text-[#1F3864] hover:underline">
             ← Back to Monitor
           </Link>
           <div className="flex justify-between items-center mt-2 mb-1">
             <h2 className="text-2xl font-bold text-[#1F3864]">Upload External Attendance Sheets</h2>
             <a 
-              href="/payroll/attendance/template" 
+              href={route('payroll.attendance.template')} 
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-white border border-gray-300 rounded shadow-sm text-gray-700 hover:bg-gray-50"
             >
               <FileSpreadsheet className="w-3.5 h-3.5" />
@@ -307,7 +307,7 @@ export default function AttendanceUpload({ clients }) {
             )}
 
             <div className="flex justify-end gap-3 mt-6 border-t border-gray-200 p-6 pt-6">
-              <Link href="/payroll/live-monitor">
+              <Link href={route('payroll.live-monitor')}>
                 <Button variant="secondary">Cancel</Button>
               </Link>
               <Button 
