@@ -372,7 +372,50 @@ export default function ClientDetail({ client, employees }) {
                 </tr>
               </thead>
               <tbody id="invoice-table-body">
-                {/*  Dynamically populated  */}
+                {c.invoices && c.invoices.length > 0 ? (
+                  c.invoices.map(inv => {
+                    const totalAmt = parseFloat(inv.grand_total || 0);
+                    const marginAmt = parseFloat(inv.agency_service_fee || 0);
+                    const penaltyAmt = parseFloat(inv.late_penalty_amount || 0);
+                    
+                    return (
+                      <tr key={inv.id}>
+                        <td><strong>{inv.invoice_number}</strong></td>
+                        <td>{formatDate(inv.invoice_month) || inv.invoice_month}</td>
+                        <td>{formatDate(inv.created_at)}</td>
+                        <td>{formatDate(inv.due_date)}</td>
+                        <td>
+                          <strong>₹{Math.round(totalAmt).toLocaleString('en-IN')}</strong>
+                          {penaltyAmt > 0 && (
+                            <div style={{ fontSize: '0.72rem', color: 'var(--status-danger)' }}>
+                              +₹{Math.round(penaltyAmt).toLocaleString('en-IN')} late fee
+                            </div>
+                          )}
+                        </td>
+                        <td>₹{Math.round(marginAmt).toLocaleString('en-IN')}</td>
+                        <td>
+                          <span className={`badge badge-${inv.status === 'paid' ? 'success' : inv.status === 'overdue' ? 'danger' : 'warning'}`} style={{ textTransform: 'capitalize' }}>
+                            {inv.status}
+                          </span>
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', gap: '0.4rem' }}>
+                            <button className="btn btn-secondary btn-xs" title="Download Invoice" onClick={() => showToast({ type: 'info', title: 'Download Triggered', message: 'Downloading invoice PDF...' })}>Download</button>
+                            {inv.status !== 'paid' && (
+                              <button className="btn btn-navy btn-xs" onClick={() => showToast({ type: 'info', title: 'Payment Window', message: 'Please record payment through the Invoices Registry page.' })}>Record Payment</button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan="8" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                      No invoices available for this client.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

@@ -5,7 +5,7 @@ import RoleGuard from '../../Components/RoleGuard.jsx';
 import useToast from '../../Hooks/useToast';
 import './PayrollApproval.css';
 
-export default function PayrollApproval({ clients, selectedClientId, selectedMonth, run, items, preflight, cycleInfo }) {
+export default function PayrollApproval({ clients, selectedClientId, selectedMonth, run, items, preflight, cycleInfo, newHires = [], pendingSupplementaryRuns = [] }) {
     const { showToast } = useToast();
     const [clientId, setClientId] = useState(selectedClientId);
     const [month, setMonth] = useState(selectedMonth);
@@ -95,6 +95,37 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
         });
     };
 
+    // Approve & Lock a specific supplementary run (status-aware: skips approve if already approved)
+    const handleApproveSupplementary = (supplementaryRunId, currentStatus) => {
+        const doLock = () => {
+            router.post(route('payroll.run.lock', supplementaryRunId), {}, {
+                onSuccess: () => {
+                    showToast({ type: 'success', title: 'Supplementary Run Locked',
+                        message: 'Supplementary run locked and invoices merged successfully.' });
+                    router.reload();
+                },
+                onError: (errors) => {
+                    showToast({ type: 'error', title: 'Lock Error',
+                        message: errors.error || 'Error locking supplementary run. It may now be in Approved state — retry to lock.' });
+                    router.reload();
+                }
+            });
+        };
+
+        if (currentStatus === 'approved') {
+            // Already approved (e.g. previous attempt's lock failed) — skip approve, go straight to lock
+            doLock();
+        } else {
+            router.post(route('payroll.run.approve', supplementaryRunId), {}, {
+                onSuccess: () => doLock(),
+                onError: (errors) => {
+                    showToast({ type: 'error', title: 'Approval Error',
+                        message: errors.error || 'Error approving supplementary run' });
+                }
+            });
+        }
+    };
+
     return (
         <RoleGuard allowedRoles={['admin', 'manager']}>
             <AuthenticatedLayout>
@@ -107,17 +138,18 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
                             Review consolidated totals and authorize bank file disbursements.
                         </p>
                     </div>
-                    {run && excludedItems.length > 0 && (
+                    {run && (excludedItems.length > 0 || newHires.length > 0) && (
                         <div style={{ backgroundColor: "#FFFBEB", border: "1px solid #FEF3C7", padding: "0.5rem 1rem", borderRadius: "var(--radius-sm)", fontSize: "0.85rem", color: "#92400E", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.25rem" }}>
                             <strong>Partial Batch: {activeItems.length} of {items.length} employees processed.</strong>
-                            <span>{excludedItems.length} employees excluded — click 'Create Supplementary Run' to process them.</span>
+                            <span>{excludedItems.length} excluded + {newHires.length} new hires — click 'Create Supplementary Run' to process them.</span>
                             <button 
                                 className="btn btn-secondary btn-xs" 
                                 style={{ marginTop: "0.25rem" }} 
                                 onClick={() => setShowSupplementaryModal(true)}
                                 disabled={role !== 'admin'}
+                                title={role !== 'admin' ? 'Only Administrators can trigger a supplementary run' : ''}
                             >
-                                Create Supplementary Run for {excludedItems.length} Excluded
+                                Create Supplementary Run for {excludedItems.length} Excluded + {newHires.length} New Hires
                             </button>
                         </div>
                     )}
@@ -290,7 +322,11 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
                                             onClick={handleApproveAndLock} 
                                             disabled={role !== 'admin' || run.status === 'locked'}
                                         >
-                                            {run.status === 'locked' ? '✓ Locked and Finalized' : '✓ Approve & Lock Batch'}
+                                            {run.status === 'locked' 
+                                                ? (pendingSupplementaryRuns.length > 0 
+                                                    ? `✓ Parent Locked — ${pendingSupplementaryRuns.length} supplementary pending below` 
+                                                    : '✓ Locked and Finalized') 
+                                                : '✓ Approve & Lock Batch'}
                                         </button>
                                         <Link href={route('payroll.processing', { client_id: clientId, payroll_month: month })} className="btn btn-secondary" style={{ width: "100%", marginTop: "0.5rem", padding: "0.6rem", display: "block", textAlign: "center", boxSizing: "border-box" }}>
                                             Return to Calculations
@@ -305,6 +341,40 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
                                         </div>
                                     )}
                                 </div>
+
+                                {pendingSupplementaryRuns.length > 0 && (
+                                    <div className="card" style={{ border: '2px solid #F59E0B', backgroundColor: '#FFFBEB', marginTop: '1.5rem' }}>
+                                        <h3 className="card-title" style={{ marginBottom: '0.5rem', color: '#92400E' }}>
+                                            ⚠️ {pendingSupplementaryRuns.length} Supplementary Run{pendingSupplementaryRuns.length > 1 ? 's' : ''} Pending Approval
+                                        </h3>
+                                        <p style={{ fontSize: '0.8rem', color: '#92400E', marginBottom: '1rem' }}>
+                                            These supplementary runs must be approved and locked before all employees' payslips are finalized.
+                                        </p>
+                                        {pendingSupplementaryRuns.map(sr => (
+                                            <div key={sr.id} style={{ borderTop: '1px solid #FEF3C7', paddingTop: '0.75rem', marginTop: '0.75rem' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                                                    <div>
+                                                        <strong>Run #{sr.id}</strong>
+                                                        <span className={`badge ${sr.status === 'draft' ? 'badge-warning' : 'badge-info'}`} style={{ marginLeft: '0.5rem' }}>
+                                                            {sr.status}
+                                                        </span>
+                                                    </div>
+                                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                                        {sr.total_employees_processed} employee{sr.total_employees_processed !== 1 ? 's' : ''} · ₹{parseFloat(sr.total_net_disbursement || 0).toLocaleString()} net
+                                                    </span>
+                                                </div>
+                                                <button
+                                                    className="btn btn-primary btn-sm"
+                                                    style={{ width: '100%' }}
+                                                    onClick={() => handleApproveSupplementary(sr.id, sr.status)}
+                                                    disabled={role !== 'admin'}
+                                                >
+                                                    {sr.status === 'approved' ? '🔒 Lock Supplementary Run' : '✓ Approve & Lock Supplementary Run'} #{sr.id}
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </>
@@ -316,14 +386,14 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
 
                 {/* Supplementary Run Modal */}
                 {showSupplementaryModal && (
-                    <div className="modal-overlay" style={{ display: 'flex' }}>
+                    <div className="modal-overlay active">
                         <div className="modal-box" style={{ maxWidth: "650px" }}>
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1rem" }}>
                                 <h3 style={{ color: "var(--primary-navy)", margin: 0 }}>Create Supplementary Payroll Run</h3>
                                 <button className="btn btn-secondary btn-xs" style={{ border: "none", background: "transparent", fontSize: "1.25rem", padding: 0 }} onClick={() => setShowSupplementaryModal(false)}>×</button>
                             </div>
                             <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "1rem", lineHeight: 1.5 }}>
-                                A supplementary run processes the remaining {excludedItems.length} excluded employees separately once their blocking issues are resolved.
+                                A supplementary run processes the remaining {excludedItems.length} excluded employees and {newHires.length} new hires separately.
                             </p>
                             
                             <div className="table-responsive" style={{ marginBottom: "1.5rem", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)" }}>
@@ -331,14 +401,20 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
                                     <thead>
                                         <tr>
                                             <th>Employee</th>
-                                            <th>Blocking Reason</th>
+                                            <th>Blocking / Status Reason</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {excludedItems.map(item => (
-                                            <tr key={item.id}>
+                                            <tr key={`ex-${item.id}`}>
                                                 <td><strong>{item.full_name}</strong> ({item.employee_code})</td>
                                                 <td><span style={{ color: "var(--status-danger)", fontWeight: 500 }}>{item.exclusion_reason}</span></td>
+                                            </tr>
+                                        ))}
+                                        {newHires.map(item => (
+                                            <tr key={`nh-${item.id}`}>
+                                                <td><strong>{item.full_name}</strong> ({item.employee_code})</td>
+                                                <td><span style={{ color: "var(--status-warning)", fontWeight: 500 }}>New Hire (Joined {item.date_of_joining})</span></td>
                                             </tr>
                                         ))}
                                     </tbody>
