@@ -337,7 +337,7 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
                             <strong>Active Processed:</strong> {activeItems.length} | <strong>Excluded:</strong> {excludedCount}
                         </div>
                         <div>
-                            <Link href="/dashboard" className="btn btn-secondary" style={{ marginRight: '0.5rem' }}>Dashboard</Link>
+                            <Link href={route('dashboard')} className="btn btn-secondary" style={{ marginRight: '0.5rem' }}>Dashboard</Link>
                             {run && (run.status === 'draft') && (
                                 <Link 
                                     href={`/payroll/approval?client_id=${clientId}&payroll_month=${month}`} 

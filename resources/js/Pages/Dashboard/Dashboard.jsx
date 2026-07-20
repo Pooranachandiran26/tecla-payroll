@@ -98,7 +98,7 @@ export default function Dashboard() {
                 Today's Attendance Live Snapshot
               </span>
             }
-            headerAction={<Button href="/payroll/live-monitor" variant="secondary" size="xs">Live Monitor</Button>}
+            headerAction={<Button href={route('payroll.live-monitor')} variant="secondary" size="xs">Live Monitor</Button>}
           >
             <div className="grid-cols-4" style={{ textAlign: 'center', gap: '1rem' }}>
               <div style={{ backgroundColor: 'var(--status-success-bg)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
@@ -122,7 +122,7 @@ export default function Dashboard() {
 
           <Card 
             title="Pending Payroll Runs" 
-            headerAction={<Button href="/payroll/processing" variant="primary" size="xs">Process New</Button>}
+            headerAction={<Button href={route('payroll.processing')} variant="primary" size="xs">Process New</Button>}
             noPadding
           >
             <DataTable 
@@ -144,7 +144,7 @@ export default function Dashboard() {
 
           <Card 
             title="Recent Employee Onboarding Status" 
-            headerAction={<Button href="/employees" variant="link" size="xs">All Employees</Button>}
+            headerAction={<Button href={route('employees.index')} variant="link" size="xs">All Employees</Button>}
             noPadding
           >
             <DataTable 
@@ -158,7 +158,7 @@ export default function Dashboard() {
                     <Badge variant="gold" style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem' }}>{row.docs}</Badge>
                   </div>
                 ) },
-                { key: 'actions', label: 'Action', render: () => <Button href="/employees/1" variant="secondary" size="xs">Review Docs</Button> }
+                { key: 'actions', label: 'Action', render: () => <Button href={route('employees.show', 1)} variant="secondary" size="xs">Review Docs</Button> }
               ]}
               data={[
                 { id: 1, name: 'Vikram Rao', client: 'Reliance Digital', date: 'June 01, 2026', status: 'Onboarding', docs: '4/7 docs' },
@@ -173,7 +173,7 @@ export default function Dashboard() {
           
           <Card 
             title="Compliance Due Dates" 
-            headerAction={<Button href="/compliance" variant="link" size="xs">All Reports</Button>}
+            headerAction={<Button href="#" variant="link" size="xs">All Reports</Button>}
           >
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderLeft: '3px solid var(--status-danger)', paddingLeft: '0.5rem' }}>
@@ -200,7 +200,7 @@ export default function Dashboard() {
             </div>
           </Card>
 
-          <Card title="System Activity Log" headerAction={role !== 'manager' && <Button href="/admin/activity-log" variant="link" size="xs">View Full</Button>}>
+          <Card title="System Activity Log" headerAction={role !== 'manager' && <Button href="#" variant="link" size="xs">View Full</Button>}>
             {role === 'manager' ? (
               <div className="locked-card" style={{ padding: 0, border: 'none', background: 'none' }}>
                 <div className="locked-blur" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.8rem' }}>

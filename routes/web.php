@@ -210,6 +210,8 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::middleware('role:employee')->group(function () {
             Route::get('/employee/dashboard', [\App\Http\Controllers\EmployeePortalController::class, 'dashboard'])->name('employee.dashboard');
             Route::get('/employee/profile', [\App\Http\Controllers\EmployeePortalController::class, 'profile'])->name('employee.profile');
+            Route::post('/employee/documents', [\App\Http\Controllers\EmployeePortalController::class, 'storeDocument'])->name('employee.documents.store');
+            Route::get('/employee/documents/{docId}/view', [\App\Http\Controllers\EmployeePortalController::class, 'viewDocument'])->name('employee.documents.view');
             Route::post('/employee/bank-change-requests', [BankChangeRequestController::class, 'store'])->name('employee.bank-change-request.store');
             Route::get('/employee/attendance', [\App\Http\Controllers\EmployeePortalController::class, 'attendance'])->name('employee.attendance');
             Route::post('/employee/attendance/punch-in', [\App\Http\Controllers\EmployeePortalController::class, 'punchIn'])->name('employee.attendance.punch-in');

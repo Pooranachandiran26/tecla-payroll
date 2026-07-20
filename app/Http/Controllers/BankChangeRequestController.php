@@ -122,6 +122,13 @@ class BankChangeRequestController extends Controller
             'reason' => $validated['reason'],
         ]);
 
+        \App\Jobs\NotifyWatchersJob::dispatch(
+            'system_alerts',
+            'Bank Change Requested',
+            "Employee {$employee->full_name} ({$employee->employee_code}) has requested to update their bank details.",
+            null
+        );
+
         return redirect()->back()->with('success', 'Bank change request submitted successfully and queued for admin approval.');
     }
 
@@ -164,6 +171,11 @@ class BankChangeRequestController extends Controller
             }
         });
 
+        if ($req->employee && $req->employee->personal_email) {
+            \Illuminate\Support\Facades\Mail::to($req->employee->personal_email)
+                ->queue(new \App\Mail\BankChangeApprovedMail($req->employee->full_name));
+        }
+
         return redirect()->back()->with('success', "Bank details update approved for {$req->employee->full_name}. Payout records updated.");
     }
 
@@ -192,6 +204,11 @@ class BankChangeRequestController extends Controller
             'processed_by' => auth()->id(),
             'processed_at' => now(),
         ]);
+
+        if ($req->employee && $req->employee->personal_email) {
+            \Illuminate\Support\Facades\Mail::to($req->employee->personal_email)
+                ->queue(new \App\Mail\BankChangeRejectedMail($req->employee->full_name, $validated['rejection_reason']));
+        }
 
         return redirect()->back()->with('success', "Bank details request rejected for {$req->employee->full_name}. Notice sent.");
     }

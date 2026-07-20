@@ -119,18 +119,25 @@ export default function EmployeesList({ employees = { data: [], links: [] }, cli
                     </td>
                     <td>{emp.date_of_joining ? new Date(emp.date_of_joining).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}</td>
                     <td>
-                      <div style={{"display":"flex","alignItems":"center","gap":"0.5rem"}}>
-                        <span className={`badge badge-${emp.status === 'active' ? 'success' : emp.status === 'exited' ? 'danger' : 'warning'}`}>
+                      <div style={{"display":"flex","flexDirection":"column","gap":"0.4rem","alignItems":"flex-start"}}>
+                        <span className={`badge badge-${emp.status === 'active' ? 'success' : emp.status === 'exited' ? 'danger' : 'warning'}`} style={{ whiteSpace: 'nowrap' }}>
                           {emp.status ? (emp.status.charAt(0).toUpperCase() + emp.status.slice(1)) : 'Unknown'}
                         </span>
-                        {emp.status === 'onboarding' && (
-                          <span className="badge badge-gold" style={{"fontSize":"0.75rem"}}>
-                            {emp.documents_verified_count || 0}/{emp.documents_required_count || 5} Docs
-                          </span>
-                        )}
+                        <div style={{"display":"flex","gap":"0.4rem","flexWrap":"nowrap"}}>
+                            {emp.status === 'onboarding' && (
+                              <span className="badge badge-gold" style={{"fontSize":"0.75rem", whiteSpace: 'nowrap'}}>
+                                {emp.documents_verified_count || 0}/{emp.documents_required_count || 5} Docs
+                              </span>
+                            )}
+                            {emp.documents && emp.documents.filter(d => d.status === 'pending').length > 0 && (
+                                <span className="badge badge-danger" style={{"fontSize":"0.7rem", "padding":"0.2rem 0.4rem", whiteSpace: 'nowrap'}}>
+                                    🔴 Action Required
+                                </span>
+                            )}
+                        </div>
                       </div>
                     </td>
-                    <td>
+                    <td style={{ whiteSpace: 'nowrap' }}>
                       <Link href={route('employees.show', emp.id)} className="btn btn-secondary btn-xs" style={{"marginRight":"0.5rem"}}>View Profile</Link>
                       <Link href={route('employees.edit', emp.id)} className="btn btn-navy btn-xs">Edit</Link>
                     </td>
