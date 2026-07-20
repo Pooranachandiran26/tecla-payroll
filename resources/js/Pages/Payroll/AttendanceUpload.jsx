@@ -14,6 +14,24 @@ export default function AttendanceUpload({ clients }) {
   const [selectedClientId, setSelectedClientId] = useState(clients && clients.length > 0 ? clients[0].id : '');
   const [targetMonth, setTargetMonth] = useState('2026-07');
   const [file, setFile] = useState(null);
+
+  const getMonthOptions = () => {
+    const options = [];
+    const startDate = new Date(2026, 4, 1); // May 2026 (index 4)
+    const endDate = new Date();
+    endDate.setMonth(endDate.getMonth() + 2); // Current date + 2 months
+
+    const currentDate = new Date(startDate);
+    while (currentDate <= endDate) {
+      const year = currentDate.getFullYear();
+      const monthNum = String(currentDate.getMonth() + 1).padStart(2, '0');
+      const label = currentDate.toLocaleString('default', { month: 'long' }) + ' ' + year;
+      options.push({ value: `${year}-${monthNum}`, label });
+      currentDate.setMonth(currentDate.getMonth() + 1);
+    }
+    return options.reverse();
+  };
+
   const [validationData, setValidationData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -40,7 +58,7 @@ export default function AttendanceUpload({ clients }) {
     formData.append('target_month', month);
     formData.append('file', selectedFile);
 
-    axios.post('/payroll/attendance/validate', formData, {
+    axios.post(route('payroll.attendance.validate'), formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
@@ -92,7 +110,7 @@ export default function AttendanceUpload({ clients }) {
     formData.append('target_month', targetMonth);
     formData.append('file', file);
 
-    router.post('/payroll/attendance/upload', formData, {
+    router.post(route('payroll.attendance.upload'), formData, {
       forceFormData: true,
       onSuccess: () => {
         setLoading(false);
@@ -166,13 +184,13 @@ export default function AttendanceUpload({ clients }) {
         <Head title="Upload Attendance" />
 
         <div className="mb-6">
-          <Link href="/payroll/live-monitor" className="text-[0.85rem] font-semibold text-[#1F3864] hover:underline">
+          <Link href={route('payroll.live-monitor')} className="text-[0.85rem] font-semibold text-[#1F3864] hover:underline">
             ← Back to Monitor
           </Link>
           <div className="flex justify-between items-center mt-2 mb-1">
             <h2 className="text-2xl font-bold text-[#1F3864]">Upload External Attendance Sheets</h2>
             <a 
-              href="/payroll/attendance/template" 
+              href={route('payroll.attendance.template')} 
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-white border border-gray-300 rounded shadow-sm text-gray-700 hover:bg-gray-50"
             >
               <FileSpreadsheet className="w-3.5 h-3.5" />
@@ -228,9 +246,9 @@ export default function AttendanceUpload({ clients }) {
                   <div className="flex-1">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Payroll Target Month</label>
                     <Select value={targetMonth} onChange={handleMonthChange}>
-                      <option value="2026-07">July 2026</option>
-                      <option value="2026-06">June 2026</option>
-                      <option value="2026-05">May 2026</option>
+                      {getMonthOptions().map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
                     </Select>
                   </div>
                 </div>
@@ -307,7 +325,7 @@ export default function AttendanceUpload({ clients }) {
             )}
 
             <div className="flex justify-end gap-3 mt-6 border-t border-gray-200 p-6 pt-6">
-              <Link href="/payroll/live-monitor">
+              <Link href={route('payroll.live-monitor')}>
                 <Button variant="secondary">Cancel</Button>
               </Link>
               <Button 

@@ -44,5 +44,24 @@ class DataTableRegressionTest extends TestCase
         exec($runCmd, $runOutput, $runExitCode);
         $this->assertEquals(0, $runExitCode, 'JS rendering assertions failed: ' . implode("\n", $runOutput));
     }
+
+    /**
+     * Test that PayrollApproval.jsx correctly renders the supplementary run button when new hires exist.
+     */
+    public function test_payroll_approval_button_renders_on_new_hires()
+    {
+        $filePath = base_path('resources/js/Pages/Payroll/PayrollApproval.jsx');
+        $this->assertFileExists($filePath);
+
+        // Compile component using esbuild
+        $compileCmd = 'powershell -ExecutionPolicy Bypass -Command "npx esbuild resources/js/Pages/Payroll/PayrollApproval.jsx --bundle --platform=node --format=cjs --external:react --external:@inertiajs/react --external:@/Layouts/AuthenticatedLayout --external:../../Components/RoleGuard.jsx --external:../../Hooks/useToast --outfile=tests/js/PayrollApproval.compiled.cjs"';
+        exec($compileCmd, $compileOutput, $compileExitCode);
+        $this->assertEquals(0, $compileExitCode, 'esbuild compilation of PayrollApproval.jsx failed: ' . implode("\n", $compileOutput));
+
+        // Run the JS test runner containing React virtual DOM assertions
+        $runCmd = 'powershell -ExecutionPolicy Bypass -Command "node tests/js/PayrollApprovalTest.cjs"';
+        exec($runCmd, $runOutput, $runExitCode);
+        $this->assertEquals(0, $runExitCode, 'JS rendering assertions failed: ' . implode("\n", $runOutput));
+    }
 }
 

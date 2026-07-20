@@ -94,4 +94,30 @@ class PayrollRun extends Model
             'total_employees_excluded' => $excluded,
         ];
     }
+
+    /**
+     * Get all active employees under this client who joined on or before the target month ended,
+     * but have no row at all in the parent payroll run's items.
+     */
+    public function getNewHireCandidates()
+    {
+        $monthEnd = Carbon::parse($this->payroll_month)->endOfMonth()->toDateString();
+        
+        $allRunIds = $this->children()->pluck('id')->prepend($this->id)->toArray();
+
+        $existingEmployeeIds = \Illuminate\Support\Facades\DB::table('payroll_run_items')
+            ->whereIn('payroll_run_id', $allRunIds)
+            ->pluck('employee_id')
+            ->toArray();
+
+        return Employee::where('client_id', $this->client_id)
+            ->where('status', 'active')
+            ->where(function($query) use ($monthEnd) {
+                $query->whereNull('date_of_joining')
+                      ->orWhere('date_of_joining', '<=', $monthEnd);
+            })
+            ->whereNotIn('id', $existingEmployeeIds)
+            ->get();
+    }
 }
+

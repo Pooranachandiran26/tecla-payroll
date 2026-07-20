@@ -1,7 +1,7 @@
-import { Link, usePage } from '@inertiajs/react';
+import { Link, usePage, router } from '@inertiajs/react';
 import { adminNav, clientNav, candidateNav, subNavs, getActiveCategory, getPathname } from '../Constants/navigation';
 import { Bell, User, LogOut, Menu } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import ToastContainer from '../Components/ui/Toast';
 import { useRole } from '../Contexts/RoleContext.jsx';
 import useToast from '../Hooks/useToast';
@@ -16,14 +16,37 @@ export default function AuthenticatedLayout({ children }) {
   const role = auth?.user?.role || 'guest';
   const userName = auth?.user?.name || 'User';
 
+  const handleFlash = useCallback((flashObj) => {
+    if (flashObj?.success) {
+      showToast({ type: 'success', title: 'Success', message: flashObj.success });
+    }
+    if (flashObj?.error) {
+      showToast({ type: 'error', title: 'Error', message: flashObj.error });
+    }
+    if (flashObj?.warning) {
+      showToast({ type: 'warning', title: 'Warning', message: flashObj.warning });
+    }
+    if (flashObj?.info) {
+      showToast({ type: 'info', title: 'Info', message: flashObj.info });
+    }
+  }, [showToast]);
+
   useEffect(() => {
-    if (flash?.success) {
-      showToast({ type: 'success', title: 'Success', message: flash.success });
-    }
-    if (flash?.error) {
-      showToast({ type: 'error', title: 'Error', message: flash.error });
-    }
-  }, [flash, showToast]);
+    handleFlash(flash);
+  }, []);
+
+  useEffect(() => {
+    const removeListener = router.on('success', (event) => {
+      const latestFlash = event.detail.page?.props?.flash;
+      if (latestFlash) {
+        handleFlash(latestFlash);
+      }
+    });
+
+    return () => {
+      removeListener();
+    };
+  }, [handleFlash]);
   
   const navLinks = role === 'client' ? clientNav
     : role === 'employee' ? candidateNav

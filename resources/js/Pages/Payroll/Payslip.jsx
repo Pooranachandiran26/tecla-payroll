@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import AuthenticatedLayout from '../../Layouts/AuthenticatedLayout';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import Button from '../../Components/ui/Button';
 import RoleGuard from '../../Components/RoleGuard.jsx';
 
@@ -37,14 +37,45 @@ function numberToEnglishWords(num) {
     return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
-export default function Payslip({ items }) {
+export default function Payslip({ items, clients = [], selectedClientId, selectedMonth }) {
+    const [clientId, setClientId] = useState(selectedClientId || '');
+    const [month, setMonth] = useState(selectedMonth || '2026-07-01');
     const [selectedItem, setSelectedItem] = useState(null);
 
     useEffect(() => {
         if (items && items.length > 0) {
             setSelectedItem(items[0]);
+        } else {
+            setSelectedItem(null);
         }
     }, [items]);
+
+    const handleClientChange = (newClientId) => {
+        setClientId(newClientId);
+        router.get(route('payroll.payslips'), { client_id: newClientId, payroll_month: month }, { preserveState: false });
+    };
+
+    const handleMonthChange = (newMonth) => {
+        setMonth(newMonth);
+        router.get(route('payroll.payslips'), { client_id: clientId, payroll_month: newMonth }, { preserveState: false });
+    };
+
+    const getMonthOptions = () => {
+        const options = [];
+        const startDate = new Date(2026, 4, 1); // May 2026 (index 4)
+        const endDate = new Date();
+        endDate.setMonth(endDate.getMonth() + 2); // Current date + 2 months
+
+        const currentDate = new Date(startDate);
+        while (currentDate <= endDate) {
+            const year = currentDate.getFullYear();
+            const monthNum = String(currentDate.getMonth() + 1).padStart(2, '0');
+            const label = currentDate.toLocaleString('default', { month: 'long' }) + ' ' + year;
+            options.push({ value: `${year}-${monthNum}-01`, label });
+            currentDate.setMonth(currentDate.getMonth() + 1);
+        }
+        return options.reverse();
+    };
 
     const getWords = (net) => {
         try {
@@ -95,6 +126,28 @@ export default function Payslip({ items }) {
                     <div>
                         <h2 className="text-2xl font-bold text-[#1F3864] mb-1">Employee Payslips Center</h2>
                         <p className="text-gray-500 text-sm">Review, print, or download finalized payslips from locked runs.</p>
+                    </div>
+                </div>
+
+                {/* Client and Payout Month selection */}
+                <div className="card" style={{ padding: "1rem", marginBottom: "1.5rem" }}>
+                    <div style={{ display: "flex", gap: "1.5rem", alignItems: "center", flexWrap: "wrap" }}>
+                        <div className="form-group" style={{ marginBottom: 0, flex: 1, minWidth: "250px" }}>
+                            <label style={{ marginBottom: "0.25rem", display: "block", fontSize: "0.85rem", fontWeight: "bold" }}>Target Client Contract</label>
+                            <select className="form-control" value={clientId} onChange={e => handleClientChange(e.target.value)}>
+                                {clients.map(c => (
+                                    <option key={c.id} value={c.id}>{c.company_name}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 0, flex: 1, minWidth: "200px" }}>
+                            <label style={{ marginBottom: "0.25rem", display: "block", fontSize: "0.85rem", fontWeight: "bold" }}>Select Payout Month</label>
+                            <select className="form-control" value={month} onChange={e => handleMonthChange(e.target.value)}>
+                                {getMonthOptions().map(opt => (
+                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
                 </div>
 
@@ -166,9 +219,9 @@ export default function Payslip({ items }) {
                                                 <tr><td className="p-2 border border-gray-200">2. Employee ESIC</td><td className="p-2 border border-gray-200 text-right font-semibold">₹{parseFloat(selectedItem.employee_esi).toLocaleString()}</td></tr>
                                                 <tr><td className="p-2 border border-gray-200">3. Professional Tax</td><td className="p-2 border border-gray-200 text-right font-semibold">₹{parseFloat(selectedItem.professional_tax).toLocaleString()}</td></tr>
                                                 <tr><td className="p-2 border border-gray-200">4. Welfare Fund (LWF)</td><td className="p-2 border border-gray-200 text-right font-semibold">₹{parseFloat(selectedItem.lwf_deduction).toLocaleString()}</td></tr>
-                                                <tr><td className="p-2 border border-gray-200">5. LOP Deduction</td><td className="p-2 border border-gray-200 text-right font-semibold">₹{parseFloat(selectedItem.lop_deduction).toLocaleString()}</td></tr>
-                                                <tr><td className="p-2 border border-gray-200">6. TDS</td><td className="p-2 border border-gray-200 text-right font-semibold">₹{parseFloat(selectedItem.tds_deduction).toLocaleString()}</td></tr>
-                                                <tr><td className="p-2 border border-gray-200">7. Loan EMI</td><td className="p-2 border border-gray-200 text-right font-semibold">₹{parseFloat(selectedItem.loan_emi_deduction).toLocaleString()}</td></tr>
+                                                <tr><td className="p-2 border border-gray-200">5. TDS</td><td className="p-2 border border-gray-200 text-right font-semibold">₹{parseFloat(selectedItem.tds_deduction).toLocaleString()}</td></tr>
+                                                <tr><td className="p-2 border border-gray-200">6. Loan EMI</td><td className="p-2 border border-gray-200 text-right font-semibold">₹{parseFloat(selectedItem.loan_emi_deduction).toLocaleString()}</td></tr>
+                                                <tr><td className="p-2 border border-gray-200 text-gray-500">7. LOP Deduction <span className="text-[0.7rem] italic">(Informational)</span></td><td className="p-2 border border-gray-200 text-right font-semibold text-gray-500">₹{parseFloat(selectedItem.lop_deduction).toLocaleString()}</td></tr>
                                                 <tr className="bg-[#FFF5F5] font-bold border-t-2 border-t-red-600">
                                                     <td className="p-2 border border-gray-200">Total Deductions</td>
                                                     <td className="p-2 border border-gray-200 text-right text-red-600">
@@ -177,7 +230,6 @@ export default function Payslip({ items }) {
                                                             parseFloat(selectedItem.employee_esi) + 
                                                             parseFloat(selectedItem.professional_tax) + 
                                                             parseFloat(selectedItem.lwf_deduction) + 
-                                                            parseFloat(selectedItem.lop_deduction) + 
                                                             parseFloat(selectedItem.tds_deduction) + 
                                                             parseFloat(selectedItem.loan_emi_deduction)
                                                         ).toLocaleString()}
@@ -269,7 +321,7 @@ export default function Payslip({ items }) {
                     </div>
                 ) : (
                     <div className="card" style={{ padding: "4rem", textAlign: "center", color: "var(--text-muted)" }}>
-                        No finalized payslips available. Process and lock a payroll run first.
+                        No finalized payslips available for the selected client and month.
                     </div>
                 )}
             </AuthenticatedLayout>

@@ -59,7 +59,6 @@ export default function QuickAccess() {
       message: `Strict ${moduleName} Protection: Backend routes are strictly protected by role:${requiredRole} middleware check. Role Mismatch: Logged in as ${currentRoleTitle}, server blocks access with 403.`
     });
   };
-
   const renderBtn = (id, href, icon, label, lockedTooltip = "Admin access only", requiredRole = null, moduleName = null) => {
     const isLocked = currentConfig.locked.includes(id);
 

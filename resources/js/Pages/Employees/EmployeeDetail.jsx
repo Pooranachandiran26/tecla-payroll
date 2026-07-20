@@ -9,9 +9,12 @@ import ComingSoonFeature from '../../Components/ui/ComingSoonFeature';
 import ConfirmDialog from '../../Components/ui/ConfirmDialog';
 export default function EmployeeDetail({ employee: empProp }) {
     const employee = empProp?.data || empProp || {};
-    const { auth, flash } = usePage().props;
+    const { auth, flash, attendanceRecords, attendanceStats } = usePage().props;
     const { showToast } = useToast();
     const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, confirmText: '', reason: '' });
+    const [activeTab, setActiveTab] = useState('overview');
+
+    const pendingDocsCount = employee.documents ? employee.documents.filter(d => d.status === 'pending').length : 0;
 
     useEffect(() => {
         // Load the legacy logic dynamically so it runs on client side after render
@@ -240,17 +243,22 @@ const renderDocumentRows = () => {
       {/*  Tab Container  */}
       <div className="tab-container card">
         <ul className="tab-headers">
-          <li className="active" data-tab="overview">Overview</li>
-          <li data-tab="salary">Salary Structure &amp; History</li>
-          <li data-tab="attendance" id="tab-header-attendance">Attendance Log (June)</li>
-          <li data-tab="payslips">Generated Payslips</li>
-          <li data-tab="docs">Documents</li>
-          <li data-tab="tax">Tax Declaration</li>
-          <li data-tab="loans">Loans &amp; Advances</li>
+          <li className={activeTab === 'overview' ? 'active' : ''} onClick={() => setActiveTab('overview')} style={{ cursor: 'pointer' }}>Overview</li>
+          <li className={activeTab === 'salary' ? 'active' : ''} onClick={() => setActiveTab('salary')} style={{ cursor: 'pointer' }}>Salary Structure &amp; History</li>
+          <li className={activeTab === 'attendance' ? 'active' : ''} onClick={() => setActiveTab('attendance')} style={{ cursor: 'pointer' }}>Attendance Log ({attendanceStats ? attendanceStats.targetMonthDisplay : 'Current'})</li>
+          <li className={activeTab === 'payslips' ? 'active' : ''} onClick={() => setActiveTab('payslips')} style={{ cursor: 'pointer' }}>Generated Payslips</li>
+          <li className={activeTab === 'docs' ? 'active' : ''} onClick={() => setActiveTab('docs')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            Documents
+            {pendingDocsCount > 0 && (
+                <span style={{ width: '8px', height: '8px', backgroundColor: 'var(--status-danger)', borderRadius: '50%', display: 'inline-block' }} title={`${pendingDocsCount} pending document(s)`}></span>
+            )}
+          </li>
+          <li className={activeTab === 'tax' ? 'active' : ''} onClick={() => setActiveTab('tax')} style={{ cursor: 'pointer' }}>Tax Declaration</li>
+          <li className={activeTab === 'loans' ? 'active' : ''} onClick={() => setActiveTab('loans')} style={{ cursor: 'pointer' }}>Loans &amp; Advances</li>
         </ul>
 
         {/*  Tab 1: Overview  */}
-        <div className="tab-content active" data-tab="overview">
+        <div className={`tab-content ${activeTab === 'overview' ? 'active' : ''}`} data-tab="overview">
           <div className="grid-layout">
 
             {/*  Left Profile Panel  */}
@@ -418,7 +426,7 @@ const renderDocumentRows = () => {
         </div>
 
         {/*  Tab 2: Salary Structure  */}
-        <div className="tab-content" data-tab="salary">
+        <div className={`tab-content ${activeTab === 'salary' ? 'active' : ''}`} data-tab="salary">
           <div style={{"display":"flex","flexDirection":"column","gap":"2.5rem"}}>
             
             {/*  Net Pay Summary Card  */}
@@ -1037,27 +1045,20 @@ const renderDocumentRows = () => {
           </div>
         </div>
 
-        {/*  Tab 3: Attendance  */}
-        <div className="tab-content" data-tab="attendance">
-          <div style={{"padding":"3rem 1rem","textAlign":"center","color":"var(--text-muted)","fontStyle":"italic"}}>
-            Attendance records will come soon (Dependent on Employee Login Portal)
-          </div>
-          {false && (
+        {/*  Tab 3: Attendance Log  */}
+        <div className={`tab-content ${activeTab === 'attendance' ? 'active' : ''}`} data-tab="attendance">
+          {attendanceRecords && attendanceStats ? (
           <div style={{"display":"flex","flexDirection":"column","gap":"2rem"}}>
             {/*  Monthly Summary Strip  */}
             <div className="card" style={{"border":"1px solid var(--border-color)","background":"#F8FAFC","padding":"1.25rem"}}>
               <div className="flex-row-between" style={{"marginBottom":"1rem","borderBottom":"1px solid var(--border-color)","paddingBottom":"0.75rem","flexWrap":"wrap","gap":"1rem"}}>
                 <div style={{"display":"flex","alignItems":"center","gap":"1rem","flexWrap":"wrap"}}>
-                  <h3 id="att-month-title" style={{"fontSize":"1.15rem","margin":"0","color":"var(--primary-navy)"}}>Attendance Summary (June 2026)</h3>
+                  <h3 id="att-month-title" style={{"fontSize":"1.15rem","margin":"0","color":"var(--primary-navy)"}}>Attendance Summary ({attendanceStats.targetMonthDisplay})</h3>
                   <div style={{"display":"flex","alignItems":"center","background":"#FFFFFF","borderRadius":"var(--radius-md)","padding":"0.25rem","border":"1px solid var(--border-color)","boxShadow":"0 1px 2px rgba(0,0,0,0.05)"}}>
-                    <button className="btn btn-xs btn-secondary" onClick={(event) => { window.changeAttendanceMonth(-1) }} style={{"padding":"0.25rem 0.6rem","border":"none","background":"#F1F5F9","fontWeight":"bold","cursor":"pointer"}}>←</button>
-                    <select id="attendance-month-select" onChange={(event) => { window.onAttendanceMonthSelect() }} style={{"background":"transparent","border":"none","fontWeight":"600","color":"var(--primary-navy)","padding":"0 0.5rem","cursor":"pointer","outline":"none"}}>
-                      <option value="0">April 2026</option>
-                      <option value="1">May 2026</option>
-                      <option value="2" >June 2026</option>
-                      <option value="3">July 2026</option>
-                    </select>
-                    <button className="btn btn-xs btn-secondary" onClick={(event) => { window.changeAttendanceMonth(1) }} style={{"padding":"0.25rem 0.6rem","border":"none","background":"#F1F5F9","fontWeight":"bold","cursor":"pointer"}}>→</button>
+                    <input type="month" className="form-control" style={{"padding":"0.25rem 0.5rem","border":"none","background":"transparent","fontWeight":"bold"}}
+                           value={attendanceStats.targetMonth}
+                           onChange={(e) => router.get(route('employees.show', employee.id), { month: e.target.value }, { preserveState: true })}
+                    />
                   </div>
                 </div>
                 <span className="badge badge-navy" style={{"fontSize":"0.85rem"}}>Biometric &amp; Portal Sync</span>
@@ -1065,19 +1066,19 @@ const renderDocumentRows = () => {
               <div style={{"display":"grid","gridTemplateColumns":"repeat(4, 1fr)","gap":"1rem","textAlign":"center"}}>
                 <div style={{"background":"white","padding":"1rem","borderRadius":"var(--radius-sm)","border":"1px solid var(--border-color)"}}>
                   <div style={{"fontSize":"0.75rem","color":"var(--text-muted)","textTransform":"uppercase","fontWeight":"600"}}>Present Days</div>
-                  <div id="att-present-count" style={{"fontSize":"1.5rem","fontWeight":"700","color":"var(--status-success)","marginTop":"0.25rem"}}>19 <span style={{"fontSize":"0.85rem","fontWeight":"500","color":"var(--text-muted)"}}>(+1 Half)</span></div>
+                  <div id="att-present-count" style={{"fontSize":"1.5rem","fontWeight":"700","color":"var(--status-success)","marginTop":"0.25rem"}}>{attendanceStats.present}</div>
                 </div>
                 <div style={{"background":"white","padding":"1rem","borderRadius":"var(--radius-sm)","border":"1px solid var(--border-color)"}}>
                   <div style={{"fontSize":"0.75rem","color":"var(--text-muted)","textTransform":"uppercase","fontWeight":"600"}}>Leave Days</div>
-                  <div id="att-leave-count" style={{"fontSize":"1.5rem","fontWeight":"700","color":"var(--status-info)","marginTop":"0.25rem"}}>1</div>
+                  <div id="att-leave-count" style={{"fontSize":"1.5rem","fontWeight":"700","color":"var(--status-info)","marginTop":"0.25rem"}}>{attendanceStats.leave}</div>
                 </div>
                 <div style={{"background":"white","padding":"1rem","borderRadius":"var(--radius-sm)","border":"1px solid var(--border-color)"}}>
                   <div style={{"fontSize":"0.75rem","color":"var(--text-muted)","textTransform":"uppercase","fontWeight":"600"}}>Absent Days</div>
-                  <div id="att-absent-count" style={{"fontSize":"1.5rem","fontWeight":"700","color":"var(--status-danger)","marginTop":"0.25rem"}}>1</div>
+                  <div id="att-absent-count" style={{"fontSize":"1.5rem","fontWeight":"700","color":"var(--status-danger)","marginTop":"0.25rem"}}>{attendanceStats.absent}</div>
                 </div>
                 <div style={{"background":"white","padding":"1rem","borderRadius":"var(--radius-sm)","border":"1px solid var(--border-color)","borderBottom":"3px solid var(--accent-gold)"}}>
-                  <div style={{"fontSize":"0.75rem","color":"var(--text-muted)","textTransform":"uppercase","fontWeight":"600"}}>Total Working Days</div>
-                  <div id="att-total-count" style={{"fontSize":"1.5rem","fontWeight":"700","color":"var(--primary-navy)","marginTop":"0.25rem"}}>22</div>
+                  <div style={{"fontSize":"0.75rem","color":"var(--text-muted)","textTransform":"uppercase","fontWeight":"600"}}>Total Recorded</div>
+                  <div id="att-total-count" style={{"fontSize":"1.5rem","fontWeight":"700","color":"var(--primary-navy)","marginTop":"0.25rem"}}>{attendanceStats.present + attendanceStats.leave + attendanceStats.absent}</div>
                 </div>
               </div>
             </div>
@@ -1086,7 +1087,6 @@ const renderDocumentRows = () => {
             <div>
               <h4 style={{"fontSize":"1rem","marginBottom":"0.5rem","color":"var(--primary-navy)"}}>Monthly Calendar View</h4>
               <div className="calendar-grid" id="att-calendar-grid">
-                {/*  Day Headers  */}
                 <div className="calendar-day-header">Mon</div>
                 <div className="calendar-day-header">Tue</div>
                 <div className="calendar-day-header">Wed</div>
@@ -1095,50 +1095,36 @@ const renderDocumentRows = () => {
                 <div className="calendar-day-header">Sat</div>
                 <div className="calendar-day-header">Sun</div>
 
-                {/*  Week 1  */}
-                <div className="calendar-day-cell present"><span>1</span><span className="calendar-indicator present">Present</span></div>
-                <div className="calendar-day-cell present"><span>2</span><span className="calendar-indicator present">Present</span></div>
-                <div className="calendar-day-cell present"><span>3</span><span className="calendar-indicator present">Present</span></div>
-                <div className="calendar-day-cell present"><span>4</span><span className="calendar-indicator present">Present</span></div>
-                <div className="calendar-day-cell present"><span>5</span><span className="calendar-indicator present">Present</span></div>
-                <div className="calendar-day-cell other-month"><span>6</span><span className="calendar-indicator" style={{"color":"#94A3B8"}}>Wknd</span></div>
-                <div className="calendar-day-cell other-month"><span>7</span><span className="calendar-indicator" style={{"color":"#94A3B8"}}>Wknd</span></div>
+                {Array.from({ length: attendanceStats.startDayOfWeek - 1 }).map((_, i) => (
+                  <div key={`empty-${i}`} className="calendar-day-cell other-month"></div>
+                ))}
+                
+                {Array.from({ length: attendanceStats.daysInMonth }).map((_, i) => {
+                  const dayNum = i + 1;
+                  const dateStr = `${attendanceStats.targetMonth}-${String(dayNum).padStart(2, '0')}`;
+                  const record = attendanceRecords.find(r => r.attendance_date.substring(0,10) === dateStr);
+                  
+                  let cellClass = "calendar-day-cell";
+                  let indClass = "calendar-indicator";
+                  let indText = "-";
+                  
+                  if (record) {
+                    if (record.status === 'present') { cellClass += " present"; indClass += " present"; indText = "Present"; }
+                    else if (record.status === 'absent') { cellClass += " absent"; indClass += " absent"; indText = "Absent"; }
+                    else if (record.status === 'half_day') { cellClass += " half-day"; indClass += " half-day"; indText = "Half-day"; }
+                    else if (record.status === 'leave') { cellClass += " leave"; indClass += " leave"; indText = "On Leave"; }
+                  } else {
+                     const isWeekend = new Date(dateStr).getDay() === 0 || new Date(dateStr).getDay() === 6;
+                     if (isWeekend) { cellClass += " other-month"; indText = "Wknd"; }
+                  }
 
-                {/*  Week 2  */}
-                <div className="calendar-day-cell present"><span>8</span><span className="calendar-indicator present">Present</span></div>
-                <div className="calendar-day-cell present"><span>9</span><span className="calendar-indicator present">Present</span></div>
-                <div className="calendar-day-cell present"><span>10</span><span className="calendar-indicator present">Present</span></div>
-                <div className="calendar-day-cell present"><span>11</span><span className="calendar-indicator present">Present</span></div>
-                <div className="calendar-day-cell half-day"><span>12</span><span className="calendar-indicator half-day">Half-day</span></div>
-                <div className="calendar-day-cell other-month"><span>13</span><span className="calendar-indicator" style={{"color":"#94A3B8"}}>Wknd</span></div>
-                <div className="calendar-day-cell other-month"><span>14</span><span className="calendar-indicator" style={{"color":"#94A3B8"}}>Wknd</span></div>
-
-                {/*  Week 3  */}
-                <div className="calendar-day-cell present"><span>15</span><span className="calendar-indicator present">Present</span></div>
-                <div className="calendar-day-cell present"><span>16</span><span className="calendar-indicator present">Present</span></div>
-                <div className="calendar-day-cell present"><span>17</span><span className="calendar-indicator present">Present</span></div>
-                <div className="calendar-day-cell present"><span>18</span><span className="calendar-indicator present">Present</span></div>
-                <div className="calendar-day-cell absent"><span>19</span><span className="calendar-indicator absent">Absent</span></div>
-                <div className="calendar-day-cell other-month"><span>20</span><span className="calendar-indicator" style={{"color":"#94A3B8"}}>Wknd</span></div>
-                <div className="calendar-day-cell other-month"><span>21</span><span className="calendar-indicator" style={{"color":"#94A3B8"}}>Wknd</span></div>
-
-                {/*  Week 4  */}
-                <div className="calendar-day-cell present"><span>22</span><span className="calendar-indicator present">Present</span></div>
-                <div className="calendar-day-cell leave"><span>23</span><span className="calendar-indicator leave">On Leave</span></div>
-                <div className="calendar-day-cell present"><span>24</span><span className="calendar-indicator present">Present</span></div>
-                <div className="calendar-day-cell present"><span>25</span><span className="calendar-indicator present">Present</span></div>
-                <div className="calendar-day-cell present"><span>26</span><span className="calendar-indicator present">Present</span></div>
-                <div className="calendar-day-cell other-month"><span>27</span><span className="calendar-indicator" style={{"color":"#94A3B8"}}>Wknd</span></div>
-                <div className="calendar-day-cell other-month"><span>28</span><span className="calendar-indicator" style={{"color":"#94A3B8"}}>Wknd</span></div>
-
-                {/*  Week 5  */}
-                <div className="calendar-day-cell present"><span>29</span><span className="calendar-indicator present">Present</span></div>
-                <div className="calendar-day-cell present"><span>30</span><span className="calendar-indicator present">Present</span></div>
-                <div className="calendar-day-cell other-month"><span>1</span><span className="calendar-indicator" style={{"color":"#CBD5E1"}}>July</span></div>
-                <div className="calendar-day-cell other-month"><span>2</span><span className="calendar-indicator" style={{"color":"#CBD5E1"}}>July</span></div>
-                <div className="calendar-day-cell other-month"><span>3</span><span className="calendar-indicator" style={{"color":"#CBD5E1"}}>July</span></div>
-                <div className="calendar-day-cell other-month"><span>4</span><span className="calendar-indicator" style={{"color":"#CBD5E1"}}>July</span></div>
-                <div className="calendar-day-cell other-month"><span>5</span><span className="calendar-indicator" style={{"color":"#CBD5E1"}}>July</span></div>
+                  return (
+                    <div key={dayNum} className={cellClass}>
+                      <span>{dayNum}</span>
+                      <span className={indClass}>{indText}</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -1150,6 +1136,7 @@ const renderDocumentRows = () => {
                   <thead>
                     <tr>
                       <th>Date</th>
+                      <th>Source</th>
                       <th>Punch-In Time</th>
                       <th>Punch-Out Time</th>
                       <th>Hours Worked</th>
@@ -1157,86 +1144,41 @@ const renderDocumentRows = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    <tr>
-                      <td>June 30, 2026</td>
-                      <td>09:30 AM</td>
-                      <td>06:15 PM</td>
-                      <td>8h 45m</td>
-                      <td><span className="badge badge-success">Present</span></td>
-                    </tr>
-                    <tr>
-                      <td>June 29, 2026</td>
-                      <td>09:28 AM</td>
-                      <td>06:05 PM</td>
-                      <td>8h 37m</td>
-                      <td><span className="badge badge-success">Present</span></td>
-                    </tr>
-                    <tr>
-                      <td>June 26, 2026</td>
-                      <td>09:40 AM</td>
-                      <td>06:10 PM</td>
-                      <td>8h 30m</td>
-                      <td><span className="badge badge-success">Present</span></td>
-                    </tr>
-                    <tr>
-                      <td>June 25, 2026</td>
-                      <td>09:42 AM</td>
-                      <td>06:15 PM</td>
-                      <td>8h 33m</td>
-                      <td><span className="badge badge-success">Present</span></td>
-                    </tr>
-                    <tr>
-                      <td>June 24, 2026</td>
-                      <td>09:30 AM</td>
-                      <td>06:05 PM</td>
-                      <td>8h 35m</td>
-                      <td><span className="badge badge-success">Present</span></td>
-                    </tr>
-                    <tr>
-                      <td>June 23, 2026</td>
-                      <td>—</td>
-                      <td>—</td>
-                      <td>0h 00m</td>
-                      <td><span className="badge badge-info">On Leave (Sick)</span></td>
-                    </tr>
-                    <tr>
-                      <td>June 22, 2026</td>
-                      <td>09:35 AM</td>
-                      <td>06:10 PM</td>
-                      <td>8h 35m</td>
-                      <td><span className="badge badge-success">Present</span></td>
-                    </tr>
-                    <tr>
-                      <td>June 19, 2026</td>
-                      <td>—</td>
-                      <td>—</td>
-                      <td>0h 00m</td>
-                      <td><span className="badge badge-danger">Absent</span></td>
-                    </tr>
-                    <tr>
-                      <td>June 18, 2026</td>
-                      <td>09:25 AM</td>
-                      <td>06:00 PM</td>
-                      <td>8h 35m</td>
-                      <td><span className="badge badge-success">Present</span></td>
-                    </tr>
-                    <tr>
-                      <td>June 12, 2026</td>
-                      <td>09:30 AM</td>
-                      <td>01:30 PM</td>
-                      <td>4h 00m</td>
-                      <td><span className="badge badge-warning">Half-day</span></td>
-                    </tr>
+                    {attendanceRecords.length === 0 ? (
+                      <tr>
+                        <td colSpan="6" style={{textAlign:"center", padding:"2rem", color:"var(--text-muted)"}}>No attendance records found for {attendanceStats.targetMonthDisplay}</td>
+                      </tr>
+                    ) : attendanceRecords.sort((a,b) => new Date(b.attendance_date) - new Date(a.attendance_date)).map(record => (
+                      <tr key={record.id}>
+                        <td>{new Date(record.attendance_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                        <td><span style={{fontSize:'0.75rem', color:'var(--text-muted)', textTransform:'uppercase'}}>{record.source}</span></td>
+                        <td>{record.punch_in_time ? record.punch_in_time.substring(0,5) : '—'}</td>
+                        <td>{record.punch_out_time ? record.punch_out_time.substring(0,5) : '—'}</td>
+                        <td>{record.hours_worked ? `${Math.floor(record.hours_worked)}h ${Math.round((record.hours_worked % 1) * 60)}m` : '0h 00m'}</td>
+                        <td>
+                          {record.status === 'present' && <span className="badge badge-success">Present</span>}
+                          {record.status === 'absent' && <span className="badge badge-danger">Absent</span>}
+                          {record.status === 'half_day' && <span className="badge badge-warning">Half-day</span>}
+                          {record.status === 'leave' && <span className="badge badge-info">On Leave</span>}
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
             </div>
           </div>
+          ) : (
+            <div style={{"padding":"3rem 1rem","textAlign":"center","color":"var(--text-muted)","fontStyle":"italic"}}>
+              Attendance records not loaded.
+            </div>
           )}
         </div>
 
-        {/*  Tab 4: Payslips  */}
-        <div className="tab-content" data-tab="payslips">
+
+
+        {/*  Tab 4: Generated Payslips  */}
+        <div className={`tab-content ${activeTab === 'payslips' ? 'active' : ''}`} data-tab="payslips">
           <div style={{"display":"flex","flexDirection":"column","gap":"1.5rem"}}>
             <div className="flex-row-between">
               <h3 style={{"fontSize":"1.1rem","margin":"0"}}>Generated Payslips Archive</h3>
@@ -1265,28 +1207,28 @@ const renderDocumentRows = () => {
                     <td>₹54,500</td>
                     <td><strong>₹48,000</strong> <span style={{"fontSize":"0.75rem","color":"var(--status-danger)"}}>(1 Absent Ded.)</span></td>
                     <td><span className="badge badge-warning">Generated</span></td>
-                    <td><a href="/payroll/payslips" className="btn btn-secondary btn-xs">📥 Download PDF</a></td>
+                    <td><a href={route('payroll.payslips')} className="btn btn-secondary btn-xs">📥 Download PDF</a></td>
                   </tr>
                   <tr>
                     <td><strong>May 2026</strong></td>
                     <td>₹54,500</td>
                     <td><strong>₹50,000</strong></td>
                     <td><span className="badge badge-success">Disbursed</span></td>
-                    <td><a href="/payroll/payslips" className="btn btn-secondary btn-xs">📥 Download PDF</a></td>
+                    <td><a href={route('payroll.payslips')} className="btn btn-secondary btn-xs">📥 Download PDF</a></td>
                   </tr>
                   <tr>
                     <td><strong>April 2026</strong></td>
                     <td>₹54,500</td>
                     <td><strong>₹50,000</strong></td>
                     <td><span className="badge badge-success">Disbursed</span></td>
-                    <td><a href="/payroll/payslips" className="btn btn-secondary btn-xs">📥 Download PDF</a></td>
+                    <td><a href={route('payroll.payslips')} className="btn btn-secondary btn-xs">📥 Download PDF</a></td>
                   </tr>
                   <tr>
                     <td><strong>March 2026</strong></td>
                     <td>₹45,000</td>
                     <td><strong>₹41,000</strong></td>
                     <td><span className="badge badge-success">Disbursed</span></td>
-                    <td><a href="/payroll/payslips" className="btn btn-secondary btn-xs">📥 Download PDF</a></td>
+                    <td><a href={route('payroll.payslips')} className="btn btn-secondary btn-xs">📥 Download PDF</a></td>
                   </tr>
                   */}
                 </tbody>
@@ -1297,7 +1239,7 @@ const renderDocumentRows = () => {
 
         
         {/*  Tab 5: Documents & KYC Checklist  */}
-        <div className="tab-content" data-tab="docs">
+        <div className={`tab-content ${activeTab === 'docs' ? 'active' : ''}`} data-tab="docs">
           <div style={{"display":"flex","flexDirection":"column","gap":"2rem"}}>
             
             {/*  Overall Progress Summary  */}
@@ -1353,7 +1295,7 @@ const renderDocumentRows = () => {
         </div>
 
         {/*  Tab 6: Tax Declaration  */}
-        <div className="tab-content" data-tab="tax">
+        <div className={`tab-content ${activeTab === 'tax' ? 'active' : ''}`} data-tab="tax">
           <ComingSoonFeature 
             title="Tax Declaration"
             description="Employees will be able to log in and self-declare their tax-saving investments once the Payroll Module is fully connected."
@@ -1370,7 +1312,7 @@ const renderDocumentRows = () => {
         </div>
 
         {/*  Tab 7: Loans & Advances  */}
-        <div className="tab-content" data-tab="loans">
+        <div className={`tab-content ${activeTab === 'loans' ? 'active' : ''}`} data-tab="loans">
           <ComingSoonFeature 
             title="Loans & Advances"
             description="Salary advances and loan repayments will automatically deduct from monthly payslips once the Payroll Module is built."

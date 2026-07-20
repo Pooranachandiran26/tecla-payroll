@@ -106,6 +106,65 @@ class EmployeePortalController extends Controller
         ]);
     }
 
+    public function storeDocument(Request $request)
+    {
+        $employee = $this->getEmployee();
+        
+        $request->validate([
+            'document_type' => 'required|string',
+            'file' => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120', // 5MB max
+        ]);
+
+        // Find existing document of the same type
+        $existing = \App\Models\EmployeeDocument::where('employee_id', $employee->id)
+            ->where('document_type', $request->document_type)
+            ->first();
+            
+        $path = $request->file('file')->store('employee_documents');
+
+        if ($existing) {
+            \Illuminate\Support\Facades\Storage::delete($existing->file_path);
+            $existing->update([
+                'file_path' => $path,
+                'status' => 'pending',
+                'rejection_reason' => null,
+            ]);
+        } else {
+            \App\Models\EmployeeDocument::create([
+                'employee_id' => $employee->id,
+                'document_type' => $request->document_type,
+                'file_path' => $path,
+                'status' => 'pending'
+            ]);
+        }
+
+        // Notify admins
+        \App\Jobs\NotifyWatchersJob::dispatch(
+            'system_alerts',
+            'Document Uploaded',
+            "Employee {$employee->full_name} ({$employee->employee_code}) uploaded a new {$request->document_type}.",
+            null
+        );
+
+        return redirect()->back()->with('success', 'Document uploaded successfully.');
+    }
+
+    public function viewDocument($docId)
+    {
+        $employee = $this->getEmployee();
+        $document = \App\Models\EmployeeDocument::where('employee_id', $employee->id)->findOrFail($docId);
+
+        if (!\Illuminate\Support\Facades\Storage::disk('local')->exists($document->file_path)) {
+            abort(404, 'Document file not found.');
+        }
+
+        return \Illuminate\Support\Facades\Storage::disk('local')->response(
+            $document->file_path,
+            null,
+            ['Content-Disposition' => 'inline']
+        );
+    }
+
     public function attendance()
     {
         $employee = $this->getEmployee();
@@ -125,33 +184,43 @@ class EmployeePortalController extends Controller
         ]);
     }
 
-    public function punchIn()
+    public function punchIn(Request $request)
     {
         $employee = $this->getEmployee();
         $today = Carbon::today()->toDateString();
 
         if ($employee->date_of_joining && Carbon::today()->lt(Carbon::parse($employee->date_of_joining)->startOfDay())) {
-            return redirect()->back()->with('error', "Cannot punch in before your date of joining ({$employee->date_of_joining}).");
+            return redirect()->back()->with('warning', "Cannot punch in before your date of joining ({$employee->date_of_joining}).");
         }
 
         $existing = AttendanceRecord::where('employee_id', $employee->id)
             ->where('attendance_date', $today)
             ->first();
 
+        $latitude = $request->input('latitude');
+        $longitude = $request->input('longitude');
+        $placeName = $request->input('place_name');
+
         if ($existing) {
             if ($existing->punch_in_time) {
-                return redirect()->back()->with('error', 'You have already punched in today.');
+                return redirect()->back()->with('warning', 'You have already punched in today.');
             }
             $existing->update([
                 'punch_in_time' => now(),
-                'source' => 'live_punch'
+                'source' => 'live_punch',
+                'latitude' => $latitude,
+                'longitude' => $longitude,
+                'place_name' => $placeName,
             ]);
         } else {
             AttendanceRecord::create([
                 'employee_id' => $employee->id,
                 'attendance_date' => $today,
                 'punch_in_time' => now(),
-                'source' => 'live_punch'
+                'source' => 'live_punch',
+                'latitude' => $latitude,
+                'longitude' => $longitude,
+                'place_name' => $placeName,
             ]);
         }
 
@@ -168,11 +237,11 @@ class EmployeePortalController extends Controller
             ->first();
 
         if (!$record || !$record->punch_in_time) {
-            return redirect()->back()->with('error', 'You must punch in first.');
+            return redirect()->back()->with('warning', 'You must punch in first.');
         }
 
         if ($record->punch_out_time) {
-            return redirect()->back()->with('error', 'You have already punched out today.');
+            return redirect()->back()->with('warning', 'You have already punched out today.');
         }
 
         $punchInTime = Carbon::parse($record->punch_in_time);

@@ -97,6 +97,13 @@ class EmployeeController extends Controller
             \Illuminate\Support\Facades\Log::error("Failed to provision user for employee {$employee->id}: " . $e->getMessage());
         }
 
+        \App\Jobs\NotifyWatchersJob::dispatch(
+            'system_alerts',
+            'New Employee Registered',
+            "Employee {$employee->full_name} ({$employee->employee_code}) has been added to the system.",
+            null
+        );
+
         return redirect()->route('employees.index')->with('success', 'Employee created successfully.');
     }
 
@@ -132,11 +139,33 @@ class EmployeeController extends Controller
         ]);
     }
 
-    public function show($id)
+    public function show(\Illuminate\Http\Request $request, $id)
     {
         $employee = \App\Models\Employee::with(['salaryRevisions.approver', 'client', 'exitRequest', 'documents'])->findOrFail($id);
+        
+        $targetDate = $request->query('month') ? \Carbon\Carbon::parse($request->query('month').'-01') : now();
+        $monthStart = $targetDate->copy()->startOfMonth()->toDateString();
+        $monthEnd = $targetDate->copy()->endOfMonth()->toDateString();
+        
+        $attendanceRecords = \App\Models\AttendanceRecord::where('employee_id', $employee->id)
+            ->whereBetween('attendance_date', [$monthStart, $monthEnd])
+            ->orderBy('attendance_date', 'asc')
+            ->get();
+
+        $stats = [
+            'present' => $attendanceRecords->where('status', 'present')->count(),
+            'leave' => $attendanceRecords->where('status', 'leave')->count(),
+            'absent' => $attendanceRecords->where('status', 'absent')->count(),
+            'targetMonth' => $targetDate->format('Y-m'),
+            'targetMonthDisplay' => $targetDate->format('F Y'),
+            'daysInMonth' => $targetDate->daysInMonth,
+            'startDayOfWeek' => $targetDate->copy()->startOfMonth()->dayOfWeekIso, // 1 (Mon) - 7 (Sun)
+        ];
+
         return \Inertia\Inertia::render('Employees/EmployeeDetail', [
-            'employee' => new \App\Http\Resources\EmployeeResource($employee)
+            'employee' => new \App\Http\Resources\EmployeeResource($employee),
+            'attendanceRecords' => $attendanceRecords,
+            'attendanceStats' => $stats
         ]);
     }
 
@@ -193,12 +222,25 @@ class EmployeeController extends Controller
             'verified_at' => now(),
         ]);
 
+        if ($request->status === 'verified' && $employee->personal_email) {
+            \Illuminate\Support\Facades\Mail::to($employee->personal_email)
+                ->queue(new \App\Mail\DocumentVerifiedMail($document->document_type, $employee->full_name));
+        } elseif ($request->status === 'rejected' && $employee->personal_email) {
+            \Illuminate\Support\Facades\Mail::to($employee->personal_email)
+                ->queue(new \App\Mail\DocumentRejectedMail($document->document_type, $employee->full_name, $request->rejection_reason));
+        }
+
         // Check for auto-activation
         if ($request->status === 'verified' && $employee->status === 'onboarding') {
             $employee->load('documents'); // reload to get latest status
             if ($employee->documents_verified_count >= $employee->documents_required_count) {
                 $employee->update(['status' => 'active']);
                 
+                if ($employee->personal_email) {
+                    \Illuminate\Support\Facades\Mail::to($employee->personal_email)
+                        ->queue(new \App\Mail\ProfileActivatedMail($employee->full_name));
+                }
+
                 $auditService = app(\App\Services\AuditService::class);
                 $auditService->log(
                     'employee.auto_activated',

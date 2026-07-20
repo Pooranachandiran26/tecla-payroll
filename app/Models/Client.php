@@ -54,6 +54,13 @@ class Client extends Model
         return $this->hasMany(ClientDocument::class);
     }
 
+    public function invoices()
+    {
+        return $this->hasMany(Invoice::class);
+    }
+
+
+
     public function accountManager()
     {
         return $this->belongsTo(User::class, 'account_manager_id');
@@ -84,7 +91,7 @@ class Client extends Model
     {
         $month = \Carbon\Carbon::parse($payrollMonth)->startOfDay();
 
-        if ($this->payroll_convention === 'custom_cycle') {
+        if (in_array($this->payroll_convention, ['custom', 'custom_cycle'])) {
             $startDay = (int) $this->custom_cycle_start_day ?: 1;
             $endDay = (int) $this->custom_cycle_end_day ?: 28;
 
@@ -111,7 +118,7 @@ class Client extends Model
     {
         $month = \Carbon\Carbon::parse($payrollMonth)->startOfDay();
 
-        if ($this->payroll_convention === 'custom_cycle') {
+        if (in_array($this->payroll_convention, ['custom', 'custom_cycle'])) {
             $endDay = (int) $this->custom_cycle_end_day ?: 28;
             $clampedDay = min($endDay, $month->daysInMonth);
             return $month->copy()->day($clampedDay);

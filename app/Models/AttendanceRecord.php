@@ -19,6 +19,9 @@ class AttendanceRecord extends Model
         'source',
         'uploaded_batch_id',
         'notes',
+        'latitude',
+        'longitude',
+        'place_name',
     ];
 
     protected $casts = [

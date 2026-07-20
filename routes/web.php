@@ -99,7 +99,8 @@ Route::middleware(['auth', 'active'])->group(function () {
                 $clients = \App\Models\Client::where('status', 'active')->select('id', 'company_name')->get();
                 return Inertia::render('Employees/EmployeeForm', ['clients' => $clients]);
             })->name('employees.create');
-            Route::get('/employees/bulk-upload', fn() => Inertia::render('Employees/BulkUpload'))->name('employees.bulk-upload');
+            Route::get('/employees/bulk-upload', [BulkUploadController::class, 'showUploadForm'])->name('employees.bulk-upload');
+            Route::get('/employees/bulk-upload/download-template', [BulkUploadController::class, 'downloadTemplate'])->name('employees.bulk-upload.download-template');
             Route::post('/employees/bulk-upload/validate', [BulkUploadController::class, 'validateUpload'])->name('employees.bulk-upload.validate');
             Route::post('/employees/bulk-upload/execute', [BulkUploadController::class, 'executeImport'])->name('employees.bulk-upload.execute');
             Route::get('/employees/salary-bulk-update', fn() => Inertia::render('Employees/SalaryBulkUpdate'))->name('employees.salary-bulk-update');
@@ -209,6 +210,8 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::middleware('role:employee')->group(function () {
             Route::get('/employee/dashboard', [\App\Http\Controllers\EmployeePortalController::class, 'dashboard'])->name('employee.dashboard');
             Route::get('/employee/profile', [\App\Http\Controllers\EmployeePortalController::class, 'profile'])->name('employee.profile');
+            Route::post('/employee/documents', [\App\Http\Controllers\EmployeePortalController::class, 'storeDocument'])->name('employee.documents.store');
+            Route::get('/employee/documents/{docId}/view', [\App\Http\Controllers\EmployeePortalController::class, 'viewDocument'])->name('employee.documents.view');
             Route::post('/employee/bank-change-requests', [BankChangeRequestController::class, 'store'])->name('employee.bank-change-request.store');
             Route::get('/employee/attendance', [\App\Http\Controllers\EmployeePortalController::class, 'attendance'])->name('employee.attendance');
             Route::post('/employee/attendance/punch-in', [\App\Http\Controllers\EmployeePortalController::class, 'punchIn'])->name('employee.attendance.punch-in');
