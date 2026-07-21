@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import AuthenticatedLayout from '../../Layouts/AuthenticatedLayout';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import Button from '../../Components/ui/Button';
 import RoleGuard from '../../Components/RoleGuard.jsx';
 import Pagination from '../../Components/ui/Pagination';
@@ -38,10 +38,36 @@ function numberToEnglishWords(num) {
     return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
-export default function Payslip({ items, clients = [], selectedClientId, selectedMonth }) {
+export default function Payslip({ items, clients = [], selectedClientId, selectedMonth, clientBranding }) {
     const [clientId, setClientId] = useState(selectedClientId || '');
     const [month, setMonth] = useState(selectedMonth || '2026-07-01');
     const [selectedItem, setSelectedItem] = useState(null);
+
+    const { branding } = usePage().props;
+
+    // Resolve per-employee branding based on their employment_model
+    const isEor = selectedItem?.employment_model === 'eor';
+
+    let logoUrl = null;
+    let displayName = "TECLA AGENCY PRIVATE LIMITED";
+    let companyAddress = "Mumbai, Maharashtra | GST: 27AABCM1234N1ZQ";
+    let accentColor = "#1F3864"; // Default Tecla accent color
+
+    if (isEor && clientBranding) {
+        logoUrl = clientBranding.logo_path || null;
+        displayName = clientBranding.display_name_override || clientBranding.company_name;
+
+        // Resolve address & GSTIN
+        const cityState = [clientBranding.registered_city, clientBranding.registered_state].filter(Boolean).join(', ');
+        const gstinText = clientBranding.gstin ? `GST: ${clientBranding.gstin}` : '';
+        companyAddress = [cityState, gstinText].filter(Boolean).join(' | ');
+
+        if (clientBranding.accent_color) {
+            accentColor = clientBranding.accent_color;
+        }
+    } else {
+        logoUrl = branding?.logo_url || null;
+    }
 
     useEffect(() => {
         if (items && items.data && items.data.length > 0) {
@@ -103,14 +129,14 @@ export default function Payslip({ items, clients = [], selectedClientId, selecte
                     .payslip-header {
                         display: flex;
                         justify-content: space-between;
-                        border-bottom: 2px solid var(--primary-navy);
+                        border-bottom: 2px solid ${accentColor};
                         padding-bottom: 1rem;
                         margin-bottom: 1.5rem;
                     }
                     .payslip-title {
                         font-size: 1.5rem;
                         font-weight: 700;
-                        color: var(--primary-navy);
+                        color: ${accentColor};
                         text-transform: uppercase;
                     }
                     .payslip-meta-label {
@@ -158,9 +184,14 @@ export default function Payslip({ items, clients = [], selectedClientId, selecte
                         <div>
                             <div className="payslip-container">
                                 <div className="payslip-header">
-                                    <div>
-                                        <div className="font-bold text-[1.2rem] text-[#1F3864]">TECLA AGENCY PRIVATE LIMITED</div>
-                                        <div className="text-[0.75rem] text-gray-500">Mumbai, Maharashtra | GST: 27AABCM1234N1ZQ</div>
+                                    <div className="flex gap-4 items-center">
+                                        {logoUrl && (
+                                            <img src={logoUrl} alt="Logo" style={{ maxHeight: '48px', maxWidth: '180px', objectFit: 'contain' }} />
+                                        )}
+                                        <div>
+                                            <div className="font-bold text-[1.2rem]" style={{ color: accentColor }}>{displayName}</div>
+                                            <div className="text-[0.75rem] text-gray-500">{companyAddress}</div>
+                                        </div>
                                     </div>
                                     <div className="text-right">
                                         <div className="payslip-title">Salary Payslip</div>
@@ -187,8 +218,8 @@ export default function Payslip({ items, clients = [], selectedClientId, selecte
                                         <table className="w-full text-left border-collapse text-sm">
                                             <thead>
                                                 <tr>
-                                                    <th className="bg-[#1F3864] text-white p-2 border border-[#1F3864]">Components</th>
-                                                    <th className="bg-[#1F3864] text-white p-2 text-right border border-[#1F3864]">Earned Value</th>
+                                                    <th style={{ backgroundColor: accentColor, borderColor: accentColor }} className="text-white p-2 border">Components</th>
+                                                    <th style={{ backgroundColor: accentColor, borderColor: accentColor }} className="text-white p-2 text-right border">Earned Value</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -199,9 +230,9 @@ export default function Payslip({ items, clients = [], selectedClientId, selecte
                                                 <tr><td className="p-2 border border-gray-200">5. Medical Allowance</td><td className="p-2 border border-gray-200 text-right font-semibold">₹{parseFloat(selectedItem.medical_allowance).toLocaleString()}</td></tr>
                                                 <tr><td className="p-2 border border-gray-200">6. Special Allowance</td><td className="p-2 border border-gray-200 text-right font-semibold">₹{parseFloat(selectedItem.special_allowance).toLocaleString()}</td></tr>
                                                 <tr><td className="p-2 border border-gray-200">7. Arrears / Other Additions</td><td className="p-2 border border-gray-200 text-right font-semibold">₹{parseFloat(selectedItem.other_additions).toLocaleString()}</td></tr>
-                                                <tr className="bg-[#F1F5F9] font-bold border-t-2 border-t-[#1F3864]">
+                                                <tr className="bg-[#F1F5F9] font-bold" style={{ borderTop: `2px solid ${accentColor}` }}>
                                                     <td className="p-2 border border-gray-200">Gross Total</td>
-                                                    <td className="p-2 border border-gray-200 text-right text-[#1F3864]">₹{parseFloat(selectedItem.gross_total).toLocaleString()}</td>
+                                                    <td className="p-2 border border-gray-200 text-right font-bold" style={{ color: accentColor }}>₹{parseFloat(selectedItem.gross_total).toLocaleString()}</td>
                                                 </tr>
                                             </tbody>
                                         </table>
@@ -211,8 +242,8 @@ export default function Payslip({ items, clients = [], selectedClientId, selecte
                                         <table className="w-full text-left border-collapse text-sm">
                                             <thead>
                                                 <tr>
-                                                    <th className="bg-[#1F3864] text-white p-2 border border-[#1F3864]">Deductions</th>
-                                                    <th className="bg-[#1F3864] text-white p-2 text-right border border-[#1F3864]">Amount</th>
+                                                    <th style={{ backgroundColor: accentColor, borderColor: accentColor }} className="text-white p-2 border">Deductions</th>
+                                                    <th style={{ backgroundColor: accentColor, borderColor: accentColor }} className="text-white p-2 text-right border">Amount</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -242,7 +273,7 @@ export default function Payslip({ items, clients = [], selectedClientId, selecte
                                 </div>
 
                                 {/* Net Statement */}
-                                <div className="bg-[#1F3864] text-white p-5 px-8 rounded-md flex justify-between items-center shadow-lg">
+                                <div className="text-white p-5 px-8 rounded-md flex justify-between items-center shadow-lg" style={{ backgroundColor: accentColor }}>
                                     <div className="text-[1.4rem] font-bold text-[#B8860B]">
                                         Net Pay Rs.{Math.round(parseFloat(selectedItem.net_pay)).toLocaleString('en-IN')}/-
                                     </div>
@@ -253,7 +284,7 @@ export default function Payslip({ items, clients = [], selectedClientId, selecte
 
                                 {/* Employer Contributions & CTC */}
                                 <div className="mt-8">
-                                    <h4 className="text-[1.1rem] text-[#1F3864] mb-3 border-b border-gray-200 pb-2 font-bold uppercase">Employer Contributions</h4>
+                                    <h4 className="text-[1.1rem] mb-3 border-b border-gray-200 pb-2 font-bold uppercase" style={{ color: accentColor }}>Employer Contributions</h4>
                                     <div className="flex gap-8">
                                         <div className="flex-1 bg-white border border-gray-200 rounded-md p-5 shadow-sm">
                                             <div className="flex flex-col gap-2 text-[0.85rem]">
@@ -262,7 +293,7 @@ export default function Payslip({ items, clients = [], selectedClientId, selecte
                                                 <div className="flex justify-between"><span className="payslip-meta-label">Employer LWF Contribution</span><span className="payslip-meta-val">₹{parseFloat(selectedItem.employer_lwf).toLocaleString()}</span></div>
                                                 <hr className="border-t border-gray-200 my-1" />
                                                 <div className="flex justify-between font-bold">
-                                                    <span className="text-[#1F3864]">Total Employer Cost</span>
+                                                    <span style={{ color: accentColor }}>Total Employer Cost</span>
                                                     <span>
                                                         ₹{(
                                                             parseFloat(selectedItem.employer_pf) + 
@@ -275,7 +306,7 @@ export default function Payslip({ items, clients = [], selectedClientId, selecte
                                         </div>
                                         <div className="flex-1 bg-[#F8FAFC] border-2 border-dashed border-[#CBD5E1] rounded-md p-5 flex flex-col justify-center items-center">
                                             <div className="text-[0.9rem] font-bold text-gray-500 uppercase tracking-wider mb-1">Cost to Company (CTC)</div>
-                                            <div className="text-[1.5rem] font-bold text-[#1F3864]">
+                                            <div className="text-[1.5rem] font-bold" style={{ color: accentColor }}>
                                                 ₹{(
                                                     parseFloat(selectedItem.gross_total) + 
                                                     parseFloat(selectedItem.employer_pf) + 

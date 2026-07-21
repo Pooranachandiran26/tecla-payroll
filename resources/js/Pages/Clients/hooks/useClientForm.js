@@ -38,7 +38,7 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
     if (['contractType', 'billingModel', 'markupPct', 'markupBase', 'fixedFeeCandidate', 'fixedMonthlyRetainer', 'hourlyRate', 'standardHours', 'otBilling', 'otApproval', 'invoiceCycle', 'paymentTerms', 'contractStart', 'contractEnd', 'autoRenewal', 'poRequired', 'poNumber', 'poValue', 'poValidity', 'gstRate', 'lutRefNo', 'reverseCharge', 'tdsApplicableAgency', 'prefFormatPDF', 'prefFormatXLSX', 'invoiceFooterNotes', 'noticePeriod', 'creditLimit', 'latePenalty', 'billingCurrency'].includes(field)) return 4;
     if (['pfCeiling', 'pfApplicable', 'esiLimit', 'esiApplicable', 'ptState', 'ptApplicable', 'lwfFrequency', 'lwfApplicable', 'tdsRegime', 'tdsApplicable', 'gratuityMode', 'gratuityApplicable', 'bonusPct', 'bonusApplicable', 'lopBasis'].includes(field)) return 5;
     if (field === 'documents') return 6;
-    if (['portalAccess', 'portalEmail', 'portalAccessLevel', 'portalViewSalary', 'portalViewInvoices', 'portalViewPayslips', 'portalRaiseRequests', 'portal2fa', 'sessionTimeout', 'ipWhitelist', 'logoUrl'].includes(field)) return 7;
+    if (['portalAccess', 'portalEmail', 'portalAccessLevel', 'portalViewSalary', 'portalViewInvoices', 'portalViewPayslips', 'portalRaiseRequests', 'portal2fa', 'sessionTimeout', 'ipWhitelist', 'logoUrl', 'displayNameOverride', 'accentColor'].includes(field)) return 7;
     if (['attendanceCutoff', 'payrollLockDay', 'salaryCreditDay', 'invoiceDisputeDays', 'invoiceRaiseDay', 'payrollMonthConvention', 'cycleStartDay', 'cycleEndDay', 'accountManager', 'backupAccountManager', 'autoReminders', 'clientNotes'].includes(field)) return 8;
     return 1;
   };
@@ -850,6 +850,8 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
       sessionTimeout: parseInt(formData.sessionTimeout || '60'),
       ipWhitelist: formData.ipWhitelist,
       logoUrl: formData.logoUrl,
+      displayNameOverride: formData.displayNameOverride,
+      accentColor: formData.accentColor,
       invoiceRaiseDay: formData.invoiceRaiseDay,
       payrollMonthConvention: formData.payrollMonthConvention,
       cycleStartDay: parseInt(formData.cycleStartDay || '1'),
@@ -1119,7 +1121,9 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
       portal2fa: client.portal_require_2fa !== undefined ? client.portal_require_2fa : true,
       sessionTimeout: client.portal_session_timeout || 60,
       ipWhitelist: client.portal_ip_whitelist || '',
-      logoUrl: client.logo_url || '',
+      logoUrl: client.logo_path || client.logo_url || '',
+      displayNameOverride: client.display_name_override || '',
+      accentColor: client.accent_color || '#1F3864',
       invoiceRaiseDay: client.invoice_raise_day || 'Same as Payroll Lock Day',
       payrollMonthConvention: client.payroll_convention || 'calendar',
       cycleStartDay: client.custom_cycle_start_day || 1,

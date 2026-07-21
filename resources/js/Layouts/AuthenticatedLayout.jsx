@@ -36,6 +36,18 @@ export default function AuthenticatedLayout({ children }) {
   }, []);
 
   useEffect(() => {
+    const preventWheelChange = (e) => {
+      if (document.activeElement && document.activeElement.type === 'number') {
+        document.activeElement.blur();
+      }
+    };
+    window.addEventListener('wheel', preventWheelChange, { passive: true });
+    return () => {
+      window.removeEventListener('wheel', preventWheelChange);
+    };
+  }, []);
+
+  useEffect(() => {
     const removeListener = router.on('success', (event) => {
       const latestFlash = event.detail.page?.props?.flash;
       if (latestFlash) {

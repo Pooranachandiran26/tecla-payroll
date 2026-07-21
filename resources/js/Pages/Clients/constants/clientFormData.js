@@ -292,6 +292,7 @@ export function getDefaultFormData() {
     portalViewSalary: true, portalViewInvoices: true,
     portalViewPayslips: false, portalRaiseRequests: true,
     portal2fa: true, sessionTimeout: 60, ipWhitelist: '', logoUrl: '',
+    displayNameOverride: '', accentColor: '#1F3864',
 
     // SLA
     attendanceCutoff: '28', payrollLockDay: '3', salaryCreditDay: '7',

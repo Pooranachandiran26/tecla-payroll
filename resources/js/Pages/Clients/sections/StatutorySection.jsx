@@ -30,7 +30,7 @@ export default function StatutorySection({ formData, onChange, hook }) {
           <div className="stat-rate">
             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>Wage Ceiling Override (₹)</div>
             <input type="number" className="stat-rate-input" placeholder="15000"
-              value={formData.pfCeiling} onChange={e => hook.handlePFCeiling(e.target.value)} {...lockProps} />
+              value={formData.pfCeiling} onChange={e => hook.handlePFCeiling(e.target.value)} onWheel={e => e.target.blur()} {...lockProps} />
             <div className={`field-hint ${hook.getPFCeilingHint().type}`} style={{ fontSize: '0.65rem', marginTop: '0.2rem' }}>
               {hook.getPFCeilingHint().text}
             </div>
@@ -73,7 +73,7 @@ export default function StatutorySection({ formData, onChange, hook }) {
           <div className="stat-rate">
             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>Gross Limit Override (₹)</div>
             <input type="number" className="stat-rate-input" placeholder="21000"
-              value={formData.esiLimit} onChange={e => hook.handleESILimit(e.target.value)} {...lockProps} />
+              value={formData.esiLimit} onChange={e => hook.handleESILimit(e.target.value)} onWheel={e => e.target.blur()} {...lockProps} />
             <div className={`field-hint ${hook.getESILimitHint().type}`} style={{ fontSize: '0.65rem', marginTop: '0.2rem' }}>
               {hook.getESILimitHint().text}
             </div>
@@ -186,7 +186,7 @@ export default function StatutorySection({ formData, onChange, hook }) {
           <div className="stat-rate">
             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>Accrual %</div>
             <input type="number" className="stat-rate-input" placeholder="8.33" step="0.01" max="20" min="8.33"
-              value={formData.bonusPct} onChange={e => onChange('bonusPct', e.target.value)} {...lockProps} />
+              value={formData.bonusPct} onChange={e => onChange('bonusPct', e.target.value)} onWheel={e => e.target.blur()} {...lockProps} />
           </div>
           <div className="stat-toggle">
             <label className="toggle-container" title={lockProps.title}>
@@ -204,7 +204,7 @@ export default function StatutorySection({ formData, onChange, hook }) {
               <strong style={{ fontSize: '0.85rem' }}>Loss of Pay (LOP) Divisor Basis</strong>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Denominator used for daily wage calculation (Basic / X).</div>
             </div>
-            <select className="form-control" style={{ maxWidth: '250px' }}
+            <select className="form-control" style={{ width: 'auto', minWidth: '320px', maxWidth: '100%' }}
               value={formData.lopBasis} onChange={e => onChange('lopBasis', e.target.value)} {...lockProps}>
               <option value="26">26 Working Days (excludes Sundays)</option>
               <option value="30">30 Calendar Days</option>
