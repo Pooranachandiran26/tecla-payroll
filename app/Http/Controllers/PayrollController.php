@@ -586,7 +586,7 @@ class PayrollController extends Controller
             ->unique('employee_id')
             ->values();
 
-        $items = $runItems->through(function ($item) {
+        $items = $runItems->map(function ($item) {
             $employee = $item->employee;
             return array_merge($item->toArray(), [
                 'full_name' => $employee ? $employee->full_name : '—',
