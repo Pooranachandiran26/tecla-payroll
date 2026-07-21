@@ -19,13 +19,6 @@ export default function SlaSection({ formData, errors, onChange, hook }) {
 
       <div className="form-row">
         <div className="form-group">
-          <label>Attendance Cut-off Day (of month)</label>
-          <select className="form-control" value={formData.attendanceCutoff} onChange={e => onChange('attendanceCutoff', e.target.value)}>
-            {CUTOFF_DAYS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
-          </select>
-          <div className="field-hint">Attendance submitted after this date will be counted in next month.</div>
-        </div>
-        <div className="form-group">
           <label>Payroll Lock / Processing Day</label>
           <select className="form-control" value={formData.payrollLockDay} onChange={e => onChange('payrollLockDay', e.target.value)}>
             {PAYROLL_LOCK_DAYS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}

@@ -87,7 +87,7 @@ class PayrollEligibilityDOJTest extends TestCase
             ->post('/employee/attendance/punch-in');
 
         $response->assertRedirect('/employee/attendance');
-        $response->assertSessionHas('error', "Cannot punch in before your date of joining ({$tomorrow}).");
+        $response->assertSessionHas('warning', "Cannot punch in before your date of joining ({$tomorrow}).");
 
         // Verify no attendance_records were created
         $this->assertEquals(0, AttendanceRecord::where('employee_id', $employee->id)->count());

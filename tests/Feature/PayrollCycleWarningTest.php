@@ -266,4 +266,19 @@ class PayrollCycleWarningTest extends TestCase
         $this->assertEquals('2026-07-01', $cycleStart->toDateString());
         $this->assertEquals('2026-07-31', $cycleEnd->toDateString());
     }
+
+    public function test_custom_convention_equivalent_to_custom_cycle()
+    {
+        $client = Client::factory()->create([
+            'payroll_convention' => 'custom',
+            'custom_cycle_start_day' => 1,
+            'custom_cycle_end_day' => 25,
+        ]);
+
+        $cycleStart = $client->getCycleStartDate('2026-07-01');
+        $cycleEnd = $client->getCycleEndDate('2026-07-01');
+
+        $this->assertEquals('2026-07-01', $cycleStart->toDateString());
+        $this->assertEquals('2026-07-25', $cycleEnd->toDateString());
+    }
 }

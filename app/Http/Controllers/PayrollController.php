@@ -47,14 +47,16 @@ class PayrollController extends Controller
         }
 
         try {
-            $run->update([
-                'status' => 'locked',
-                'locked_at' => now(),
-            ]);
+            \Illuminate\Support\Facades\DB::transaction(function () use ($run) {
+                $run->update([
+                    'status' => 'locked',
+                    'locked_at' => now(),
+                ]);
 
-            // Trigger invoice generation upon locking
-            $invoiceService = app(\App\Services\InvoiceGenerationService::class);
-            $invoiceService->generateForRun($run);
+                // Trigger invoice generation upon locking
+                $invoiceService = app(\App\Services\InvoiceGenerationService::class);
+                $invoiceService->generateForRun($run);
+            });
 
             return redirect()->back()->with('success', 'Payroll run locked and invoices generated successfully.');
         } catch (\Exception $e) {
@@ -73,21 +75,42 @@ class PayrollController extends Controller
             return redirect()->back()->with('error', 'Supplementary runs can only be triggered on approved or locked parent runs.');
         }
 
-        // Get all employee IDs that were excluded in the parent run
-        $excludedEmployeeIds = \Illuminate\Support\Facades\DB::table('payroll_run_items')
-            ->where('payroll_run_id', $parent->id)
-            ->where('is_excluded', true)
-            ->pluck('employee_id');
+        $existingDraft = PayrollRun::where('parent_run_id', $parent->id)
+            ->where('status', 'draft')
+            ->first();
 
-        if ($excludedEmployeeIds->isEmpty()) {
-            return redirect()->back()->with('error', 'No excluded employees found in the parent run.');
+        if ($existingDraft) {
+            return redirect()->back()->with('error', 'A draft supplementary run already exists for this parent. Please approve or delete it before creating another.');
         }
-
-        $client = \App\Models\Client::findOrFail($parent->client_id);
-        $employees = \App\Models\Employee::whereIn('id', $excludedEmployeeIds)->get();
 
         $monthStart = \Carbon\Carbon::parse($parent->payroll_month)->startOfMonth()->toDateString();
         $monthEnd = \Carbon\Carbon::parse($parent->payroll_month)->endOfMonth()->toDateString();
+
+        // 1. Get all employee IDs that were excluded in the parent run
+        $excludedEmployeeIds = \Illuminate\Support\Facades\DB::table('payroll_run_items')
+            ->where('payroll_run_id', $parent->id)
+            ->where('is_excluded', true)
+            ->pluck('employee_id')
+            ->toArray();
+
+        // 2. Get all employee IDs already referenced in the parent run (processed or excluded)
+        $existingEmployeeIds = \Illuminate\Support\Facades\DB::table('payroll_run_items')
+            ->where('payroll_run_id', $parent->id)
+            ->pluck('employee_id')
+            ->toArray();
+
+        // 3. Get newly-joined active employees under this client who do not have any row in the parent run
+        $newEmployeeIds = $parent->getNewHireCandidates()->pluck('id')->toArray();
+
+        // Union both groups
+        $targetEmployeeIds = array_unique(array_merge($excludedEmployeeIds, $newEmployeeIds));
+
+        if (empty($targetEmployeeIds)) {
+            return redirect()->back()->with('error', 'No eligible excluded or newly-joined employees found for supplementary payroll.');
+        }
+
+        $client = \App\Models\Client::findOrFail($parent->client_id);
+        $employees = \App\Models\Employee::whereIn('id', $targetEmployeeIds)->get();
 
         // 1. Create a draft supplementary run
         $supplementaryRun = PayrollRun::create([
@@ -124,6 +147,32 @@ class PayrollController extends Controller
 
                 // Calculate payroll
                 $calcResult = $calculator->calculateForEmployee($employee, $supplementaryRun);
+
+                // Safety check: Flag if new hire joined > 60 days before month start
+                if (in_array($employee->id, $newEmployeeIds) && $employee->date_of_joining) {
+                    $doj = \Carbon\Carbon::parse($employee->date_of_joining);
+                    $monthStartCarbon = \Carbon\Carbon::parse($monthStart);
+                    if ($doj->diffInDays($monthStartCarbon, false) > 60) {
+                        $warningMessage = "Employee {$employee->employee_code} has no row in this month's parent run despite joining on {$employee->date_of_joining} (more than 60 days ago) — investigate why they were missed";
+                        
+                        \Illuminate\Support\Facades\Log::warning($warningMessage);
+
+                        $existingItem = \Illuminate\Support\Facades\DB::table('payroll_run_items')
+                            ->where('payroll_run_id', $supplementaryRun->id)
+                            ->where('employee_id', $employee->id)
+                            ->first();
+
+                        if ($existingItem) {
+                            $newWarningNotes = empty($existingItem->warning_notes) 
+                                ? $warningMessage 
+                                : $existingItem->warning_notes . ', ' . $warningMessage;
+
+                            \Illuminate\Support\Facades\DB::table('payroll_run_items')
+                                ->where('id', $existingItem->id)
+                                ->update(['warning_notes' => $newWarningNotes]);
+                        }
+                    }
+                }
 
                 $processedCount++;
                 $totalGross += (float)$calcResult['gross_total'];
@@ -351,11 +400,16 @@ class PayrollController extends Controller
                 ->first();
 
             if ($run) {
+                $allRunIds = $run->children()->pluck('id')->prepend($run->id)->toArray();
+
                 $items = \Illuminate\Support\Facades\DB::table('payroll_run_items')
                     ->join('employees', 'payroll_run_items.employee_id', '=', 'employees.id')
-                    ->where('payroll_run_id', $run->id)
+                    ->whereIn('payroll_run_id', $allRunIds)
                     ->select('payroll_run_items.*', 'employees.full_name', 'employees.employee_code')
-                    ->get();
+                    ->orderBy('payroll_run_items.id', 'desc')
+                    ->get()
+                    ->unique('employee_id')
+                    ->values();
 
                 foreach ($items as $item) {
                     if ($item->is_excluded) {
@@ -377,7 +431,7 @@ class PayrollController extends Controller
             'clients' => $clients,
             'selectedClientId' => (int) $selectedClientId,
             'selectedMonth' => $selectedMonth,
-            'run' => $run ? $run->load('client') : null,
+            'run' => $run ? array_merge($run->load('client')->toArray(), $run->getCombinedStats()) : null,
             'items' => $items,
             'preflight' => $preflight,
             'cycleInfo' => $client ? [
@@ -408,6 +462,7 @@ class PayrollController extends Controller
         $items = [];
         $preflight = [];
         $client = null;
+        $newHires = [];
 
         if ($selectedClientId) {
             $client = \App\Models\Client::find($selectedClientId);
@@ -423,11 +478,28 @@ class PayrollController extends Controller
                 ->first();
 
             if ($run) {
+                $allRunIds = $run->children()->pluck('id')->prepend($run->id)->toArray();
+
                 $items = \Illuminate\Support\Facades\DB::table('payroll_run_items')
                     ->join('employees', 'payroll_run_items.employee_id', '=', 'employees.id')
-                    ->where('payroll_run_id', $run->id)
+                    ->whereIn('payroll_run_id', $allRunIds)
                     ->select('payroll_run_items.*', 'employees.full_name', 'employees.employee_code')
-                    ->get();
+                    ->orderBy('payroll_run_items.id', 'desc')
+                    ->get()
+                    ->unique('employee_id')
+                    ->values();
+
+                $newHires = $run->getNewHireCandidates()->map(fn($emp) => [
+                    'id' => $emp->id,
+                    'full_name' => $emp->full_name,
+                    'employee_code' => $emp->employee_code,
+                    'date_of_joining' => $emp->date_of_joining,
+                ])->toArray();
+
+                $pendingSupplementaryRuns = $run->children()
+                    ->where('status', '!=', 'locked')
+                    ->get(['id', 'status', 'created_at', 'total_employees_processed', 'total_employees_excluded', 'total_gross_earnings', 'total_net_disbursement'])
+                    ->toArray();
 
                 foreach ($items as $item) {
                     if ($item->is_excluded) {
@@ -449,9 +521,11 @@ class PayrollController extends Controller
             'clients' => $clients,
             'selectedClientId' => (int) $selectedClientId,
             'selectedMonth' => $selectedMonth,
-            'run' => $run ? $run->load('client') : null,
+            'run' => $run ? array_merge($run->load('client')->toArray(), $run->getCombinedStats()) : null,
             'items' => $items,
             'preflight' => $preflight,
+            'newHires' => $newHires,
+            'pendingSupplementaryRuns' => $pendingSupplementaryRuns ?? [],
             'cycleInfo' => $client ? [
                 'payroll_lock_day' => $client->payroll_lock_day,
                 'salary_credit_day' => $client->salary_credit_day,
@@ -497,20 +571,20 @@ class PayrollController extends Controller
             $selectedMonth = $latestRun ? $latestRun->payroll_month : '2026-07-01';
         }
 
-        $runItemsQuery = \App\Models\PayrollRunItem::with(['employee', 'payrollRun'])
-            ->whereHas('payrollRun', function ($query) use ($selectedMonth) {
-                $query->where('status', 'locked')
-                      ->where('payroll_month', $selectedMonth);
-            })
-            ->where('is_excluded', false);
-
-        if ($selectedClientId) {
-            $runItemsQuery->whereHas('employee', function ($query) use ($selectedClientId) {
+        $lockedRunIds = \App\Models\PayrollRun::where('status', 'locked')
+            ->where('payroll_month', $selectedMonth)
+            ->when($selectedClientId, function ($query) use ($selectedClientId) {
                 $query->where('client_id', $selectedClientId);
-            });
-        }
+            })
+            ->pluck('id');
 
-        $runItems = $runItemsQuery->orderBy('created_at', 'desc')->paginate(15)->withQueryString();
+        $runItems = \App\Models\PayrollRunItem::with(['employee', 'payrollRun'])
+            ->whereIn('payroll_run_id', $lockedRunIds)
+            ->where('is_excluded', false)
+            ->orderBy('id', 'desc')
+            ->get()
+            ->unique('employee_id')
+            ->values();
 
         $items = $runItems->through(function ($item) {
             $employee = $item->employee;

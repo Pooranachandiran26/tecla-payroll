@@ -64,7 +64,7 @@ class AttendancePunchTest extends TestCase
         $response = $this->actingAs($user)->post('/employee/attendance/punch-in');
 
         $response->assertStatus(302);
-        $response->assertSessionHas('error', 'You have already punched in today.');
+        $response->assertSessionHas('warning', 'You have already punched in today.');
         
         $this->assertEquals(1, AttendanceRecord::where('employee_id', $user->employee_id)->count());
     }
@@ -76,7 +76,7 @@ class AttendancePunchTest extends TestCase
         $response = $this->actingAs($user)->post('/employee/attendance/punch-out');
 
         $response->assertStatus(302);
-        $response->assertSessionHas('error', 'You must punch in first.');
+        $response->assertSessionHas('warning', 'You must punch in first.');
     }
 
     public function test_punch_out_calculates_hours_and_derives_status_correctly()

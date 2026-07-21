@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, useForm, router } from '@inertiajs/react';
 import useToast from '../../Hooks/useToast';
 
 import RoleGuard from '../../Components/RoleGuard.jsx';
@@ -11,34 +11,132 @@ export default function EmployeeDashboard({ employee: empProp, todayAttendance, 
     const { showToast } = useToast();
 
     const [currentTime, setCurrentTime] = useState(new Date());
+    const [isPunching, setIsPunching] = useState(false);
+    const [location, setLocation] = useState({ latitude: null, longitude: null, placeName: '', loading: false, error: null });
+
+    const fetchLocation = (isRetry = false) => {
+        if (!navigator.geolocation) {
+            setLocation(prev => ({ ...prev, error: 'Geolocation is not supported by your browser.' }));
+            return;
+        }
+
+        if (isRetry) {
+            showToast({
+                type: 'info',
+                title: 'Retrying Location',
+                message: 'Requesting location permission from browser...'
+            });
+        }
+
+        setLocation(prev => ({ ...prev, loading: true, error: null }));
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const lat = position.coords.latitude.toFixed(6);
+                const lon = position.coords.longitude.toFixed(6);
+                
+                fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`)
+                    .then(res => res.json())
+                    .then(data => {
+                        const name = data.display_name || `${lat}, ${lon}`;
+                        setLocation({
+                            latitude: lat,
+                            longitude: lon,
+                            placeName: name,
+                            loading: false,
+                            error: null
+                        });
+                        if (isRetry) {
+                            showToast({
+                                type: 'success',
+                                title: 'Location Retrieved',
+                                message: 'Successfully retrieved location details.'
+                            });
+                        }
+                    })
+                    .catch(() => {
+                        setLocation({
+                            latitude: lat,
+                            longitude: lon,
+                            placeName: `Coordinates: (${lat}, ${lon})`,
+                            loading: false,
+                            error: null
+                        });
+                    });
+            },
+            (error) => {
+                let errorMsg = 'Unable to retrieve location.';
+                if (error.code === error.PERMISSION_DENIED) {
+                    errorMsg = 'Location access was denied. Click the lock/settings icon in the browser address bar, set Location to "Allow", and click Retry.';
+                    if (isRetry) {
+                        showToast({
+                            type: 'warning',
+                            title: 'Location Blocked',
+                            message: 'Permission denied. Please unblock location access in your browser address bar settings.'
+                        });
+                    }
+                } else {
+                    if (isRetry) {
+                        showToast({
+                            type: 'warning',
+                            title: 'Location Error',
+                            message: 'Unable to retrieve location: ' + error.message
+                        });
+                    }
+                }
+                setLocation(prev => ({ ...prev, loading: false, error: errorMsg }));
+            },
+            { enableHighAccuracy: true, timeout: 10000 }
+        );
+    };
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
         return () => clearInterval(timer);
     }, []);
 
+    useEffect(() => {
+        if (!todayAttendance?.punch_in_time) {
+            fetchLocation();
+        }
+    }, [todayAttendance]);
+
     // Check if PAN card is missing or rejected
     const panCard = employee.documents?.find(d => d.document_type === 'pan_card');
     const showPanAlert = panCard && panCard.status === 'rejected';
 
     const handlePunchIn = () => {
-        post(route('employee.attendance.punch-in'), {
+        setIsPunching(true);
+        router.post(route('employee.attendance.punch-in'), {
+            latitude: location.latitude,
+            longitude: location.longitude,
+            place_name: location.placeName
+        }, {
             preserveScroll: true,
             onSuccess: (page) => {
+                setIsPunching(false);
                 if (page.props.flash?.success) {
                     showToast({ type: 'success', title: 'Punched In', message: page.props.flash.success });
                 }
+            },
+            onError: () => {
+                setIsPunching(false);
             }
         });
     };
 
     const handlePunchOut = () => {
-        post(route('employee.attendance.punch-out'), {
+        setIsPunching(true);
+        router.post(route('employee.attendance.punch-out'), {}, {
             preserveScroll: true,
             onSuccess: (page) => {
+                setIsPunching(false);
                 if (page.props.flash?.success) {
                     showToast({ type: 'success', title: 'Punched Out', message: page.props.flash.success });
                 }
+            },
+            onError: () => {
+                setIsPunching(false);
             }
         });
     };
@@ -111,12 +209,46 @@ export default function EmployeeDashboard({ employee: empProp, todayAttendance, 
               {todayAttendance?.punch_out_time ? ` | Out: ${new Date(todayAttendance.punch_out_time).toLocaleTimeString()}` : ''}
             </p>
 
+            {/* Display punched location if punched in */}
+            {todayAttendance?.punch_in_time && todayAttendance?.place_name && (
+              <div style={{ marginBottom: '1.5rem', padding: '0.75rem', backgroundColor: '#F0F9FF', borderRadius: 'var(--radius-sm)', border: '1px solid #BAE6FD', fontSize: '0.85rem' }}>
+                <span style={{ fontWeight: '600', color: 'var(--primary-navy)', display: 'block', marginBottom: '0.25rem' }}>📍 Punched In Location:</span>
+                <span style={{ color: '#0369A1', fontWeight: '500' }}>{todayAttendance.place_name}</span>
+                <div style={{ fontSize: '0.75rem', color: '#0284C7', marginTop: '0.1rem' }}>({todayAttendance.latitude}, {todayAttendance.longitude})</div>
+              </div>
+            )}
+
+            {/* Display current location helper if not punched in */}
+            {!todayAttendance?.punch_in_time && (
+              <div style={{ marginBottom: '1.5rem', padding: '0.75rem', backgroundColor: '#F8FAFC', borderRadius: 'var(--radius-sm)', border: '1px solid #E2E8F0', fontSize: '0.85rem' }}>
+                {location.loading ? (
+                  <span style={{ color: 'var(--text-muted)' }}>📍 Fetching current location...</span>
+                ) : location.error ? (
+                  <div style={{ color: 'var(--status-danger)' }}>
+                    <span>⚠️ {location.error}</span>
+                    <button className="btn btn-link btn-xs" style={{ marginLeft: '0.5rem', padding: 0, textDecoration: 'underline' }} onClick={() => fetchLocation(true)}>Retry</button>
+                  </div>
+                ) : location.latitude ? (
+                  <div>
+                    <span style={{ fontWeight: '600', color: 'var(--primary-navy)', display: 'block', marginBottom: '0.25rem' }}>📍 Current Punch Location:</span>
+                    <span style={{ color: 'var(--primary-blue)', fontWeight: '500' }}>{location.placeName}</span>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>({location.latitude}, {location.longitude})</div>
+                  </div>
+                ) : (
+                  <div>
+                    <span style={{ color: 'var(--text-muted)' }}>📍 Location service required to punch in.</span>
+                    <button className="btn btn-link btn-xs" style={{ marginLeft: '0.5rem', padding: 0, textDecoration: 'underline' }} onClick={() => fetchLocation(true)}>Get Location</button>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem' }}>
               {!todayAttendance?.punch_in_time && (
                 <button 
                   className="btn btn-primary" 
                   onClick={handlePunchIn}
-                  disabled={processing}
+                  disabled={isPunching || location.loading}
                   style={{ fontSize: '1.1rem', padding: '0.75rem 2rem' }}>
                   Punch In
                 </button>
@@ -125,7 +257,7 @@ export default function EmployeeDashboard({ employee: empProp, todayAttendance, 
                 <button 
                   className="btn btn-secondary" 
                   onClick={handlePunchOut}
-                  disabled={processing}
+                  disabled={isPunching}
                   style={{ fontSize: '1.1rem', padding: '0.75rem 2rem' }}>
                   Punch Out
                 </button>

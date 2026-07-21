@@ -220,9 +220,9 @@ export default function Payslip({ items, clients = [], selectedClientId, selecte
                                                 <tr><td className="p-2 border border-gray-200">2. Employee ESIC</td><td className="p-2 border border-gray-200 text-right font-semibold">₹{parseFloat(selectedItem.employee_esi).toLocaleString()}</td></tr>
                                                 <tr><td className="p-2 border border-gray-200">3. Professional Tax</td><td className="p-2 border border-gray-200 text-right font-semibold">₹{parseFloat(selectedItem.professional_tax).toLocaleString()}</td></tr>
                                                 <tr><td className="p-2 border border-gray-200">4. Welfare Fund (LWF)</td><td className="p-2 border border-gray-200 text-right font-semibold">₹{parseFloat(selectedItem.lwf_deduction).toLocaleString()}</td></tr>
-                                                <tr><td className="p-2 border border-gray-200">5. LOP Deduction</td><td className="p-2 border border-gray-200 text-right font-semibold">₹{parseFloat(selectedItem.lop_deduction).toLocaleString()}</td></tr>
-                                                <tr><td className="p-2 border border-gray-200">6. TDS</td><td className="p-2 border border-gray-200 text-right font-semibold">₹{parseFloat(selectedItem.tds_deduction).toLocaleString()}</td></tr>
-                                                <tr><td className="p-2 border border-gray-200">7. Loan EMI</td><td className="p-2 border border-gray-200 text-right font-semibold">₹{parseFloat(selectedItem.loan_emi_deduction).toLocaleString()}</td></tr>
+                                                <tr><td className="p-2 border border-gray-200">5. TDS</td><td className="p-2 border border-gray-200 text-right font-semibold">₹{parseFloat(selectedItem.tds_deduction).toLocaleString()}</td></tr>
+                                                <tr><td className="p-2 border border-gray-200">6. Loan EMI</td><td className="p-2 border border-gray-200 text-right font-semibold">₹{parseFloat(selectedItem.loan_emi_deduction).toLocaleString()}</td></tr>
+                                                <tr><td className="p-2 border border-gray-200 text-gray-500">7. LOP Deduction <span className="text-[0.7rem] italic">(Informational)</span></td><td className="p-2 border border-gray-200 text-right font-semibold text-gray-500">₹{parseFloat(selectedItem.lop_deduction).toLocaleString()}</td></tr>
                                                 <tr className="bg-[#FFF5F5] font-bold border-t-2 border-t-red-600">
                                                     <td className="p-2 border border-gray-200">Total Deductions</td>
                                                     <td className="p-2 border border-gray-200 text-right text-red-600">
@@ -231,7 +231,6 @@ export default function Payslip({ items, clients = [], selectedClientId, selecte
                                                             parseFloat(selectedItem.employee_esi) + 
                                                             parseFloat(selectedItem.professional_tax) + 
                                                             parseFloat(selectedItem.lwf_deduction) + 
-                                                            parseFloat(selectedItem.lop_deduction) + 
                                                             parseFloat(selectedItem.tds_deduction) + 
                                                             parseFloat(selectedItem.loan_emi_deduction)
                                                         ).toLocaleString()}

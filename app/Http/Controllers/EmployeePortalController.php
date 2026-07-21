@@ -184,33 +184,43 @@ class EmployeePortalController extends Controller
         ]);
     }
 
-    public function punchIn()
+    public function punchIn(Request $request)
     {
         $employee = $this->getEmployee();
         $today = Carbon::today()->toDateString();
 
         if ($employee->date_of_joining && Carbon::today()->lt(Carbon::parse($employee->date_of_joining)->startOfDay())) {
-            return redirect()->back()->with('error', "Cannot punch in before your date of joining ({$employee->date_of_joining}).");
+            return redirect()->back()->with('warning', "Cannot punch in before your date of joining ({$employee->date_of_joining}).");
         }
 
         $existing = AttendanceRecord::where('employee_id', $employee->id)
             ->where('attendance_date', $today)
             ->first();
 
+        $latitude = $request->input('latitude');
+        $longitude = $request->input('longitude');
+        $placeName = $request->input('place_name');
+
         if ($existing) {
             if ($existing->punch_in_time) {
-                return redirect()->back()->with('error', 'You have already punched in today.');
+                return redirect()->back()->with('warning', 'You have already punched in today.');
             }
             $existing->update([
                 'punch_in_time' => now(),
-                'source' => 'live_punch'
+                'source' => 'live_punch',
+                'latitude' => $latitude,
+                'longitude' => $longitude,
+                'place_name' => $placeName,
             ]);
         } else {
             AttendanceRecord::create([
                 'employee_id' => $employee->id,
                 'attendance_date' => $today,
                 'punch_in_time' => now(),
-                'source' => 'live_punch'
+                'source' => 'live_punch',
+                'latitude' => $latitude,
+                'longitude' => $longitude,
+                'place_name' => $placeName,
             ]);
         }
 
@@ -227,11 +237,11 @@ class EmployeePortalController extends Controller
             ->first();
 
         if (!$record || !$record->punch_in_time) {
-            return redirect()->back()->with('error', 'You must punch in first.');
+            return redirect()->back()->with('warning', 'You must punch in first.');
         }
 
         if ($record->punch_out_time) {
-            return redirect()->back()->with('error', 'You have already punched out today.');
+            return redirect()->back()->with('warning', 'You have already punched out today.');
         }
 
         $punchInTime = Carbon::parse($record->punch_in_time);
