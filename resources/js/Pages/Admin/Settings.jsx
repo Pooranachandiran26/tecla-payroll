@@ -537,6 +537,14 @@ export default function Settings() {
                       <Input label="Agency GSTIN" value={companySettings.agency_gstin || ''} onChange={e => handleCompanyChange('agency_gstin', e.target.value)} noMargin />
                     </div>
                     <div className="flex-1">
+                      <Input label="PF Establishment Code (Optional)" value={companySettings.pf_establishment_code || ''} onChange={e => handleCompanyChange('pf_establishment_code', e.target.value)} noMargin />
+                    </div>
+                  </div>
+                  <div className="flex gap-4 mb-4">
+                    <div className="flex-1">
+                      <Input label="ESI Code Number (Optional)" value={companySettings.esi_code_number || ''} onChange={e => handleCompanyChange('esi_code_number', e.target.value)} noMargin />
+                    </div>
+                    <div className="flex-1">
                       {/* Placeholder for future expansion */}
                     </div>
                   </div>

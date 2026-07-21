@@ -7,6 +7,7 @@ import Badge from '../../Components/ui/Badge';
 import Select from '../../Components/ui/Select';
 import Input from '../../Components/ui/Input';
 import RoleGuard from '../../Components/RoleGuard.jsx';
+import Pagination from '../../Components/ui/Pagination';
 import useToast from '../../Hooks/useToast';
 
 export default function LiveAttendanceMonitor({ clients, punches, selectedClientId, selectedDate }) {
@@ -40,14 +41,14 @@ export default function LiveAttendanceMonitor({ clients, punches, selectedClient
     });
   };
 
-  const filteredPunches = punches.filter(p => {
+  const filteredPunches = (punches.data || []).filter(p => {
     if (search && !p.name.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
 
-  const presentCount = punches.filter(p => p.status === 'present').length;
-  const absentCount = punches.filter(p => p.status === 'absent').length;
-  const leaveCount = punches.filter(p => p.status === 'leave').length;
+  const presentCount = (punches.data || []).filter(p => p.status === 'present').length;
+  const absentCount = (punches.data || []).filter(p => p.status === 'absent').length;
+  const leaveCount = (punches.data || []).filter(p => p.status === 'leave').length;
 
   const columns = [
     {
@@ -177,6 +178,25 @@ export default function LiveAttendanceMonitor({ clients, punches, selectedClient
 
         <div className="card p-0 mb-6">
           <DataTable columns={columns} data={filteredPunches} />
+          
+          {punches && punches.total > 0 && (
+            <div className="px-6 py-4 border-t border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-4">
+              <div className="text-sm text-gray-500">
+                Showing <strong>{punches.from || 0}</strong> to <strong>{punches.to || 0}</strong> of <strong>{punches.total}</strong> records
+              </div>
+              <Pagination
+                currentPage={punches.current_page}
+                totalPages={punches.last_page}
+                totalItems={punches.total}
+                itemsPerPage={punches.per_page}
+                onPageChange={(page) => {
+                  const params = new URLSearchParams(window.location.search);
+                  params.set('page', page);
+                  window.location.search = params.toString();
+                }}
+              />
+            </div>
+          )}
         </div>
 
         <div className="card p-4 flex justify-between items-center bg-slate-50 mb-6">

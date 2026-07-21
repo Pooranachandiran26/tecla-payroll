@@ -157,6 +157,26 @@ export default function IdentitySection({ formData, errors, hints, onChange, onV
         </div>
       </div>
 
+      {/* Statutory Registration Codes (Client EOR) */}
+      <div className="form-row">
+        <div className="form-group">
+          <label style={{ color: 'var(--text-primary)' }}>PF Establishment Code <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(Optional)</span></label>
+          <input type="text" className="form-control text-gray-700" placeholder="e.g. MH/BAN/1234567/000"
+            style={{ textTransform: 'uppercase' }}
+            value={formData.pfEstablishmentCode || ''}
+            onChange={e => onChange('pfEstablishmentCode', e.target.value)} />
+          <div className="field-hint">Client's own PF registration code for direct filing.</div>
+        </div>
+        <div className="form-group">
+          <label style={{ color: 'var(--text-primary)' }}>ESI Code Number <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(Optional)</span></label>
+          <input type="text" className="form-control text-gray-700" placeholder="e.g. 31001234560001001"
+            style={{ textTransform: 'uppercase' }}
+            value={formData.esiCodeNumber || ''}
+            onChange={e => onChange('esiCodeNumber', e.target.value)} />
+          <div className="field-hint">Client's own ESI registration code for direct filing.</div>
+        </div>
+      </div>
+
       {/* Client Code */}
       <div className="form-group">
         <label>Client Code (Internal) <span style={{ color: 'var(--status-danger)' }}>*</span></label>
