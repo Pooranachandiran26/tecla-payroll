@@ -843,36 +843,36 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                       <div className="form-group">
                         <label>1. Basic Pay (₹)</label>
                         <input type="number" className={`form-control ${errors.basicSal ? `is-${errors.basicSal.type || 'error'}` : ''}`} value={formData.basicSal}
-                          onChange={e => handleInputChange('basicSal', e.target.value)} onBlur={validateBasicPct} min="0" required />
+                          onChange={e => handleInputChange('basicSal', e.target.value)} onWheel={e => e.target.blur()} onBlur={validateBasicPct} min="0" required />
                         {errors.basicSal && <div className={`field-msg ${errors.basicSal.type || 'error'} show`}>{errors.basicSal.msg}</div>}
                       </div>
                       <div className="form-group">
                         <label>2. HRA (₹)</label>
-                        <input type="number" className="form-control" value={formData.hraSal} onChange={e => handleInputChange('hraSal', e.target.value)} min="0" required />
+                        <input type="number" className="form-control" value={formData.hraSal} onChange={e => handleInputChange('hraSal', e.target.value)} onWheel={e => e.target.blur()} min="0" required />
                       </div>
                       <div className="form-group">
                         <label>3. Conveyance (₹)</label>
-                        <input type="number" className="form-control" value={formData.conveyanceSal} onChange={e => handleInputChange('conveyanceSal', e.target.value)} />
+                        <input type="number" className="form-control" value={formData.conveyanceSal} onChange={e => handleInputChange('conveyanceSal', e.target.value)} onWheel={e => e.target.blur()} />
                       </div>
                     </div>
                     <div className="form-row">
                       <div className="form-group">
                         <label>4. DA (₹)</label>
-                        <input type="number" className="form-control" value={formData.daSal} onChange={e => handleInputChange('daSal', e.target.value)} />
+                        <input type="number" className="form-control" value={formData.daSal} onChange={e => handleInputChange('daSal', e.target.value)} onWheel={e => e.target.blur()} />
                       </div>
                       <div className="form-group">
                         <label>5. Medical (₹)</label>
-                        <input type="number" className="form-control" value={formData.medicalSal} onChange={e => handleInputChange('medicalSal', e.target.value)} />
+                        <input type="number" className="form-control" value={formData.medicalSal} onChange={e => handleInputChange('medicalSal', e.target.value)} onWheel={e => e.target.blur()} />
                       </div>
                       <div className="form-group">
                         <label>6. Special (₹)</label>
-                        <input type="number" className="form-control" value={formData.specialSal} onChange={e => handleInputChange('specialSal', e.target.value)} />
+                        <input type="number" className="form-control" value={formData.specialSal} onChange={e => handleInputChange('specialSal', e.target.value)} onWheel={e => e.target.blur()} />
                       </div>
                     </div>
                     <div className="form-row">
                       <div className="form-group">
                         <label>7. Other Additions (₹)</label>
-                        <input type="number" className="form-control" value={formData.otherSal} onChange={e => handleInputChange('otherSal', e.target.value)} />
+                        <input type="number" className="form-control" value={formData.otherSal} onChange={e => handleInputChange('otherSal', e.target.value)} onWheel={e => e.target.blur()} />
                       </div>
                     </div>
 

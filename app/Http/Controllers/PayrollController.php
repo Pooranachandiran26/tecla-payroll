@@ -593,14 +593,30 @@ class PayrollController extends Controller
                 'designation' => $employee ? $employee->designation : '—',
                 'bank_name' => $employee ? $employee->bank_name : '—',
                 'bank_account_number' => $employee ? $employee->bank_account_number : '—',
+                'employment_model' => $employee ? $employee->employment_model : '—',
             ]);
         });
+
+        $selectedClient = $selectedClientId ? \App\Models\Client::find($selectedClientId) : null;
+        $clientBranding = null;
+        if ($selectedClient) {
+            $clientBranding = [
+                'company_name' => $selectedClient->company_name,
+                'display_name_override' => $selectedClient->display_name_override,
+                'logo_path' => $selectedClient->logo_path,
+                'accent_color' => $selectedClient->accent_color,
+                'registered_city' => $selectedClient->registered_city,
+                'registered_state' => $selectedClient->registered_state,
+                'gstin' => $selectedClient->gstin,
+            ];
+        }
 
         return \Inertia\Inertia::render('Payroll/Payslip', [
             'items' => $items,
             'clients' => $clients,
             'selectedClientId' => $selectedClientId ? (int)$selectedClientId : null,
             'selectedMonth' => $selectedMonth,
+            'clientBranding' => $clientBranding,
         ]);
     }
 

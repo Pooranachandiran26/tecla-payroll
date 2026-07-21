@@ -32,6 +32,16 @@ export default function ClientForm({ client, defaultLopBasis }) {
     if (client) {
       loadClientData(client);
     }
+
+    const preventWheelChange = (e) => {
+      if (document.activeElement && document.activeElement.type === 'number') {
+        document.activeElement.blur();
+      }
+    };
+    window.addEventListener('wheel', preventWheelChange, { passive: true });
+    return () => {
+      window.removeEventListener('wheel', preventWheelChange);
+    };
   }, [client, loadClientData]);
 
   return (

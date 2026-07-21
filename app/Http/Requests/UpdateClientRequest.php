@@ -31,6 +31,8 @@ class UpdateClientRequest extends FormRequest
             'cin_number' => $this->cin,
             'incorporation_date' => $this->incorporationDate,
             'logo_path' => $this->logoUrl,
+            'display_name_override' => $this->displayNameOverride,
+            'accent_color' => $this->accentColor,
             
             // Address
             'registered_address_line_1' => $this->regAddressLine1,
@@ -217,6 +219,8 @@ class UpdateClientRequest extends FormRequest
             'cin_number' => 'nullable|string|max:50',
             'incorporation_date' => 'nullable|date',
             'logo_path' => 'nullable|string',
+            'display_name_override' => 'nullable|string|max:255',
+            'accent_color' => ['nullable', 'string', 'regex:/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/'],
             'trust_registration_number' => 'nullable|string|max:100',
             
             // Step 2
