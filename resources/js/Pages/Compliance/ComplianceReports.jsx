@@ -11,12 +11,27 @@ import Pagination from '../../Components/ui/Pagination';
 import useToast from '../../Hooks/useToast';
 import { Download, RefreshCw, CheckCircle2 } from 'lucide-react';
 
+import { router, usePage } from '@inertiajs/react';
+
 import RoleGuard from '../../Components/RoleGuard.jsx';
 export default function ComplianceReports() {
   const { showToast } = useToast();
+  const { period, stats, clients, due_dates } = usePage().props;
   
   const generateReport = (name) => {
     showToast(`✅ Generated ${name} successfully. Download started.`);
+  };
+
+  const markFiled = (clientId, statute, currentStatus) => {
+    const newStatus = currentStatus === 'pending' ? 'filed' : 'pending';
+    router.post(route('compliance.mark_filed'), {
+      client_id: clientId,
+      statute: statute,
+      period: period,
+      status: newStatus
+    }, {
+      preserveScroll: true
+    });
   };
 
   const reportsData = [
@@ -28,24 +43,36 @@ export default function ComplianceReports() {
     { title: 'Client Audit Pack', badge: 'Consolidated', color: 'neutral', desc: 'Generates a complete compliance zip file per client including PF/ESI challan copies and registers.', action: 'Consolidated Client Audit Pack', btnText: 'Generate Audit Pack (.zip)' }
   ];
 
-  const clientData = [
-    { id: 1, name: 'Mahindra & Mahindra', count: '1,240', pf: 'Filed', pfCol: 'success', esi: 'Filed', esiCol: 'success', pt: 'Filed', ptCol: 'success', tds: 'Filed', tdsCol: 'success', clra: 'Valid', clraCol: 'success', due: 'Jul 15, 2026', dueClass: 'text-gray-500 font-medium' },
-    { id: 2, name: 'TCS Staffing', count: '850', pf: 'Pending', pfCol: 'danger', esi: 'Pending', esiCol: 'danger', pt: 'Filed', ptCol: 'success', tds: 'Filed', tdsCol: 'success', clra: 'Valid', clraCol: 'success', due: 'Jun 15, 2026', dueClass: 'text-red-600 font-bold' },
-    { id: 3, name: 'Reliance Retail', count: '360', pf: 'Filed', pfCol: 'success', esi: 'Filed', esiCol: 'success', pt: 'Pending', ptCol: 'warning', tds: 'Filed', tdsCol: 'success', clra: 'Expiring', clraCol: 'warning', due: 'Jun 20, 2026', dueClass: 'text-amber-500 font-bold' }
-  ];
+
+  const renderStatus = (clientId, statute, statusVal) => {
+    const isPending = statusVal === 'pending';
+    const variant = isPending ? 'danger' : 'success';
+    const displayVal = isPending ? 'Pending' : 'Filed';
+    return (
+      <div className="flex items-center gap-2 group cursor-pointer" onClick={() => markFiled(clientId, statute, statusVal)}>
+        <Badge variant={variant}>{displayVal}</Badge>
+        <span className="text-xs text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+          {isPending ? 'Mark Filed' : 'Unmark'}
+        </span>
+      </div>
+    );
+  };
 
   const tableColumns = [
     { key: 'name', label: 'Client Name', render: val => <strong>{val}</strong> },
-    { key: 'count', label: 'Headcount' },
-    { key: 'pf', label: 'PF Status', render: (val, row) => <Badge variant={row.pfCol}>{val}</Badge> },
-    { key: 'esi', label: 'ESI Status', render: (val, row) => <Badge variant={row.esiCol}>{val}</Badge> },
-    { key: 'pt', label: 'PT Status', render: (val, row) => <Badge variant={row.ptCol}>{val}</Badge> },
-    { key: 'tds', label: 'TDS Status', render: (val, row) => <Badge variant={row.tdsCol}>{val}</Badge> },
-    { key: 'clra', label: 'CLRA Status', render: (val, row) => <Badge variant={row.clraCol}>{val}</Badge> },
-    { key: 'due', label: 'Next Due', render: (val, row) => <span className={`text-xs ${row.dueClass}`}>{val}</span> },
+    { key: 'headcount', label: 'Headcount' },
+    { key: 'pf', label: 'PF Status', render: (_, row) => renderStatus(row.id, 'pf', row.filings?.pf?.status) },
+    { key: 'esi', label: 'ESI Status', render: (_, row) => renderStatus(row.id, 'esi', row.filings?.esi?.status) },
+    { key: 'pt', label: 'PT Status', render: (_, row) => renderStatus(row.id, 'pt', row.filings?.pt?.status) },
+    { key: 'tds', label: 'TDS Status', render: (_, row) => renderStatus(row.id, 'tds', row.filings?.tds?.status) },
+    { key: 'clra', label: 'CLRA Status', render: (_, row) => renderStatus(row.id, 'clra', row.filings?.clra?.status) },
+    { key: 'due', label: 'Next Due', render: (_, row) => (
+      <div className="text-xs text-gray-500">
+        <div>PF: {row.filings?.pf?.due_date}</div>
+        <div>PT: {row.filings?.pt?.due_date}</div>
+      </div>
+    ) },
     { key: 'action', label: 'Action', render: (_, row) => (
-      row.pf === 'Pending' || row.pt === 'Pending' ? 
-      <Button variant="primary" size="xs" onClick={() => generateReport(`${row.name} Pending Data`)}>Generate</Button> :
       <Button variant="secondary" size="xs" onClick={() => showToast(`ℹ️ Opening compliance register for ${row.name}...`)}>View</Button>
     ) }
   ];
@@ -77,37 +104,35 @@ export default function ComplianceReports() {
       <div className="flex flex-wrap gap-6 mb-8">
         <div className="flex-1 min-w-[300px] bg-gradient-to-br from-blue-900 to-slate-800 text-white p-6 rounded-md shadow flex items-center gap-6">
           <div className="w-20 h-20 rounded-full border-4 border-green-500 flex items-center justify-center text-2xl font-bold">
-            94%
+            {stats?.completed_filings}/{stats?.total_filings}
           </div>
           <div>
-            <h3 className="text-xl font-bold mb-1">Overall Compliance Score</h3>
-            <p className="text-sm opacity-90 m-0">Excellent standing. 16 of 17 active clients are fully compliant for the current period.</p>
+            <h3 className="text-xl font-bold mb-1">Overall Compliance</h3>
+            <p className="text-sm opacity-90 m-0">Excellent standing. {stats?.completed_filings} of {stats?.total_filings} required filings completed.</p>
           </div>
         </div>
         
         <div className="flex-1 bg-white border border-gray-200 rounded-md p-4 text-center">
-          <h3 className="text-2xl font-bold text-blue-900">2,450</h3>
-          <p className="text-xs text-gray-500 font-bold uppercase mt-1 m-0">Total Headcount Covered</p>
+          <h3 className="text-2xl font-bold text-blue-900">{stats?.total_filings}</h3>
+          <p className="text-xs text-gray-500 font-bold uppercase mt-1 m-0">Total Required Filings</p>
         </div>
         <div className="flex-1 bg-white border border-gray-200 rounded-md p-4 text-center">
-          <h3 className="text-2xl font-bold text-red-600">3</h3>
+          <h3 className="text-2xl font-bold text-red-600">{stats?.pending_filings}</h3>
           <p className="text-xs text-gray-500 font-bold uppercase mt-1 m-0">Pending Actions</p>
         </div>
         <div className="flex-1 bg-white border border-gray-200 rounded-md p-4 text-center">
-          <h3 className="text-2xl font-bold text-cyan-600">12</h3>
+          <h3 className="text-2xl font-bold text-cyan-600">{stats?.completed_filings}</h3>
           <p className="text-xs text-gray-500 font-bold uppercase mt-1 m-0">Returns Filed This Month</p>
         </div>
       </div>
 
       <h3 className="text-lg font-bold text-blue-900 mb-4">Upcoming Due Dates</h3>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4 mb-8">
         {[
-          { date: 'June 15, 2026', title: 'PF ECR Filing', badge: 'Due in 3 Days', color: 'danger' },
-          { date: 'June 15, 2026', title: 'ESI Contribution', badge: 'Due in 3 Days', color: 'danger' },
-          { date: 'June 20, 2026', title: 'Professional Tax', badge: 'Due in 8 Days', color: 'warning' },
-          { date: 'July 31, 2026', title: 'Q1 TDS (Form 24Q)', badge: 'Due in 48 Days', color: 'info' },
-          { date: 'June 30, 2026', title: 'CLRA License Renewal', badge: 'Due in 18 Days', color: 'warning' },
-          { date: 'August 10, 2026', title: 'MSA / Insurance Expiry', badge: 'Due in 58 Days', color: 'info' }
+          { date: due_dates?.pf, title: 'PF & ESI Filing', badge: '15th', color: 'danger' },
+          { date: due_dates?.pt, title: 'Professional Tax', badge: 'Earliest', color: 'warning' },
+          { date: due_dates?.tds, title: 'TDS (Form 24Q)', badge: 'Quarterly', color: 'info' },
+          { date: 'Depends on Client', title: 'CLRA License', badge: 'Varies', color: 'neutral' },
         ].map((alert, i) => (
           <div key={i} className={`bg-white border-l-4 p-4 rounded shadow-sm ${alert.color === 'danger' ? 'border-l-red-600' : alert.color === 'warning' ? 'border-l-amber-500' : 'border-l-cyan-500'}`}>
             <div className="text-xs text-gray-500 font-bold uppercase">{alert.date}</div>
@@ -127,8 +152,8 @@ export default function ComplianceReports() {
             </div>
             <p className="text-xs text-gray-500 mb-5 flex-1">{report.desc}</p>
             <div className="mt-auto">
-              <Button variant="navy" className="w-full justify-center" onClick={() => generateReport(report.action)}>
-                {report.btnText}
+              <Button variant="navy" className="w-full justify-center" disabled>
+                {report.btnText} (Coming Soon)
               </Button>
             </div>
           </div>
@@ -169,7 +194,7 @@ export default function ComplianceReports() {
         </div>
 
         <div className="border border-gray-200 rounded-md overflow-hidden">
-          <DataTable columns={tableColumns} data={clientData} keyField="id" />
+          <DataTable columns={tableColumns} data={clients} keyField="id" />
         </div>
         
         <div className="mt-6 border-t border-gray-200 pt-4">

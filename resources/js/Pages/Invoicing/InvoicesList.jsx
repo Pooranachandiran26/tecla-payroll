@@ -4,6 +4,7 @@ import { Head, Link, usePage } from '@inertiajs/react';
 import Button from '../../Components/ui/Button';
 import Badge from '../../Components/ui/Badge';
 import RoleGuard from '../../Components/RoleGuard.jsx';
+import Pagination from '../../Components/ui/Pagination';
 
 export default function InvoicesList({ invoices }) {
     const { auth } = usePage().props;
@@ -39,8 +40,8 @@ export default function InvoicesList({ invoices }) {
                                 </tr>
                             </thead>
                             <tbody>
-                                {invoices && invoices.length > 0 ? (
-                                    invoices.map((inv) => (
+                                {invoices && invoices.data && invoices.data.length > 0 ? (
+                                    invoices.data.map((inv) => (
                                         <tr key={inv.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                                              <td className="p-3">
                                                  <strong>{inv.invoice_number}</strong>
@@ -92,6 +93,25 @@ export default function InvoicesList({ invoices }) {
                             </tbody>
                         </table>
                     </div>
+
+                    {invoices && invoices.total > 0 && (
+                        <div className="px-6 py-4 border-t border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-4">
+                            <div className="text-sm text-gray-500">
+                                Showing <strong>{invoices.from || 0}</strong> to <strong>{invoices.to || 0}</strong> of <strong>{invoices.total}</strong> invoices
+                            </div>
+                            <Pagination
+                                currentPage={invoices.current_page}
+                                totalPages={invoices.last_page}
+                                totalItems={invoices.total}
+                                itemsPerPage={invoices.per_page}
+                                onPageChange={(page) => {
+                                    const params = new URLSearchParams(window.location.search);
+                                    params.set('page', page);
+                                    window.location.search = params.toString();
+                                }}
+                            />
+                        </div>
+                    )}
                 </div>
             </AuthenticatedLayout>
         </RoleGuard>

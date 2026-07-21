@@ -3,6 +3,7 @@ import AuthenticatedLayout from '../../Layouts/AuthenticatedLayout';
 import { Head, Link, router } from '@inertiajs/react';
 import Button from '../../Components/ui/Button';
 import RoleGuard from '../../Components/RoleGuard.jsx';
+import Pagination from '../../Components/ui/Pagination';
 
 // Simple numbers-to-words helper in English
 function numberToEnglishWords(num) {
@@ -43,8 +44,8 @@ export default function Payslip({ items, clients = [], selectedClientId, selecte
     const [selectedItem, setSelectedItem] = useState(null);
 
     useEffect(() => {
-        if (items && items.length > 0) {
-            setSelectedItem(items[0]);
+        if (items && items.data && items.data.length > 0) {
+            setSelectedItem(items.data[0]);
         } else {
             setSelectedItem(null);
         }
@@ -151,7 +152,7 @@ export default function Payslip({ items, clients = [], selectedClientId, selecte
                     </div>
                 </div>
 
-                {items && items.length > 0 && selectedItem ? (
+                {items && items.data && items.data.length > 0 && selectedItem ? (
                     <div className="grid grid-cols-[1fr_300px] gap-6 items-start">
                         {/* Payslip Print Preview */}
                         <div>
@@ -303,7 +304,7 @@ export default function Payslip({ items, clients = [], selectedClientId, selecte
                                 <h3 className="text-lg font-bold text-[#1F3864] mb-4">Locked Payslips</h3>
                                 
                                 <div className="flex flex-col gap-2 max-h-[450px] overflow-y-auto pr-1">
-                                    {items.map((emp) => {
+                                    {items.data.map((emp) => {
                                         const isActive = selectedItem && selectedItem.id === emp.id;
                                         return (
                                             <div 
@@ -317,6 +318,25 @@ export default function Payslip({ items, clients = [], selectedClientId, selecte
                                         );
                                     })}
                                 </div>
+                                
+                                {items && items.total > 0 && (
+                                    <div className="mt-4 pt-4 border-t border-gray-100 flex flex-col gap-2">
+                                        <div className="text-xs text-gray-500 text-center">
+                                            Showing {items.from || 0} to {items.to || 0} of {items.total}
+                                        </div>
+                                        <Pagination
+                                            currentPage={items.current_page}
+                                            totalPages={items.last_page}
+                                            totalItems={items.total}
+                                            itemsPerPage={items.per_page}
+                                            onPageChange={(page) => {
+                                                const params = new URLSearchParams(window.location.search);
+                                                params.set('page', page);
+                                                window.location.search = params.toString();
+                                            }}
+                                        />
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>

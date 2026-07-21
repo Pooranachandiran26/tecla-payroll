@@ -1,4 +1,4 @@
-import { Head, useForm } from '@inertiajs/react';
+import { Head, useForm, router } from '@inertiajs/react';
 import { useState } from 'react';
 import AuthenticatedLayout from '../../Layouts/AuthenticatedLayout';
 import Card from '../../Components/ui/Card';
@@ -7,9 +7,22 @@ import Input from '../../Components/ui/Input';
 import Select from '../../Components/ui/Select';
 import DataTable from '../../Components/ui/DataTable';
 import Modal from '../../Components/ui/Modal';
+import Pagination from '../../Components/ui/Pagination';
 
-export default function UserManagement({ users, unlinkedEmployees = [], unlinkedClients = [] }) {
+export default function UserManagement({ users, unlinkedEmployees = [], unlinkedClients = [], filters = {} }) {
   const [showInviteModal, setShowInviteModal] = useState(false);
+  const { tab = 'system', search = '' } = filters;
+  const [searchQuery, setSearchQuery] = useState(search);
+
+  const handleTabChange = (newTab) => {
+    router.get(route('admin.users'), { tab: newTab, search: searchQuery }, { preserveState: true, preserveScroll: true });
+  };
+
+  const handleSearch = (e) => {
+    if (e.key === 'Enter' || e.type === 'click') {
+      router.get(route('admin.users'), { tab, search: searchQuery }, { preserveState: true, preserveScroll: true });
+    }
+  };
 
   const { data, setData, post, processing, errors, reset } = useForm({
     name: '',
@@ -43,13 +56,29 @@ export default function UserManagement({ users, unlinkedEmployees = [], unlinked
       }}>
         {row.status}
       </span>
-    )},
-    { label: 'Linked Profile', key: 'profile', render: (_, row) => {
+    )}
+  ];
+
+  if (tab === 'employees') {
+    columns.push({ 
+      label: 'Client Partner', 
+      key: 'client', 
+      render: (_, row) => row.employee?.client?.company_name || '-'
+    });
+  } else if (tab === 'clients') {
+    columns.push({ 
+      label: 'Company', 
+      key: 'company', 
+      render: (_, row) => row.client?.company_name || '-'
+    });
+  } else {
+    // For system tab, show linked profile generic column just in case
+    columns.push({ label: 'Linked Profile', key: 'profile', render: (_, row) => {
       if (row.role === 'employee' && row.employee) return row.employee.full_name;
       if (row.role === 'client' && row.client) return row.client.company_name;
       return '-';
-    }}
-  ];
+    }});
+  }
 
   return (
     <AuthenticatedLayout>
@@ -66,8 +95,61 @@ export default function UserManagement({ users, unlinkedEmployees = [], unlinked
         </Button>
       </div>
 
-      <Card>
-        <DataTable columns={columns} data={users} />
+      <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 border-b border-gray-200 pb-4">
+        <div className="flex space-x-6">
+          <button 
+            className={`pb-4 px-2 -mb-[17px] font-semibold text-sm transition-colors ${tab === 'system' ? 'border-b-2 border-primary-navy text-primary-navy' : 'text-gray-500 hover:text-gray-700'}`}
+            onClick={() => handleTabChange('system')}
+          >
+            System Staff
+          </button>
+          <button 
+            className={`pb-4 px-2 -mb-[17px] font-semibold text-sm transition-colors ${tab === 'clients' ? 'border-b-2 border-primary-navy text-primary-navy' : 'text-gray-500 hover:text-gray-700'}`}
+            onClick={() => handleTabChange('clients')}
+          >
+            Client Partners
+          </button>
+          <button 
+            className={`pb-4 px-2 -mb-[17px] font-semibold text-sm transition-colors ${tab === 'employees' ? 'border-b-2 border-primary-navy text-primary-navy' : 'text-gray-500 hover:text-gray-700'}`}
+            onClick={() => handleTabChange('employees')}
+          >
+            Employees
+          </button>
+        </div>
+        
+        <div className="flex items-center gap-3">
+          <div className="flex items-center">
+            <input 
+              type="text" 
+              placeholder="Search users..." 
+              className="form-control rounded-r-none h-10 w-64"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={handleSearch}
+            />
+            <Button variant="primary" className="rounded-l-none h-10" onClick={handleSearch}>Search</Button>
+          </div>
+        </div>
+      </div>
+
+      <Card className="p-0">
+        <DataTable columns={columns} data={users.data || []} />
+        {users && users.total > 0 && (
+          <div className="px-6 py-4 border-t border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div className="text-sm text-gray-500">
+              Showing <strong>{users.from || 0}</strong> to <strong>{users.to || 0}</strong> of <strong>{users.total}</strong> users
+            </div>
+            <Pagination
+              currentPage={users.current_page}
+              totalPages={users.last_page}
+              totalItems={users.total}
+              itemsPerPage={users.per_page}
+              onPageChange={(page) => {
+                router.get(route('admin.users'), { tab, search, page }, { preserveState: true, preserveScroll: true });
+              }}
+            />
+          </div>
+        )}
       </Card>
 
       <Modal isOpen={showInviteModal} onClose={() => setShowInviteModal(false)} title="Invite New User">

@@ -12,11 +12,34 @@ class UserController extends Controller
 {
     public function __construct(protected InvitationService $invitationService) {}
 
-    public function index()
+    public function index(Request $request)
     {
-        $users = User::with(['employee:id,full_name', 'client:id,company_name'])
-                     ->orderBy('name')
-                     ->get();
+        $tab = $request->input('tab', 'system');
+        $search = $request->input('search', '');
+
+        $query = User::with([
+            'employee:id,full_name,client_id', 
+            'employee.client:id,company_name',
+            'client:id,company_name'
+        ]);
+
+        if ($tab === 'employees') {
+            $query->where('role', 'employee');
+        } elseif ($tab === 'clients') {
+            $query->where('role', 'client');
+        } else {
+            // Default to system staff
+            $query->whereIn('role', ['admin', 'manager']);
+        }
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        $users = $query->orderBy('name')->paginate(20)->withQueryString();
 
         $linkedEmployeeIds = User::whereNotNull('employee_id')->pluck('employee_id');
         $unlinkedEmployees = \App\Models\Employee::whereNotIn('id', $linkedEmployeeIds)
@@ -33,7 +56,11 @@ class UserController extends Controller
         return Inertia::render('Admin/UserManagement', [
             'users' => $users,
             'unlinkedEmployees' => $unlinkedEmployees,
-            'unlinkedClients' => $unlinkedClients
+            'unlinkedClients' => $unlinkedClients,
+            'filters' => [
+                'tab' => $tab,
+                'search' => $search
+            ]
         ]);
     }
 
