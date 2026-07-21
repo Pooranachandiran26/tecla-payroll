@@ -98,17 +98,17 @@ class LiveAttendanceMonitorTest extends TestCase
 
         $response->assertInertia(fn (Assert $page) => $page
             ->component('Payroll/LiveAttendanceMonitor')
-            ->has('punches', 2)
-            ->where('punches.0.name', $this->employeeA->full_name)
-            ->where('punches.0.status', 'present')
-            ->where('punches.0.in', '09:15 AM')
-            ->where('punches.0.out', '06:15 PM')
-            ->where('punches.0.hours', '9h 0m')
-            ->where('punches.1.name', $this->employeeB->full_name)
-            ->where('punches.1.status', 'absent')
-            ->where('punches.1.in', '—')
-            ->where('punches.1.out', '—')
-            ->where('punches.1.hours', '0h 0m')
+            ->has('punches.data', 2)
+            ->where('punches.data.0.name', $this->employeeA->full_name)
+            ->where('punches.data.0.status', 'present')
+            ->where('punches.data.0.in', '09:15 AM')
+            ->where('punches.data.0.out', '06:15 PM')
+            ->where('punches.data.0.hours', '9h 0m')
+            ->where('punches.data.1.name', $this->employeeB->full_name)
+            ->where('punches.data.1.status', 'absent')
+            ->where('punches.data.1.in', '—')
+            ->where('punches.data.1.out', '—')
+            ->where('punches.data.1.hours', '0h 0m')
         );
     }
 
@@ -136,9 +136,9 @@ class LiveAttendanceMonitorTest extends TestCase
 
         $response->assertInertia(fn (Assert $page) => $page
             ->component('Payroll/LiveAttendanceMonitor')
-            ->has('punches', 1)
-            ->where('punches.0.name', $employeeC->full_name)
-            ->where('punches.0.status', 'absent')
+            ->has('punches.data', 1)
+            ->where('punches.data.0.name', $employeeC->full_name)
+            ->where('punches.data.0.status', 'absent')
         );
     }
 
@@ -159,9 +159,9 @@ class LiveAttendanceMonitorTest extends TestCase
         // and '18:15:00' UTC punch_out_time becomes '11:45 PM' local time
         $response->assertInertia(fn (Assert $page) => $page
             ->component('Payroll/LiveAttendanceMonitor')
-            ->where('punches.0.name', $this->employeeA->full_name)
-            ->where('punches.0.in', '02:45 PM')
-            ->where('punches.0.out', '11:45 PM')
+            ->where('punches.data.0.name', $this->employeeA->full_name)
+            ->where('punches.data.0.in', '02:45 PM')
+            ->where('punches.data.0.out', '11:45 PM')
         );
     }
 }

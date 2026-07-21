@@ -543,7 +543,8 @@ class PayrollController extends Controller
     {
         $invoices = \App\Models\Invoice::with(['client', 'branch'])
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->paginate(15)
+            ->withQueryString();
 
         return \Inertia\Inertia::render('Invoicing/InvoicesList', [
             'invoices' => $invoices,
@@ -638,11 +639,11 @@ class PayrollController extends Controller
             'attendance_records.hours_worked',
             'attendance_records.status as db_status',
             'attendance_records.source as db_source',
-        ])->get();
+        ])->paginate(20)->withQueryString();
 
         $tz = \App\Services\SettingsService::get('localization.timezone', 'Asia/Kolkata');
 
-        $punches = $records->map(function ($row) use ($tz) {
+        $punches = $records->through(function ($row) use ($tz) {
             $inTime = '—';
             $outTime = '—';
             $hours = '0h 0m';

@@ -103,6 +103,8 @@ class SettingsController extends Controller
             'default_authorized_signatory' => 'nullable|string',
             'registered_office_address' => 'nullable|string',
             'agency_gstin' => 'nullable|string',
+            'pf_establishment_code' => 'nullable|string|max:255',
+            'esi_code_number' => 'nullable|string|max:255',
         ]);
 
         $changes = [];

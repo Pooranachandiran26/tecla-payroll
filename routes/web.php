@@ -149,7 +149,7 @@ Route::middleware(['auth', 'active'])->group(function () {
             Route::get('/payroll/reconciliation', fn() => Inertia::render('Payroll/PayrollReconciliation'))->name('payroll.reconciliation');
             Route::get('/invoices', [\App\Http\Controllers\PayrollController::class, 'indexInvoices'])->name('invoices.index');
             Route::get('/invoices/generate', fn() => Inertia::render('Invoicing/InvoiceGenerate'))->name('invoices.generate');
-            Route::get('/compliance', fn() => Inertia::render('Compliance/ComplianceReports'))->name('compliance.index');
+            Route::get('/compliance', [\App\Http\Controllers\ComplianceController::class, 'index'])->name('compliance.index');
             Route::get('/reports', fn() => Inertia::render('Reports/ReportsAnalytics'))->name('reports.index');
  
         });
@@ -158,6 +158,8 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::middleware('role:admin')->group(function () {
             Route::post('/payroll/runs', [\App\Http\Controllers\PayrollController::class, 'process'])->name('payroll.run.process');
             Route::post('/payroll/{id}/approve', [\App\Http\Controllers\PayrollController::class, 'approve'])->name('payroll.run.approve');
+            
+            Route::post('/compliance/mark-filed', [\App\Http\Controllers\ComplianceController::class, 'markFiled'])->name('compliance.mark_filed');
             Route::post('/payroll/{id}/lock', [\App\Http\Controllers\PayrollController::class, 'lock'])->name('payroll.run.lock');
             Route::post('/payroll/{id}/supplementary', [\App\Http\Controllers\PayrollController::class, 'runSupplementary'])->name('payroll.run.supplementary');
 
