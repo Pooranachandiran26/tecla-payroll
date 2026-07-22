@@ -1161,7 +1161,7 @@ class SupplementaryPayrollRunTest extends TestCase
         $response->assertStatus(200);
         $response->assertInertia(fn (Assert $page) => $page
             ->component('Payroll/Payslip')
-            ->has('items', 2)
+            ->has('items.data', 2)
         );
     }
 
@@ -1294,7 +1294,7 @@ class SupplementaryPayrollRunTest extends TestCase
         $responsePayslips->assertStatus(200);
         $responsePayslips->assertInertia(fn (Assert $page) => $page
             ->component('Payroll/Payslip')
-            ->has('items', 2)
+            ->has('items.data', 2)
         );
     }
 

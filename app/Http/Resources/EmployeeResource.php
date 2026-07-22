@@ -77,6 +77,7 @@ class EmployeeResource extends JsonResource
             // Statutory IDs
             'uan_mode' => $this->uan_mode,
             'uan_number' => $this->uan_number,
+            'esi_mode' => $this->esi_mode ?: 'new',
             'esic_number' => $this->esic_number,
             
             // F&F and Rules

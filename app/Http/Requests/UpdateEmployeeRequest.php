@@ -42,6 +42,7 @@ class UpdateEmployeeRequest extends FormRequest
             'aadhaar_number' => $this->aadhaar,
             'uan_mode' => $this->uanMode,
             'uan_number' => $this->uan,
+            'esi_mode' => $this->esiMode ?? 'new',
             'esic_number' => $this->esiNo,
             'basic_pay' => $this->basicSal,
             'hra' => $this->hraSal,
@@ -146,10 +147,11 @@ class UpdateEmployeeRequest extends FormRequest
                 'digits:12',
                 Rule::requiredIf(fn() => $this->pf_applicable && $this->uan_mode === 'existing_transfer')
             ],
+            'esi_mode' => 'nullable|in:new,existing_transfer',
             'esic_number' => [
                 'nullable',
                 'digits:10',
-                Rule::requiredIf(fn() => $this->esi_applicable)
+                Rule::requiredIf(fn() => $this->esi_applicable && ($this->esi_mode ?? 'new') === 'existing_transfer')
             ],
             'pf_applicable' => 'boolean',
             'esi_applicable' => 'boolean',

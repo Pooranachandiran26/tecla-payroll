@@ -7,9 +7,11 @@ import useToast from '../../Hooks/useToast';
 import RoleGuard from '../../Components/RoleGuard.jsx';
 import ComingSoonFeature from '../../Components/ui/ComingSoonFeature';
 import ConfirmDialog from '../../Components/ui/ConfirmDialog';
+import TaxDeclarationTab from './components/TaxDeclarationTab';
+
 export default function EmployeeDetail({ employee: empProp }) {
     const employee = empProp?.data || empProp || {};
-    const { auth, flash, attendanceRecords, attendanceStats } = usePage().props;
+    const { auth, flash, attendanceRecords, attendanceStats, taxDeclaration, taxComparison } = usePage().props;
     const { showToast } = useToast();
     const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, confirmText: '', reason: '' });
     const [activeTab, setActiveTab] = useState('overview');
@@ -393,7 +395,7 @@ const renderDocumentRows = () => {
                     <span className={`badge badge-${employee.esi_applicable ? 'success' : 'neutral'}`}>{employee.esi_applicable ? 'ESI Active' : 'Not Applicable'}</span>
                   </div>
                   <div style={{"fontSize":"0.75rem","color":"var(--text-muted)","marginTop":"-0.5rem","textAlign":"right"}}>
-                    IP No: {employee.esic_number || 'N/A'}
+                    IP No: {employee.esic_number || (employee.esi_mode === 'new' ? 'Pending Registration' : 'N/A')}
                   </div>
 
                   <hr style={{"border":"0","borderTop":"1px solid var(--border-color)"}} />
@@ -1296,18 +1298,10 @@ const renderDocumentRows = () => {
 
         {/*  Tab 6: Tax Declaration  */}
         <div className={`tab-content ${activeTab === 'tax' ? 'active' : ''}`} data-tab="tax">
-          <ComingSoonFeature 
-            title="Tax Declaration"
-            description="Employees will be able to log in and self-declare their tax-saving investments once the Payroll Module is fully connected."
-            dependsOn={["Payroll Module"]}
-            plannedFields={[
-              "Section 80C investments (PPF, ELSS, life insurance)",
-              "Section 80D health insurance premiums",
-              "HRA declaration with landlord PAN and rent receipts",
-              "Section 24b home loan interest",
-              "Supporting proof document uploads",
-              "Real-time TDS impact preview"
-            ]}
+          <TaxDeclarationTab 
+            employee={employee}
+            taxDeclaration={taxDeclaration}
+            taxComparison={taxComparison}
           />
         </div>
 

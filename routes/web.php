@@ -66,6 +66,10 @@ Route::middleware(['auth', 'active'])->group(function () {
     // -------------------------------------------------------------------
     Route::middleware('fresh-password')->group(function () {
         
+        // Employee Tax Declarations (Accessible by Admin, Manager & Employee self-service)
+        Route::get('/employees/{id}/tax-declarations', [\App\Http\Controllers\TaxDeclarationController::class, 'show'])->name('employees.tax-declarations.show');
+        Route::post('/employees/{id}/tax-declarations', [\App\Http\Controllers\TaxDeclarationController::class, 'store'])->name('employees.tax-declarations.store');
+
         // ADMIN & MANAGER
         Route::middleware('role:admin,manager')->group(function () {
             Route::get('/dashboard', fn() => Inertia::render('Dashboard/Dashboard'))->name('dashboard');
@@ -121,6 +125,8 @@ Route::middleware(['auth', 'active'])->group(function () {
             Route::post('/employees/{id}/exit/approve', [\App\Http\Controllers\EmployeeExitController::class, 'approve'])->name('employees.exit.approve');
             Route::post('/employees/{id}/exit/confirm', [\App\Http\Controllers\EmployeeExitController::class, 'confirm'])->name('employees.exit.confirm');
             
+            Route::post('/employees/{id}/tax-declarations/{declarationId}/verify', [\App\Http\Controllers\TaxDeclarationController::class, 'verify'])->name('employees.tax-declarations.verify');
+
             // Salary Revision
             Route::get('/employees/{id}/salary-revision', [SalaryRevisionController::class, 'create'])->name('employees.salary-revision.create');
             Route::post('/employees/{id}/salary-revision', [SalaryRevisionController::class, 'store'])->name('employees.salary-revision.store');

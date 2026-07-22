@@ -586,7 +586,7 @@ class PayrollController extends Controller
             ->unique('employee_id')
             ->values();
 
-        $items = $runItems->map(function ($item) {
+        $mappedItems = $runItems->map(function ($item) {
             $employee = $item->employee;
             return array_merge($item->toArray(), [
                 'full_name' => $employee ? $employee->full_name : '—',
@@ -597,6 +597,18 @@ class PayrollController extends Controller
                 'employment_model' => $employee ? $employee->employment_model : '—',
             ]);
         });
+
+        $page = (int)$request->query('page', 1);
+        $perPage = 15;
+        $slicedItems = $mappedItems->slice(($page - 1) * $perPage, $perPage)->values();
+
+        $items = new \Illuminate\Pagination\LengthAwarePaginator(
+            $slicedItems,
+            $mappedItems->count(),
+            $perPage,
+            $page,
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
 
         $selectedClient = $selectedClientId ? \App\Models\Client::find($selectedClientId) : null;
         $clientBranding = null;

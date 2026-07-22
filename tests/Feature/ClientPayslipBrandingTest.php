@@ -119,7 +119,7 @@ class ClientPayslipBrandingTest extends TestCase
                 ->where('gstin', '27AABCM1234N1ZQ')
                 ->etc()
             )
-            ->has('items', 1, fn (Assert $item) => $item
+            ->has('items.data', 1, fn (Assert $item) => $item
                 ->where('employee_code', 'EMP-EOR-01')
                 ->where('employment_model', 'eor')
                 ->etc()
@@ -186,7 +186,7 @@ class ClientPayslipBrandingTest extends TestCase
                 ->where('accent_color', null)
                 ->etc()
             )
-            ->has('items', 1, fn (Assert $item) => $item
+            ->has('items.data', 1, fn (Assert $item) => $item
                 ->where('employee_code', 'EMP-AGC-01')
                 ->where('employment_model', 'agency_contract')
                 ->etc()
@@ -267,13 +267,14 @@ class ClientPayslipBrandingTest extends TestCase
         $response->assertInertia(fn (Assert $page) => $page
             ->component('Payroll/Payslip')
             ->has('clientBranding')
-            ->has('items', 2)
+            ->has('items.data', 2)
         );
 
         // Access the items collection and verify their different models exist
         $items = $response->original->getData()['page']['props']['items'];
-        $eorItem = collect($items)->firstWhere('employee_code', 'EMP-HYB-EOR');
-        $agencyItem = collect($items)->firstWhere('employee_code', 'EMP-HYB-AGC');
+        $itemList = is_array($items) && isset($items['data']) ? $items['data'] : $items;
+        $eorItem = collect($itemList)->firstWhere('employee_code', 'EMP-HYB-EOR');
+        $agencyItem = collect($itemList)->firstWhere('employee_code', 'EMP-HYB-AGC');
 
         $this->assertNotNull($eorItem);
         $this->assertNotNull($agencyItem);
