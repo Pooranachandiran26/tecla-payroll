@@ -537,12 +537,14 @@ export default function Settings() {
                       <Input label="Agency GSTIN" value={companySettings.agency_gstin || ''} onChange={e => handleCompanyChange('agency_gstin', e.target.value)} noMargin />
                     </div>
                     <div className="flex-1">
-                      <Input label="PF Establishment Code (Optional)" value={companySettings.pf_establishment_code || ''} onChange={e => handleCompanyChange('pf_establishment_code', e.target.value)} noMargin />
+                      <Input label="PF Establishment Code" value={companySettings.pf_establishment_code || ''} onChange={e => handleCompanyChange('pf_establishment_code', e.target.value)} placeholder="e.g. MH/BAN/1234567/000" noMargin />
+                      <p className="text-xs text-gray-500 mt-1">📌 Required for statutory PF return filing for <strong>Agency Contract</strong> employees.</p>
                     </div>
                   </div>
                   <div className="flex gap-4 mb-4">
                     <div className="flex-1">
-                      <Input label="ESI Code Number (Optional)" value={companySettings.esi_code_number || ''} onChange={e => handleCompanyChange('esi_code_number', e.target.value)} noMargin />
+                      <Input label="ESI Code Number" value={companySettings.esi_code_number || ''} onChange={e => handleCompanyChange('esi_code_number', e.target.value)} placeholder="e.g. 31001234560001001" noMargin />
+                      <p className="text-xs text-gray-500 mt-1">📌 Required for statutory ESI return filing for <strong>Agency Contract</strong> employees.</p>
                     </div>
                     <div className="flex-1">
                       {/* Placeholder for future expansion */}

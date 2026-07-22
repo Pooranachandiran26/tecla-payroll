@@ -201,8 +201,10 @@ class MonthlyPayrollCalculator
             }
         }
 
-        // 3. TDS Calculation (Manual override)
-        $tdsDeduction = (float)($overrides['tds_deduction'] ?? 0.00);
+        // 3. TDS Calculation (Auto-computed if verified declaration exists, else fallback to override/0.00)
+        $overrides['paid_days_ratio'] = $paidDays / max(1, $calendarDays);
+        $tdsService = app(\App\Services\TdsCalculationService::class);
+        $tdsDeduction = $tdsService->calculateMonthlyTds($employee, $payrollRun->payroll_month, $overrides);
 
         // 4. Loan EMI Deduction
         $loanEmiDeduction = (float)($overrides['loan_emi_deduction'] ?? 0.00);

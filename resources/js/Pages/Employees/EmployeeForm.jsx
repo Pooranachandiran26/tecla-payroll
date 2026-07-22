@@ -51,6 +51,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       aadhaar: emp?.aadhaar_number || '',
       uanMode: emp?.uan_mode || 'new',
       uan: emp?.uan_number || '',
+      esiMode: emp?.esi_mode || 'new',
       esiNo: emp?.esic_number || '',
       basicSal: emp?.basic_pay ?? '',
       hraSal: emp?.hra ?? '',
@@ -460,7 +461,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       'bank_name': 'bankName', 'bank_branch': 'bankBranch', 'account_holder_name': 'accountHolder',
       'gender': 'gender', 'blood_group': 'bloodGroup', 'marital_status': 'maritalStatus',
       'pan_number': 'pan', 'aadhaar_number': 'aadhaar', 'uan_mode': 'uanMode', 'uan_number': 'uan',
-      'esic_number': 'esiNo', 'basic_pay': 'basicSal', 'hra': 'hraSal', 'conveyance': 'conveyanceSal',
+      'esi_mode': 'esiMode', 'esic_number': 'esiNo', 'basic_pay': 'basicSal', 'hra': 'hraSal', 'conveyance': 'conveyanceSal',
       'da': 'daSal', 'medical_allowance': 'medicalSal', 'special_allowance': 'specialSal',
       'other_additions': 'otherSal', 'pt_deduction_override': 'ptDeduction', 'tds_regime': 'taxRegime',
       'gratuity_mode': 'gratuityMode', 'lop_basis_days': 'lopBasis',
@@ -925,6 +926,11 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                             <option value="existing_transfer">Existing UAN</option>
                           </select>
                           {errors.uanMode && <div className={`field-msg ${errors.uanMode.type || 'error'} show`}>{errors.uanMode.msg || errors.uanMode}</div>}
+                          <small style={{ color: "var(--text-muted)", display: "block", marginTop: "4px" }}>
+                            {formData.uanMode === 'new' 
+                              ? 'ℹ️ Select for first-time employees. EPFO portal auto-generates 12-digit UAN upon ECR upload.' 
+                              : 'ℹ️ Mandatory 12-digit UAN number from previous employer.'}
+                          </small>
                         </div>
                         {formData.uanMode === 'existing_transfer' && (
                           <div className="form-group" style={{ marginBottom: "0" }}>
@@ -960,17 +966,36 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                   </div>
                   {formData.esiToggle && (
                     <div style={{ backgroundColor: "#FFFFFF", padding: "1rem", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", marginTop: "0.5rem" }}>
-                      <div className="form-group" style={{ marginBottom: "0.75rem" }}>
-                        <label>ESIC IP Number <span style={{ color: "var(--status-danger)" }}>*</span></label>
-                        <input type="text" className={`form-control ${errors.esiNo ? 'is-invalid' : ''}`} value={formData.esiNo} onChange={e => handleInputChange('esiNo', e.target.value)} placeholder="10-digit ESIC Number" maxLength="10" />
-                        {errors.esiNo && <div className={`field-msg ${errors.esiNo.type || 'error'} show`}>{errors.esiNo.msg || errors.esiNo}</div>}
+                      <div className="form-row">
+                        <div className="form-group" style={{ marginBottom: "0.75rem" }}>
+                          <label>ESI Mode <span style={{ color: "var(--status-danger)" }}>*</span></label>
+                          <select className={`form-control ${errors.esiMode ? 'is-invalid' : ''}`} value={formData.esiMode} onChange={e => handleInputChange('esiMode', e.target.value)}>
+                            <option value="new">Pending / New Registration</option>
+                            <option value="existing_transfer">Existing IP Number</option>
+                          </select>
+                          {errors.esiMode && <div className={`field-msg ${errors.esiMode.type || 'error'} show`}>{errors.esiMode.msg || errors.esiMode}</div>}
+                          <small style={{ color: "var(--text-muted)", display: "block", marginTop: "4px" }}>
+                            {formData.esiMode === 'new' 
+                              ? 'ℹ️ Select for first-time workers. ESIC portal auto-generates 10-digit IP number upon registration upload.' 
+                              : 'ℹ️ Mandatory 10-digit ESIC IP number from previous employer.'}
+                          </small>
+                        </div>
+                        {formData.esiMode === 'existing_transfer' && (
+                          <div className="form-group" style={{ marginBottom: "0.75rem" }}>
+                            <label>ESIC IP Number <span style={{ color: "var(--status-danger)" }}>*</span></label>
+                            <input type="text" className={`form-control ${errors.esiNo ? 'is-invalid' : ''}`} value={formData.esiNo} onChange={e => handleInputChange('esiNo', e.target.value)} placeholder="10-digit ESIC Number" maxLength="10" />
+                            {errors.esiNo && <div className={`field-msg ${errors.esiNo.type || 'error'} show`}>{errors.esiNo.msg || errors.esiNo}</div>}
+                          </div>
+                        )}
                       </div>
-                      <div className="form-group" style={{ marginBottom: "0" }}>
-                        <label>ESI Contribution Period End</label>
-                        <input type="date" className={`form-control ${errors.esiPeriodEnd ? `is-${errors.esiPeriodEnd.type || 'error'}` : ''}`} value={formData.esiPeriodEnd}
-                          onChange={e => handleInputChange('esiPeriodEnd', e.target.value)} />
-                        {errors.esiPeriodEnd && <div className={`field-msg ${errors.esiPeriodEnd.type || 'error'} show`}>{errors.esiPeriodEnd.msg}</div>}
-                      </div>
+                      {!isAdd && (
+                        <div className="form-group" style={{ marginBottom: "0" }}>
+                          <label>ESI Contribution Period End</label>
+                          <input type="date" className={`form-control ${errors.esiPeriodEnd ? `is-${errors.esiPeriodEnd.type || 'error'}` : ''}`} value={formData.esiPeriodEnd}
+                            onChange={e => handleInputChange('esiPeriodEnd', e.target.value)} />
+                          {errors.esiPeriodEnd && <div className={`field-msg ${errors.esiPeriodEnd.type || 'error'} show`}>{errors.esiPeriodEnd.msg}</div>}
+                        </div>
+                      )}
                     </div>
                   )}
                   <hr style={{ border: "0", borderTop: "1px solid var(--border-color)" }} />
@@ -999,6 +1024,11 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                               <option value="new">New Tax Regime</option>
                               <option value="employee_choice">Employee Choice</option>
                             </select>
+                            <small style={{ color: "var(--text-muted)", display: "block", marginTop: "4px" }}>
+                              {formData.taxRegime === 'new' 
+                                ? 'ℹ️ New Regime (Default for FY26-27): ₹75,000 Standard Deduction, zero tax up to ₹12L (Sec 87A rebate).' 
+                                : 'ℹ️ Old Regime: ₹50,000 Standard Deduction, 80C, 80D, 24b & HRA exemptions applicable.'}
+                            </small>
                           </div>
                           <div className="form-group" style={{ marginBottom: "0" }}>
                             <label>Investment Declarations?</label>
@@ -1085,30 +1115,45 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
             <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
               <div className="card" style={{ padding: "1.25rem", background: "#f8faff", border: "1px solid #d0dfff" }}>
                 <h4 style={{ margin: "0 0 0.5rem 0", fontSize: "0.95rem", color: "var(--primary-color)", display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                  <span style={{ fontSize: "1.1rem" }}>👤</span> Personal Details
+                  <span style={{ fontSize: "1.1rem" }}>👤</span> Personal &amp; Employment Profile
                 </h4>
-                <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)", lineHeight: "1.5" }}>Ensure the PAN matches the Full Name perfectly. Phone numbers and Emails are checked for duplicates against our database.</p>
+                <p style={{ margin: 0, fontSize: "0.83rem", color: "var(--text-muted)", lineHeight: "1.5" }}>
+                  • <strong>PAN Name Matching:</strong> Ensure Full Name matches PAN card exactly for statutory filing.<br/>
+                  • <strong>Uniqueness Checks:</strong> Emails, Phone numbers, PAN, and Bank Accounts are checked for duplicate entries.<br/>
+                  • <strong>Filing Entity:</strong> EOR uses Client code; Agency Contract uses Tecla Media code.
+                </p>
               </div>
               
               <div className="card" style={{ padding: "1.25rem", background: "#f8faff", border: "1px solid #d0dfff" }}>
                 <h4 style={{ margin: "0 0 0.5rem 0", fontSize: "0.95rem", color: "var(--primary-color)", display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                  <span style={{ fontSize: "1.1rem" }}>🏦</span> Banking Info
+                  <span style={{ fontSize: "1.1rem" }}>🏦</span> Banking Security Info
                 </h4>
-                <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)", lineHeight: "1.5" }}>The IFSC code automatically fetches the correct Branch and Bank Name directly via the Razorpay API. Double check the account number.</p>
+                <p style={{ margin: 0, fontSize: "0.83rem", color: "var(--text-muted)", lineHeight: "1.5" }}>
+                  • <strong>Live Razorpay Verification:</strong> Valid IFSC codes auto-fetch Bank Name and Branch.<br/>
+                  • <strong>Data Encryption:</strong> Account numbers are encrypted in DB with SHA-256 hash duplication protection.<br/>
+                  • <strong>Lock Rule:</strong> Bank info can only be set during onboarding; active employees must use Bank Change Requests.
+                </p>
               </div>
               
               <div className="card" style={{ padding: "1.25rem", background: "#f8faff", border: "1px solid #d0dfff" }}>
                 <h4 style={{ margin: "0 0 0.5rem 0", fontSize: "0.95rem", color: "var(--primary-color)", display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                  <span style={{ fontSize: "1.1rem" }}>💰</span> Salary Structure
+                  <span style={{ fontSize: "1.1rem" }}>💰</span> Salary &amp; Deductions Cap
                 </h4>
-                <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)", lineHeight: "1.5" }}>By law, Basic Pay should ideally be 50% or more of the CTC. The preview calculates exact Employer Contributions dynamically.</p>
+                <p style={{ margin: 0, fontSize: "0.83rem", color: "var(--text-muted)", lineHeight: "1.5" }}>
+                  • <strong>Wage Code Rule:</strong> Basic Pay should be 50%+ of CTC.<br/>
+                  • <strong>50% Deduction Cap:</strong> Total deductions (PF + ESI + PT + TDS + Loan EMI) are legally capped at 50% gross salary to protect employee take-home pay.
+                </p>
               </div>
               
               <div className="card" style={{ padding: "1.25rem", background: "#f8faff", border: "1px solid #d0dfff" }}>
                 <h4 style={{ margin: "0 0 0.5rem 0", fontSize: "0.95rem", color: "var(--primary-color)", display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                  <span style={{ fontSize: "1.1rem" }}>⚖️</span> Statutory Compliance
+                  <span style={{ fontSize: "1.1rem" }}>⚖️</span> Statutory Modes (PF / ESI / TDS)
                 </h4>
-                <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)", lineHeight: "1.5" }}>PF wage ceiling is inherited from the client. ESI is disabled automatically if Gross exceeds ₹21,000. PT override bypasses state slabs.</p>
+                <p style={{ margin: 0, fontSize: "0.83rem", color: "var(--text-muted)", lineHeight: "1.5" }}>
+                  • <strong>PF &amp; ESI Modes:</strong> Select <em>"Pending / New Registration"</em> for first-time workers (EPFO/ESIC portals auto-issue numbers upon upload).<br/>
+                  • <strong>ESI Limit:</strong> Auto-disables if Gross exceeds ₹21,000.<br/>
+                  • <strong>TDS Slabs:</strong> FY26-27 New Regime tax-free up to ₹12L net taxable income.
+                </p>
               </div>
             </div>
           </div>
