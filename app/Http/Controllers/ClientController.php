@@ -30,7 +30,9 @@ class ClientController extends Controller
     {
         $this->authorize('viewAny', Client::class);
 
-        $query = Client::withCount('employees');
+        $query = Client::withCount(['employees' => function ($query) {
+            $query->where('status', 'active');
+        }]);
 
         if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
@@ -212,7 +214,9 @@ class ClientController extends Controller
     {
         $this->authorize('view', $client);
         $client->load(['contacts', 'branches', 'documents', 'accountManager', 'backupAccountManager', 'invoices'])
-               ->loadCount('employees');
+               ->loadCount(['employees' => function ($query) {
+                    $query->where('status', 'active');
+                }]);
                
         $employees = $client->employees()->paginate(10);
                
@@ -483,6 +487,7 @@ class ClientController extends Controller
         $this->authorize('view', $client);
 
         return response()->json([
+            'contractType' => $client->contract_type,
             'pfApplicable' => (bool)$client->pf_applicable,
             'pfCeiling' => $client->pf_ceiling,
             'esiApplicable' => (bool)$client->esi_applicable,

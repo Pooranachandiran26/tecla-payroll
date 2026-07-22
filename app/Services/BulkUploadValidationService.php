@@ -234,7 +234,15 @@ class BulkUploadValidationService
                 }
             }
 
+            $employmentModel = $normalizedRow['employment_model'] ?? null;
+            if (empty($employmentModel)) {
+                if ($client) {
+                    $employmentModel = ($client->contract_type === 'agency') ? 'agency_contract' : 'eor';
+                }
+            }
+
             $validationData = array_merge($normalizedRow, [
+                'employment_model' => $employmentModel,
                 'pf_applicable' => $pfApplicable,
                 'esi_applicable' => $esiApplicable,
                 'pt_applicable' => $ptApplicable,
@@ -247,6 +255,7 @@ class BulkUploadValidationService
                 'bank_name' => $normalizedRow['bank_name'] ?? '',
                 'bank_branch' => $normalizedRow['bank_branch'] ?? '',
                 'uan_mode' => $normalizedRow['uan_mode'] ?? 'new',
+                'esi_mode' => $normalizedRow['esi_mode'] ?? 'new',
                 'declarations_accepted' => $declarationsAccepted,
                 'reporting_manager_id' => $reportingManagerId,
                 'emergency_contact_name' => $normalizedRow['emergency_contact_name'] ?? null,
@@ -321,10 +330,11 @@ class BulkUploadValidationService
                     'digits:12',
                     Rule::requiredIf(fn() => $pfApplicable && ($validationData['uan_mode'] ?? 'new') === 'existing_transfer')
                 ],
+                'esi_mode' => 'nullable|in:new,existing_transfer',
                 'esic_number' => [
                     'nullable',
                     'digits:10',
-                    Rule::requiredIf(fn() => $esiApplicable)
+                    Rule::requiredIf(fn() => $esiApplicable && ($validationData['esi_mode'] ?? 'new') === 'existing_transfer')
                 ],
                 'tds_regime' => 'required|in:old,new',
                 'gratuity_mode' => 'required|in:part_of_ctc,over_and_above',

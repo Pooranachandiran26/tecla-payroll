@@ -113,7 +113,7 @@ window.countText = countText;
         code: "REL-099",
         gstin: "27AAARR9012A3Z3",
         pan: "AAARR9012A",
-        contractType: "hybrid",
+        contractType: "agency",
         billingModel: "markup",
         markupPct: "10.0",
         onboardingProgress: 100,
@@ -290,7 +290,7 @@ window.countText = countText;
           billingModelText = c.billingModel || '—';
         }
 
-        const contractLabelText = c.contractType === 'eor' ? 'Pass-through EOR' : (c.contractType === 'agency' ? 'Agency Staffing' : 'Hybrid');
+        const contractLabelText = c.contractType === 'eor' ? 'Pass-through EOR' : 'Agency Staffing';
 
         tr.innerHTML = `
           <td style="text-align: center;">

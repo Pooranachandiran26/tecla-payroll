@@ -167,7 +167,10 @@ export default function ComplianceReports() {
           <div className="flex-1 min-w-[150px]">
             <Select 
               label="Client" 
-              options={[{value:'all',label:'All Clients'},{value:'mahindra',label:'Mahindra & Mahindra'},{value:'tcs',label:'TCS Staffing'},{value:'reliance',label:'Reliance Retail'}]} 
+              options={[
+                { value: 'all', label: 'All Clients' },
+                ...(clients ? clients.map(c => ({ value: String(c.id), label: c.name })) : [])
+              ]} 
               noMargin
             />
           </div>

@@ -162,7 +162,6 @@ export default function ClientsList({ clients, stats = {} }) {
                 <option value="">All Contract Types</option>
                 <option value="agency">Agency / Staffing</option>
                 <option value="eor">EOR / Pass-through</option>
-                <option value="hybrid">Hybrid</option>
               </select>
             </div>
 
@@ -273,7 +272,7 @@ export default function ClientsList({ clients, stats = {} }) {
                         </td>
                         <td>
                           <div style={{ fontSize: "0.85rem", fontWeight: "600" }}>
-                            {c.contract_type === 'agency' ? 'Agency Staffing' : c.contract_type === 'eor' ? 'Pass-through EOR' : 'Hybrid'}
+                            {c.contract_type === 'agency' ? 'Agency Staffing' : 'Pass-through EOR'}
                           </div>
                           <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
                             {c.billing_model === 'fixed_fee' 
