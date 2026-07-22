@@ -162,10 +162,31 @@ class EmployeeController extends Controller
             'startDayOfWeek' => $targetDate->copy()->startOfMonth()->dayOfWeekIso, // 1 (Mon) - 7 (Sun)
         ];
 
+        $tdsService = app(\App\Services\TdsCalculationService::class);
+        $fy = $tdsService->determineFinancialYear($targetDate->toDateString());
+        $taxDeclaration = \App\Models\EmployeeTaxDeclaration::where('employee_id', $employee->id)
+            ->where('financial_year', $fy)
+            ->first();
+
+        $newRegimeTax = $tdsService->calculateAnnualTax($employee, $fy, $taxDeclaration ? clone $taxDeclaration : null);
+        $tempOldDec = $taxDeclaration ? clone $taxDeclaration : new \App\Models\EmployeeTaxDeclaration(['regime' => 'old']);
+        $tempOldDec->regime = 'old';
+        $oldRegimeTax = $tdsService->calculateAnnualTax($employee, $fy, $tempOldDec);
+
+        $taxComparison = [
+            'financial_year' => $fy,
+            'new_regime' => $newRegimeTax,
+            'old_regime' => $oldRegimeTax,
+            'recommended_regime' => ($newRegimeTax['net_tax_payable'] <= $oldRegimeTax['net_tax_payable']) ? 'new' : 'old',
+            'annual_tax_savings' => abs($newRegimeTax['net_tax_payable'] - $oldRegimeTax['net_tax_payable']),
+        ];
+
         return \Inertia\Inertia::render('Employees/EmployeeDetail', [
             'employee' => new \App\Http\Resources\EmployeeResource($employee),
             'attendanceRecords' => $attendanceRecords,
-            'attendanceStats' => $stats
+            'attendanceStats' => $stats,
+            'taxDeclaration' => $taxDeclaration,
+            'taxComparison' => $taxComparison,
         ]);
     }
 
