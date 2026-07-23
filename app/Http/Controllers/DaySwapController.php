@@ -72,7 +72,7 @@ class DaySwapController extends Controller
             ];
         });
 
-        $clients = Client::where('status', 'active')->select('id', 'company_name')->get();
+        $clients = Client::where('status', 'active')->select('id', 'company_name')->orderBy('id', 'desc')->get();
 
         return Inertia::render('Employees/DaySwapRequests', [
             'requests' => $mappedRequests,

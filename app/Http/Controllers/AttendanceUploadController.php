@@ -29,7 +29,7 @@ class AttendanceUploadController extends Controller
             abort(403, 'Unauthorized');
         }
 
-        $clients = Client::where('status', 'active')->get(['id', 'company_name']);
+        $clients = Client::where('status', 'active')->orderBy('id', 'desc')->get(['id', 'company_name']);
         
         return Inertia::render('Payroll/AttendanceUpload', [
             'clients' => $clients
