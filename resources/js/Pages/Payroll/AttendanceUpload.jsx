@@ -203,7 +203,7 @@ export default function AttendanceUpload({ clients }) {
           <div className="flex justify-between items-center mt-2 mb-1">
             <h2 className="text-2xl font-bold text-[#1F3864]">Upload External Attendance Sheets</h2>
             <a 
-              href={route('payroll.attendance.template')} 
+              href={route('payroll.attendance.template', { client_id: selectedClientId, target_month: targetMonth })} 
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-white border border-gray-300 rounded shadow-sm text-gray-700 hover:bg-gray-50"
             >
               <FileSpreadsheet className="w-3.5 h-3.5" />

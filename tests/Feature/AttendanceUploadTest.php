@@ -95,7 +95,7 @@ class AttendanceUploadTest extends TestCase
         $lines = explode("\n", trim($content));
 
         $this->assertGreaterThanOrEqual(1, count($lines));
-        $this->assertEquals('employee_code,days_present,days_lop', trim($lines[0]));
+        $this->assertEquals('target_month,employee_code,days_present,days_lop', trim($lines[0]));
     }
 
     /**
@@ -563,5 +563,93 @@ class AttendanceUploadTest extends TestCase
             ->count();
 
         $this->assertEquals(0, $savedCount, 'Skipped employee must have ZERO attendance_records saved in DB');
+    }
+
+    /**
+     * 13. Test download template with live context & comment line guard.
+     */
+    public function test_download_template_with_live_context_and_comment_parser_guard()
+    {
+        $response = $this->actingAs($this->admin)->get('/payroll/attendance/template?client_id=' . $this->clientA->id . '&target_month=2026-08');
+
+        $response->assertStatus(200);
+        $content = $response->streamedContent();
+
+        $this->assertStringContainsString('target_month,employee_code,days_present,days_lop', $content);
+        $this->assertStringContainsString('2026-08,EMP-A01,', $content);
+        $this->assertStringContainsString('# REFERENCE INFO & CLIENT RULES', $content);
+        $this->assertStringContainsString('# Target Client: Client A', $content);
+
+        // Feed downloaded file back to validateFile to verify comment lines are cleanly skipped
+        $tempPath = storage_path('app/temp_downloaded_template_test.csv');
+        file_put_contents($tempPath, $content);
+
+        $validator = app(\App\Services\AttendanceUploadValidationService::class);
+        $result = $validator->validateFile($tempPath, $this->clientA->id, '2026-08');
+        @unlink($tempPath);
+
+        $this->assertEquals(1, $result['total_rows']);
+        $this->assertEquals(1, $result['matched_rows']);
+        $this->assertEquals(0, $result['error_count']);
+    }
+
+    /**
+     * 14. Test validate upload with matching target_month header column.
+     */
+    public function test_validate_upload_with_matching_target_month_header()
+    {
+        $csvContent = "target_month,employee_code,days_present,days_lop\n2026-07,EMP-A01,23,0\n";
+        $file = UploadedFile::fake()->createWithContent('timesheet.csv', $csvContent);
+
+        $response = $this->actingAs($this->admin)->post('/payroll/attendance/validate', [
+            'client_id' => $this->clientA->id,
+            'target_month' => '2026-07',
+            'file' => $file,
+        ]);
+
+        $response->assertStatus(200);
+        $rows = $response->json('rows');
+        $this->assertEquals('valid', $rows[0]['status']);
+        $this->assertEquals("", $rows[0]['notes']);
+    }
+
+    /**
+     * 15. Test validate upload with mismatch target_month header column generates warning (status stays valid).
+     */
+    public function test_validate_upload_with_mismatch_target_month_header_generates_warning()
+    {
+        $csvContent = "target_month,employee_code,days_present,days_lop\n2026-05,EMP-A01,23,0\n";
+        $file = UploadedFile::fake()->createWithContent('timesheet.csv', $csvContent);
+
+        $response = $this->actingAs($this->admin)->post('/payroll/attendance/validate', [
+            'client_id' => $this->clientA->id,
+            'target_month' => '2026-07', // Page selected month: July 2026 vs Sheet specifies: May 2026
+            'file' => $file,
+        ]);
+
+        $response->assertStatus(200);
+        $rows = $response->json('rows');
+        $this->assertEquals('valid', $rows[0]['status']);
+        $this->assertStringContainsString("⚠️ Target month mismatch — sheet specifies 'May 2026', but 'July 2026' was selected on this page. Proceeding with July 2026", $rows[0]['notes']);
+    }
+
+    /**
+     * 16. Test backward compatibility: old format without target_month column processes normally.
+     */
+    public function test_validate_upload_backward_compatibility_with_missing_target_month_header()
+    {
+        $csvContent = "employee_code,days_present,days_lop\nEMP-A01,23,0\n"; // Old format (no target_month column)
+        $file = UploadedFile::fake()->createWithContent('old_timesheet.csv', $csvContent);
+
+        $response = $this->actingAs($this->admin)->post('/payroll/attendance/validate', [
+            'client_id' => $this->clientA->id,
+            'target_month' => '2026-07',
+            'file' => $file,
+        ]);
+
+        $response->assertStatus(200);
+        $rows = $response->json('rows');
+        $this->assertEquals('valid', $rows[0]['status']);
+        $this->assertEquals("", $rows[0]['notes']);
     }
 }

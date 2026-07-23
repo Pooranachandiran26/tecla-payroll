@@ -51,6 +51,8 @@ class AttendanceUploadValidationService
 
         $idxDaysPresent = array_search('days_present', $headers);
         $idxDaysLOP = array_search('days_lop', $headers);
+        $idxTargetMonth = array_search('target_month', $headers);
+        if ($idxTargetMonth === false) $idxTargetMonth = array_search('month', $headers);
 
         if ($idxEmpCode === false || $idxDaysPresent === false || $idxDaysLOP === false) {
             fclose($handle);
@@ -80,8 +82,8 @@ class AttendanceUploadValidationService
         $rowNo = 1;
 
         while (($data = fgetcsv($handle)) !== false) {
-            // Skip empty rows
-            if (empty(array_filter($data))) {
+            // Skip empty rows and reference comment lines starting with #
+            if (empty(array_filter($data)) || (isset($data[0]) && str_starts_with(trim($data[0]), '#'))) {
                 continue;
             }
 
@@ -91,6 +93,21 @@ class AttendanceUploadValidationService
             $rawEmpCode = isset($data[$idxEmpCode]) ? trim($data[$idxEmpCode]) : '';
             $rawDaysPresent = isset($data[$idxDaysPresent]) ? trim($data[$idxDaysPresent]) : '';
             $rawDaysLOP = isset($data[$idxDaysLOP]) ? trim($data[$idxDaysLOP]) : '';
+            $rawTargetMonth = ($idxTargetMonth !== false && isset($data[$idxTargetMonth])) ? trim($data[$idxTargetMonth]) : '';
+
+            $monthMismatchNote = '';
+            if (!empty($rawTargetMonth)) {
+                try {
+                    $parsedSheetMonth = Carbon::parse($rawTargetMonth . (strlen($rawTargetMonth) === 7 ? '-01' : ''))->format('Y-m');
+                    if ($parsedSheetMonth !== $targetMonth) {
+                        $sheetMonthLabel = Carbon::parse($parsedSheetMonth . '-01')->format('F Y');
+                        $selectedMonthLabel = Carbon::parse($targetMonth . '-01')->format('F Y');
+                        $monthMismatchNote = "⚠️ Target month mismatch — sheet specifies '{$sheetMonthLabel}', but '{$selectedMonthLabel}' was selected on this page. Proceeding with {$selectedMonthLabel} — please double-check this is correct.";
+                    }
+                } catch (\Exception $e) {
+                    // Ignore unparseable rawTargetMonth
+                }
+            }
 
             $employee = null;
             $matchedName = 'Unmatched / Not Found';
@@ -220,6 +237,10 @@ class AttendanceUploadValidationService
             } else {
                 $notes = "Employee code '{$rawEmpCode}' not found for this client.";
                 $errorCount++;
+            }
+
+            if (!empty($monthMismatchNote)) {
+                $notes = empty($notes) ? $monthMismatchNote : ($monthMismatchNote . " " . $notes);
             }
 
             $rows[] = [
