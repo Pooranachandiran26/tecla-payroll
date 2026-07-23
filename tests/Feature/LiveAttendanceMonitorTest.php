@@ -99,16 +99,16 @@ class LiveAttendanceMonitorTest extends TestCase
         $response->assertInertia(fn (Assert $page) => $page
             ->component('Payroll/LiveAttendanceMonitor')
             ->has('punches.data', 2)
-            ->where('punches.data.0.name', $this->employeeA->full_name)
-            ->where('punches.data.0.status', 'present')
-            ->where('punches.data.0.in', '09:15 AM')
-            ->where('punches.data.0.out', '06:15 PM')
-            ->where('punches.data.0.hours', '9h 0m')
-            ->where('punches.data.1.name', $this->employeeB->full_name)
-            ->where('punches.data.1.status', 'absent')
-            ->where('punches.data.1.in', '—')
-            ->where('punches.data.1.out', '—')
-            ->where('punches.data.1.hours', '0h 0m')
+            ->where('punches.data.0.name', $this->employeeB->full_name)
+            ->where('punches.data.0.status', 'absent')
+            ->where('punches.data.0.in', '—')
+            ->where('punches.data.0.out', '—')
+            ->where('punches.data.0.hours', '0h 0m')
+            ->where('punches.data.1.name', $this->employeeA->full_name)
+            ->where('punches.data.1.status', 'present')
+            ->where('punches.data.1.in', '09:15 AM')
+            ->where('punches.data.1.out', '06:15 PM')
+            ->where('punches.data.1.hours', '9h 0m')
         );
     }
 
@@ -159,9 +159,9 @@ class LiveAttendanceMonitorTest extends TestCase
         // and '18:15:00' UTC punch_out_time becomes '11:45 PM' local time
         $response->assertInertia(fn (Assert $page) => $page
             ->component('Payroll/LiveAttendanceMonitor')
-            ->where('punches.data.0.name', $this->employeeA->full_name)
-            ->where('punches.data.0.in', '02:45 PM')
-            ->where('punches.data.0.out', '11:45 PM')
+            ->where('punches.data.1.name', $this->employeeA->full_name)
+            ->where('punches.data.1.in', '02:45 PM')
+            ->where('punches.data.1.out', '11:45 PM')
         );
     }
 }

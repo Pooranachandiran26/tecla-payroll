@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Client;
 use App\Models\Employee;
 use App\Models\AttendanceRecord;
+use App\Models\Holiday;
 use Carbon\Carbon;
 
 class AttendanceUploadValidationService
@@ -56,12 +57,19 @@ class AttendanceUploadValidationService
             throw new \Exception("Missing required headers. Headers must include: employee_code, days_present, days_lop.");
         }
 
-        // Compute working days for the target month using the client's weekly off pattern
+        // Compute working days for the target month using the client's weekly off pattern and holidays
         $monthStart = Carbon::parse($targetMonth . '-01');
         $monthEnd = $monthStart->copy()->endOfMonth();
         $clientModel = Client::find($clientId);
+
+        $clientHolidayDates = Holiday::where('client_id', $clientId)
+            ->whereBetween('holiday_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
+            ->pluck('holiday_date')
+            ->map(fn($d) => Carbon::parse($d)->toDateString())
+            ->toArray();
+
         $clientOffDays = $this->resolveOffDays(null, $clientModel);
-        $allWeekdays = $this->getWeekdaysInRange($monthStart, $monthEnd, $clientOffDays);
+        $allWeekdays = $this->getWeekdaysInRange($monthStart, $monthEnd, $clientOffDays, $clientHolidayDates);
         $totalWorkingDays = count($allWeekdays);
 
         $rows = [];
@@ -125,7 +133,7 @@ class AttendanceUploadValidationService
                     }
                     $effectiveStart = $monthStart->gt($employeeStart) ? $monthStart->copy() : $employeeStart->copy();
                     $empOffDays = $this->resolveOffDays($employee, $clientModel);
-                    $employeeWeekdays = $this->getWeekdaysInRange($effectiveStart, $monthEnd, $empOffDays);
+                    $employeeWeekdays = $this->getWeekdaysInRange($effectiveStart, $monthEnd, $empOffDays, $clientHolidayDates);
                     $employeeWorkingDays = count($employeeWeekdays);
 
                     // Count existing live_punch/override records for this employee in the target month
@@ -151,7 +159,8 @@ class AttendanceUploadValidationService
                             $reconciledLop,
                             $effectiveStart,
                             $monthEnd,
-                            $empOffDays
+                            $empOffDays,
+                            $clientHolidayDates
                         );
                     } elseif ($uploadedTotal < $availableSlots) {
                         // Shortfall - auto reconcile
@@ -167,7 +176,8 @@ class AttendanceUploadValidationService
                             $reconciledLop,
                             $effectiveStart,
                             $monthEnd,
-                            $empOffDays
+                            $empOffDays,
+                            $clientHolidayDates
                         );
                     } else {
                         // Over-count
@@ -189,7 +199,8 @@ class AttendanceUploadValidationService
                                 $reconciledLop,
                                 $effectiveStart,
                                 $monthEnd,
-                                $empOffDays
+                                $empOffDays,
+                                $clientHolidayDates
                             );
                         }
                     }
@@ -234,12 +245,14 @@ class AttendanceUploadValidationService
      * @param int $daysLOP
      * @param Carbon $monthStart
      * @param Carbon $monthEnd
+     * @param array $offDays
+     * @param array $holidayDates
      * @return array
      */
-    public function expandToDaily(int $employeeId, int $daysPresent, int $daysLOP, Carbon $monthStart, Carbon $monthEnd, array $offDays = ['sat', 'sun']): array
+    public function expandToDaily(int $employeeId, int $daysPresent, int $daysLOP, Carbon $monthStart, Carbon $monthEnd, array $offDays = ['sat', 'sun'], array $holidayDates = []): array
     {
-        // Get all working day dates in the month (using weekly off pattern)
-        $allWeekdays = $this->getWeekdaysInRange($monthStart, $monthEnd, $offDays);
+        // Get all working day dates in the month (using weekly off pattern and holidays)
+        $allWeekdays = $this->getWeekdaysInRange($monthStart, $monthEnd, $offDays, $holidayDates);
 
         // Get dates that already have live_punch/override records
         $existingPunchDates = AttendanceRecord::where('employee_id', $employeeId)
@@ -284,19 +297,22 @@ class AttendanceUploadValidationService
 
     /**
      * Get all working day date strings in a date range, inclusive.
-     * Days matching the off-day pattern are excluded.
+     * Days matching the off-day pattern or holiday dates are excluded.
      *
      * @param Carbon $start
      * @param Carbon $end
      * @param array $offDays  Lowercase 3-letter day abbreviations (e.g. ['sat', 'sun'])
+     * @param array $holidayDates  Array of 'Y-m-d' date strings
      * @return array  Array of 'Y-m-d' strings
      */
-    private function getWeekdaysInRange(Carbon $start, Carbon $end, array $offDays = ['sat', 'sun']): array
+    private function getWeekdaysInRange(Carbon $start, Carbon $end, array $offDays = ['sat', 'sun'], array $holidayDates = []): array
     {
         $weekdays = [];
         for ($date = $start->copy(); $date->lte($end); $date->addDay()) {
-            if (!in_array(strtolower($date->format('D')), $offDays)) {
-                $weekdays[] = $date->toDateString();
+            $dateStr = $date->toDateString();
+            $dayName = strtolower($date->format('D'));
+            if (!in_array($dayName, $offDays) && !in_array($dateStr, $holidayDates)) {
+                $weekdays[] = $dateStr;
             }
         }
         return $weekdays;
@@ -317,3 +333,4 @@ class AttendanceUploadValidationService
         return array_map('trim', explode(',', strtolower($pattern)));
     }
 }
+
