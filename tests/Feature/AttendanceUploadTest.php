@@ -276,9 +276,9 @@ class AttendanceUploadTest extends TestCase
         $rows = $response->json('rows');
         $this->assertEquals('invalid', $rows[0]['status']);
 
-        // Confirm the error message shows the overcount details
-        $this->assertStringContainsString('exceeds available slots', $rows[0]['notes']);
-        $this->assertStringContainsString('Original: 25 present / 2 LOP', $rows[0]['notes']);
+        // Confirm the error message shows the overcount details using new short template
+        $this->assertStringContainsString("⚠️ Numbers don't match", $rows[0]['notes']);
+        $this->assertStringContainsString('entered 27 days total', $rows[0]['notes']);
     }
 
     /**
@@ -321,7 +321,7 @@ class AttendanceUploadTest extends TestCase
 
         $badRows = $responseBad->json('rows');
         $this->assertEquals('invalid', $badRows[0]['status']);
-        $this->assertStringContainsString('exceeds available slots', $badRows[0]['notes']);
+        $this->assertStringContainsString("⚠️ Numbers don't match", $badRows[0]['notes']);
 
         // === POSITIVE PATH: 18 + 2 = 20 slots available ===
         $csvGood = "employee_code,days_present,days_lop\n";
@@ -436,9 +436,9 @@ class AttendanceUploadTest extends TestCase
 
         $rows = $response->json('rows');
         $this->assertEquals('valid', $rows[0]['status']);
-        $this->assertStringContainsString('Warning: Over-count capped', $rows[0]['notes']);
-        $this->assertStringContainsString('Uploaded: 23 present / 0 LOP', $rows[0]['notes']);
-        $this->assertStringContainsString('Saved: 22 present / 0 LOP', $rows[0]['notes']);
+        $this->assertStringContainsString('⚠️ Adjusted', $rows[0]['notes']);
+        $this->assertStringContainsString('entered 23 present days', $rows[0]['notes']);
+        $this->assertStringContainsString('automatically capped it to 22', $rows[0]['notes']);
     }
 
     /**
@@ -473,7 +473,7 @@ class AttendanceUploadTest extends TestCase
 
         $rows = $response->json('rows');
         $this->assertEquals('invalid', $rows[0]['status']);
-        $this->assertStringContainsString('Error: Uploaded total (23) exceeds available slots (22) with non-zero LOP', $rows[0]['notes']);
+        $this->assertStringContainsString("⚠️ Numbers don't match — you entered 23 days total, but this month only has 22 working days", $rows[0]['notes']);
     }
 
     /**
