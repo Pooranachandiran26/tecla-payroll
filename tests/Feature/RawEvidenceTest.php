@@ -154,7 +154,7 @@ class RawEvidenceTest extends TestCase
             'attendanceCutoff' => '28',
             'invoiceRaiseDay' => 'TEST_raise_day',
             'payrollMonthConvention' => 'TEST_convention',
-            'lopBasis' => 'TEST_lop',
+            'lopBasis' => 26,
             
             'poc1' => [
                 'name' => 'TEST_poc1',
@@ -220,6 +220,6 @@ class RawEvidenceTest extends TestCase
         $this->assertEquals('28', $client->cutoff_day);
         $this->assertEquals('TEST_raise_day', $client->invoice_raise_day);
         $this->assertEquals('TEST_convention', $client->payroll_convention);
-        $this->assertEquals('TEST_lop', $client->lop_basis_days);
+        $this->assertEquals('26', $client->lop_basis_days);
     }
 }

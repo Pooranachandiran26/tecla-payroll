@@ -211,7 +211,7 @@ class ClientController extends Controller
     public function show(Client $client)
     {
         $this->authorize('view', $client);
-        $client->load(['contacts', 'branches', 'documents', 'accountManager', 'backupAccountManager', 'invoices'])
+        $client->load(['contacts', 'branches', 'documents', 'accountManager', 'backupAccountManager', 'invoices', 'holidays'])
                ->loadCount('employees');
                
         $employees = $client->employees()->paginate(10);

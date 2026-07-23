@@ -7,6 +7,9 @@ import RoleGuard from '../../Components/RoleGuard.jsx';
 import ConfirmDialog from '../../Components/ui/ConfirmDialog';
 import Input from '../../Components/ui/Input';
 import useToast from '../../Hooks/useToast';
+import Modal from '../../Components/ui/Modal';
+import Button from '../../Components/ui/Button';
+import Badge from '../../Components/ui/Badge';
 
 export default function ClientDetail({ client, employees }) {
   const { auth } = usePage().props;
@@ -16,6 +19,52 @@ export default function ClientDetail({ client, employees }) {
 
   const [deactivateDialog, setDeactivateDialog] = React.useState(false);
   const [deleteDialog, setDeleteDialog] = React.useState({ isOpen: false, confirmText: '', reason: '' });
+
+  const [holidayModalOpen, setHolidayModalOpen] = React.useState(false);
+  const [holidayForm, setHolidayForm] = React.useState({ holiday_date: '', name: '', is_optional: false });
+  const [holidayProcessing, setHolidayProcessing] = React.useState(false);
+  const [holidayError, setHolidayError] = React.useState(null);
+  const [deleteHolidayDialog, setDeleteHolidayDialog] = React.useState({ isOpen: false, holiday: null });
+
+  const handleAddHoliday = (e) => {
+    e.preventDefault();
+    setHolidayProcessing(true);
+    setHolidayError(null);
+
+    router.post(route('clients.holidays.store', c.id), holidayForm, {
+      onFinish: () => setHolidayProcessing(false),
+      onSuccess: (page) => {
+        setHolidayModalOpen(false);
+        setHolidayForm({ holiday_date: '', name: '', is_optional: false });
+        if (page.props.flash?.success) showToast({ type: 'success', title: 'Success', message: page.props.flash.success });
+      },
+      onError: (errs) => {
+        if (errs.holiday_date) {
+          setHolidayError(errs.holiday_date);
+        } else if (errs.name) {
+          setHolidayError(errs.name);
+        } else {
+          setHolidayError('Failed to add holiday. Please check form inputs.');
+        }
+      }
+    });
+  };
+
+  const handleDeleteHoliday = () => {
+    if (!deleteHolidayDialog.holiday) return;
+    setHolidayProcessing(true);
+
+    router.delete(route('clients.holidays.destroy', [c.id, deleteHolidayDialog.holiday.id]), {
+      onFinish: () => setHolidayProcessing(false),
+      onSuccess: (page) => {
+        setDeleteHolidayDialog({ isOpen: false, holiday: null });
+        if (page.props.flash?.success) showToast({ type: 'success', title: 'Success', message: page.props.flash.success });
+      },
+      onError: (errs) => {
+        showToast({ type: 'error', title: 'Error', message: errs.error || 'Failed to delete holiday.' });
+      }
+    });
+  };
 
   const handleDeactivate = () => {
     router.post(route('clients.deactivate', c.id), {}, {
@@ -212,6 +261,63 @@ export default function ClientDetail({ client, employees }) {
                   <div><strong>PAN:</strong> {c.pan_number || 'N/A'}</div>
                   <div><strong>Billing Model:</strong> <span style={{textTransform: 'capitalize'}}>{c.billing_model || 'N/A'}</span></div>
                   <div><strong>Invoice Cycle:</strong> <span style={{textTransform: 'capitalize'}}>{c.invoice_cycle || 'N/A'}</span></div>
+                </div>
+              </div>
+
+              {/* Client Holiday Calendar */}
+              <div className="card">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+                  <h3 style={{ fontSize: '1.05rem', margin: 0, color: 'var(--primary-navy)' }}>
+                    🌴 Client Holiday Calendar
+                  </h3>
+                  <Button variant="primary" size="sm" onClick={() => { setHolidayError(null); setHolidayModalOpen(true); }}>
+                    + Add Holiday
+                  </Button>
+                </div>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+                  Configured paid holidays for {c.company_name}. AttendanceResolutionService automatically applies these holidays during payroll run resolution.
+                </p>
+                <div className="overflow-x-auto">
+                  <table className="data-table w-full" style={{ fontSize: '0.85rem' }}>
+                    <thead>
+                      <tr>
+                        <th>Holiday Date</th>
+                        <th>Holiday Name</th>
+                        <th>Type</th>
+                        <th style={{ textAlign: 'right' }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(!c.holidays || c.holidays.length === 0) ? (
+                        <tr>
+                          <td colSpan="4" style={{ textAlign: 'center', padding: '1.5rem', color: '#94A3B8' }}>
+                            No holidays configured for this client yet. Click "+ Add Holiday" to configure holidays.
+                          </td>
+                        </tr>
+                      ) : (
+                        c.holidays.map((h) => (
+                          <tr key={h.id}>
+                            <td><strong className="font-mono">{h.holiday_date}</strong></td>
+                            <td>{h.name}</td>
+                            <td>
+                              <Badge variant={h.is_optional ? 'warning' : 'success'}>
+                                {h.is_optional ? 'Optional' : 'Mandatory'}
+                              </Badge>
+                            </td>
+                            <td style={{ textAlign: 'right' }}>
+                              <Button
+                                size="sm"
+                                variant="danger"
+                                onClick={() => setDeleteHolidayDialog({ isOpen: true, holiday: h })}
+                              >
+                                🗑️ Delete
+                              </Button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               </div>
 
@@ -654,9 +760,80 @@ export default function ClientDetail({ client, employees }) {
       </div>
     </div>
   </div>
-  
+        {/* Add Holiday Modal */}
+        <Modal
+          isOpen={holidayModalOpen}
+          onClose={() => setHolidayModalOpen(false)}
+          title={`Add Holiday for ${c.company_name}`}
+        >
+          <form onSubmit={handleAddHoliday} className="space-y-4 py-2">
+            {holidayError && (
+              <div className="p-3 bg-red-50 text-red-600 text-xs rounded border border-red-200">
+                {holidayError}
+              </div>
+            )}
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Holiday Date *</label>
+              <input
+                type="date"
+                className="form-control w-full text-sm"
+                value={holidayForm.holiday_date}
+                onChange={e => setHolidayForm({ ...holidayForm, holiday_date: e.target.value })}
+                required
+              />
             </div>
-        </AuthenticatedLayout>
-    </RoleGuard>
-    );
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Holiday Name *</label>
+              <input
+                type="text"
+                className="form-control w-full text-sm"
+                placeholder="e.g. Independence Day"
+                value={holidayForm.name}
+                onChange={e => setHolidayForm({ ...holidayForm, name: e.target.value })}
+                required
+              />
+            </div>
+            <div className="flex items-center gap-2 pt-1">
+              <input
+                type="checkbox"
+                id="is_optional"
+                checked={holidayForm.is_optional}
+                onChange={e => setHolidayForm({ ...holidayForm, is_optional: e.target.checked })}
+              />
+              <label htmlFor="is_optional" className="text-sm text-gray-700">Optional / Floating Holiday</label>
+            </div>
+            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+              <Button variant="secondary" size="sm" type="button" onClick={() => setHolidayModalOpen(false)}>Cancel</Button>
+              <Button variant="primary" size="sm" type="submit" disabled={holidayProcessing}>
+                {holidayProcessing ? 'Saving...' : 'Save Holiday'}
+              </Button>
+            </div>
+          </form>
+        </Modal>
+
+        {/* Delete Holiday Confirm Dialog */}
+        <Modal
+          isOpen={deleteHolidayDialog.isOpen}
+          onClose={() => setDeleteHolidayDialog({ isOpen: false, holiday: null })}
+          title="Delete Client Holiday"
+        >
+          <div className="py-2 space-y-4">
+            <p className="text-sm text-gray-600">
+              Are you sure you want to delete the holiday <strong>{deleteHolidayDialog.holiday?.name}</strong> on <strong>{deleteHolidayDialog.holiday?.holiday_date}</strong> for {c.company_name}?
+            </p>
+            <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded border border-amber-200">
+              Note: Deleting a holiday will update future payroll attendance resolution for un-processed days. Locked historical payroll runs will remain immutable.
+            </p>
+            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+              <Button variant="secondary" size="sm" onClick={() => setDeleteHolidayDialog({ isOpen: false, holiday: null })}>Cancel</Button>
+              <Button variant="danger" size="sm" onClick={handleDeleteHoliday} disabled={holidayProcessing}>
+                {holidayProcessing ? 'Deleting...' : 'Confirm Delete'}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      </div>
+    </AuthenticatedLayout>
+  </RoleGuard>
+  );
 }

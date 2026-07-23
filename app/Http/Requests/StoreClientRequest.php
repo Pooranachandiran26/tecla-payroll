@@ -105,6 +105,7 @@ class StoreClientRequest extends FormRequest
             'invoice_raise_day' => $this->invoiceRaiseDay,
             'payroll_convention' => $this->payrollMonthConvention,
             'lop_basis_days' => $this->lopBasis ?: '26',
+            'weekly_off_pattern' => $this->weeklyOffPattern ?: $this->weekly_off_pattern ?: 'sat,sun',
             'auto_reminders' => $this->autoReminders ? 1 : 0,
             'client_notes' => $this->clientNotes,
 
@@ -289,7 +290,8 @@ class StoreClientRequest extends FormRequest
             'invoice_dispute_window_days' => 'nullable|integer|min:0|max:180',
             'invoice_raise_day' => 'nullable|string',
             'payroll_convention' => 'nullable|string',
-            'lop_basis_days' => 'nullable|string',
+            'lop_basis_days' => 'nullable|integer|min:15|max:31',
+            'weekly_off_pattern' => ['nullable', 'string', 'regex:/^(mon|tue|wed|thu|fri|sat|sun)(,(mon|tue|wed|thu|fri|sat|sun)){0,6}$/i'],
             'auto_reminders' => 'nullable|boolean',
             'client_notes' => 'nullable|string',
             

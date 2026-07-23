@@ -264,6 +264,7 @@ class BulkUploadValidationService
                 'emergency_contact_phone' => 'nullable|string|max:15',
                 'date_of_birth' => 'required|date',
                 'date_of_joining' => 'required|date',
+                'attendance_tracking_start_date' => 'nullable|date',
                 'designation' => 'required|string|max:255',
                 'gender' => 'nullable|in:male,female,other',
                 'blood_group' => 'nullable|string|max:10',
@@ -328,7 +329,7 @@ class BulkUploadValidationService
                 ],
                 'tds_regime' => 'required|in:old,new',
                 'gratuity_mode' => 'required|in:part_of_ctc,over_and_above',
-                'lop_basis_days' => 'required|in:26,30',
+                'lop_basis_days' => 'required|integer|min:15|max:31',
                 
                 // Salary
                 'basic_pay' => 'required|numeric|min:0',

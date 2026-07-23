@@ -30,6 +30,7 @@ class UpdateEmployeeRequest extends FormRequest
             'marital_status' => $this->maritalStatus,
             'date_of_birth' => $this->dob,
             'date_of_joining' => $this->doj,
+            'attendance_tracking_start_date' => $this->attendanceTrackingStartDate ?: $this->attendance_tracking_start_date,
             'employment_model' => $this->empType,
             'prior_employment_flag' => $this->priorEmploymentFlag ? 1 : 0,
             'residential_address' => $this->address,
@@ -62,6 +63,7 @@ class UpdateEmployeeRequest extends FormRequest
             'declarations_accepted' => $this->declarations === 'yes' ? 1 : 0,
             'gratuity_mode' => $this->gratuityMode ?? 'part_of_ctc',
             'lop_basis_days' => $this->lopBasis ?? '26',
+            'weekly_off_pattern' => $this->weeklyOffPattern ?: $this->weekly_off_pattern ?: null,
             'emergency_contact_name' => $this->emergencyContactName,
             'previous_employer_name' => $this->prevEmployerName,
             'previous_employer_uan' => $this->prevEmployerUAN,
@@ -87,6 +89,7 @@ class UpdateEmployeeRequest extends FormRequest
             'emergency_contact_phone' => 'nullable|string|max:15',
             'date_of_birth' => 'required|date|date_format:Y-m-d|before:-18 years',
             'date_of_joining' => 'required|date',
+            'attendance_tracking_start_date' => 'nullable|date|date_format:Y-m-d|after_or_equal:date_of_joining',
             'designation' => 'required|string|max:255',
             'gender' => 'nullable|in:male,female,other',
             'blood_group' => 'nullable|string|max:10',
@@ -161,7 +164,8 @@ class UpdateEmployeeRequest extends FormRequest
             'bonus_toggle' => 'boolean',
             'tds_regime' => 'required|in:old,new',
             'gratuity_mode' => 'required|in:part_of_ctc,over_and_above',
-            'lop_basis_days' => 'required|in:26,30',
+            'lop_basis_days' => 'required|integer|min:15|max:31',
+            'weekly_off_pattern' => ['nullable', 'string', 'regex:/^(mon|tue|wed|thu|fri|sat|sun)(,(mon|tue|wed|thu|fri|sat|sun)){0,6}$/i'],
             
             // Salary
             'basic_pay' => 'required|numeric|min:0',

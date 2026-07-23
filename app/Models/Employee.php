@@ -51,6 +51,11 @@ class Employee extends Model
         return $this->hasMany(EmployeeDocument::class);
     }
 
+    public function attendanceOverrides()
+    {
+        return $this->hasMany(EmployeeAttendanceOverride::class);
+    }
+
     public function getRequiredDocumentTypesAttribute()
     {
         $types = self::BASE_REQUIRED_DOCUMENT_TYPES;

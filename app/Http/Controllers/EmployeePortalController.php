@@ -7,6 +7,7 @@ use Inertia\Inertia;
 use App\Models\Employee;
 use App\Models\AttendanceRecord;
 use App\Http\Resources\EmployeeResource;
+use App\Services\AttendanceResolutionService;
 use Carbon\Carbon;
 
 class EmployeePortalController extends Controller
@@ -83,12 +84,54 @@ class EmployeePortalController extends Controller
             'required' => $requiredDocsCount
         ];
 
+        // 4. Resolve Day Banner for Daily Time Tracker
+        $resolutionService = app(AttendanceResolutionService::class);
+        $resolved = $resolutionService->resolveDayTypeForEmployee($employee, $today);
+
+        $dayBanner = null;
+
+        if ($resolved['override']) {
+            $override = $resolved['override'];
+            if ($override->attendance_day_type === 'work_day') {
+                $origLabel = $resolved['natural_type'] === 'holiday'
+                    ? 'holiday'
+                    : ($resolved['natural_type'] === 'weekly_off' ? 'weekly off' : 'day off');
+                $dayBanner = [
+                    'type' => 'info',
+                    'message' => "📋 You're scheduled to work today as part of an approved day swap (normally {$origLabel})."
+                ];
+            } else {
+                $swapTargetDate = $override->swap_target_date
+                    ? Carbon::parse($override->swap_target_date)->format('Y-m-d')
+                    : '';
+                $dayBanner = [
+                    'type' => 'success',
+                    'message' => "✅ You're on an approved day off today (swapped from {$swapTargetDate}). Punching in is optional but will be recorded if you do."
+                ];
+            }
+        } else {
+            if ($resolved['effective_type'] === 'holiday') {
+                $holidayName = optional($resolved['holiday'])->name ?? 'Company Holiday';
+                $dayBanner = [
+                    'type' => 'warning',
+                    'message' => "🌴 Today is a company holiday ({$holidayName}). You can still punch in if you're working today."
+                ];
+            } elseif ($resolved['effective_type'] === 'weekly_off') {
+                $dayBanner = [
+                    'type' => 'info',
+                    'message' => "🛌 Today is your usual day off. You can still punch in if you're working today."
+                ];
+            }
+        }
+
         return Inertia::render('EmployeePortal/EmployeeDashboard', [
             'employee' => new EmployeeResource($employee),
             'todayAttendance' => $todayRecord,
             'attendanceStats' => $attendanceStats,
             'leaveStats' => $leaveStats,
-            'documentStats' => $documentStats
+            'documentStats' => $documentStats,
+            'todayDayBanner' => $dayBanner,
+            'dayBanner' => $dayBanner,
         ]);
     }
 

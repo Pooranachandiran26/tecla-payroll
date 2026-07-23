@@ -27,6 +27,8 @@ class EmployeeResource extends JsonResource
             'phone_number' => $this->phone_number,
             'date_of_birth' => $this->date_of_birth,
             'date_of_joining' => $this->date_of_joining,
+            'attendance_tracking_start_date' => $this->attendance_tracking_start_date,
+            'attendanceTrackingStartDate' => $this->attendance_tracking_start_date,
             'designation' => $this->designation,
             'employment_model' => $this->employment_model,
             'prior_employment_flag' => $this->prior_employment_flag,

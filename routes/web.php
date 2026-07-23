@@ -17,6 +17,8 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\SessionController;
 use App\Http\Controllers\AttendanceUploadController;
 use App\Http\Controllers\BankChangeRequestController;
+use App\Http\Controllers\DaySwapController;
+use App\Http\Controllers\ClientHolidayController;
 
 // -----------------------------------------------------------------------
 // GUEST ROUTES (Unauthenticated)
@@ -94,6 +96,9 @@ Route::middleware(['auth', 'active'])->group(function () {
             Route::put('/clients/{client}/documents/{document}/verify', [ClientController::class, 'verifyDocument'])->name('clients.documents.verify');
             Route::get('/clients/{client}/documents/{document}/download', [ClientController::class, 'downloadDocument'])->name('clients.documents.download');
 
+            Route::post('/clients/{clientId}/holidays', [ClientHolidayController::class, 'store'])->name('clients.holidays.store');
+            Route::delete('/clients/{clientId}/holidays/{id}', [ClientHolidayController::class, 'destroy'])->name('clients.holidays.destroy');
+
             // Employees
             Route::get('/employees/check-unique', [EmployeeController::class, 'checkUnique'])->name('employees.check-unique');
             Route::post('/employees/calculate-preview', [EmployeeController::class, 'calculatePreview'])->name('employees.calculate-preview');
@@ -135,6 +140,11 @@ Route::middleware(['auth', 'active'])->group(function () {
             Route::get('/bank-change-requests', [BankChangeRequestController::class, 'index'])->name('employees.bank-change-requests');
             Route::post('/bank-change-requests/{id}/approve', [BankChangeRequestController::class, 'approve'])->name('employees.bank-change-requests.approve');
             Route::post('/bank-change-requests/{id}/reject', [BankChangeRequestController::class, 'reject'])->name('employees.bank-change-requests.reject');
+            
+            Route::get('/day-swap-requests', [DaySwapController::class, 'index'])->name('employees.day-swaps');
+            Route::post('/day-swap-requests/{id}/approve', [DaySwapController::class, 'approve'])->name('employees.day-swaps.approve');
+            Route::post('/day-swap-requests/{id}/reject', [DaySwapController::class, 'reject'])->name('employees.day-swaps.reject');
+
             Route::get('/leave-requests', [\App\Http\Controllers\LeaveApprovalController::class, 'index'])->name('leave-requests.index');
             Route::post('/leave-requests/{id}/approve', [\App\Http\Controllers\LeaveApprovalController::class, 'approve'])->name('leave-requests.approve');
             Route::post('/leave-requests/{id}/reject', [\App\Http\Controllers\LeaveApprovalController::class, 'reject'])->name('leave-requests.reject');
@@ -227,6 +237,10 @@ Route::middleware(['auth', 'active'])->group(function () {
             
             Route::get('/employee/attendance/correction-requests', [\App\Http\Controllers\EmployeePortalController::class, 'correctionRequests'])->name('employee.attendance.correction-requests');
             Route::post('/employee/attendance/correction-request', [\App\Http\Controllers\EmployeePortalController::class, 'storeCorrectionRequest'])->name('employee.attendance.correction-request.store');
+            
+            Route::get('/employee/attendance/day-swaps', [DaySwapController::class, 'employeeIndex'])->name('employee.day-swaps.index');
+            Route::post('/employee/attendance/day-swaps', [DaySwapController::class, 'store'])->name('employee.day-swaps.store');
+            Route::post('/employee/attendance/day-swaps/{id}/withdraw', [DaySwapController::class, 'withdraw'])->name('employee.day-swaps.withdraw');
             
             Route::get('/employee/leave', [\App\Http\Controllers\EmployeePortalController::class, 'leave'])->name('employee.leave');
             Route::post('/employee/leave-requests', [\App\Http\Controllers\EmployeePortalController::class, 'storeLeaveRequest'])->name('employee.leave.store');
