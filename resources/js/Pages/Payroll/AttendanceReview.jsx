@@ -272,7 +272,7 @@ export default function AttendanceReview({ initialBatches, clients, selectedMont
         </div>
 
         {/* Details Modal */}
-        <Modal isOpen={detailsModalOpen} onClose={() => setDetailsModalOpen(false)} title={`${selectedClientName} - Monthly Attendance Details`}>
+        <Modal isOpen={detailsModalOpen} onClose={() => setDetailsModalOpen(false)} title={`${selectedClientName} - Monthly Attendance Details`} size="xl">
           <div className="p-4">
             <p className="text-[0.85rem] text-gray-500 mb-4">Showing actual aggregated counts computed from daily attendance database records.</p>
             {detailLoading ? (
@@ -281,7 +281,7 @@ export default function AttendanceReview({ initialBatches, clients, selectedMont
                 <span>Loading employee data...</span>
               </div>
             ) : (
-              <div className="border rounded max-h-[400px] overflow-y-auto">
+              <div className="border rounded max-h-[450px] overflow-y-auto">
                 <DataTable columns={detailColumns} data={detailData} />
               </div>
             )}
@@ -292,7 +292,7 @@ export default function AttendanceReview({ initialBatches, clients, selectedMont
         </Modal>
 
         {/* Verify Modal */}
-        <Modal isOpen={verifyModalOpen} onClose={() => setVerifyModalOpen(false)} title={`Pre-Approval Log Verification — ${selectedClientName}`}>
+        <Modal isOpen={verifyModalOpen} onClose={() => setVerifyModalOpen(false)} title={`Pre-Approval Log Verification — ${selectedClientName}`} size="lg">
           <div className="p-4">
             {verifyLoading ? (
               <div className="flex flex-col items-center justify-center p-12 text-gray-500">
