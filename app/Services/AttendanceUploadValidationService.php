@@ -75,6 +75,7 @@ class AttendanceUploadValidationService
         $rows = [];
         $totalRows = 0;
         $matchedRows = 0;
+        $skippedCount = 0;
         $errorCount = 0;
         $rowNo = 1;
 
@@ -145,7 +146,18 @@ class AttendanceUploadValidationService
                     $availableSlots = $employeeWorkingDays - $existingPunchCount;
                     $uploadedTotal = $daysPresent + $daysLOP;
 
-                    if ($uploadedTotal === $availableSlots) {
+                    $isNotYetEmployed = $employeeStart->gt($monthEnd);
+                    $dojFormatted = Carbon::parse($employee->date_of_joining)->format('F d, Y');
+                    $monthLabel = $context['month_label'];
+
+                    if ($isNotYetEmployed) {
+                        $status = 'skipped';
+                        $skippedCount++;
+                        $reconciledPresent = 0;
+                        $reconciledLop = 0;
+                        $notes = "⚠️ Not yet joined — {$employee->employee_code} joined {$dojFormatted}. No attendance recorded for {$monthLabel}.";
+                        $dbPayloads = [];
+                    } elseif ($uploadedTotal === $availableSlots) {
                         // Perfect match
                         $status = 'valid';
                         $matchedRows++;
@@ -181,45 +193,27 @@ class AttendanceUploadValidationService
                         );
                     } else {
                         // Over-count
-                        $monthLabel = $context['month_label'];
-
-                        $isNotYetEmployed = $employeeStart->gt($monthEnd);
-                        $dojFormatted = Carbon::parse($employee->date_of_joining)->format('F d, Y');
-
-                        if ($isNotYetEmployed) {
-                            $notes = "⚠️ Not yet joined — {$employee->employee_code} joined {$dojFormatted}. No attendance possible for {$monthLabel}.";
-                            if ($daysLOP > 0) {
-                                $errorCount++;
-                            } else {
-                                $status = 'valid';
-                                $matchedRows++;
-                                $reconciledPresent = 0;
-                                $reconciledLop = 0;
-                                $dbPayloads = [];
-                            }
+                        if ($daysLOP > 0) {
+                            // Reject over-count with LOP
+                            $notes = "⚠️ Numbers don't match — you entered {$uploadedTotal} days total, but this month only has {$availableSlots} working days. Please fix and re-upload.";
+                            $errorCount++;
                         } else {
-                            if ($daysLOP > 0) {
-                                // Reject over-count with LOP
-                                $notes = "⚠️ Numbers don't match — you entered {$uploadedTotal} days total, but this month only has {$availableSlots} working days. Please fix and re-upload.";
-                                $errorCount++;
-                            } else {
-                                // Cap present days if LOP is 0
-                                $status = 'valid';
-                                $matchedRows++;
-                                $reconciledPresent = $availableSlots;
-                                $reconciledLop = 0;
-                                $notes = "⚠️ Adjusted — you entered {$daysPresent} present days, but this month only has {$availableSlots}. We've automatically capped it to {$availableSlots}.";
+                            // Cap present days if LOP is 0
+                            $status = 'valid';
+                            $matchedRows++;
+                            $reconciledPresent = $availableSlots;
+                            $reconciledLop = 0;
+                            $notes = "⚠️ Adjusted — you entered {$daysPresent} present days, but this month only has {$availableSlots}. We've automatically capped it to {$availableSlots}.";
 
-                                $dbPayloads = $this->expandToDaily(
-                                    $employee->id,
-                                    $reconciledPresent,
-                                    $reconciledLop,
-                                    $effectiveStart,
-                                    $monthEnd,
-                                    $empOffDays,
-                                    $clientHolidayDates
-                                );
-                            }
+                            $dbPayloads = $this->expandToDaily(
+                                $employee->id,
+                                $reconciledPresent,
+                                $reconciledLop,
+                                $effectiveStart,
+                                $monthEnd,
+                                $empOffDays,
+                                $clientHolidayDates
+                            );
                         }
                     }
                 }
@@ -247,6 +241,7 @@ class AttendanceUploadValidationService
             'rows' => $rows,
             'total_rows' => $totalRows,
             'matched_rows' => $matchedRows,
+            'skipped_count' => $skippedCount,
             'error_count' => $errorCount,
         ];
     }

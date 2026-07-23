@@ -510,4 +510,58 @@ class AttendanceUploadTest extends TestCase
             ->count();
         $this->assertEquals(22, $uploadedPresentCount);
     }
+
+    /**
+     * 12. Test skipped status for employee whose DOJ is after target month:
+     *     - Preview shows status = 'skipped', skipped_count = 1, and distinct note
+     *     - Execute save writes ZERO attendance_records to the database
+     */
+    public function test_validate_and_execute_upload_handles_skipped_unjoined_employee_with_zero_db_records()
+    {
+        // Employee C joined July 22, 2026
+        $employeeC = Employee::factory()->create([
+            'client_id' => $this->clientA->id,
+            'employee_code' => 'EMP-UNJOINED',
+            'full_name' => 'Unjoined Employee',
+            'date_of_joining' => '2026-07-22',
+        ]);
+
+        $csvContent = "employee_code,days_present,days_lop\nEMP-UNJOINED,26,0\n";
+        $file1 = UploadedFile::fake()->createWithContent('timesheet1.csv', $csvContent);
+        $file2 = UploadedFile::fake()->createWithContent('timesheet2.csv', $csvContent);
+
+        // 1. Validation Preview
+        $responseValidate = $this->actingAs($this->admin)->post('/payroll/attendance/validate', [
+            'client_id' => $this->clientA->id,
+            'target_month' => '2026-05', // May 2026 (before July 22, 2026)
+            'file' => $file1,
+        ]);
+
+        $responseValidate->assertStatus(200);
+        $responseValidate->assertJsonPath('total_rows', 1);
+        $responseValidate->assertJsonPath('matched_rows', 0);
+        $responseValidate->assertJsonPath('skipped_count', 1);
+        $responseValidate->assertJsonPath('error_count', 0);
+
+        $rows = $responseValidate->json('rows');
+        $this->assertEquals('skipped', $rows[0]['status']);
+        $this->assertStringContainsString('⚠️ Not yet joined — EMP-UNJOINED joined July 22, 2026. No attendance recorded for May 2026.', $rows[0]['notes']);
+
+        // 2. Execute Upload Save Action
+        $responseExecute = $this->actingAs($this->admin)->post('/payroll/attendance/upload', [
+            'client_id' => $this->clientA->id,
+            'target_month' => '2026-05',
+            'file' => $file2,
+        ]);
+
+        $responseExecute->assertRedirect();
+        $responseExecute->assertSessionHasNoErrors();
+
+        // 3. Database Proof: ZERO attendance_records created for this employee in May 2026
+        $savedCount = AttendanceRecord::where('employee_id', $employeeC->id)
+            ->whereBetween('attendance_date', ['2026-05-01', '2026-05-31'])
+            ->count();
+
+        $this->assertEquals(0, $savedCount, 'Skipped employee must have ZERO attendance_records saved in DB');
+    }
 }
