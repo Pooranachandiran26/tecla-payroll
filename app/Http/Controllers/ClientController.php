@@ -503,6 +503,8 @@ class ClientController extends Controller
             'ptState' => $client->pt_state,
             'lopBasisDays' => $client->lop_basis_days,
             'noticePeriodDays' => $client->default_notice_period_days,
+            'weekly_off_pattern' => $client->weekly_off_pattern ?? 'sat,sun',
+            'weeklyOffPattern' => $client->weekly_off_pattern ?? 'sat,sun',
         ]);
     }
 
