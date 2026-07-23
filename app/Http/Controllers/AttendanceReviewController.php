@@ -40,7 +40,7 @@ class AttendanceReviewController extends Controller
         $monthStart = Carbon::parse($targetMonth . '-01');
         $monthEnd = $monthStart->copy()->endOfMonth();
 
-        $clients = Client::where('status', 'active')->get();
+        $clients = Client::where('status', 'active')->orderBy('id', 'desc')->get();
         $rows = [];
 
         foreach ($clients as $client) {
@@ -210,6 +210,7 @@ class AttendanceReviewController extends Controller
         $client = Client::findOrFail($clientId);
         $employees = Employee::where('client_id', $clientId)
             ->where('status', 'active')
+            ->orderBy('id', 'desc')
             ->get();
 
         $detailData = [];

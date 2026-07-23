@@ -63,7 +63,7 @@ class LeaveApprovalController extends Controller
             ];
         });
 
-        $clients = \App\Models\Client::where('status', 'active')->select('id', 'company_name')->get();
+        $clients = \App\Models\Client::where('status', 'active')->select('id', 'company_name')->orderBy('id', 'desc')->get();
 
         return Inertia::render('Employees/LeaveApprovalQueue', [
             'leaves' => $mappedLeaves,

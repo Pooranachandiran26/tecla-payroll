@@ -425,6 +425,7 @@ class PayrollController extends Controller
     {
         $clients = \App\Models\Client::where('status', 'active')
             ->select('id', 'company_name')
+            ->orderBy('id', 'desc')
             ->get();
         
         $selectedClientId = $request->query('client_id', $clients->first()?->id);
@@ -502,6 +503,7 @@ class PayrollController extends Controller
     {
         $clients = \App\Models\Client::where('status', 'active')
             ->select('id', 'company_name')
+            ->orderBy('id', 'desc')
             ->get();
 
         $selectedClientId = $request->query('client_id', $clients->first()?->id);
@@ -609,6 +611,7 @@ class PayrollController extends Controller
     {
         $clients = \App\Models\Client::where('status', 'active')
             ->select('id', 'company_name')
+            ->orderBy('id', 'desc')
             ->get();
 
         $selectedClientId = $request->query('client_id');
@@ -691,6 +694,7 @@ class PayrollController extends Controller
     {
         $clients = \App\Models\Client::where('status', 'active')
             ->select('id', 'company_name')
+            ->orderBy('id', 'desc')
             ->get();
 
         $selectedClientId = $request->query('client_id');
@@ -706,6 +710,8 @@ class PayrollController extends Controller
         if ($selectedClientId) {
             $query->where('employees.client_id', $selectedClientId);
         }
+
+        $query->orderBy('employees.id', 'desc');
 
         $records = $query->select([
             'employees.id as employee_id',

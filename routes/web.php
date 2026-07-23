@@ -106,7 +106,7 @@ Route::middleware(['auth', 'active'])->group(function () {
             Route::get('/employees', [EmployeeController::class, 'index'])->name('employees.index');
             Route::post('/employees', [EmployeeController::class, 'store'])->name('employees.store');
             Route::get('/employees/create', function() {
-                $clients = \App\Models\Client::where('status', 'active')->select('id', 'company_name')->get();
+                $clients = \App\Models\Client::where('status', 'active')->select('id', 'company_name', 'weekly_off_pattern')->get();
                 return Inertia::render('Employees/EmployeeForm', ['clients' => $clients]);
             })->name('employees.create');
             Route::get('/employees/bulk-upload', [BulkUploadController::class, 'showUploadForm'])->name('employees.bulk-upload');
@@ -159,6 +159,7 @@ Route::middleware(['auth', 'active'])->group(function () {
             Route::get('/payroll/live-monitor', [\App\Http\Controllers\PayrollController::class, 'indexLiveMonitor'])->name('payroll.live-monitor');
             Route::get('/payroll/attendance-upload', [AttendanceUploadController::class, 'showUploadPage'])->name('payroll.attendance-upload');
             Route::get('/payroll/attendance/template', [AttendanceUploadController::class, 'downloadTemplate'])->name('payroll.attendance.template');
+            Route::get('/payroll/attendance/context', [AttendanceUploadController::class, 'getContext'])->name('payroll.attendance.context');
             Route::post('/payroll/attendance/validate', [AttendanceUploadController::class, 'validateUpload'])->name('payroll.attendance.validate');
             Route::post('/payroll/attendance/upload', [AttendanceUploadController::class, 'executeUpload'])->name('payroll.attendance.upload');
             Route::get('/payroll/attendance-review', [\App\Http\Controllers\AttendanceReviewController::class, 'index'])->name('payroll.attendance-review');

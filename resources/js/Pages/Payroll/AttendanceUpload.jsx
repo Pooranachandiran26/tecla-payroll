@@ -1,25 +1,26 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import AuthenticatedLayout from '../../Layouts/AuthenticatedLayout';
 import { Head, Link, router } from '@inertiajs/react';
 import Button from '../../Components/ui/Button';
 import DataTable from '../../Components/ui/DataTable';
 import Badge from '../../Components/ui/Badge';
 import Select from '../../Components/ui/Select';
-import { UploadCloud, FileSpreadsheet, Loader2 } from 'lucide-react';
+import { UploadCloud, FileSpreadsheet, Loader2, Calendar, Info, CheckCircle2, AlertTriangle } from 'lucide-react';
 import axios from 'axios';
 import RoleGuard from '../../Components/RoleGuard.jsx';
 
 export default function AttendanceUpload({ clients }) {
   const [tab, setTab] = useState('single');
   const [selectedClientId, setSelectedClientId] = useState(clients && clients.length > 0 ? clients[0].id : '');
-  const [targetMonth, setTargetMonth] = useState('2026-07');
+  const [targetMonth, setTargetMonth] = useState('2026-08');
   const [file, setFile] = useState(null);
+  const [contextData, setContextData] = useState(null);
 
   const getMonthOptions = () => {
     const options = [];
     const startDate = new Date(2026, 4, 1); // May 2026 (index 4)
     const endDate = new Date();
-    endDate.setMonth(endDate.getMonth() + 2); // Current date + 2 months
+    endDate.setMonth(endDate.getMonth() + 2);
 
     const currentDate = new Date(startDate);
     while (currentDate <= endDate) {
@@ -37,8 +38,18 @@ export default function AttendanceUpload({ clients }) {
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [summary, setSummary] = useState(null);
-  
+
   const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    if (selectedClientId && targetMonth) {
+      axios.get(route('payroll.attendance.context'), {
+        params: { client_id: selectedClientId, target_month: targetMonth }
+      })
+      .then(res => setContextData(res.data))
+      .catch(() => setContextData(null));
+    }
+  }, [selectedClientId, targetMonth]);
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
@@ -174,7 +185,7 @@ export default function AttendanceUpload({ clients }) {
     {
       header: 'Notes',
       accessor: 'notes',
-      cell: (row) => <span className="text-[0.75rem] text-gray-500">{row.notes}</span>
+      cell: (row) => <span className="text-[0.75rem] text-gray-500 leading-snug block max-w-[320px]">{row.notes}</span>
     },
   ];
 
@@ -200,12 +211,11 @@ export default function AttendanceUpload({ clients }) {
           <p className="text-gray-500 text-sm">Upload monthly summary timesheets for clients who manage attendance separately instead of punch-in portal logging.</p>
         </div>
 
-        <div className="bg-[#FFFBEB] border border-[#FDE68A] border-l-4 border-l-[#F59E0B] p-4 rounded-md mb-6 flex flex-col gap-2">
-          <div className="text-[0.95rem] text-[#92400E]">
-            <strong>Monthly Summary Format:</strong> Each row represents one employee's total attendance for the selected month — days_present and days_lop counts. The system automatically expands these into daily records.
-          </div>
-          <div className="text-[0.85rem] text-[#92400E] opacity-90">
-            Use this screen ONLY for clients whose employees do not use the punch-in portal. Employees who already have live punch records will have those dates excluded — the uploaded counts fill only the remaining working days.
+        {/* How This Works Info Box */}
+        <div className="bg-[#EFF6FF] border border-[#BFDBFE] border-l-4 border-l-[#2563EB] p-4 rounded-md mb-6 flex items-start gap-3">
+          <Info className="w-5 h-5 text-[#2563EB] mt-0.5 shrink-0" />
+          <div className="text-sm text-[#1E40AF] leading-relaxed">
+            <strong>How This System Works:</strong> This system automatically pays employees for Sundays (or your client's configured off-days) and holidays — you don't need to include them in your upload. Just enter how many days someone actually worked (<code className="bg-blue-100 px-1 py-0.5 rounded text-blue-900 font-mono text-xs">days_present</code>), and how many days they were absent without leave (<code className="bg-blue-100 px-1 py-0.5 rounded text-blue-900 font-mono text-xs">days_lop</code>). These two numbers should always add up to the <strong>Working Days</strong> figure calculated below.
           </div>
         </div>
 
@@ -231,7 +241,7 @@ export default function AttendanceUpload({ clients }) {
             </li>
           </ul>
 
-          <div className="p-6 max-w-[700px] mx-auto">
+          <div className="p-6 max-w-[760px] mx-auto">
             {tab === 'single' && (
               <>
                 <div className="flex gap-4 mb-6">
@@ -253,6 +263,57 @@ export default function AttendanceUpload({ clients }) {
                   </div>
                 </div>
 
+                {/* Live Working Days Breakdown & Holiday Context Panel */}
+                {contextData && (
+                  <div className="bg-[#F8FAFC] border border-[#E2E8F0] p-4 rounded-lg mb-6 shadow-sm">
+                    <div className="flex items-center justify-between border-b border-gray-200 pb-3 mb-3">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-[#1F3864]" />
+                        <span className="font-bold text-sm text-[#1F3864]">
+                          {contextData.client_name} — Working Days Breakdown ({contextData.month_label})
+                        </span>
+                      </div>
+                      <span className="bg-[#1F3864] text-white text-xs font-bold px-2.5 py-1 rounded-full">
+                        {contextData.working_days_slots} Working Days Required
+                      </span>
+                    </div>
+
+                    <div className="text-xs text-gray-600 mb-3 leading-relaxed">
+                      <strong>Formula:</strong> {contextData.total_calendar_days} Total Calendar Days − {contextData.off_days_count} Off-Days ({contextData.off_days_label}) − {contextData.workday_holiday_count} Client Holiday(s) = <strong className="text-[#1F3864]">{contextData.working_days_slots} Working Day Slots</strong>.
+                    </div>
+
+                    <div className="bg-amber-50 border border-amber-200 text-amber-900 text-xs p-2.5 rounded mb-3 flex items-start gap-2">
+                      <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+                      <div>
+                        <strong>Upload Rule:</strong> Enter ONLY real working days worked + LOP in your CSV. For each employee, <code>days_present + days_lop</code> must add up to <strong>{contextData.working_days_slots}</strong>.
+                      </div>
+                    </div>
+
+                    {/* Holidays List */}
+                    <div>
+                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
+                        Configured Client Holidays ({contextData.month_label}):
+                      </span>
+                      {contextData.holidays && contextData.holidays.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {contextData.holidays.map((h, idx) => (
+                            <div key={idx} className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded border font-medium ${h.is_off_day ? 'bg-gray-100 border-gray-300 text-gray-600' : 'bg-emerald-50 border-emerald-200 text-emerald-800'}`}>
+                              <span>🏖️ {h.date} — {h.name}</span>
+                              {h.is_off_day ? (
+                                <span className="text-[10px] text-gray-500 font-normal">(Falls on Weekly Off)</span>
+                              ) : (
+                                <span className="text-[10px] bg-emerald-200 text-emerald-900 px-1 rounded">Paid Holiday</span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-400 italic">No holidays configured for this month.</span>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <input 
                   type="file" 
                   ref={fileInputRef} 
@@ -262,10 +323,10 @@ export default function AttendanceUpload({ clients }) {
                 />
 
                 <div 
-                  className="flex flex-col items-center justify-center p-12 border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer rounded-lg text-center"
+                  className="flex flex-col items-center justify-center p-10 border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer rounded-lg text-center"
                   onClick={() => fileInputRef.current?.click()}
                 >
-                  <UploadCloud className="w-12 h-12 text-[#1F3864] mb-4" strokeWidth={1.5} />
+                  <UploadCloud className="w-10 h-10 text-[#1F3864] mb-3" strokeWidth={1.5} />
                   {file ? (
                     <>
                       <p className="font-semibold text-[0.95rem] text-[#1F3864] mb-1">Selected File: {file.name}</p>
@@ -309,9 +370,9 @@ export default function AttendanceUpload({ clients }) {
         {(validationData.length > 0 || loading) && (
           <div className="card p-0">
             <div className="p-5 pb-2">
-              <h3 className="text-lg font-bold text-[#1F3864] m-0">Upload Match Confidence Check</h3>
+              <h3 className="text-lg font-bold text-[#1F3864] m-0">Upload Validation & Match Check</h3>
               <p className="text-[0.75rem] text-gray-500 mt-1">
-                🟢 Green dot indicates 100% Employee Code match. No fuzzy/name similarity matching — exact code match only.
+                🟢 Green dot indicates 100% Employee Code match. Review notes below for any days mismatch warnings.
               </p>
             </div>
 

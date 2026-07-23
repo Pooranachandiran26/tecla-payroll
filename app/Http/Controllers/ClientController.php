@@ -218,7 +218,7 @@ class ClientController extends Controller
                     $query->where('status', 'active');
                 }]);
                
-        $employees = $client->employees()->paginate(10);
+        $employees = $client->employees()->orderBy('id', 'desc')->paginate(10);
                
         return Inertia::render('Clients/ClientDetail', [
             'client' => new ClientResource($client),
@@ -503,6 +503,8 @@ class ClientController extends Controller
             'ptState' => $client->pt_state,
             'lopBasisDays' => $client->lop_basis_days,
             'noticePeriodDays' => $client->default_notice_period_days,
+            'weekly_off_pattern' => $client->weekly_off_pattern ?? 'sat,sun',
+            'weeklyOffPattern' => $client->weekly_off_pattern ?? 'sat,sun',
         ]);
     }
 
