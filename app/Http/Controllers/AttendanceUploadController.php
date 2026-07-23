@@ -37,6 +37,29 @@ class AttendanceUploadController extends Controller
     }
 
     /**
+     * Get working days context and holiday list for a client and target month.
+     * Uses AttendanceUploadValidationService::calculateWorkingDaysContext as the single source of truth.
+     */
+    public function getContext(Request $request)
+    {
+        if (!in_array($request->user()->role, ['admin', 'manager'])) {
+            abort(403, 'Unauthorized');
+        }
+
+        $request->validate([
+            'client_id' => 'required|exists:clients,id',
+            'target_month' => 'required|string',
+        ]);
+
+        $context = $this->validationService->calculateWorkingDaysContext(
+            (int) $request->client_id,
+            $request->target_month
+        );
+
+        return response()->json($context);
+    }
+
+    /**
      * Serve a downloadable CSV template with monthly summary headers.
      */
     public function downloadTemplate()
