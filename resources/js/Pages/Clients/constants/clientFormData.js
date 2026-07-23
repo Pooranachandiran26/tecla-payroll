@@ -283,6 +283,7 @@ export function getDefaultFormData() {
     tdsRegime: 'new', tdsApplicable: true,
     gratuityMode: 'ctc_included', gratuityApplicable: true,
     bonusPct: 8.33, bonusApplicable: false,
+    weeklyOffPattern: 'sat,sun',
     lopBasis: '', // Resolved by useClientForm
 
     // Portal

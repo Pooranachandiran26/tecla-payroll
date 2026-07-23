@@ -197,6 +197,78 @@ export default function StatutorySection({ formData, onChange, hook }) {
           </div>
         </div>
 
+        {/* Weekly Off Pattern */}
+        <div className="stat-row">
+          <div className="stat-info">
+            <strong>Weekly Off Pattern — Attendance Resolution</strong>
+            <span>Standard weekly off days for candidates under this client. Used for LOP and attendance calculations.</span>
+          </div>
+          <div className="stat-rate" style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'flex-start' }}>
+            <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+              {[
+                { id: 'sat,sun', label: 'Sat + Sun' },
+                { id: 'sun', label: 'Sunday Only' },
+                { id: 'fri,sat', label: 'Fri + Sat' }
+              ].map(p => (
+                <button
+                  type="button"
+                  key={p.id}
+                  className={`btn btn-xs ${formData.weeklyOffPattern === p.id ? 'btn-primary' : 'btn-secondary'}`}
+                  onClick={() => onChange('weeklyOffPattern', p.id)}
+                  {...lockProps}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.35rem', marginTop: '0.25rem' }}>
+              {[
+                { id: 'mon', label: 'M' },
+                { id: 'tue', label: 'T' },
+                { id: 'wed', label: 'W' },
+                { id: 'thu', label: 'T' },
+                { id: 'fri', label: 'F' },
+                { id: 'sat', label: 'S' },
+                { id: 'sun', label: 'S' }
+              ].map(d => {
+                const currentArr = (formData.weeklyOffPattern || 'sat,sun').split(',').map(s => s.trim().toLowerCase());
+                const isSelected = currentArr.includes(d.id);
+                return (
+                  <button
+                    type="button"
+                    key={d.id}
+                    className="day-pill"
+                    style={{
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '50%',
+                      fontSize: '0.75rem',
+                      fontWeight: '600',
+                      border: isSelected ? '1px solid var(--primary-navy)' : '1px solid #CBD5E1',
+                      backgroundColor: isSelected ? 'var(--primary-navy)' : '#F8FAFC',
+                      color: isSelected ? '#FFFFFF' : '#475569',
+                      cursor: 'pointer'
+                    }}
+                    onClick={() => {
+                      let nextArr = isSelected ? currentArr.filter(x => x !== d.id) : [...currentArr, d.id];
+                      const dayOrder = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+                      nextArr.sort((a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b));
+                      onChange('weeklyOffPattern', nextArr.join(','));
+                    }}
+                    {...lockProps}
+                  >
+                    {d.label}
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+              Current Pattern: <strong style={{ color: 'var(--primary-navy)' }}>{formData.weeklyOffPattern || 'sat,sun'}</strong>
+            </div>
+          </div>
+        </div>
+
         {/* LOP Calculation */}
         <div className="stat-row" style={{ border: 'none', background: 'none', padding: 0 }}>
           <div className="stat-info" style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '1rem' }}>

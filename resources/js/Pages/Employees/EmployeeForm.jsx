@@ -11,6 +11,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
   const [formMode, setFormMode] = useState('add');
   const [empId, setEmpId] = useState(employee ? employee.data?.id || employee.id : null);
   const { showToast } = useToast();
+  const emp = employee ? (employee.data || employee) : null;
 
   const maxDobDate = useMemo(() => {
     const d = new Date();
@@ -19,7 +20,6 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
   }, []);
 
   const [formData, setFormData] = useState(() => {
-    const emp = employee ? (employee.data || employee) : null;
     let clientIdParam = '';
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search);
@@ -72,6 +72,8 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       declarations: emp ? (Boolean(emp.declarations_accepted) ? 'yes' : 'no') : 'yes',
       gratuityMode: emp?.gratuity_mode || 'part_of_ctc',
       lopBasis: emp?.lop_basis_days || '30',
+      weeklyOffPattern: emp?.weekly_off_pattern || emp?.weeklyOffPattern || '',
+      weekly_off_pattern: emp?.weekly_off_pattern || emp?.weeklyOffPattern || '',
       emergencyContactName: emp?.emergency_contact_name || '',
       prevEmployerName: emp?.previous_employer_name || '',
       prevEmployerUAN: emp?.previous_employer_uan || '',
@@ -83,7 +85,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
   });
 
   const [overrides, setOverrides] = useState({
-    pf: false, esi: false, tds: false, pt: false, lwf: false, bonus: false, gratuity: false, lop: false, noticePeriod: false
+    pf: false, esi: false, tds: false, pt: false, lwf: false, bonus: false, gratuity: false, lop: false, noticePeriod: false, weeklyOff: emp ? Boolean(emp.weekly_off_pattern || emp.weeklyOffPattern) : false
   });
 
   const [errors, setErrors] = useState({});
@@ -1094,6 +1096,89 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                       </div>
                     </div>
                     {errors.lopBasis && <div className={`field-msg ${errors.lopBasis.type || 'error'} show`}>{errors.lopBasis.msg}</div>}
+                  </div>
+
+                  <hr style={{ border: "0", borderTop: "1px solid var(--border-color)" }} />
+
+                  {/* Override Weekly Off Pattern */}
+                  <div>
+                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem" }}>
+                      <div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                          <strong style={{ fontSize: "0.85rem" }}>Override Weekly Off Pattern</strong>
+                          <span className={`badge ${overrides.weeklyOff ? 'badge-gold' : 'badge-neutral'}`}>
+                            {overrides.weeklyOff ? 'Overridden' : 'Inherited'}
+                          </span>
+                        </div>
+                        <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", display: "block" }}>
+                          Leave blank to inherit client default.
+                        </span>
+                        <div style={{ fontSize: "0.72rem", color: "var(--primary-navy)", fontWeight: "500", marginTop: "2px" }}>
+                          Client Default: {activeClientDefaults?.weeklyOffPattern || activeClientDefaults?.weekly_off_pattern || 'sat,sun'}
+                        </div>
+                      </div>
+
+                      <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem", alignItems: "flex-end" }}>
+                        <div style={{ display: "flex", gap: "0.25rem" }}>
+                          {[
+                            { id: 'mon', label: 'M' },
+                            { id: 'tue', label: 'T' },
+                            { id: 'wed', label: 'W' },
+                            { id: 'thu', label: 'T' },
+                            { id: 'fri', label: 'F' },
+                            { id: 'sat', label: 'S' },
+                            { id: 'sun', label: 'S' }
+                          ].map(d => {
+                            const currentVal = formData.weeklyOffPattern || formData.weekly_off_pattern || '';
+                            const currentArr = currentVal ? currentVal.split(',').map(s => s.trim().toLowerCase()) : [];
+                            const isSelected = currentArr.includes(d.id);
+                            return (
+                              <button
+                                type="button"
+                                key={d.id}
+                                className="day-pill"
+                                style={{
+                                  width: '26px',
+                                  height: '26px',
+                                  borderRadius: '50%',
+                                  fontSize: '0.72rem',
+                                  fontWeight: '600',
+                                  border: isSelected ? '1px solid var(--primary-navy)' : '1px solid #CBD5E1',
+                                  backgroundColor: isSelected ? 'var(--primary-navy)' : '#F8FAFC',
+                                  color: isSelected ? '#FFFFFF' : '#475569',
+                                  cursor: 'pointer'
+                                }}
+                                onClick={() => {
+                                  let nextArr = isSelected ? currentArr.filter(x => x !== d.id) : [...currentArr, d.id];
+                                  const dayOrder = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+                                  nextArr.sort((a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b));
+                                  const val = nextArr.join(',');
+                                  handleInputChange('weeklyOffPattern', val);
+                                  handleInputChange('weekly_off_pattern', val);
+                                  setOverrides(prev => ({ ...prev, weeklyOff: Boolean(val) }));
+                                }}
+                              >
+                                {d.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        {(formData.weeklyOffPattern || formData.weekly_off_pattern) ? (
+                          <button
+                            type="button"
+                            className="btn btn-link btn-xs"
+                            style={{ fontSize: "0.7rem", color: "var(--status-danger)", padding: 0 }}
+                            onClick={() => {
+                              handleInputChange('weeklyOffPattern', '');
+                              handleInputChange('weekly_off_pattern', '');
+                              setOverrides(prev => ({ ...prev, weeklyOff: false }));
+                            }}
+                          >
+                            Reset to Client Default
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
                   </div>
 
                   </div>
