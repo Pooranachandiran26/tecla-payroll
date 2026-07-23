@@ -38,6 +38,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       clientPartner: emp?.client_id || clientIdParam || '',
       designation: emp?.designation || '',
       doj: emp?.date_of_joining || '',
+      attendanceTrackingStartDate: emp?.attendance_tracking_start_date || '',
       empType: emp?.employment_model || 'eor',
       priorEmploymentFlag: emp ? Boolean(emp.prior_employment_flag) : true,
       address: emp?.residential_address || '',
@@ -167,39 +168,46 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       .then(res => {
         const d = res.data;
         setActiveClientDefaults(d);
-        setFormData(prev => {
-          const next = { ...prev };
-          if (!overrides.pf) next.pfToggle = d.pfApplicable;
-          if (!overrides.esi) next.esiToggle = d.esiApplicable;
-          if (!overrides.tds) next.taxRegime = d.tdsRegime;
-          if (!overrides.pt) next.ptToggle = d.ptApplicable;
-          if (!overrides.lwf) next.lwfToggle = d.lwfApplicable;
-          if (!overrides.bonus) next.bonusToggle = d.statutoryBonusApplicable;
-          if (!overrides.gratuity) {
-            if (d.gratuityMode === 'na') {
-               next.gratuityMode = 'part_of_ctc';
-            } else if (d.gratuityMode === 'ctc_included') {
-               next.gratuityMode = 'part_of_ctc';
-            } else if (d.gratuityMode === 'over_ctc') {
-               next.gratuityMode = 'over_and_above';
-            } else {
-               next.gratuityMode = d.gratuityMode;
+        // Only apply client statutory defaults when adding a new employee.
+        // When editing an existing employee, retain their saved statutory profile.
+        if (!employee) {
+          setFormData(prev => {
+            const next = { ...prev };
+            if (d.contractType) {
+              next.empType = d.contractType === 'agency' ? 'agency_contract' : 'eor';
             }
-          }
-          if (!overrides.lop) {
-               // inherit resolves to '26' globally
-               let rawLop = String(d.lopBasisDays || '');
-               if (rawLop.includes('30')) next.lopBasis = '30';
-               else next.lopBasis = '26';
+            if (!overrides.pf) next.pfToggle = d.pfApplicable;
+            if (!overrides.esi) next.esiToggle = d.esiApplicable;
+            if (!overrides.tds) next.taxRegime = d.tdsRegime;
+            if (!overrides.pt) next.ptToggle = d.ptApplicable;
+            if (!overrides.lwf) next.lwfToggle = d.lwfApplicable;
+            if (!overrides.bonus) next.bonusToggle = d.statutoryBonusApplicable;
+            if (!overrides.gratuity) {
+              if (d.gratuityMode === 'na') {
+                 next.gratuityMode = 'part_of_ctc';
+              } else if (d.gratuityMode === 'ctc_included') {
+                 next.gratuityMode = 'part_of_ctc';
+              } else if (d.gratuityMode === 'over_ctc') {
+                 next.gratuityMode = 'over_and_above';
+              } else {
+                 next.gratuityMode = d.gratuityMode;
+              }
             }
-          if (!overrides.noticePeriod) {
-               next.noticePeriodDays = d.noticePeriodDays ?? 30;
-            }
-          return next;
-        });
+            if (!overrides.lop) {
+                 // inherit resolves to '26' globally
+                 let rawLop = String(d.lopBasisDays || '');
+                 if (rawLop.includes('30')) next.lopBasis = '30';
+                 else next.lopBasis = '26';
+              }
+            if (!overrides.noticePeriod) {
+                 next.noticePeriodDays = d.noticePeriodDays ?? 30;
+              }
+            return next;
+          });
+        }
       })
       .catch(err => console.error("Failed to fetch statutory defaults:", err));
-  }, [formData.clientPartner, overrides]);
+  }, [formData.clientPartner, overrides, employee]);
 
   // Helper for errors
   const setErrorMsg = (field, msg, type = 'error') => {
@@ -456,7 +464,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
     const errorKeyMap = {
       'client_id': 'clientPartner', 'full_name': 'fullName', 'personal_email': 'personalEmail',
       'phone_number': 'phone', 'emergency_contact_phone': 'emergencyContact', 'date_of_birth': 'dob',
-      'date_of_joining': 'doj', 'employment_model': 'empType', 'prior_employment_flag': 'priorEmploymentFlag',
+      'date_of_joining': 'doj', 'attendance_tracking_start_date': 'attendanceTrackingStartDate', 'employment_model': 'empType', 'prior_employment_flag': 'priorEmploymentFlag',
       'residential_address': 'address', 'bank_account_number': 'accountNo', 'bank_ifsc': 'ifsc',
       'bank_name': 'bankName', 'bank_branch': 'bankBranch', 'account_holder_name': 'accountHolder',
       'gender': 'gender', 'blood_group': 'bloodGroup', 'marital_status': 'maritalStatus',
@@ -664,14 +672,36 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                       {errors.doj && <div className={`field-msg ${errors.doj.type || 'error'} show`}>{errors.doj.msg}</div>}
                     </div>
                     <div className="form-group">
-                      <label>Employment Model</label>
-                      <select className="form-control" value={formData.empType} onChange={handleEmpTypeChange} disabled={isActive && formData.empType === 'internal'}>
+                      <label>Employment Model {activeClientDefaults?.contractType && !employee && <span className="badge badge-neutral">Auto-set from Client</span>}</label>
+                      <select className="form-control" value={formData.empType} onChange={handleEmpTypeChange} disabled={!employee && !!activeClientDefaults?.contractType}>
                         <option value="eor">Pass-through EOR</option>
-                        <option value="contract">Agency Contract</option>
-                        <option value="internal">Internal Staff</option>
+                        <option value="agency_contract">Agency Contract</option>
                       </select>
                       {formData.empType === 'eor' && <div style={{ marginTop: "0.5rem", padding: "0.75rem", background: "#F8FAFC", borderLeft: "3px solid var(--primary-navy)", borderRadius: "var(--radius-sm)", fontSize: "0.8rem" }}>PF, ESI, and PT are filed under client registration.</div>}
-                      {formData.empType === 'contract' && <div style={{ marginTop: "0.5rem", padding: "0.75rem", background: "#F8FAFC", borderLeft: "3px solid var(--primary-navy)", borderRadius: "var(--radius-sm)", fontSize: "0.8rem" }}>PF, ESI, and PT are filed under Tecla Media registration.</div>}
+                      {formData.empType === 'agency_contract' && <div style={{ marginTop: "0.5rem", padding: "0.75rem", background: "#F8FAFC", borderLeft: "3px solid var(--primary-navy)", borderRadius: "var(--radius-sm)", fontSize: "0.8rem" }}>PF, ESI, and PT are filed under Tecla Agency registration.</div>}
+                    </div>
+                  </div>
+
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>
+                        Attendance Tracking Start Date{' '}
+                        <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: "normal" }}>
+                          (Leave blank unless employee joined before adopting this payroll software)
+                        </span>
+                      </label>
+                      <input
+                        type="date"
+                        className={`form-control ${errors.attendanceTrackingStartDate ? `is-${errors.attendanceTrackingStartDate.type || 'error'}` : ''}`}
+                        value={formData.attendanceTrackingStartDate}
+                        onChange={e => handleInputChange('attendanceTrackingStartDate', e.target.value)}
+                        min={formData.doj || undefined}
+                      />
+                      {errors.attendanceTrackingStartDate && (
+                        <div className={`field-msg ${errors.attendanceTrackingStartDate.type || 'error'} show`}>
+                          {errors.attendanceTrackingStartDate.msg}
+                        </div>
+                      )}
                     </div>
                   </div>
                   
@@ -1040,6 +1070,30 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                         </div>
                       </div>
                     )}
+                  </div>
+
+                  <hr style={{ border: "0", borderTop: "1px solid var(--border-color)" }} />
+
+                  {/* LOP Divisor Basis */}
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                          <strong style={{ fontSize: "0.85rem" }}>Loss of Pay (LOP) Divisor Basis (Days)</strong>
+                          <span className={`badge ${overrides.lop ? 'badge-gold' : 'badge-neutral'}`}>{overrides.lop ? 'Overridden' : 'Inherited'}</span>
+                        </div>
+                        <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Denominator used for daily wage calculation (Basic / X).</span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                        <input type="number" className={`form-control ${errors.lopBasis ? `is-${errors.lopBasis.type || 'error'}` : ''}`}
+                          style={{ width: "100px", textAlign: "center", fontWeight: "bold" }}
+                          min="15" max="31" placeholder="e.g. 26"
+                          value={formData.lopBasis}
+                          onChange={e => { handleInputChange('lopBasis', e.target.value); toggleOverride('lop'); }}
+                          onWheel={e => e.target.blur()} />
+                      </div>
+                    </div>
+                    {errors.lopBasis && <div className={`field-msg ${errors.lopBasis.type || 'error'} show`}>{errors.lopBasis.msg}</div>}
                   </div>
 
                   </div>

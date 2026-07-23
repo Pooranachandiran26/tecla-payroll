@@ -5,7 +5,8 @@ import useToast from '../../Hooks/useToast';
 
 import RoleGuard from '../../Components/RoleGuard.jsx';
 
-export default function EmployeeDashboard({ employee: empProp, todayAttendance, attendanceStats, leaveStats, documentStats }) {
+export default function EmployeeDashboard({ employee: empProp, todayAttendance, attendanceStats, leaveStats, documentStats, todayDayBanner, dayBanner: propDayBanner }) {
+    const banner = todayDayBanner || propDayBanner;
     const employee = empProp?.data || empProp || {};
     const { post, processing } = useForm();
     const { showToast } = useToast();
@@ -188,9 +189,29 @@ export default function EmployeeDashboard({ employee: empProp, todayAttendance, 
           
           <div className="card" style={{ textAlign: 'center', padding: '2.5rem 1.5rem' }}>
             <h3 style={{ marginBottom: '0.25rem', color: 'var(--primary-navy)' }}>Daily Time Tracker</h3>
-            <div style={{ fontSize: '1.1rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
+            <div style={{ fontSize: '1.1rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
               {currentTime.toLocaleTimeString()}
             </div>
+
+            {banner && banner.message && (
+              <div 
+                className="day-tracker-banner"
+                style={{
+                  marginBottom: '1.25rem',
+                  padding: '0.85rem 1rem',
+                  borderRadius: 'var(--radius-sm)',
+                  fontSize: '0.875rem',
+                  lineHeight: '1.4',
+                  textAlign: 'left',
+                  backgroundColor: banner.type === 'warning' ? '#FEF3C7' : (banner.type === 'success' ? '#DCFCE7' : '#E0F2FE'),
+                  border: `1px solid ${banner.type === 'warning' ? '#FCD34D' : (banner.type === 'success' ? '#86EFAC' : '#BAE6FD')}`,
+                  color: banner.type === 'warning' ? '#92400E' : (banner.type === 'success' ? '#166534' : '#0369A1'),
+                  fontWeight: '500'
+                }}
+              >
+                {banner.message}
+              </div>
+            )}
             
             <div style={{ fontSize: '2rem', fontWeight: '700', color: 'var(--primary-navy)', fontFamily: 'monospace', marginBottom: '0.5rem' }}>
               {todayAttendance && todayAttendance.punch_in_time ? (

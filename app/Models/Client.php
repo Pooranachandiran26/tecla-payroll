@@ -11,6 +11,10 @@ class Client extends Model
     use HasFactory, SoftDeletes;
     protected $guarded = [];
 
+    protected $attributes = [
+        'weekly_off_pattern' => 'sat,sun',
+    ];
+
     /**
      * Fields safe to include in watcher notification emails.
      * Encrypted/PII fields (pan_number, gstin, etc.) are deliberately excluded.
@@ -57,6 +61,11 @@ class Client extends Model
     public function invoices()
     {
         return $this->hasMany(Invoice::class);
+    }
+
+    public function holidays()
+    {
+        return $this->hasMany(Holiday::class);
     }
 
 

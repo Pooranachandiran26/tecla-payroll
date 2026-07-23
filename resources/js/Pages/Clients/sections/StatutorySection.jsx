@@ -204,13 +204,9 @@ export default function StatutorySection({ formData, onChange, hook }) {
               <strong style={{ fontSize: '0.85rem' }}>Loss of Pay (LOP) Divisor Basis</strong>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Denominator used for daily wage calculation (Basic / X).</div>
             </div>
-            <select className="form-control" style={{ width: 'auto', minWidth: '320px', maxWidth: '100%' }}
-              value={formData.lopBasis} onChange={e => onChange('lopBasis', e.target.value)} {...lockProps}>
-              <option value="26">26 Working Days (excludes Sundays)</option>
-              <option value="30">30 Calendar Days</option>
-              <option value="calendar">Actual Calendar Days (28/29/30/31)</option>
-              <option value="working">Actual Working Days in Month</option>
-            </select>
+            <input type="number" className="form-control" style={{ width: '120px', textAlign: 'center', fontWeight: 'bold' }}
+              min="15" max="31" placeholder="e.g. 26"
+              value={formData.lopBasis} onChange={e => onChange('lopBasis', e.target.value)} onWheel={e => e.target.blur()} {...lockProps} />
           </div>
         </div>
 

@@ -32,6 +32,7 @@ export const candidateNav = [
   { name: 'Dashboard', url: safeRoute('employee.dashboard', '/employee/dashboard'), key: 'candidate-dashboard' },
   { name: 'Attendance', url: safeRoute('employee.attendance', '/employee/attendance'), key: 'candidate-attendance' },
   { name: 'Leave', url: safeRoute('employee.leave', '/employee/leave'), key: 'candidate-leave' },
+  { name: 'Day Swaps', url: safeRoute('employee.day-swaps.index', '/employee/attendance/day-swaps'), key: 'candidate-day-swaps' },
   { name: 'Payslips', url: safeRoute('employee.payslips', '/employee/payslips'), key: 'candidate-payslips' },
   { name: 'Profile', url: safeRoute('employee.profile', '/employee/profile'), key: 'candidate-profile' },
 ];
@@ -46,6 +47,7 @@ export const subNavs = {
     { name: 'Add New', url: safeRoute('employees.create', '/employees/create') },
     { name: 'Bulk Upload', url: safeRoute('employees.bulk-upload', '/employees/bulk-upload') },
     { name: 'Bank Change Requests', url: safeRoute('employees.bank-change-requests', '/employees/bank-change-requests') },
+    { name: 'Day Swap Requests', url: safeRoute('employees.day-swaps', '/day-swap-requests') },
     { name: 'Leave Approval Queue', url: safeRoute('leave-requests.index', '/leave-requests') },
   ],
   payroll: [

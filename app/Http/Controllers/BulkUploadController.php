@@ -65,7 +65,7 @@ class BulkUploadController extends Controller
             'account_holder_name', 'pan_number', 'basic_pay', 'hra', 'conveyance', 'da',
             'medical_allowance', 'special_allowance', 'other_additions', 'pf_applicable',
             'esi_applicable', 'pt_applicable', 'lwf_applicable', 'tds_applicable', 'uan_mode',
-            'uan_number', 'esic_number', 'tds_regime', 'gratuity_mode', 'lop_basis_days',
+            'uan_number', 'esi_mode', 'esic_number', 'tds_regime', 'gratuity_mode', 'lop_basis_days',
             'declarations_accepted', 'reporting_manager_code'
         ]);
 
@@ -102,6 +102,7 @@ class BulkUploadController extends Controller
             'tds_applicable' => '0',
             'uan_mode' => 'new',
             'uan_number' => '',
+            'esi_mode' => 'new',
             'esic_number' => '',
             'tds_regime' => 'new',
             'gratuity_mode' => 'part_of_ctc',
@@ -126,6 +127,11 @@ class BulkUploadController extends Controller
             'Setting Field' => 'Default LOP Basis',
             'Value' => (string)($client->lop_basis_days ?? '26'),
             'Notes' => 'Default monthly calculation basis (26 or 30 days)'
+        ]);
+        $writer->addRow([
+            'Setting Field' => 'Contract Type / Employment Model',
+            'Value' => $client->contract_type === 'agency' ? 'Agency Contract (agency_contract)' : 'Pass-through EOR (eor)',
+            'Notes' => 'Default Employment Model for employees under this client'
         ]);
         $writer->addRow([
             'Setting Field' => 'PF Default',
