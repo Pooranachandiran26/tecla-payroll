@@ -77,25 +77,34 @@ class MonthlyPayrollCalculator
         ];
 
         $calendarDays = $monthStart->diffInDays($monthEnd) + 1;
-        $paidFraction = $paidDays / $calendarDays;
+
+        // Determine employee's effective start date in target month (check date_of_joining & attendance_tracking_start_date)
+        $doj = Carbon::parse($employee->date_of_joining)->startOfDay();
+        $effectiveStart = $monthStart->gt($doj) ? $monthStart->copy() : $doj->copy();
+        if (!empty($employee->attendance_tracking_start_date)) {
+            $atsd = Carbon::parse($employee->attendance_tracking_start_date)->startOfDay();
+            if ($atsd->gt($effectiveStart)) {
+                $effectiveStart = $atsd->copy();
+            }
+        }
+
+        $daysBefore = 0;
+        $daysAfter = 0;
 
         if ($revision) {
             $effectiveDate = Carbon::parse($revision->effective_date)->startOfDay();
             $daysBefore = $monthStart->diffInDays($effectiveDate);
             $daysAfter = $effectiveDate->diffInDays($monthEnd) + 1;
-
             $paidDaysBefore = $attendanceBefore['paid_days'];
             $paidDaysAfter = $attendanceAfter['paid_days'];
 
             foreach ($components as $key => $column) {
-                // Determine revision column naming
                 $oldCol = 'old_' . $column;
                 $newCol = 'new_' . $column;
 
                 $oldVal = (float)($revision->$oldCol ?? 0);
                 $newVal = (float)($revision->$newCol ?? 0);
 
-                // Prorate old component and new component using formula scaled by actual segment paid days
                 $oldComponentProrated = $oldVal * ($paidDaysBefore / $lopBasisDays);
                 $newComponentProrated = $newVal * ($paidDaysAfter / $lopBasisDays);
 
@@ -103,16 +112,26 @@ class MonthlyPayrollCalculator
             }
             $salaryRevisionApplied = true;
         } else {
-            // No revision: component * (paid_days / lop_basis_days)
+            // Check if employee joined mid-month (effectiveStart > monthStart)
+            $isMidMonthHire = $effectiveStart->gt($monthStart);
+
             foreach ($components as $key => $column) {
                 $currentVal = (float)($employee->$column ?? 0);
-                $proRatedComponents[$key] = round($currentVal * ($paidDays / $lopBasisDays), 2);
+
+                if ($lopDays == 0) {
+                    $proRatedComponents[$key] = $isMidMonthHire
+                        ? round($currentVal * ($paidDays / $calendarDays), 2)
+                        : round($currentVal, 2);
+                } else {
+                    $componentLopDeduction = round($currentVal * ($lopDays / $lopBasisDays), 2);
+                    $proRatedComponents[$key] = max(0.00, round($currentVal - $componentLopDeduction, 2));
+                }
             }
             $salaryRevisionApplied = false;
         }
 
         // Calculate gross total first from prorated components
-        $grossTotal = (float)array_sum($proRatedComponents);
+        $grossTotal = round((float)array_sum($proRatedComponents), 2);
 
         // Determine dynamic ESI applicability based on transition rules
         $isEsiActive = $this->isEsiApplicableForMonth($employee, $payrollRun, $grossTotal);
@@ -249,7 +268,7 @@ class MonthlyPayrollCalculator
                                (float)$employee->special_allowance + 
                                (float)$employee->other_additions;
         }
-        $lopDeduction = max(0.00, $structuralGross - $grossTotal);
+        $lopDeduction = round(max(0.00, $structuralGross - $grossTotal), 2);
 
         // g. Write the result to a new payroll_run_items row (clearing any duplicate prior item for this run)
         DB::table('payroll_run_items')
