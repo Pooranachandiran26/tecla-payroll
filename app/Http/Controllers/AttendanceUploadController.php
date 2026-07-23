@@ -10,6 +10,8 @@ use App\Services\AttendanceUploadValidationService;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use OpenSpout\Common\Entity\Style\Style;
+use OpenSpout\Common\Entity\Style\Color;
 
 class AttendanceUploadController extends Controller
 {
@@ -61,6 +63,8 @@ class AttendanceUploadController extends Controller
 
     /**
      * Serve a downloadable 2-Sheet .xlsx template with monthly summary headers and live context.
+     * Sheet 1 (opens first): Reference Info & Rules (styled with generous column widths)
+     * Sheet 2: Attendance Entry (data entry tab)
      */
     public function downloadTemplate(Request $request)
     {
@@ -81,10 +85,57 @@ class AttendanceUploadController extends Controller
         $workingDaysSlots = $context ? $context['working_days_slots'] : 22;
 
         $tempPath = storage_path('app/temp_tmpl_' . \Illuminate\Support\Str::random(16) . '.xlsx');
-        $writer = \Spatie\SimpleExcel\SimpleExcelWriter::create($tempPath);
 
-        // --- SHEET 1: "Attendance Entry" (DATA ENTRY SHEET) ---
-        $writer->nameCurrentSheet('Attendance Entry');
+        $writer = \Spatie\SimpleExcel\SimpleExcelWriter::create($tempPath, 'xlsx', function ($spoutWriter) {
+            $options = $spoutWriter->getOptions();
+            if (method_exists($options, 'setColumnWidth')) {
+                $options->setColumnWidth(35.0, 1);
+                $options->setColumnWidth(75.0, 2);
+            }
+        });
+
+        $headerStyle = (new Style())
+            ->setFontBold()
+            ->setFontSize(11)
+            ->setFontColor(Color::WHITE)
+            ->setBackgroundColor('1F3864');
+
+        // --- SHEET 1: "Reference Info & Rules" (FIRST TAB — OPENS BY DEFAULT) ---
+        $writer->nameCurrentSheet('Reference Info & Rules');
+
+        // Section 1: Client & Payroll Cycle Timing (Piece 3 fields)
+        $writer->addRow(['Section' => '--- CLIENT & PAYROLL CYCLE TIMING ---', 'Details' => ''], $headerStyle);
+        $writer->addRow(['Section' => 'Target Client', 'Details' => $context['client_name'] ?? 'N/A']);
+        $writer->addRow(['Section' => 'Payroll Target Month', 'Details' => ($context['month_label'] ?? '') . ' (' . $targetMonthVal . ')']);
+        $writer->addRow(['Section' => 'Cycle Ends', 'Details' => $context['cycle_ends_formatted'] ?? 'N/A']);
+        $writer->addRow(['Section' => 'Target Lock Date', 'Details' => $context['target_lock_date_formatted'] ?? 'N/A']);
+        $writer->addRow(['Section' => 'Target Salary Credit', 'Details' => $context['target_salary_credit_formatted'] ?? 'N/A']);
+        $writer->addRow(['Section' => '', 'Details' => '']);
+
+        // Section 2: Working Days Breakdown
+        $writer->addRow(['Section' => '--- ATTENDANCE BREAKDOWN & RULES ---', 'Details' => ''], $headerStyle);
+        $writer->addRow(['Section' => 'Total Calendar Days', 'Details' => (string) ($context['total_calendar_days'] ?? 31)]);
+        $writer->addRow(['Section' => 'Off-Days Pattern', 'Details' => ($context['off_days_label'] ?? 'Saturday & Sunday') . ' (' . ($context['off_days_count'] ?? 0) . ' off days)']);
+        $writer->addRow(['Section' => 'Workday Holidays Count', 'Details' => (string) ($context['workday_holiday_count'] ?? 0)]);
+        $writer->addRow(['Section' => 'Required Working Days Slots', 'Details' => (string) ($context['working_days_slots'] ?? 22)]);
+        $writer->addRow(['Section' => '', 'Details' => '']);
+
+        // Section 3: Configured Holidays
+        if ($context && !empty($context['holidays'])) {
+            $writer->addRow(['Section' => '--- CONFIGURABLE HOLIDAYS ---', 'Details' => ''], $headerStyle);
+            foreach ($context['holidays'] as $h) {
+                $offText = $h['is_off_day'] ? ' (Falls on Weekly Off)' : ' (Paid Holiday)';
+                $writer->addRow(['Section' => $h['date'], 'Details' => $h['name'] . $offText]);
+            }
+            $writer->addRow(['Section' => '', 'Details' => '']);
+        }
+
+        // Section 4: Instruction Rule
+        $writer->addRow(['Section' => '--- HOW TO FILL THIS SHEET ---', 'Details' => ''], $headerStyle);
+        $writer->addRow(['Section' => 'Data Entry Instructions', 'Details' => 'Switch to Sheet 2 ("Attendance Entry") to enter attendance data. Enter ONLY real working days worked + LOP. For each employee, days_present + days_lop must equal ' . $workingDaysSlots . '.']);
+
+        // --- SHEET 2: "Attendance Entry" (SECOND TAB — DATA ENTRY SHEET) ---
+        $writer->addNewSheetAndMakeItCurrent('Attendance Entry');
         if (!empty($sampleEmployees) && count($sampleEmployees) > 0) {
             foreach ($sampleEmployees as $emp) {
                 $writer->addRow([
@@ -102,37 +153,6 @@ class AttendanceUploadController extends Controller
                 'days_lop' => '0',
             ]);
         }
-
-        // --- SHEET 2: "Reference Info & Rules" (READ-ONLY GUIDANCE TAB) ---
-        $writer->addNewSheetAndMakeItCurrent('Reference Info & Rules');
-
-        // Section 1: Client & Payroll Cycle Timing (Piece 3 fields)
-        $writer->addRow(['Section' => '--- CLIENT & PAYROLL CYCLE TIMING ---', 'Details' => '']);
-        $writer->addRow(['Section' => 'Target Client', 'Details' => $context['client_name'] ?? 'N/A']);
-        $writer->addRow(['Section' => 'Payroll Target Month', 'Details' => ($context['month_label'] ?? '') . ' (' . $targetMonthVal . ')']);
-        $writer->addRow(['Section' => 'Cycle Ends', 'Details' => $context['cycle_ends_formatted'] ?? 'N/A']);
-        $writer->addRow(['Section' => 'Target Lock Date', 'Details' => $context['target_lock_date_formatted'] ?? 'N/A']);
-        $writer->addRow(['Section' => 'Target Salary Credit', 'Details' => $context['target_salary_credit_formatted'] ?? 'N/A']);
-
-        // Section 2: Working Days Breakdown
-        $writer->addRow(['Section' => '--- ATTENDANCE BREAKDOWN & RULES ---', 'Details' => '']);
-        $writer->addRow(['Section' => 'Total Calendar Days', 'Details' => (string) ($context['total_calendar_days'] ?? 31)]);
-        $writer->addRow(['Section' => 'Off-Days Pattern', 'Details' => ($context['off_days_label'] ?? 'Saturday & Sunday') . ' (' . ($context['off_days_count'] ?? 0) . ' off days)']);
-        $writer->addRow(['Section' => 'Workday Holidays Count', 'Details' => (string) ($context['workday_holiday_count'] ?? 0)]);
-        $writer->addRow(['Section' => 'Required Working Days Slots', 'Details' => (string) ($context['working_days_slots'] ?? 22)]);
-
-        // Section 3: Configured Holidays
-        if ($context && !empty($context['holidays'])) {
-            $writer->addRow(['Section' => '--- CONFIGURABLE HOLIDAYS ---', 'Details' => '']);
-            foreach ($context['holidays'] as $h) {
-                $offText = $h['is_off_day'] ? ' (Falls on Weekly Off)' : ' (Paid Holiday)';
-                $writer->addRow(['Section' => $h['date'], 'Details' => $h['name'] . $offText]);
-            }
-        }
-
-        // Section 4: Instruction Rule
-        $writer->addRow(['Section' => '--- HOW TO FILL THIS SHEET ---', 'Details' => '']);
-        $writer->addRow(['Section' => 'Data Entry Instructions', 'Details' => 'Fill out ONLY Sheet 1 ("Attendance Entry"). Enter ONLY real working days worked + LOP. For each employee, days_present + days_lop must equal ' . $workingDaysSlots . '.']);
 
         $writer->close();
 

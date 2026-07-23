@@ -560,7 +560,7 @@ class AttendanceUploadTest extends TestCase
     }
 
     /**
-     * 13. Test download template as a real 2-Sheet .xlsx file with live context & piece 3 fields.
+     * 13. Test download template as a real 2-Sheet .xlsx file with swapped sheet order, live context & piece 3 fields.
      */
     public function test_download_template_with_live_context_and_2sheet_xlsx_structure()
     {
@@ -569,33 +569,47 @@ class AttendanceUploadTest extends TestCase
         $response->assertStatus(200);
         $downloadedFilePath = $response->getFile()->getPathname();
 
-        // Read Sheet 1 ("Attendance Entry")
+        // 1. Inspect ZipArchive workbook XML for exact sheet order (Index 0 = Reference Info & Rules, Index 1 = Attendance Entry)
+        $zip = new \ZipArchive();
+        $this->assertTrue($zip->open($downloadedFilePath));
+        $workbookXml = $zip->getFromName('xl/workbook.xml');
+        preg_match_all('/<sheet name="([^"]+)"/i', $workbookXml, $matches);
+        $sheetNames = array_map('html_entity_decode', $matches[1]);
+
+        $this->assertEquals('Reference Info & Rules', $sheetNames[0]);
+        $this->assertEquals('Attendance Entry', $sheetNames[1]);
+
+        // 2. Inspect sheet1.xml for custom column widths (Width 35 & Width 75)
+        $sheet1Xml = $zip->getFromName('xl/worksheets/sheet1.xml');
+        $this->assertStringContainsString('width="35"', $sheet1Xml);
+        $this->assertStringContainsString('width="75"', $sheet1Xml);
+        $zip->close();
+
+        // 3. Read Sheet 1 ("Reference Info & Rules")
         $reader1 = \Spatie\SimpleExcel\SimpleExcelReader::create($downloadedFilePath);
         if (method_exists($reader1, 'fromSheetName')) {
-            $reader1->fromSheetName('Attendance Entry');
+            $reader1->fromSheetName('Reference Info & Rules');
         }
-        $sheet1Rows = $reader1->getRows()->toArray();
+        $refRows = $reader1->getRows()->toArray();
+        $this->assertGreaterThan(5, count($refRows));
 
-        $this->assertCount(1, $sheet1Rows);
-        $this->assertEquals('2026-08', $sheet1Rows[0]['target_month']);
-        $this->assertEquals('EMP-A01', $sheet1Rows[0]['employee_code']);
-
-        // Read Sheet 2 ("Reference Info & Rules")
-        $reader2 = \Spatie\SimpleExcel\SimpleExcelReader::create($downloadedFilePath);
-        if (method_exists($reader2, 'fromSheetName')) {
-            $reader2->fromSheetName('Reference Info & Rules');
-        }
-        $sheet2Rows = $reader2->getRows()->toArray();
-
-        $this->assertGreaterThan(5, count($sheet2Rows));
-
-        $sections = array_column($sheet2Rows, 'Section');
+        $sections = array_column($refRows, 'Section');
         $this->assertContains('Target Client', $sections);
         $this->assertContains('Cycle Ends', $sections);
         $this->assertContains('Target Lock Date', $sections);
         $this->assertContains('Target Salary Credit', $sections);
 
-        // Feed downloaded 2-Sheet XLSX file directly to validateFile
+        // 4. Read Sheet 2 ("Attendance Entry") by name
+        $reader2 = \Spatie\SimpleExcel\SimpleExcelReader::create($downloadedFilePath);
+        if (method_exists($reader2, 'fromSheetName')) {
+            $reader2->fromSheetName('Attendance Entry');
+        }
+        $entryRows = $reader2->getRows()->toArray();
+        $this->assertCount(1, $entryRows);
+        $this->assertEquals('2026-08', $entryRows[0]['target_month']);
+        $this->assertEquals('EMP-A01', $entryRows[0]['employee_code']);
+
+        // 5. Feed downloaded 2-Sheet XLSX file directly to validateFile
         $validator = app(\App\Services\AttendanceUploadValidationService::class);
         $result = $validator->validateFile($downloadedFilePath, $this->clientA->id, '2026-08');
 
