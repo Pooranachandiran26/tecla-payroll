@@ -237,7 +237,7 @@ class UpdateClientRequest extends FormRequest
             'registration_number' => 'nullable|string|max:100',
             
             // Step 4
-            'contract_type' => 'required|in:agency,eor,hybrid,consulting',
+            'contract_type' => 'required|in:agency,eor',
             'billing_model' => 'required|in:markup,fixed_per_candidate,fixed_per_month,lumpsum,hourly',
             'contract_start_date' => 'required|date',
             'contract_end_date' => 'nullable|date|after:contract_start_date',

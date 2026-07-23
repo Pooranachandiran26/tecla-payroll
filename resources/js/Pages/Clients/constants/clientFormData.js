@@ -40,8 +40,6 @@ export const INDUSTRIES = [
 export const CONTRACT_TYPES = [
   { value: 'agency', label: 'Agency Payroll (Staffing Model)' },
   { value: 'eor', label: 'Employer of Record (EOR / Pass-through)' },
-  { value: 'hybrid', label: 'Hybrid (Agency + EOR)' },
-  { value: 'consulting', label: 'Consulting / Project Based' },
 ];
 
 export const BILLING_MODELS = [
