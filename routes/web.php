@@ -19,6 +19,7 @@ use App\Http\Controllers\AttendanceUploadController;
 use App\Http\Controllers\BankChangeRequestController;
 use App\Http\Controllers\DaySwapController;
 use App\Http\Controllers\ClientHolidayController;
+use App\Http\Controllers\EmployeeLoanController;
 
 // -----------------------------------------------------------------------
 // GUEST ROUTES (Unauthenticated)
@@ -131,6 +132,11 @@ Route::middleware(['auth', 'active'])->group(function () {
             Route::post('/employees/{id}/exit/confirm', [\App\Http\Controllers\EmployeeExitController::class, 'confirm'])->name('employees.exit.confirm');
             
             Route::post('/employees/{id}/tax-declarations/{declarationId}/verify', [\App\Http\Controllers\TaxDeclarationController::class, 'verify'])->name('employees.tax-declarations.verify');
+
+            // Employee Loans & Advances
+            Route::get('/employees/{employee}/loans', [EmployeeLoanController::class, 'index'])->name('employees.loans.index');
+            Route::post('/employees/{employee}/loans', [EmployeeLoanController::class, 'store'])->name('employees.loans.store');
+            Route::patch('/employees/loans/{loan}/status', [EmployeeLoanController::class, 'updateStatus'])->name('employees.loans.update-status');
 
             // Salary Revision
             Route::get('/employees/{id}/salary-revision', [SalaryRevisionController::class, 'create'])->name('employees.salary-revision.create');

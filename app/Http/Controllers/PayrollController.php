@@ -53,6 +53,57 @@ class PayrollController extends Controller
                     'locked_at' => now(),
                 ]);
 
+                // Process loan repayments idempotently for items in this run
+                $items = \Illuminate\Support\Facades\DB::table('payroll_run_items')
+                    ->where('payroll_run_id', $run->id)
+                    ->where('is_excluded', false)
+                    ->where('loan_emi_deduction', '>', 0)
+                    ->get();
+
+                foreach ($items as $item) {
+                    $alreadyProcessed = \App\Models\EmployeeLoanRepayment::where('payroll_run_item_id', $item->id)->exists();
+                    if ($alreadyProcessed) {
+                        continue;
+                    }
+
+                    $employee = \App\Models\Employee::find($item->employee_id);
+                    if (!$employee) continue;
+
+                    $monthEnd = \Carbon\Carbon::parse($run->payroll_month)->endOfMonth()->toDateString();
+                    $activeLoans = $employee->loans()
+                        ->where('status', 'active')
+                        ->where('remaining_balance', '>', 0)
+                        ->where('start_date', '<=', $monthEnd)
+                        ->orderBy('created_at', 'asc')
+                        ->get();
+
+                    $remainingToApply = (float) $item->loan_emi_deduction;
+
+                    foreach ($activeLoans as $loan) {
+                        if ($remainingToApply <= 0) break;
+
+                        $deductForThisLoan = min($remainingToApply, $loan->remaining_balance);
+                        $newRepaid = $loan->total_repaid + $deductForThisLoan;
+                        $newBalance = max(0.00, $loan->remaining_balance - $deductForThisLoan);
+
+                        $loan->update([
+                            'total_repaid' => $newRepaid,
+                            'remaining_balance' => $newBalance,
+                            'status' => $newBalance <= 0 ? 'completed' : 'active',
+                        ]);
+
+                        \App\Models\EmployeeLoanRepayment::create([
+                            'employee_loan_id' => $loan->id,
+                            'payroll_run_item_id' => $item->id,
+                            'amount_deducted' => $deductForThisLoan,
+                            'amount_deferred' => (float) $item->deferred_loan_amount,
+                            'payroll_month' => $run->payroll_month,
+                        ]);
+
+                        $remainingToApply -= $deductForThisLoan;
+                    }
+                }
+
                 // Trigger invoice generation upon locking
                 $invoiceService = app(\App\Services\InvoiceGenerationService::class);
                 $invoiceService->generateForRun($run);

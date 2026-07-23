@@ -70,8 +70,12 @@ class FullAndFinalCalculationService
             }
         }
 
-        // Other deductions
-        $calculations['loan_recovery_amount'] = (float) ($inputs['loan_recovery_amount'] ?? 0);
+        // Other deductions (Auto-fetch remaining loan balance if not explicitly provided)
+        if (array_key_exists('loan_recovery_amount', $inputs) && $inputs['loan_recovery_amount'] !== null) {
+            $calculations['loan_recovery_amount'] = (float) $inputs['loan_recovery_amount'];
+        } else {
+            $calculations['loan_recovery_amount'] = (float) $employee->loans()->where('status', 'active')->sum('remaining_balance');
+        }
         $calculations['tds_amount'] = (float) ($inputs['tds_amount'] ?? 0);
         $calculations['bonus_amount'] = (float) ($inputs['bonus_amount'] ?? 0);
 
