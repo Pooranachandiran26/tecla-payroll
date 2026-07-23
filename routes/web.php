@@ -105,7 +105,7 @@ Route::middleware(['auth', 'active'])->group(function () {
             Route::get('/employees', [EmployeeController::class, 'index'])->name('employees.index');
             Route::post('/employees', [EmployeeController::class, 'store'])->name('employees.store');
             Route::get('/employees/create', function() {
-                $clients = \App\Models\Client::where('status', 'active')->select('id', 'company_name')->get();
+                $clients = \App\Models\Client::where('status', 'active')->select('id', 'company_name', 'weekly_off_pattern')->get();
                 return Inertia::render('Employees/EmployeeForm', ['clients' => $clients]);
             })->name('employees.create');
             Route::get('/employees/bulk-upload', [BulkUploadController::class, 'showUploadForm'])->name('employees.bulk-upload');

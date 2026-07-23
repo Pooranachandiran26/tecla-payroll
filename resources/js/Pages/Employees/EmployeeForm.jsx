@@ -1114,7 +1114,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                           Leave blank to inherit client default.
                         </span>
                         <div style={{ fontSize: "0.72rem", color: "var(--primary-navy)", fontWeight: "500", marginTop: "2px" }}>
-                          Client Default: {activeClientDefaults?.weeklyOffPattern || activeClientDefaults?.weekly_off_pattern || 'sat,sun'}
+                          Client Default: {activeClientDefaults?.weeklyOffPattern || activeClientDefaults?.weekly_off_pattern || clients.find(c => String(c.id) === String(formData.clientPartner))?.weekly_off_pattern || 'sat,sun'}
                         </div>
                       </div>
 

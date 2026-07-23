@@ -181,4 +181,19 @@ class WeeklyOffPatternUiTest extends TestCase
                 ->where('employee.weekly_off_pattern', 'mon,tue')
             );
     }
+
+    #[Test]
+    public function test_5_statutory_defaults_endpoint_returns_weekly_off_pattern()
+    {
+        $this->actingAs($this->admin);
+
+        $client = $this->createClientWithBranch(['weekly_off_pattern' => 'sun']);
+
+        $response = $this->get(route('clients.statutoryDefaults', $client->id));
+        $response->assertOk();
+        $response->assertJson([
+            'weekly_off_pattern' => 'sun',
+            'weeklyOffPattern' => 'sun',
+        ]);
+    }
 }
