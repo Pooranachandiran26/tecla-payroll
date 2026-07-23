@@ -621,6 +621,7 @@ export default function ClientDetail({ client, employees }) {
                 <div><strong>Payroll Lock Day:</strong> {c.payroll_lock_day || 'N/A'}</div>
                 <div><strong>Invoice Raise Day:</strong> {c.invoice_raise_day || 'N/A'}</div>
                 <div><strong>Salary Credit Day:</strong> {c.salary_credit_day || 'N/A'}</div>
+                <div><strong>Weekly Off Pattern:</strong> <strong style={{ color: 'var(--primary-navy)' }}>{c.weekly_off_pattern || 'sat,sun'}</strong></div>
                 <div><strong>Invoice Dispute Window:</strong> {c.invoice_dispute_window_days !== null && c.invoice_dispute_window_days !== undefined ? `${c.invoice_dispute_window_days} Days` : 'N/A'}</div>
                 <div><strong>Payroll Convention:</strong> <span style={{ textTransform: 'capitalize' }}>{c.payroll_convention || 'N/A'}</span></div>
                 <div><strong>Notice Period:</strong> {c.notice_period_days || 0} Days</div>

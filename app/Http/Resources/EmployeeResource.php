@@ -64,6 +64,8 @@ class EmployeeResource extends JsonResource
             'lwf_applicable' => $this->lwf_applicable,
             'tds_regime' => $this->tds_regime,
             'gratuity_mode' => $this->gratuity_mode,
+            'weekly_off_pattern' => $this->weekly_off_pattern,
+            'weeklyOffPattern' => $this->weekly_off_pattern,
             
             // Bank Info (Partially Masked)
             'account_holder_name' => $this->account_holder_name,

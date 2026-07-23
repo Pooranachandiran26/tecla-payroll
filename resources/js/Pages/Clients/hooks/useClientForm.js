@@ -838,6 +838,8 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
       bonusApplicable: formData.bonusApplicable,
       bonusRate: parseFloat(formData.bonusPct || '8.33'),
       statutoryBonusApplicable: formData.bonusApplicable,
+      weekly_off_pattern: formData.weeklyOffPattern || 'sat,sun',
+      weeklyOffPattern: formData.weeklyOffPattern || 'sat,sun',
       lopBasis: formData.lopBasis,
       portalAccess: formData.portalAccess,
       portalEmail: formData.portalEmail,
@@ -1110,6 +1112,7 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
       gratuityApplicable: true, // Not in DB, default true
       bonusPct: client.bonus_rate_percentage || 8.33,
       bonusApplicable: client.statutory_bonus_applicable !== undefined ? client.statutory_bonus_applicable : false,
+      weeklyOffPattern: client.weekly_off_pattern || client.weeklyOffPattern || 'sat,sun',
       lopBasis: client.lop_basis_days || defaultLopBasis,
       portalAccess: client.client_portal_enabled || false,
       portalEmail: client.primary_poc_email || '',
