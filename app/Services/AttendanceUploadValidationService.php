@@ -186,28 +186,47 @@ class AttendanceUploadValidationService
                         $offCnt = $context['off_days_count'];
                         $holCnt = $context['workday_holiday_count'];
                         $clientName = $context['client_name'];
+                        $monthLabel = $context['month_label'];
 
-                        if ($daysLOP > 0) {
-                            // Reject over-count with LOP
-                            $notes = "Error: Uploaded total ({$uploadedTotal}) exceeds available slots ({$availableSlots}) with non-zero LOP. Original: {$daysPresent} present / {$daysLOP} LOP. You entered {$uploadedTotal} total days ({$daysPresent} present + {$daysLOP} LOP), but {$clientName}'s real working days this month are only {$availableSlots} ({$totalCal} days − {$offCnt} {$offLabelStr}s − {$holCnt} holiday(s)). Please re-check your numbers — they should add up to {$availableSlots}, not {$uploadedTotal}.";
-                            $errorCount++;
+                        $isNotYetEmployed = $employeeStart->gt($monthEnd);
+                        $dojFormatted = Carbon::parse($employee->date_of_joining)->format('F d, Y');
+
+                        if ($isNotYetEmployed) {
+                            if ($daysLOP > 0) {
+                                $notes = "Error: {$employee->employee_code} was not yet employed during {$monthLabel} (Date of Joining: {$dojFormatted}) — this employee has 0 real working days for this period. Please do not upload attendance for months before an employee's joining date.";
+                                $errorCount++;
+                            } else {
+                                $status = 'valid';
+                                $matchedRows++;
+                                $reconciledPresent = 0;
+                                $reconciledLop = 0;
+                                $notes = "Warning: Over-count capped. Uploaded: {$daysPresent} present / 0 LOP. Saved: 0 present / 0 LOP. {$employee->employee_code} was not yet employed during {$monthLabel} (Date of Joining: {$dojFormatted}) — this employee has 0 real working days for this period. Please do not upload attendance for months before an employee's joining date.";
+
+                                $dbPayloads = [];
+                            }
                         } else {
-                            // Cap present days if LOP is 0
-                            $status = 'valid';
-                            $matchedRows++;
-                            $reconciledPresent = $availableSlots;
-                            $reconciledLop = 0;
-                            $notes = "Warning: Over-count capped. Uploaded: {$daysPresent} present / 0 LOP. Saved: {$reconciledPresent} present / 0 LOP. You entered {$daysPresent} present days, but {$clientName}'s real working days this month are only {$availableSlots} ({$totalCal} days − {$offCnt} {$offLabelStr}s − {$holCnt} holiday(s)). Present count has been automatically adjusted to {$availableSlots}.";
+                            if ($daysLOP > 0) {
+                                // Reject over-count with LOP
+                                $notes = "Error: Uploaded total ({$uploadedTotal}) exceeds available slots ({$availableSlots}) with non-zero LOP. Original: {$daysPresent} present / {$daysLOP} LOP. You entered {$uploadedTotal} total days ({$daysPresent} present + {$daysLOP} LOP), but {$clientName}'s real working days this month are only {$availableSlots} ({$totalCal} days − {$offCnt} {$offLabelStr}s − {$holCnt} holiday(s)). Please re-check your numbers — they should add up to {$availableSlots}, not {$uploadedTotal}.";
+                                $errorCount++;
+                            } else {
+                                // Cap present days if LOP is 0
+                                $status = 'valid';
+                                $matchedRows++;
+                                $reconciledPresent = $availableSlots;
+                                $reconciledLop = 0;
+                                $notes = "Warning: Over-count capped. Uploaded: {$daysPresent} present / 0 LOP. Saved: {$reconciledPresent} present / 0 LOP. You entered {$daysPresent} present days, but {$clientName}'s real working days this month are only {$availableSlots} ({$totalCal} days − {$offCnt} {$offLabelStr}s − {$holCnt} holiday(s)). Present count has been automatically adjusted to {$availableSlots}.";
 
-                            $dbPayloads = $this->expandToDaily(
-                                $employee->id,
-                                $reconciledPresent,
-                                $reconciledLop,
-                                $effectiveStart,
-                                $monthEnd,
-                                $empOffDays,
-                                $clientHolidayDates
-                            );
+                                $dbPayloads = $this->expandToDaily(
+                                    $employee->id,
+                                    $reconciledPresent,
+                                    $reconciledLop,
+                                    $effectiveStart,
+                                    $monthEnd,
+                                    $empOffDays,
+                                    $clientHolidayDates
+                                );
+                            }
                         }
                     }
                 }

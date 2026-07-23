@@ -345,11 +345,6 @@ class MonthlyPayrollCalculator
             return false;
         }
 
-        // If gross salary is within statutory ESI limit (<= ₹21,000), ESI is always active
-        if ($grossTotal <= 21000) {
-            return true;
-        }
-
         $currentDate = Carbon::parse($payrollRun->payroll_month)->startOfDay();
         [$periodStart, $periodEnd] = $this->getEsiPeriod($currentDate);
 
