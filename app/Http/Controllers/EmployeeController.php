@@ -35,7 +35,7 @@ class EmployeeController extends Controller
             $query->where('employment_model', $request->employment_model);
         }
 
-        $employees = $query->paginate(10)->withQueryString();
+        $employees = $query->orderBy('id', 'desc')->paginate(10)->withQueryString();
         
         $clients = \App\Models\Client::where('status', 'active')->select('id', 'company_name')->get();
         
