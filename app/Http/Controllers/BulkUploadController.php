@@ -20,7 +20,7 @@ class BulkUploadController extends Controller
         if (!in_array($request->user()->role, ['admin', 'manager'])) {
             abort(403, 'Unauthorized');
         }
-        $clients = \App\Models\Client::where('status', 'active')->select('id', 'company_name', 'client_code')->get();
+        $clients = \App\Models\Client::where('status', 'active')->select('id', 'company_name', 'client_code')->orderBy('id', 'desc')->get();
         return Inertia::render('Employees/BulkUpload', ['clients' => $clients]);
     }
 

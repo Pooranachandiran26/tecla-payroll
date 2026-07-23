@@ -770,10 +770,10 @@
   .modal-overlay.active .modal-box {
     transform: translateY(0);
   }
-  .modal-box-sm { width: 400px; }
-  .modal-box-lg { width: 700px; }
-  .modal-box-xl { width: 900px; }
-  .modal-box-full { width: 95%; max-width: 1200px; }
+  .modal-box-sm { width: 400px; max-width: 95vw; }
+  .modal-box-lg { width: 700px; max-width: 95vw; }
+  .modal-box-xl { width: 950px; max-width: 95vw; }
+  .modal-box-full { width: 95vw; max-width: 1200px; }
   .modal-header {
     display: flex;
     justify-content: space-between;

@@ -97,10 +97,10 @@ class AttendanceReviewTest extends TestCase
         $response->assertInertia(fn (Assert $page) => $page
             ->component('Payroll/AttendanceReview')
             ->has('initialBatches', 2)
-            ->where('initialBatches.0.client', 'Client A')
-            ->where('initialBatches.0.source', 'No Data Yet')
-            ->where('initialBatches.1.client', 'Client B')
-            ->where('initialBatches.1.source', 'Biometric portal / Punch-in')
+            ->where('initialBatches.0.client', 'Client B')
+            ->where('initialBatches.0.source', 'Biometric portal / Punch-in')
+            ->where('initialBatches.1.client', 'Client A')
+            ->where('initialBatches.1.source', 'No Data Yet')
         );
 
         // Client A now gets a spreadsheet upload batch
@@ -117,8 +117,8 @@ class AttendanceReviewTest extends TestCase
         $response2 = $this->actingAs($this->admin)->get('/payroll/attendance-review?month=2026-07');
         $response2->assertInertia(fn (Assert $page) => $page
             ->component('Payroll/AttendanceReview')
-            ->where('initialBatches.0.client', 'Client A')
-            ->where('initialBatches.0.source', 'Spreadsheet Upload')
+            ->where('initialBatches.1.client', 'Client A')
+            ->where('initialBatches.1.source', 'Spreadsheet Upload')
         );
     }
 
@@ -177,8 +177,8 @@ class AttendanceReviewTest extends TestCase
 
         $response->assertInertia(fn (Assert $page) => $page
             ->component('Payroll/AttendanceReview')
-            ->where('initialBatches.0.status', 'verified')
-            ->where('initialBatches.0.verifiedText', fn ($text) => 
+            ->where('initialBatches.1.status', 'verified')
+            ->where('initialBatches.1.verifiedText', fn ($text) => 
                 str_contains($text, 'Verified') && str_contains($text, $this->admin->name)
             )
         );

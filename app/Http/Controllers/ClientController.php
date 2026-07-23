@@ -218,7 +218,7 @@ class ClientController extends Controller
                     $query->where('status', 'active');
                 }]);
                
-        $employees = $client->employees()->paginate(10);
+        $employees = $client->employees()->orderBy('id', 'desc')->paginate(10);
                
         return Inertia::render('Clients/ClientDetail', [
             'client' => new ClientResource($client),
