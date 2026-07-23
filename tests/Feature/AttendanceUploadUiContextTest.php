@@ -130,9 +130,9 @@ class AttendanceUploadUiContextTest extends TestCase
         @unlink($csvPath);
 
         $this->assertEquals(1, $result['error_count']);
-        $this->assertStringContainsString("You entered 27 total days (25 present + 2 LOP)", $result['rows'][0]['notes']);
-        $this->assertStringContainsString("MSG_TEST_CLIENT's real working days this month are only 25", $result['rows'][0]['notes']);
-        $this->assertStringContainsString("(31 days − 5 Sundays − 1 holiday(s))", $result['rows'][0]['notes']);
-        $this->assertStringContainsString("they should add up to 25, not 27", $result['rows'][0]['notes']);
+        $this->assertEquals(
+            "⚠️ Numbers don't match — you entered 27 days total, but this month only has 25 working days. Please fix and re-upload.",
+            $result['rows'][0]['notes']
+        );
     }
 }

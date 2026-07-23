@@ -77,6 +77,22 @@ class Employee extends Model
                                ->count();
     }
 
+    public function loans()
+    {
+        return $this->hasMany(EmployeeLoan::class);
+    }
+
+    public function activeLoansEmiSumForMonth($payrollMonth)
+    {
+        $monthEnd = \Carbon\Carbon::parse($payrollMonth)->endOfMonth()->toDateString();
+
+        return (float) $this->loans()
+            ->where('status', 'active')
+            ->where('remaining_balance', '>', 0)
+            ->where('start_date', '<=', $monthEnd)
+            ->sum('monthly_emi');
+    }
+
     public function getEmployeePfMonthlyAttribute()
     {
         if (!$this->pf_applicable) return 0.00;

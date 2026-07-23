@@ -95,7 +95,7 @@ class AttendanceUploadTest extends TestCase
         $lines = explode("\n", trim($content));
 
         $this->assertGreaterThanOrEqual(1, count($lines));
-        $this->assertEquals('employee_code,days_present,days_lop', trim($lines[0]));
+        $this->assertEquals('target_month,employee_code,days_present,days_lop', trim($lines[0]));
     }
 
     /**
@@ -276,9 +276,9 @@ class AttendanceUploadTest extends TestCase
         $rows = $response->json('rows');
         $this->assertEquals('invalid', $rows[0]['status']);
 
-        // Confirm the error message shows the overcount details
-        $this->assertStringContainsString('exceeds available slots', $rows[0]['notes']);
-        $this->assertStringContainsString('Original: 25 present / 2 LOP', $rows[0]['notes']);
+        // Confirm the error message shows the overcount details using new short template
+        $this->assertStringContainsString("⚠️ Numbers don't match", $rows[0]['notes']);
+        $this->assertStringContainsString('entered 27 days total', $rows[0]['notes']);
     }
 
     /**
@@ -321,7 +321,7 @@ class AttendanceUploadTest extends TestCase
 
         $badRows = $responseBad->json('rows');
         $this->assertEquals('invalid', $badRows[0]['status']);
-        $this->assertStringContainsString('exceeds available slots', $badRows[0]['notes']);
+        $this->assertStringContainsString("⚠️ Numbers don't match", $badRows[0]['notes']);
 
         // === POSITIVE PATH: 18 + 2 = 20 slots available ===
         $csvGood = "employee_code,days_present,days_lop\n";
@@ -436,9 +436,9 @@ class AttendanceUploadTest extends TestCase
 
         $rows = $response->json('rows');
         $this->assertEquals('valid', $rows[0]['status']);
-        $this->assertStringContainsString('Warning: Over-count capped', $rows[0]['notes']);
-        $this->assertStringContainsString('Uploaded: 23 present / 0 LOP', $rows[0]['notes']);
-        $this->assertStringContainsString('Saved: 22 present / 0 LOP', $rows[0]['notes']);
+        $this->assertStringContainsString('⚠️ Adjusted', $rows[0]['notes']);
+        $this->assertStringContainsString('entered 23 present days', $rows[0]['notes']);
+        $this->assertStringContainsString('automatically capped it to 22', $rows[0]['notes']);
     }
 
     /**
@@ -473,7 +473,7 @@ class AttendanceUploadTest extends TestCase
 
         $rows = $response->json('rows');
         $this->assertEquals('invalid', $rows[0]['status']);
-        $this->assertStringContainsString('Error: Uploaded total (23) exceeds available slots (22) with non-zero LOP', $rows[0]['notes']);
+        $this->assertStringContainsString("⚠️ Numbers don't match — you entered 23 days total, but this month only has 22 working days", $rows[0]['notes']);
     }
 
     /**
@@ -509,5 +509,147 @@ class AttendanceUploadTest extends TestCase
             ->where('status', 'present')
             ->count();
         $this->assertEquals(22, $uploadedPresentCount);
+    }
+
+    /**
+     * 12. Test skipped status for employee whose DOJ is after target month:
+     *     - Preview shows status = 'skipped', skipped_count = 1, and distinct note
+     *     - Execute save writes ZERO attendance_records to the database
+     */
+    public function test_validate_and_execute_upload_handles_skipped_unjoined_employee_with_zero_db_records()
+    {
+        // Employee C joined July 22, 2026
+        $employeeC = Employee::factory()->create([
+            'client_id' => $this->clientA->id,
+            'employee_code' => 'EMP-UNJOINED',
+            'full_name' => 'Unjoined Employee',
+            'date_of_joining' => '2026-07-22',
+        ]);
+
+        $csvContent = "employee_code,days_present,days_lop\nEMP-UNJOINED,26,0\n";
+        $file1 = UploadedFile::fake()->createWithContent('timesheet1.csv', $csvContent);
+        $file2 = UploadedFile::fake()->createWithContent('timesheet2.csv', $csvContent);
+
+        // 1. Validation Preview
+        $responseValidate = $this->actingAs($this->admin)->post('/payroll/attendance/validate', [
+            'client_id' => $this->clientA->id,
+            'target_month' => '2026-05', // May 2026 (before July 22, 2026)
+            'file' => $file1,
+        ]);
+
+        $responseValidate->assertStatus(200);
+        $responseValidate->assertJsonPath('total_rows', 1);
+        $responseValidate->assertJsonPath('matched_rows', 0);
+        $responseValidate->assertJsonPath('skipped_count', 1);
+        $responseValidate->assertJsonPath('error_count', 0);
+
+        $rows = $responseValidate->json('rows');
+        $this->assertEquals('skipped', $rows[0]['status']);
+        $this->assertStringContainsString('⚠️ Not yet joined — EMP-UNJOINED joined July 22, 2026. No attendance recorded for May 2026.', $rows[0]['notes']);
+
+        // 2. Execute Upload Save Action
+        $responseExecute = $this->actingAs($this->admin)->post('/payroll/attendance/upload', [
+            'client_id' => $this->clientA->id,
+            'target_month' => '2026-05',
+            'file' => $file2,
+        ]);
+
+        $responseExecute->assertRedirect();
+        $responseExecute->assertSessionHasNoErrors();
+
+        // 3. Database Proof: ZERO attendance_records created for this employee in May 2026
+        $savedCount = AttendanceRecord::where('employee_id', $employeeC->id)
+            ->whereBetween('attendance_date', ['2026-05-01', '2026-05-31'])
+            ->count();
+
+        $this->assertEquals(0, $savedCount, 'Skipped employee must have ZERO attendance_records saved in DB');
+    }
+
+    /**
+     * 13. Test download template with live context & comment line guard.
+     */
+    public function test_download_template_with_live_context_and_comment_parser_guard()
+    {
+        $response = $this->actingAs($this->admin)->get('/payroll/attendance/template?client_id=' . $this->clientA->id . '&target_month=2026-08');
+
+        $response->assertStatus(200);
+        $content = $response->streamedContent();
+
+        $this->assertStringContainsString('target_month,employee_code,days_present,days_lop', $content);
+        $this->assertStringContainsString('2026-08,EMP-A01,', $content);
+        $this->assertStringContainsString('# REFERENCE INFO & CLIENT RULES', $content);
+        $this->assertStringContainsString('# Target Client: Client A', $content);
+
+        // Feed downloaded file back to validateFile to verify comment lines are cleanly skipped
+        $tempPath = storage_path('app/temp_downloaded_template_test.csv');
+        file_put_contents($tempPath, $content);
+
+        $validator = app(\App\Services\AttendanceUploadValidationService::class);
+        $result = $validator->validateFile($tempPath, $this->clientA->id, '2026-08');
+        @unlink($tempPath);
+
+        $this->assertEquals(1, $result['total_rows']);
+        $this->assertEquals(1, $result['matched_rows']);
+        $this->assertEquals(0, $result['error_count']);
+    }
+
+    /**
+     * 14. Test validate upload with matching target_month header column.
+     */
+    public function test_validate_upload_with_matching_target_month_header()
+    {
+        $csvContent = "target_month,employee_code,days_present,days_lop\n2026-07,EMP-A01,23,0\n";
+        $file = UploadedFile::fake()->createWithContent('timesheet.csv', $csvContent);
+
+        $response = $this->actingAs($this->admin)->post('/payroll/attendance/validate', [
+            'client_id' => $this->clientA->id,
+            'target_month' => '2026-07',
+            'file' => $file,
+        ]);
+
+        $response->assertStatus(200);
+        $rows = $response->json('rows');
+        $this->assertEquals('valid', $rows[0]['status']);
+        $this->assertEquals("", $rows[0]['notes']);
+    }
+
+    /**
+     * 15. Test validate upload with mismatch target_month header column generates warning (status stays valid).
+     */
+    public function test_validate_upload_with_mismatch_target_month_header_generates_warning()
+    {
+        $csvContent = "target_month,employee_code,days_present,days_lop\n2026-05,EMP-A01,23,0\n";
+        $file = UploadedFile::fake()->createWithContent('timesheet.csv', $csvContent);
+
+        $response = $this->actingAs($this->admin)->post('/payroll/attendance/validate', [
+            'client_id' => $this->clientA->id,
+            'target_month' => '2026-07', // Page selected month: July 2026 vs Sheet specifies: May 2026
+            'file' => $file,
+        ]);
+
+        $response->assertStatus(200);
+        $rows = $response->json('rows');
+        $this->assertEquals('valid', $rows[0]['status']);
+        $this->assertStringContainsString("⚠️ Target month mismatch — sheet specifies 'May 2026', but 'July 2026' was selected on this page. Proceeding with July 2026", $rows[0]['notes']);
+    }
+
+    /**
+     * 16. Test backward compatibility: old format without target_month column processes normally.
+     */
+    public function test_validate_upload_backward_compatibility_with_missing_target_month_header()
+    {
+        $csvContent = "employee_code,days_present,days_lop\nEMP-A01,23,0\n"; // Old format (no target_month column)
+        $file = UploadedFile::fake()->createWithContent('old_timesheet.csv', $csvContent);
+
+        $response = $this->actingAs($this->admin)->post('/payroll/attendance/validate', [
+            'client_id' => $this->clientA->id,
+            'target_month' => '2026-07',
+            'file' => $file,
+        ]);
+
+        $response->assertStatus(200);
+        $rows = $response->json('rows');
+        $this->assertEquals('valid', $rows[0]['status']);
+        $this->assertEquals("", $rows[0]['notes']);
     }
 }

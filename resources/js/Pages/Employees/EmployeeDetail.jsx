@@ -8,10 +8,11 @@ import RoleGuard from '../../Components/RoleGuard.jsx';
 import ComingSoonFeature from '../../Components/ui/ComingSoonFeature';
 import ConfirmDialog from '../../Components/ui/ConfirmDialog';
 import TaxDeclarationTab from './components/TaxDeclarationTab';
+import LoansAndAdvancesTab from './LoansAndAdvancesTab';
 
 export default function EmployeeDetail({ employee: empProp }) {
     const employee = empProp?.data || empProp || {};
-    const { auth, flash, attendanceRecords, attendanceStats, taxDeclaration, taxComparison } = usePage().props;
+    const { auth, flash, attendanceRecords, attendanceStats, taxDeclaration, taxComparison, loans } = usePage().props;
     const { showToast } = useToast();
     const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, confirmText: '', reason: '' });
     const [activeTab, setActiveTab] = useState('overview');
@@ -1307,17 +1308,7 @@ const renderDocumentRows = () => {
 
         {/*  Tab 7: Loans & Advances  */}
         <div className={`tab-content ${activeTab === 'loans' ? 'active' : ''}`} data-tab="loans">
-          <ComingSoonFeature 
-            title="Loans & Advances"
-            description="Salary advances and loan repayments will automatically deduct from monthly payslips once the Payroll Module is built."
-            dependsOn={["Payroll Module"]}
-            plannedFields={[
-              "Agency-issued salary advance tracking",
-              "Automatic monthly EMI deduction during payroll processing",
-              "External loan/garnishment order tracking",
-              "Repayment history"
-            ]}
-          />
+          <LoansAndAdvancesTab employee={employee} loans={loans || []} />
         </div>
       </div>{/*  end tab-container  */}
     

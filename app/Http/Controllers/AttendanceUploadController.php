@@ -60,31 +60,87 @@ class AttendanceUploadController extends Controller
     }
 
     /**
-     * Serve a downloadable CSV template with monthly summary headers.
+     * Serve a downloadable CSV template with monthly summary headers and live context.
      */
-    public function downloadTemplate()
+    public function downloadTemplate(Request $request)
     {
+        $clientId = $request->query('client_id');
+        $targetMonthStr = $request->query('target_month', Carbon::now()->format('Y-m'));
+
         $headers = [
-            'Content-Type' => 'text/csv',
+            'Content-Type' => 'text/csv; charset=UTF-8',
             'Content-Disposition' => 'attachment; filename="attendance_upload_template.csv"',
         ];
 
-        $callback = function () {
+        $context = null;
+        $sampleEmployees = [];
+        if (!empty($clientId)) {
+            $context = $this->validationService->calculateWorkingDaysContext((int) $clientId, $targetMonthStr);
+            $sampleEmployees = \App\Models\Employee::where('client_id', $clientId)
+                ->where('status', 'active')
+                ->limit(5)
+                ->get();
+        }
+
+        $targetMonthVal = $context ? $context['target_month'] : $targetMonthStr;
+        $workingDaysSlots = $context ? $context['working_days_slots'] : 22;
+
+        $callback = function () use ($targetMonthVal, $workingDaysSlots, $sampleEmployees, $context) {
             $file = fopen('php://output', 'w');
             
-            // CSV Headers — monthly summary format
+            // CSV Headers — monthly summary format with target_month
             fputcsv($file, [
+                'target_month',
                 'employee_code',
                 'days_present',
                 'days_lop'
             ]);
 
-            // Example row
-            fputcsv($file, [
-                'TEC-088',
-                '22',
-                '0'
-            ]);
+            // Pre-populated sample rows
+            if (!empty($sampleEmployees) && count($sampleEmployees) > 0) {
+                foreach ($sampleEmployees as $emp) {
+                    fputcsv($file, [
+                        $targetMonthVal,
+                        $emp->employee_code,
+                        (string) $workingDaysSlots,
+                        '0'
+                    ]);
+                }
+            } else {
+                fputcsv($file, [
+                    $targetMonthVal,
+                    'TEC-088',
+                    (string) $workingDaysSlots,
+                    '0'
+                ]);
+            }
+
+            // Reference Info Block (lines starting with #)
+            fputcsv($file, []);
+            fputcsv($file, ['# ==============================================================================']);
+            fputcsv($file, ['# REFERENCE INFO & CLIENT RULES (Do not edit these reference lines)']);
+            fputcsv($file, ['# ==============================================================================']);
+
+            if ($context) {
+                fputcsv($file, ['# Target Client: ' . $context['client_name']]);
+                fputcsv($file, ['# Payroll Target Month: ' . $context['month_label'] . ' (' . $context['target_month'] . ')']);
+                fputcsv($file, ['# Total Calendar Days: ' . $context['total_calendar_days']]);
+                fputcsv($file, ['# Off-Days Pattern: ' . $context['off_days_label'] . ' (' . $context['off_days_count'] . ' off days)']);
+                fputcsv($file, ['# Workday Holidays Count: ' . $context['workday_holiday_count']]);
+                fputcsv($file, ['# Required Working Days Slots: ' . $context['working_days_slots']]);
+                fputcsv($file, ['# Rule: Enter ONLY real working days worked + LOP. For each employee, days_present + days_lop must equal ' . $context['working_days_slots'] . '.']);
+                
+                if (!empty($context['holidays'])) {
+                    fputcsv($file, ['# Configured Holidays:']);
+                    foreach ($context['holidays'] as $h) {
+                        $offText = $h['is_off_day'] ? ' (Falls on Weekly Off)' : ' (Paid Holiday)';
+                        fputcsv($file, ['#   - ' . $h['date'] . ': ' . $h['name'] . $offText]);
+                    }
+                }
+            } else {
+                fputcsv($file, ['# Target Month: ' . $targetMonthVal]);
+                fputcsv($file, ['# Rule: Enter ONLY real working days worked + LOP.']);
+            }
 
             fclose($file);
         };

@@ -181,12 +181,18 @@ class EmployeeController extends Controller
             'annual_tax_savings' => abs($newRegimeTax['net_tax_payable'] - $oldRegimeTax['net_tax_payable']),
         ];
 
+        $loans = \App\Models\EmployeeLoan::with('repayments')
+            ->where('employee_id', $employee->id)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
         return \Inertia\Inertia::render('Employees/EmployeeDetail', [
             'employee' => new \App\Http\Resources\EmployeeResource($employee),
             'attendanceRecords' => $attendanceRecords,
             'attendanceStats' => $stats,
             'taxDeclaration' => $taxDeclaration,
             'taxComparison' => $taxComparison,
+            'loans' => $loans,
         ]);
     }
 

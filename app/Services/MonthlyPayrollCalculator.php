@@ -225,8 +225,12 @@ class MonthlyPayrollCalculator
         $tdsService = app(\App\Services\TdsCalculationService::class);
         $tdsDeduction = $tdsService->calculateMonthlyTds($employee, $payrollRun->payroll_month, $overrides);
 
-        // 4. Loan EMI Deduction
-        $loanEmiDeduction = (float)($overrides['loan_emi_deduction'] ?? 0.00);
+        // 4. Loan EMI Deduction (Explicit manual override takes priority, else fallback to active loans sum)
+        if (array_key_exists('loan_emi_deduction', $overrides) && $overrides['loan_emi_deduction'] !== null) {
+            $loanEmiDeduction = (float)$overrides['loan_emi_deduction'];
+        } else {
+            $loanEmiDeduction = $employee->activeLoansEmiSumForMonth($payrollRun->payroll_month);
+        }
 
         // f. Apply the 50%-deduction cap
         $statutoryAndTaxDeductions = $employeePf + $employeeEsi + $pt + $lwfDeduction + $tdsDeduction;

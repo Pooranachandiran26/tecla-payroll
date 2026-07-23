@@ -51,6 +51,8 @@ class AttendanceUploadValidationService
 
         $idxDaysPresent = array_search('days_present', $headers);
         $idxDaysLOP = array_search('days_lop', $headers);
+        $idxTargetMonth = array_search('target_month', $headers);
+        if ($idxTargetMonth === false) $idxTargetMonth = array_search('month', $headers);
 
         if ($idxEmpCode === false || $idxDaysPresent === false || $idxDaysLOP === false) {
             fclose($handle);
@@ -75,12 +77,13 @@ class AttendanceUploadValidationService
         $rows = [];
         $totalRows = 0;
         $matchedRows = 0;
+        $skippedCount = 0;
         $errorCount = 0;
         $rowNo = 1;
 
         while (($data = fgetcsv($handle)) !== false) {
-            // Skip empty rows
-            if (empty(array_filter($data))) {
+            // Skip empty rows and reference comment lines starting with #
+            if (empty(array_filter($data)) || (isset($data[0]) && str_starts_with(trim($data[0]), '#'))) {
                 continue;
             }
 
@@ -90,6 +93,21 @@ class AttendanceUploadValidationService
             $rawEmpCode = isset($data[$idxEmpCode]) ? trim($data[$idxEmpCode]) : '';
             $rawDaysPresent = isset($data[$idxDaysPresent]) ? trim($data[$idxDaysPresent]) : '';
             $rawDaysLOP = isset($data[$idxDaysLOP]) ? trim($data[$idxDaysLOP]) : '';
+            $rawTargetMonth = ($idxTargetMonth !== false && isset($data[$idxTargetMonth])) ? trim($data[$idxTargetMonth]) : '';
+
+            $monthMismatchNote = '';
+            if (!empty($rawTargetMonth)) {
+                try {
+                    $parsedSheetMonth = Carbon::parse($rawTargetMonth . (strlen($rawTargetMonth) === 7 ? '-01' : ''))->format('Y-m');
+                    if ($parsedSheetMonth !== $targetMonth) {
+                        $sheetMonthLabel = Carbon::parse($parsedSheetMonth . '-01')->format('F Y');
+                        $selectedMonthLabel = Carbon::parse($targetMonth . '-01')->format('F Y');
+                        $monthMismatchNote = "⚠️ Target month mismatch — sheet specifies '{$sheetMonthLabel}', but '{$selectedMonthLabel}' was selected on this page. Proceeding with {$selectedMonthLabel} — please double-check this is correct.";
+                    }
+                } catch (\Exception $e) {
+                    // Ignore unparseable rawTargetMonth
+                }
+            }
 
             $employee = null;
             $matchedName = 'Unmatched / Not Found';
@@ -145,7 +163,18 @@ class AttendanceUploadValidationService
                     $availableSlots = $employeeWorkingDays - $existingPunchCount;
                     $uploadedTotal = $daysPresent + $daysLOP;
 
-                    if ($uploadedTotal === $availableSlots) {
+                    $isNotYetEmployed = $employeeStart->gt($monthEnd);
+                    $dojFormatted = Carbon::parse($employee->date_of_joining)->format('F d, Y');
+                    $monthLabel = $context['month_label'];
+
+                    if ($isNotYetEmployed) {
+                        $status = 'skipped';
+                        $skippedCount++;
+                        $reconciledPresent = 0;
+                        $reconciledLop = 0;
+                        $notes = "⚠️ Not yet joined — {$employee->employee_code} joined {$dojFormatted}. No attendance recorded for {$monthLabel}.";
+                        $dbPayloads = [];
+                    } elseif ($uploadedTotal === $availableSlots) {
                         // Perfect match
                         $status = 'valid';
                         $matchedRows++;
@@ -181,15 +210,9 @@ class AttendanceUploadValidationService
                         );
                     } else {
                         // Over-count
-                        $offLabelStr = $context['off_days_label'];
-                        $totalCal = $context['total_calendar_days'];
-                        $offCnt = $context['off_days_count'];
-                        $holCnt = $context['workday_holiday_count'];
-                        $clientName = $context['client_name'];
-
                         if ($daysLOP > 0) {
                             // Reject over-count with LOP
-                            $notes = "Error: Uploaded total ({$uploadedTotal}) exceeds available slots ({$availableSlots}) with non-zero LOP. Original: {$daysPresent} present / {$daysLOP} LOP. You entered {$uploadedTotal} total days ({$daysPresent} present + {$daysLOP} LOP), but {$clientName}'s real working days this month are only {$availableSlots} ({$totalCal} days − {$offCnt} {$offLabelStr}s − {$holCnt} holiday(s)). Please re-check your numbers — they should add up to {$availableSlots}, not {$uploadedTotal}.";
+                            $notes = "⚠️ Numbers don't match — you entered {$uploadedTotal} days total, but this month only has {$availableSlots} working days. Please fix and re-upload.";
                             $errorCount++;
                         } else {
                             // Cap present days if LOP is 0
@@ -197,7 +220,7 @@ class AttendanceUploadValidationService
                             $matchedRows++;
                             $reconciledPresent = $availableSlots;
                             $reconciledLop = 0;
-                            $notes = "Warning: Over-count capped. Uploaded: {$daysPresent} present / 0 LOP. Saved: {$reconciledPresent} present / 0 LOP. You entered {$daysPresent} present days, but {$clientName}'s real working days this month are only {$availableSlots} ({$totalCal} days − {$offCnt} {$offLabelStr}s − {$holCnt} holiday(s)). Present count has been automatically adjusted to {$availableSlots}.";
+                            $notes = "⚠️ Adjusted — you entered {$daysPresent} present days, but this month only has {$availableSlots}. We've automatically capped it to {$availableSlots}.";
 
                             $dbPayloads = $this->expandToDaily(
                                 $employee->id,
@@ -214,6 +237,10 @@ class AttendanceUploadValidationService
             } else {
                 $notes = "Employee code '{$rawEmpCode}' not found for this client.";
                 $errorCount++;
+            }
+
+            if (!empty($monthMismatchNote)) {
+                $notes = empty($notes) ? $monthMismatchNote : ($monthMismatchNote . " " . $notes);
             }
 
             $rows[] = [
@@ -235,6 +262,7 @@ class AttendanceUploadValidationService
             'rows' => $rows,
             'total_rows' => $totalRows,
             'matched_rows' => $matchedRows,
+            'skipped_count' => $skippedCount,
             'error_count' => $errorCount,
         ];
     }

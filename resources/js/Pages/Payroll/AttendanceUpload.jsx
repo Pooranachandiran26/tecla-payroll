@@ -79,6 +79,7 @@ export default function AttendanceUpload({ clients }) {
       setSummary({
         total: response.data.total_rows,
         matched: response.data.matched_rows,
+        skipped: response.data.skipped_count || 0,
         errors: response.data.error_count
       });
       setLoading(false);
@@ -179,6 +180,7 @@ export default function AttendanceUpload({ clients }) {
       accessor: 'status',
       cell: (row) => {
         if (row.status === 'valid') return <Badge type="success">✓ Valid</Badge>;
+        if (row.status === 'skipped') return <Badge type="warning">⚠️ Skipped</Badge>;
         if (row.status === 'invalid') return <Badge type="danger">✗ Invalid</Badge>;
       }
     },
@@ -201,7 +203,7 @@ export default function AttendanceUpload({ clients }) {
           <div className="flex justify-between items-center mt-2 mb-1">
             <h2 className="text-2xl font-bold text-[#1F3864]">Upload External Attendance Sheets</h2>
             <a 
-              href={route('payroll.attendance.template')} 
+              href={route('payroll.attendance.template', { client_id: selectedClientId, target_month: targetMonth })} 
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-white border border-gray-300 rounded shadow-sm text-gray-700 hover:bg-gray-50"
             >
               <FileSpreadsheet className="w-3.5 h-3.5" />
@@ -351,7 +353,7 @@ export default function AttendanceUpload({ clients }) {
         </div>
 
         {summary && (
-          <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-4 gap-4 mb-6">
             <div className="bg-white p-4 border border-gray-200 rounded-md shadow-sm">
               <div className="text-gray-500 text-xs uppercase font-bold">Total Employees</div>
               <div className="text-xl font-extrabold text-[#1F3864] mt-1">{summary.total}</div>
@@ -359,6 +361,10 @@ export default function AttendanceUpload({ clients }) {
             <div className="bg-white p-4 border border-gray-200 rounded-md shadow-sm">
               <div className="text-green-600 text-xs uppercase font-bold">Valid / Matched</div>
               <div className="text-xl font-extrabold text-green-600 mt-1">{summary.matched}</div>
+            </div>
+            <div className="bg-white p-4 border border-gray-200 rounded-md shadow-sm">
+              <div className="text-amber-600 text-xs uppercase font-bold">Skipped (Not Joined)</div>
+              <div className="text-xl font-extrabold text-amber-600 mt-1">{summary.skipped}</div>
             </div>
             <div className="bg-white p-4 border border-gray-200 rounded-md shadow-sm">
               <div className="text-red-600 text-xs uppercase font-bold">Errors / Invalid</div>
