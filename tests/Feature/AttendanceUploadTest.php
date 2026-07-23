@@ -88,14 +88,8 @@ class AttendanceUploadTest extends TestCase
         $response = $this->actingAs($this->admin)->get('/payroll/attendance/template');
 
         $response->assertStatus(200);
-        $response->assertHeader('Content-Type', 'text/csv; charset=UTF-8');
-        $response->assertHeader('Content-Disposition', 'attachment; filename="attendance_upload_template.csv"');
-
-        $content = $response->streamedContent();
-        $lines = explode("\n", trim($content));
-
-        $this->assertGreaterThanOrEqual(1, count($lines));
-        $this->assertEquals('target_month,employee_code,days_present,days_lop', trim($lines[0]));
+        $response->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        $response->assertHeader('Content-Disposition', 'attachment; filename=attendance_upload_template.xlsx');
     }
 
     /**
@@ -566,27 +560,44 @@ class AttendanceUploadTest extends TestCase
     }
 
     /**
-     * 13. Test download template with live context & comment line guard.
+     * 13. Test download template as a real 2-Sheet .xlsx file with live context & piece 3 fields.
      */
-    public function test_download_template_with_live_context_and_comment_parser_guard()
+    public function test_download_template_with_live_context_and_2sheet_xlsx_structure()
     {
         $response = $this->actingAs($this->admin)->get('/payroll/attendance/template?client_id=' . $this->clientA->id . '&target_month=2026-08');
 
         $response->assertStatus(200);
-        $content = $response->streamedContent();
+        $downloadedFilePath = $response->getFile()->getPathname();
 
-        $this->assertStringContainsString('target_month,employee_code,days_present,days_lop', $content);
-        $this->assertStringContainsString('2026-08,EMP-A01,', $content);
-        $this->assertStringContainsString('# REFERENCE INFO & CLIENT RULES', $content);
-        $this->assertStringContainsString('# Target Client: Client A', $content);
+        // Read Sheet 1 ("Attendance Entry")
+        $reader1 = \Spatie\SimpleExcel\SimpleExcelReader::create($downloadedFilePath);
+        if (method_exists($reader1, 'fromSheetName')) {
+            $reader1->fromSheetName('Attendance Entry');
+        }
+        $sheet1Rows = $reader1->getRows()->toArray();
 
-        // Feed downloaded file back to validateFile to verify comment lines are cleanly skipped
-        $tempPath = storage_path('app/temp_downloaded_template_test.csv');
-        file_put_contents($tempPath, $content);
+        $this->assertCount(1, $sheet1Rows);
+        $this->assertEquals('2026-08', $sheet1Rows[0]['target_month']);
+        $this->assertEquals('EMP-A01', $sheet1Rows[0]['employee_code']);
 
+        // Read Sheet 2 ("Reference Info & Rules")
+        $reader2 = \Spatie\SimpleExcel\SimpleExcelReader::create($downloadedFilePath);
+        if (method_exists($reader2, 'fromSheetName')) {
+            $reader2->fromSheetName('Reference Info & Rules');
+        }
+        $sheet2Rows = $reader2->getRows()->toArray();
+
+        $this->assertGreaterThan(5, count($sheet2Rows));
+
+        $sections = array_column($sheet2Rows, 'Section');
+        $this->assertContains('Target Client', $sections);
+        $this->assertContains('Cycle Ends', $sections);
+        $this->assertContains('Target Lock Date', $sections);
+        $this->assertContains('Target Salary Credit', $sections);
+
+        // Feed downloaded 2-Sheet XLSX file directly to validateFile
         $validator = app(\App\Services\AttendanceUploadValidationService::class);
-        $result = $validator->validateFile($tempPath, $this->clientA->id, '2026-08');
-        @unlink($tempPath);
+        $result = $validator->validateFile($downloadedFilePath, $this->clientA->id, '2026-08');
 
         $this->assertEquals(1, $result['total_rows']);
         $this->assertEquals(1, $result['matched_rows']);

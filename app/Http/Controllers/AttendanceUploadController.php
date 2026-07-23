@@ -60,17 +60,12 @@ class AttendanceUploadController extends Controller
     }
 
     /**
-     * Serve a downloadable CSV template with monthly summary headers and live context.
+     * Serve a downloadable 2-Sheet .xlsx template with monthly summary headers and live context.
      */
     public function downloadTemplate(Request $request)
     {
         $clientId = $request->query('client_id');
         $targetMonthStr = $request->query('target_month', Carbon::now()->format('Y-m'));
-
-        $headers = [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="attendance_upload_template.csv"',
-        ];
 
         $context = null;
         $sampleEmployees = [];
@@ -85,67 +80,63 @@ class AttendanceUploadController extends Controller
         $targetMonthVal = $context ? $context['target_month'] : $targetMonthStr;
         $workingDaysSlots = $context ? $context['working_days_slots'] : 22;
 
-        $callback = function () use ($targetMonthVal, $workingDaysSlots, $sampleEmployees, $context) {
-            $file = fopen('php://output', 'w');
-            
-            // CSV Headers — monthly summary format with target_month
-            fputcsv($file, [
-                'target_month',
-                'employee_code',
-                'days_present',
-                'days_lop'
-            ]);
+        $tempPath = storage_path('app/temp_tmpl_' . \Illuminate\Support\Str::random(16) . '.xlsx');
+        $writer = \Spatie\SimpleExcel\SimpleExcelWriter::create($tempPath);
 
-            // Pre-populated sample rows
-            if (!empty($sampleEmployees) && count($sampleEmployees) > 0) {
-                foreach ($sampleEmployees as $emp) {
-                    fputcsv($file, [
-                        $targetMonthVal,
-                        $emp->employee_code,
-                        (string) $workingDaysSlots,
-                        '0'
-                    ]);
-                }
-            } else {
-                fputcsv($file, [
-                    $targetMonthVal,
-                    'TEC-088',
-                    (string) $workingDaysSlots,
-                    '0'
+        // --- SHEET 1: "Attendance Entry" (DATA ENTRY SHEET) ---
+        $writer->nameCurrentSheet('Attendance Entry');
+        if (!empty($sampleEmployees) && count($sampleEmployees) > 0) {
+            foreach ($sampleEmployees as $emp) {
+                $writer->addRow([
+                    'target_month' => $targetMonthVal,
+                    'employee_code' => $emp->employee_code,
+                    'days_present' => (string) $workingDaysSlots,
+                    'days_lop' => '0',
                 ]);
             }
+        } else {
+            $writer->addRow([
+                'target_month' => $targetMonthVal,
+                'employee_code' => 'TEC-088',
+                'days_present' => (string) $workingDaysSlots,
+                'days_lop' => '0',
+            ]);
+        }
 
-            // Reference Info Block (lines starting with #)
-            fputcsv($file, []);
-            fputcsv($file, ['# ==============================================================================']);
-            fputcsv($file, ['# REFERENCE INFO & CLIENT RULES (Do not edit these reference lines)']);
-            fputcsv($file, ['# ==============================================================================']);
+        // --- SHEET 2: "Reference Info & Rules" (READ-ONLY GUIDANCE TAB) ---
+        $writer->addNewSheetAndMakeItCurrent('Reference Info & Rules');
 
-            if ($context) {
-                fputcsv($file, ['# Target Client: ' . $context['client_name']]);
-                fputcsv($file, ['# Payroll Target Month: ' . $context['month_label'] . ' (' . $context['target_month'] . ')']);
-                fputcsv($file, ['# Total Calendar Days: ' . $context['total_calendar_days']]);
-                fputcsv($file, ['# Off-Days Pattern: ' . $context['off_days_label'] . ' (' . $context['off_days_count'] . ' off days)']);
-                fputcsv($file, ['# Workday Holidays Count: ' . $context['workday_holiday_count']]);
-                fputcsv($file, ['# Required Working Days Slots: ' . $context['working_days_slots']]);
-                fputcsv($file, ['# Rule: Enter ONLY real working days worked + LOP. For each employee, days_present + days_lop must equal ' . $context['working_days_slots'] . '.']);
-                
-                if (!empty($context['holidays'])) {
-                    fputcsv($file, ['# Configured Holidays:']);
-                    foreach ($context['holidays'] as $h) {
-                        $offText = $h['is_off_day'] ? ' (Falls on Weekly Off)' : ' (Paid Holiday)';
-                        fputcsv($file, ['#   - ' . $h['date'] . ': ' . $h['name'] . $offText]);
-                    }
-                }
-            } else {
-                fputcsv($file, ['# Target Month: ' . $targetMonthVal]);
-                fputcsv($file, ['# Rule: Enter ONLY real working days worked + LOP.']);
+        // Section 1: Client & Payroll Cycle Timing (Piece 3 fields)
+        $writer->addRow(['Section' => '--- CLIENT & PAYROLL CYCLE TIMING ---', 'Details' => '']);
+        $writer->addRow(['Section' => 'Target Client', 'Details' => $context['client_name'] ?? 'N/A']);
+        $writer->addRow(['Section' => 'Payroll Target Month', 'Details' => ($context['month_label'] ?? '') . ' (' . $targetMonthVal . ')']);
+        $writer->addRow(['Section' => 'Cycle Ends', 'Details' => $context['cycle_ends_formatted'] ?? 'N/A']);
+        $writer->addRow(['Section' => 'Target Lock Date', 'Details' => $context['target_lock_date_formatted'] ?? 'N/A']);
+        $writer->addRow(['Section' => 'Target Salary Credit', 'Details' => $context['target_salary_credit_formatted'] ?? 'N/A']);
+
+        // Section 2: Working Days Breakdown
+        $writer->addRow(['Section' => '--- ATTENDANCE BREAKDOWN & RULES ---', 'Details' => '']);
+        $writer->addRow(['Section' => 'Total Calendar Days', 'Details' => (string) ($context['total_calendar_days'] ?? 31)]);
+        $writer->addRow(['Section' => 'Off-Days Pattern', 'Details' => ($context['off_days_label'] ?? 'Saturday & Sunday') . ' (' . ($context['off_days_count'] ?? 0) . ' off days)']);
+        $writer->addRow(['Section' => 'Workday Holidays Count', 'Details' => (string) ($context['workday_holiday_count'] ?? 0)]);
+        $writer->addRow(['Section' => 'Required Working Days Slots', 'Details' => (string) ($context['working_days_slots'] ?? 22)]);
+
+        // Section 3: Configured Holidays
+        if ($context && !empty($context['holidays'])) {
+            $writer->addRow(['Section' => '--- CONFIGURABLE HOLIDAYS ---', 'Details' => '']);
+            foreach ($context['holidays'] as $h) {
+                $offText = $h['is_off_day'] ? ' (Falls on Weekly Off)' : ' (Paid Holiday)';
+                $writer->addRow(['Section' => $h['date'], 'Details' => $h['name'] . $offText]);
             }
+        }
 
-            fclose($file);
-        };
+        // Section 4: Instruction Rule
+        $writer->addRow(['Section' => '--- HOW TO FILL THIS SHEET ---', 'Details' => '']);
+        $writer->addRow(['Section' => 'Data Entry Instructions', 'Details' => 'Fill out ONLY Sheet 1 ("Attendance Entry"). Enter ONLY real working days worked + LOP. For each employee, days_present + days_lop must equal ' . $workingDaysSlots . '.']);
 
-        return response()->stream($callback, 200, $headers);
+        $writer->close();
+
+        return response()->download($tempPath, 'attendance_upload_template.xlsx')->deleteFileAfterSend(true);
     }
 
     /**
@@ -161,13 +152,14 @@ class AttendanceUploadController extends Controller
         $request->validate([
             'client_id' => 'required|exists:clients,id',
             'target_month' => 'required|string', // Format: YYYY-MM
-            'file' => 'required|file|mimes:csv,txt|max:10240',
+            'file' => 'required|file|mimes:csv,txt,xlsx,xls|max:10240',
         ]);
 
         $file = $request->file('file');
+        $ext = $file->getClientOriginalExtension() ?: 'csv';
         
         // Save temporarily
-        $filename = \Illuminate\Support\Str::random(40) . '.csv';
+        $filename = \Illuminate\Support\Str::random(40) . '.' . $ext;
         $file->move(storage_path('app/temp_attendance_uploads'), $filename);
         $fullPath = storage_path('app/temp_attendance_uploads/' . $filename);
 
@@ -199,7 +191,7 @@ class AttendanceUploadController extends Controller
         $request->validate([
             'client_id' => 'required|exists:clients,id',
             'target_month' => 'required|string', // Format: "YYYY-MM"
-            'file' => 'required|file|mimes:csv,txt|max:10240',
+            'file' => 'required|file|mimes:csv,txt,xlsx,xls|max:10240',
         ]);
 
         $file = $request->file('file');
@@ -213,8 +205,10 @@ class AttendanceUploadController extends Controller
             return back()->with('error', 'Invalid target month format.');
         }
 
+        $ext = $file->getClientOriginalExtension() ?: 'csv';
+
         // Save temporarily
-        $filename = \Illuminate\Support\Str::random(40) . '.csv';
+        $filename = \Illuminate\Support\Str::random(40) . '.' . $ext;
         $file->move(storage_path('app/temp_attendance_uploads'), $filename);
         $fullPath = storage_path('app/temp_attendance_uploads/' . $filename);
 

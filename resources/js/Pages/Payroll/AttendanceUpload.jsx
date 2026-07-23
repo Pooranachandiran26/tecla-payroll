@@ -207,7 +207,7 @@ export default function AttendanceUpload({ clients }) {
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-white border border-gray-300 rounded shadow-sm text-gray-700 hover:bg-gray-50"
             >
               <FileSpreadsheet className="w-3.5 h-3.5" />
-              Download CSV Template
+              Download Excel (.xlsx) Template
             </a>
           </div>
           <p className="text-gray-500 text-sm">Upload monthly summary timesheets for clients who manage attendance separately instead of punch-in portal logging.</p>
