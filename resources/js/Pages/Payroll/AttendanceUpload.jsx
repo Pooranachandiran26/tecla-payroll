@@ -207,7 +207,7 @@ export default function AttendanceUpload({ clients }) {
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-white border border-gray-300 rounded shadow-sm text-gray-700 hover:bg-gray-50"
             >
               <FileSpreadsheet className="w-3.5 h-3.5" />
-              Download CSV Template
+              Download Excel (.xlsx) Template
             </a>
           </div>
           <p className="text-gray-500 text-sm">Upload monthly summary timesheets for clients who manage attendance separately instead of punch-in portal logging.</p>
@@ -320,7 +320,7 @@ export default function AttendanceUpload({ clients }) {
                   type="file" 
                   ref={fileInputRef} 
                   onChange={handleFileChange} 
-                  accept=".csv,.txt"
+                  accept=".csv,.xlsx,.xls,.txt"
                   className="hidden" 
                 />
 
@@ -336,8 +336,8 @@ export default function AttendanceUpload({ clients }) {
                     </>
                   ) : (
                     <>
-                      <p className="font-semibold text-[0.95rem] text-[#1F3864] mb-1">Click to select the timesheet CSV</p>
-                      <p className="text-[0.75rem] text-gray-500">Ensure columns: employee_code, days_present, days_lop</p>
+                      <p className="font-semibold text-[0.95rem] text-[#1F3864] mb-1">Click to select the timesheet file (.xlsx, .csv)</p>
+                      <p className="text-[0.75rem] text-gray-500">Supported formats: Excel (.xlsx), CSV (.csv). Ensure columns: target_month, employee_code, days_present, days_lop</p>
                     </>
                   )}
                 </div>

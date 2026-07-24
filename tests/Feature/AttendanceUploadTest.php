@@ -58,6 +58,7 @@ class AttendanceUploadTest extends TestCase
             'branch_id' => $branchA->id,
             'employee_code' => 'EMP-A01',
             'full_name' => 'Employee A',
+            'date_of_joining' => '2025-01-01',
             'status' => 'active',
             'uan_mode' => 'new',
             'personal_email' => 'employeea@example.com',
@@ -88,14 +89,8 @@ class AttendanceUploadTest extends TestCase
         $response = $this->actingAs($this->admin)->get('/payroll/attendance/template');
 
         $response->assertStatus(200);
-        $response->assertHeader('Content-Type', 'text/csv; charset=UTF-8');
-        $response->assertHeader('Content-Disposition', 'attachment; filename="attendance_upload_template.csv"');
-
-        $content = $response->streamedContent();
-        $lines = explode("\n", trim($content));
-
-        $this->assertGreaterThanOrEqual(1, count($lines));
-        $this->assertEquals('target_month,employee_code,days_present,days_lop', trim($lines[0]));
+        $response->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        $response->assertHeader('Content-Disposition', 'attachment; filename=attendance_upload_template.xlsx');
     }
 
     /**
@@ -566,27 +561,58 @@ class AttendanceUploadTest extends TestCase
     }
 
     /**
-     * 13. Test download template with live context & comment line guard.
+     * 13. Test download template as a real 2-Sheet .xlsx file with swapped sheet order, live context & piece 3 fields.
      */
-    public function test_download_template_with_live_context_and_comment_parser_guard()
+    public function test_download_template_with_live_context_and_2sheet_xlsx_structure()
     {
         $response = $this->actingAs($this->admin)->get('/payroll/attendance/template?client_id=' . $this->clientA->id . '&target_month=2026-08');
 
         $response->assertStatus(200);
-        $content = $response->streamedContent();
+        $downloadedFilePath = $response->getFile()->getPathname();
 
-        $this->assertStringContainsString('target_month,employee_code,days_present,days_lop', $content);
-        $this->assertStringContainsString('2026-08,EMP-A01,', $content);
-        $this->assertStringContainsString('# REFERENCE INFO & CLIENT RULES', $content);
-        $this->assertStringContainsString('# Target Client: Client A', $content);
+        // 1. Inspect ZipArchive workbook XML for exact sheet order (Index 0 = Reference Info & Rules, Index 1 = Attendance Entry)
+        $zip = new \ZipArchive();
+        $this->assertTrue($zip->open($downloadedFilePath));
+        $workbookXml = $zip->getFromName('xl/workbook.xml');
+        preg_match_all('/<sheet name="([^"]+)"/i', $workbookXml, $matches);
+        $sheetNames = array_map('html_entity_decode', $matches[1]);
 
-        // Feed downloaded file back to validateFile to verify comment lines are cleanly skipped
-        $tempPath = storage_path('app/temp_downloaded_template_test.csv');
-        file_put_contents($tempPath, $content);
+        $this->assertEquals('Reference Info & Rules', $sheetNames[0]);
+        $this->assertEquals('Attendance Entry', $sheetNames[1]);
 
+        // 2. Inspect sheet1.xml for custom column widths (Width 35 & Width 75)
+        $sheet1Xml = $zip->getFromName('xl/worksheets/sheet1.xml');
+        $this->assertStringContainsString('width="35"', $sheet1Xml);
+        $this->assertStringContainsString('width="75"', $sheet1Xml);
+        $zip->close();
+
+        // 3. Read Sheet 1 ("Reference Info & Rules")
+        $reader1 = \Spatie\SimpleExcel\SimpleExcelReader::create($downloadedFilePath);
+        if (method_exists($reader1, 'fromSheetName')) {
+            $reader1->fromSheetName('Reference Info & Rules');
+        }
+        $refRows = $reader1->getRows()->toArray();
+        $this->assertGreaterThan(5, count($refRows));
+
+        $sections = array_column($refRows, 'Section');
+        $this->assertContains('Target Client', $sections);
+        $this->assertContains('Cycle Ends', $sections);
+        $this->assertContains('Target Lock Date', $sections);
+        $this->assertContains('Target Salary Credit', $sections);
+
+        // 4. Read Sheet 2 ("Attendance Entry") by name
+        $reader2 = \Spatie\SimpleExcel\SimpleExcelReader::create($downloadedFilePath);
+        if (method_exists($reader2, 'fromSheetName')) {
+            $reader2->fromSheetName('Attendance Entry');
+        }
+        $entryRows = $reader2->getRows()->toArray();
+        $this->assertCount(1, $entryRows);
+        $this->assertEquals('2026-08', $entryRows[0]['target_month']);
+        $this->assertEquals('EMP-A01', $entryRows[0]['employee_code']);
+
+        // 5. Feed downloaded 2-Sheet XLSX file directly to validateFile
         $validator = app(\App\Services\AttendanceUploadValidationService::class);
-        $result = $validator->validateFile($tempPath, $this->clientA->id, '2026-08');
-        @unlink($tempPath);
+        $result = $validator->validateFile($downloadedFilePath, $this->clientA->id, '2026-08');
 
         $this->assertEquals(1, $result['total_rows']);
         $this->assertEquals(1, $result['matched_rows']);
@@ -651,5 +677,206 @@ class AttendanceUploadTest extends TestCase
         $rows = $response->json('rows');
         $this->assertEquals('valid', $rows[0]['status']);
         $this->assertEquals("", $rows[0]['notes']);
+    }
+
+    /**
+     * 17. End-to-end test: Download actual 2-sheet template, upload back through validate & execute endpoints.
+     */
+    public function test_17_end_to_end_download_xlsx_template_and_execute_upload()
+    {
+        // 1. Download 2-sheet template
+        $dlResponse = $this->actingAs($this->admin)->get('/payroll/attendance/template?client_id=' . $this->clientA->id . '&target_month=2026-08');
+        $dlResponse->assertStatus(200);
+
+        $downloadedFilePath = $dlResponse->getFile()->getPathname();
+
+        // 2. Validate upload endpoint POST (using copy 1)
+        $copy1 = storage_path('app/temp_test_copy1.xlsx');
+        copy($downloadedFilePath, $copy1);
+        $uploadFile1 = new \Illuminate\Http\UploadedFile($copy1, 'attendance_upload_template.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', null, true);
+
+        $valResponse = $this->actingAs($this->admin)->post('/payroll/attendance/validate', [
+            'client_id' => $this->clientA->id,
+            'target_month' => '2026-08',
+            'file' => $uploadFile1,
+        ]);
+
+        $valResponse->assertStatus(200);
+        $rows = $valResponse->json('rows');
+        $this->assertEquals('valid', $rows[0]['status']);
+        $this->assertEquals(1, $valResponse->json('matched_rows'));
+
+        // 3. Execute upload endpoint POST (using copy 2)
+        $copy2 = storage_path('app/temp_test_copy2.xlsx');
+        copy($downloadedFilePath, $copy2);
+        $uploadFile2 = new \Illuminate\Http\UploadedFile($copy2, 'attendance_upload_template.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', null, true);
+
+        $execResponse = $this->actingAs($this->admin)->post('/payroll/attendance/upload', [
+            'client_id' => $this->clientA->id,
+            'target_month' => '2026-08',
+            'file' => $uploadFile2,
+            'conflict_policy' => 'overwrite',
+        ]);
+
+        $execResponse->assertRedirect();
+
+        // 4. Confirm attendance_records created in DB
+        $dbCount = \App\Models\AttendanceRecord::where('employee_id', $this->employeeA->id)
+            ->whereBetween('attendance_date', ['2026-08-01', '2026-08-31'])
+            ->count();
+
+        $this->assertGreaterThan(0, $dbCount);
+    }
+
+    /**
+     * 18. Test template download includes per-employee custom off-day pattern callout section when overrides exist.
+     */
+    public function test_18_template_download_includes_custom_off_day_pattern_section_when_overrides_exist()
+    {
+        $client = Client::factory()->create([
+            'company_name' => 'OVERRIDE_TEST_CLIENT',
+            'weekly_off_pattern' => 'sat,sun',
+        ]);
+        \App\Models\ClientBranch::factory()->create(['client_id' => $client->id]);
+
+        $empOverride = Employee::factory()->create([
+            'client_id' => $client->id,
+            'employee_code' => 'EMP-OVR-01',
+            'full_name' => 'Override Employee',
+            'weekly_off_pattern' => 'sun',
+            'date_of_joining' => '2025-01-01',
+            'personal_email' => 'ovr01@example.com',
+            'pan_number' => 'ABCDE9991A',
+            'aadhaar_number' => '900080007001',
+            'bank_account_number' => '8888000011',
+            'status' => 'active',
+        ]);
+
+        $empDefault = Employee::factory()->create([
+            'client_id' => $client->id,
+            'employee_code' => 'EMP-DEF-01',
+            'full_name' => 'Default Employee',
+            'weekly_off_pattern' => null,
+            'date_of_joining' => '2025-01-01',
+            'personal_email' => 'def01@example.com',
+            'pan_number' => 'ABCDE9992B',
+            'aadhaar_number' => '900080007002',
+            'bank_account_number' => '8888000022',
+            'status' => 'active',
+        ]);
+
+        $response = $this->actingAs($this->admin)->get("/payroll/attendance/template?client_id={$client->id}&target_month=2026-08");
+        $response->assertStatus(200);
+        $downloadedFilePath = $response->getFile()->getPathname();
+
+        $reader = \Spatie\SimpleExcel\SimpleExcelReader::create($downloadedFilePath)->fromSheetName('Reference Info & Rules');
+        $rows = $reader->getRows()->toArray();
+
+        $sections = array_column($rows, 'Section');
+        $this->assertContains('--- EMPLOYEES WITH CUSTOM OFF-DAY PATTERNS ---', $sections);
+
+        $overrideRowKey = 'EMP-OVR-01 (Override Employee)';
+        $this->assertContains($overrideRowKey, $sections);
+
+        // Find the details string for EMP-OVR-01
+        $overrideRow = array_values(array_filter($rows, fn($r) => $r['Section'] === $overrideRowKey))[0];
+        $this->assertStringContainsString('Sunday → Required Working Days: 26', $overrideRow['Details']); // Aug 2026: 31 - 5 Sundays = 26 slots
+
+        // Default employee must NOT be listed in sections
+        $this->assertNotContains('EMP-DEF-01 (Default Employee)', $sections);
+    }
+
+    /**
+     * 19. Test template download omits custom off-day pattern section entirely when no overrides exist.
+     */
+    public function test_19_template_download_omits_custom_off_day_pattern_section_when_no_overrides()
+    {
+        $client = Client::factory()->create([
+            'company_name' => 'NO_OVERRIDE_CLIENT',
+            'weekly_off_pattern' => 'sat,sun',
+        ]);
+        \App\Models\ClientBranch::factory()->create(['client_id' => $client->id]);
+
+        Employee::factory()->create([
+            'client_id' => $client->id,
+            'employee_code' => 'EMP-DEF-02',
+            'full_name' => 'Standard Employee',
+            'weekly_off_pattern' => null,
+            'date_of_joining' => '2025-01-01',
+            'personal_email' => 'def02@example.com',
+            'pan_number' => 'ABCDE9993C',
+            'aadhaar_number' => '900080007003',
+            'bank_account_number' => '8888000033',
+            'status' => 'active',
+        ]);
+
+        $response = $this->actingAs($this->admin)->get("/payroll/attendance/template?client_id={$client->id}&target_month=2026-08");
+        $response->assertStatus(200);
+        $downloadedFilePath = $response->getFile()->getPathname();
+
+        $reader = \Spatie\SimpleExcel\SimpleExcelReader::create($downloadedFilePath)->fromSheetName('Reference Info & Rules');
+        $rows = $reader->getRows()->toArray();
+
+        $sections = array_column($rows, 'Section');
+        $this->assertNotContains('--- EMPLOYEES WITH CUSTOM OFF-DAY PATTERNS ---', $sections);
+    }
+
+    /**
+     * 20. Test zero drift check: template override working days EXACTLY matches validateFile() enforcement.
+     */
+    public function test_20_zero_drift_check_template_override_working_days_matches_validate_file()
+    {
+        $client = Client::factory()->create([
+            'company_name' => 'ZERO_DRIFT_CLIENT',
+            'weekly_off_pattern' => 'sat,sun',
+        ]);
+        \App\Models\ClientBranch::factory()->create(['client_id' => $client->id]);
+
+        $empOverride = Employee::factory()->create([
+            'client_id' => $client->id,
+            'employee_code' => 'EMP-DRIFT-01',
+            'full_name' => 'Drift Test Employee',
+            'weekly_off_pattern' => 'sun',
+            'date_of_joining' => '2025-01-01',
+            'personal_email' => 'drift01@example.com',
+            'pan_number' => 'ABCDE9994D',
+            'aadhaar_number' => '900080007004',
+            'bank_account_number' => '8888000044',
+            'status' => 'active',
+        ]);
+
+        // 1. Download template and extract working days slot number from Sheet 1
+        $response = $this->actingAs($this->admin)->get("/payroll/attendance/template?client_id={$client->id}&target_month=2026-08");
+        $downloadedFilePath = $response->getFile()->getPathname();
+
+        $reader = \Spatie\SimpleExcel\SimpleExcelReader::create($downloadedFilePath)->fromSheetName('Reference Info & Rules');
+        $rows = $reader->getRows()->toArray();
+
+        $overrideRowKey = 'EMP-DRIFT-01 (Drift Test Employee)';
+        $overrideRow = array_values(array_filter($rows, fn($r) => $r['Section'] === $overrideRowKey))[0];
+
+        preg_match('/Required Working Days: (\d+)/', $overrideRow['Details'], $matches);
+        $sheetSlots = (int) $matches[1]; // 26 days
+
+        // 2. Validate row with exact sheetSlots -> must be 'valid'
+        $csvPathValid = storage_path('app/temp_zero_drift_valid.csv');
+        file_put_contents($csvPathValid, "target_month,employee_code,days_present,days_lop\n2026-08,EMP-DRIFT-01,{$sheetSlots},0\n");
+
+        $service = app(\App\Services\AttendanceUploadValidationService::class);
+        $resValid = $service->validateFile($csvPathValid, $client->id, '2026-08');
+        @unlink($csvPathValid);
+
+        $this->assertEquals('valid', $resValid['rows'][0]['status']);
+        $this->assertEquals(0, $resValid['error_count']);
+
+        // 3. Validate row with overcount mismatch (25 present + 3 LOP = 28 total vs 26 required slots) -> must flag error
+        $csvPathInvalid = storage_path('app/temp_zero_drift_invalid.csv');
+        file_put_contents($csvPathInvalid, "target_month,employee_code,days_present,days_lop\n2026-08,EMP-DRIFT-01,25,3\n");
+
+        $resInvalid = $service->validateFile($csvPathInvalid, $client->id, '2026-08');
+        @unlink($csvPathInvalid);
+
+        $this->assertEquals(1, $resInvalid['error_count']);
+        $this->assertStringContainsString("⚠️ Numbers don't match — you entered 28 days total, but this month only has 26 working days", $resInvalid['rows'][0]['notes']);
     }
 }

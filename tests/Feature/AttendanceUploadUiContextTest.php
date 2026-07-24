@@ -135,4 +135,11 @@ class AttendanceUploadUiContextTest extends TestCase
             $result['rows'][0]['notes']
         );
     }
+
+    #[Test]
+    public function test_4_frontend_file_input_accept_attribute_includes_xlsx()
+    {
+        $fileContent = file_get_contents(resource_path('js/Pages/Payroll/AttendanceUpload.jsx'));
+        $this->assertStringContainsString('accept=".csv,.xlsx,.xls,.txt"', $fileContent);
+    }
 }

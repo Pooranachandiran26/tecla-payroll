@@ -7,6 +7,7 @@ use App\Models\Employee;
 use App\Models\AttendanceRecord;
 use App\Models\Holiday;
 use Carbon\Carbon;
+use Spatie\SimpleExcel\SimpleExcelReader;
 
 class AttendanceUploadValidationService
 {
@@ -27,36 +28,72 @@ class AttendanceUploadValidationService
             throw new \Exception("File is not readable or does not exist.");
         }
 
-        $handle = fopen($filePath, 'r');
-        if (!$handle) {
-            throw new \Exception("Failed to open file handler.");
-        }
+        $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+        $rawRows = [];
 
-        // Parse header row
-        $headers = fgetcsv($handle);
-        if (!$headers) {
-            fclose($handle);
-            throw new \Exception("Empty CSV file.");
-        }
+        if (in_array($extension, ['xlsx', 'xls'])) {
+            $reader = SimpleExcelReader::create($filePath);
+            if (method_exists($reader, 'fromSheetName')) {
+                $reader->fromSheetName('Attendance Entry');
+            }
+            $excelRows = $reader->getRows()->toArray();
+            foreach ($excelRows as $r) {
+                $cleanRow = [];
+                foreach ($r as $k => $v) {
+                    $cleanKey = strtolower(trim(preg_replace('/[\x{FEFF}\x{FFFE}]/u', '', (string)$k)));
+                    $cleanRow[$cleanKey] = is_string($v) ? trim($v) : (string)$v;
+                }
 
-        // Clean headers: lowercase, trim, remove invisible UTF-8 BOM if present
-        $headers = array_map(function ($h) {
-            $h = preg_replace('/[\x{FEFF}\x{FFFE}]/u', '', $h);
-            return strtolower(trim($h));
-        }, $headers);
+                $rawRows[] = [
+                    'employee_code' => (string)($cleanRow['employee_code'] ?? $cleanRow['emp_code'] ?? ''),
+                    'days_present' => (string)($cleanRow['days_present'] ?? ''),
+                    'days_lop' => (string)($cleanRow['days_lop'] ?? ''),
+                    'target_month' => (string)($cleanRow['target_month'] ?? $cleanRow['month'] ?? ''),
+                ];
+            }
+        } else {
+            // CSV parsing
+            $handle = fopen($filePath, 'r');
+            if (!$handle) {
+                throw new \Exception("Failed to open file handler.");
+            }
 
-        // Find column indices
-        $idxEmpCode = array_search('employee_code', $headers);
-        if ($idxEmpCode === false) $idxEmpCode = array_search('emp_code', $headers);
+            $headers = fgetcsv($handle);
+            if (!$headers) {
+                if (is_resource($handle)) { @fclose($handle); }
+                throw new \Exception("Empty CSV file.");
+            }
 
-        $idxDaysPresent = array_search('days_present', $headers);
-        $idxDaysLOP = array_search('days_lop', $headers);
-        $idxTargetMonth = array_search('target_month', $headers);
-        if ($idxTargetMonth === false) $idxTargetMonth = array_search('month', $headers);
+            $headers = array_map(function ($h) {
+                $h = preg_replace('/[\x{FEFF}\x{FFFE}]/u', '', $h);
+                return strtolower(trim($h));
+            }, $headers);
 
-        if ($idxEmpCode === false || $idxDaysPresent === false || $idxDaysLOP === false) {
-            fclose($handle);
-            throw new \Exception("Missing required headers. Headers must include: employee_code, days_present, days_lop.");
+            $idxEmpCode = array_search('employee_code', $headers);
+            if ($idxEmpCode === false) $idxEmpCode = array_search('emp_code', $headers);
+            $idxDaysPresent = array_search('days_present', $headers);
+            $idxDaysLOP = array_search('days_lop', $headers);
+            $idxTargetMonth = array_search('target_month', $headers);
+            if ($idxTargetMonth === false) $idxTargetMonth = array_search('month', $headers);
+
+            if ($idxEmpCode === false || $idxDaysPresent === false || $idxDaysLOP === false) {
+                if (is_resource($handle)) { @fclose($handle); }
+                throw new \Exception("Missing required headers. Headers must include: employee_code, days_present, days_lop.");
+            }
+
+            while (($data = fgetcsv($handle)) !== false) {
+                if (empty(array_filter($data)) || (isset($data[0]) && str_starts_with(trim($data[0]), '#'))) {
+                    continue;
+                }
+
+                $rawRows[] = [
+                    'employee_code' => isset($data[$idxEmpCode]) ? trim($data[$idxEmpCode]) : '',
+                    'days_present' => isset($data[$idxDaysPresent]) ? trim($data[$idxDaysPresent]) : '',
+                    'days_lop' => isset($data[$idxDaysLOP]) ? trim($data[$idxDaysLOP]) : '',
+                    'target_month' => ($idxTargetMonth !== false && isset($data[$idxTargetMonth])) ? trim($data[$idxTargetMonth]) : '',
+                ];
+            }
+            if (is_resource($handle)) { @fclose($handle); }
         }
 
         // Compute working days for the target month using the client's weekly off pattern and holidays
@@ -81,19 +118,14 @@ class AttendanceUploadValidationService
         $errorCount = 0;
         $rowNo = 1;
 
-        while (($data = fgetcsv($handle)) !== false) {
-            // Skip empty rows and reference comment lines starting with #
-            if (empty(array_filter($data)) || (isset($data[0]) && str_starts_with(trim($data[0]), '#'))) {
-                continue;
-            }
-
+        foreach ($rawRows as $item) {
             $rowNo++;
             $totalRows++;
 
-            $rawEmpCode = isset($data[$idxEmpCode]) ? trim($data[$idxEmpCode]) : '';
-            $rawDaysPresent = isset($data[$idxDaysPresent]) ? trim($data[$idxDaysPresent]) : '';
-            $rawDaysLOP = isset($data[$idxDaysLOP]) ? trim($data[$idxDaysLOP]) : '';
-            $rawTargetMonth = ($idxTargetMonth !== false && isset($data[$idxTargetMonth])) ? trim($data[$idxTargetMonth]) : '';
+            $rawEmpCode = $item['employee_code'];
+            $rawDaysPresent = $item['days_present'];
+            $rawDaysLOP = $item['days_lop'];
+            $rawTargetMonth = $item['target_month'];
 
             $monthMismatchNote = '';
             if (!empty($rawTargetMonth)) {
@@ -255,8 +287,6 @@ class AttendanceUploadValidationService
                 'db_payloads' => $dbPayloads,
             ];
         }
-
-        fclose($handle);
 
         return [
             'rows' => $rows,
@@ -440,6 +470,10 @@ class AttendanceUploadValidationService
             'is_off_day' => in_array(strtolower(Carbon::parse($h->holiday_date)->format('D')), $empOffDays),
         ])->values()->toArray();
 
+        $cycleEndsFormatted = $clientModel ? $clientModel->getCycleEndDate($monthStart->toDateString())->format('M j, Y') : $monthEnd->format('M j, Y');
+        $targetLockDateFormatted = $clientModel ? ($clientModel->getTargetLockDate($monthStart->toDateString()) ?? 'N/A') : 'N/A';
+        $targetSalaryCreditFormatted = $clientModel ? ($clientModel->getTargetSalaryCreditDate($monthStart->toDateString()) ?? 'N/A') : 'N/A';
+
         return [
             'client_id' => $clientId,
             'client_name' => $clientName,
@@ -453,6 +487,9 @@ class AttendanceUploadValidationService
             'workday_holiday_count' => $workDayHolidays->count(),
             'holidays' => $formattedHolidays,
             'working_days_slots' => $workingDaysSlots,
+            'cycle_ends_formatted' => $cycleEndsFormatted,
+            'target_lock_date_formatted' => $targetLockDateFormatted,
+            'target_salary_credit_formatted' => $targetSalaryCreditFormatted,
         ];
     }
 }
