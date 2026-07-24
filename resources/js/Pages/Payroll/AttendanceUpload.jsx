@@ -243,7 +243,7 @@ export default function AttendanceUpload({ clients }) {
             </li>
           </ul>
 
-          <div className="p-6">
+          <div className="p-6 max-w-[760px] mx-auto">
             {tab === 'single' && (
               <>
                 <div className="flex gap-4 mb-6">
