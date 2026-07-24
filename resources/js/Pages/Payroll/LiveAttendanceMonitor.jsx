@@ -127,7 +127,11 @@ export default function LiveAttendanceMonitor({ clients, punches, selectedClient
               <span className="w-3 h-3 bg-green-500 rounded-full inline-block mr-2 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]"></span>
               Live Attendance Monitor
             </h2>
-            <p className="text-gray-500 text-sm">Today's live punch feed — showing who is clocked in right now. Monthly totals for payroll are computed in Attendance Review after the month closes.</p>
+            <p className="text-gray-500 text-sm">
+              {date === todayStr 
+                ? "Today's live punch feed — showing who is clocked in right now. Monthly totals for payroll are computed in Attendance Review after the month closes." 
+                : `Live punch feed for ${new Date(date + 'T00:00:00').toLocaleDateString('en-US', {month: 'long', day:'numeric', year:'numeric'})}. Monthly totals for payroll are computed in Attendance Review.`}
+            </p>
           </div>
           <div className="flex gap-3">
             <Button variant="secondary" onClick={handleRefresh} loading={isRefreshing}>
@@ -152,11 +156,30 @@ export default function LiveAttendanceMonitor({ clients, punches, selectedClient
               ))}
             </Select>
           </div>
-          <div>
-            <Select value={date} onChange={(e) => handleDateChange(e.target.value)}>
-              <option value={todayStr}>Today ({new Date(todayStr).toLocaleDateString('en-US', {month: 'long', day:'numeric', year:'numeric'})})</option>
-              <option value={yesterdayStr}>Yesterday ({new Date(yesterdayStr).toLocaleDateString('en-US', {month: 'long', day:'numeric', year:'numeric'})})</option>
-            </Select>
+          <div className="flex items-center gap-2">
+            <span className="text-[0.85rem] font-semibold text-gray-500">Date:</span>
+            <Input 
+              type="date" 
+              value={date} 
+              onChange={(e) => handleDateChange(e.target.value)} 
+              className="w-auto"
+            />
+            <Button 
+              variant="secondary" 
+              size="sm"
+              onClick={() => handleDateChange(todayStr)}
+              className={date === todayStr ? 'bg-blue-50 text-[#1F3864] font-bold border-blue-200' : ''}
+            >
+              Today
+            </Button>
+            <Button 
+              variant="secondary" 
+              size="sm"
+              onClick={() => handleDateChange(yesterdayStr)}
+              className={date === yesterdayStr ? 'bg-blue-50 text-[#1F3864] font-bold border-blue-200' : ''}
+            >
+              Yesterday
+            </Button>
           </div>
         </div>
 
