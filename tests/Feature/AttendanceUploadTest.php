@@ -58,6 +58,7 @@ class AttendanceUploadTest extends TestCase
             'branch_id' => $branchA->id,
             'employee_code' => 'EMP-A01',
             'full_name' => 'Employee A',
+            'date_of_joining' => '2025-01-01',
             'status' => 'active',
             'uan_mode' => 'new',
             'personal_email' => 'employeea@example.com',
@@ -676,5 +677,54 @@ class AttendanceUploadTest extends TestCase
         $rows = $response->json('rows');
         $this->assertEquals('valid', $rows[0]['status']);
         $this->assertEquals("", $rows[0]['notes']);
+    }
+
+    /**
+     * 17. End-to-end test: Download actual 2-sheet template, upload back through validate & execute endpoints.
+     */
+    public function test_17_end_to_end_download_xlsx_template_and_execute_upload()
+    {
+        // 1. Download 2-sheet template
+        $dlResponse = $this->actingAs($this->admin)->get('/payroll/attendance/template?client_id=' . $this->clientA->id . '&target_month=2026-08');
+        $dlResponse->assertStatus(200);
+
+        $downloadedFilePath = $dlResponse->getFile()->getPathname();
+
+        // 2. Validate upload endpoint POST (using copy 1)
+        $copy1 = storage_path('app/temp_test_copy1.xlsx');
+        copy($downloadedFilePath, $copy1);
+        $uploadFile1 = new \Illuminate\Http\UploadedFile($copy1, 'attendance_upload_template.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', null, true);
+
+        $valResponse = $this->actingAs($this->admin)->post('/payroll/attendance/validate', [
+            'client_id' => $this->clientA->id,
+            'target_month' => '2026-08',
+            'file' => $uploadFile1,
+        ]);
+
+        $valResponse->assertStatus(200);
+        $rows = $valResponse->json('rows');
+        $this->assertEquals('valid', $rows[0]['status']);
+        $this->assertEquals(1, $valResponse->json('matched_rows'));
+
+        // 3. Execute upload endpoint POST (using copy 2)
+        $copy2 = storage_path('app/temp_test_copy2.xlsx');
+        copy($downloadedFilePath, $copy2);
+        $uploadFile2 = new \Illuminate\Http\UploadedFile($copy2, 'attendance_upload_template.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', null, true);
+
+        $execResponse = $this->actingAs($this->admin)->post('/payroll/attendance/upload', [
+            'client_id' => $this->clientA->id,
+            'target_month' => '2026-08',
+            'file' => $uploadFile2,
+            'conflict_policy' => 'overwrite',
+        ]);
+
+        $execResponse->assertRedirect();
+
+        // 4. Confirm attendance_records created in DB
+        $dbCount = \App\Models\AttendanceRecord::where('employee_id', $this->employeeA->id)
+            ->whereBetween('attendance_date', ['2026-08-01', '2026-08-31'])
+            ->count();
+
+        $this->assertGreaterThan(0, $dbCount);
     }
 }
