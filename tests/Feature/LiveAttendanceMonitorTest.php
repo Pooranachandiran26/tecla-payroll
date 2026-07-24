@@ -164,4 +164,38 @@ class LiveAttendanceMonitorTest extends TestCase
             ->where('punches.data.1.out', '11:45 PM')
         );
     }
+
+    /**
+     * Test live monitor filters dynamically by any arbitrary date.
+     */
+    public function test_live_monitor_filters_by_arbitrary_date()
+    {
+        $pastDate = Carbon::today()->subDays(5)->toDateString();
+
+        // Seed punch record for employeeB on pastDate
+        DB::table('attendance_records')->insert([
+            'employee_id' => $this->employeeB->id,
+            'attendance_date' => $pastDate,
+            'punch_in_time' => '08:30:00',
+            'punch_out_time' => '17:30:00',
+            'hours_worked' => 9.0,
+            'status' => 'present',
+            'source' => 'live_punch',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this->actingAs($this->admin)->get("/payroll/live-monitor?date={$pastDate}");
+
+        $response->assertStatus(200);
+
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('Payroll/LiveAttendanceMonitor')
+            ->where('selectedDate', $pastDate)
+            ->where('punches.data.0.name', $this->employeeB->full_name)
+            ->where('punches.data.0.status', 'present')
+            ->where('punches.data.1.name', $this->employeeA->full_name)
+            ->where('punches.data.1.status', 'absent')
+        );
+    }
 }

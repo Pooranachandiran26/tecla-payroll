@@ -127,7 +127,11 @@ export default function LiveAttendanceMonitor({ clients, punches, selectedClient
               <span className="w-3 h-3 bg-green-500 rounded-full inline-block mr-2 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]"></span>
               Live Attendance Monitor
             </h2>
-            <p className="text-gray-500 text-sm">Today's live punch feed — showing who is clocked in right now. Monthly totals for payroll are computed in Attendance Review after the month closes.</p>
+            <p className="text-gray-500 text-sm">
+              {date === todayStr 
+                ? "Today's live punch feed — showing who is clocked in right now. Monthly totals for payroll are computed in Attendance Review after the month closes." 
+                : `Live punch feed for ${new Date(date + 'T00:00:00').toLocaleDateString('en-US', {month: 'long', day:'numeric', year:'numeric'})}. Monthly totals for payroll are computed in Attendance Review.`}
+            </p>
           </div>
           <div className="flex gap-3">
             <Button variant="secondary" onClick={handleRefresh} loading={isRefreshing}>
@@ -141,7 +145,7 @@ export default function LiveAttendanceMonitor({ clients, punches, selectedClient
 
         <div className="card p-4 mb-6 flex gap-4 items-center flex-wrap">
           <div className="text-[0.85rem] font-semibold text-[#1F3864]">Filters:</div>
-          <div className="flex-1 min-w-[150px]">
+          <div className="flex-1 min-w-[200px]">
             <Input placeholder="Search by Employee Name..." value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
           <div>
@@ -152,11 +156,28 @@ export default function LiveAttendanceMonitor({ clients, punches, selectedClient
               ))}
             </Select>
           </div>
-          <div>
-            <Select value={date} onChange={(e) => handleDateChange(e.target.value)}>
-              <option value={todayStr}>Today ({new Date(todayStr).toLocaleDateString('en-US', {month: 'long', day:'numeric', year:'numeric'})})</option>
-              <option value={yesterdayStr}>Yesterday ({new Date(yesterdayStr).toLocaleDateString('en-US', {month: 'long', day:'numeric', year:'numeric'})})</option>
-            </Select>
+          <div className="flex items-center gap-2">
+            <span className="text-[0.85rem] font-semibold text-gray-500 whitespace-nowrap">Date:</span>
+            <input 
+              type="date" 
+              value={date} 
+              onChange={(e) => handleDateChange(e.target.value)} 
+              className="px-3 py-1.5 text-xs font-semibold bg-white border border-gray-300 rounded shadow-sm text-gray-700 focus:ring-2 focus:ring-blue-500 focus:outline-none h-[38px]"
+            />
+            <button 
+              type="button"
+              onClick={() => handleDateChange(todayStr)}
+              className={`px-3 py-1.5 text-xs font-semibold border rounded shadow-sm transition-colors h-[38px] ${date === todayStr ? 'bg-[#1F3864] text-white border-[#1F3864]' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}
+            >
+              Today
+            </button>
+            <button 
+              type="button"
+              onClick={() => handleDateChange(yesterdayStr)}
+              className={`px-3 py-1.5 text-xs font-semibold border rounded shadow-sm transition-colors h-[38px] ${date === yesterdayStr ? 'bg-[#1F3864] text-white border-[#1F3864]' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}
+            >
+              Yesterday
+            </button>
           </div>
         </div>
 
