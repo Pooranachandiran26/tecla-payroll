@@ -130,7 +130,37 @@ class AttendanceUploadController extends Controller
             $writer->addRow(['Section' => '', 'Details' => '']);
         }
 
-        // Section 4: Instruction Rule
+        // Section 4: Employees with Custom Off-Day Patterns (Only if overrides exist)
+        if (!empty($clientId)) {
+            $clientModel = Client::find((int) $clientId);
+            $clientDefaultPattern = strtolower($clientModel?->weekly_off_pattern ?? 'sat,sun');
+
+            $overrideEmployees = \App\Models\Employee::where('client_id', $clientId)
+                ->where('status', 'active')
+                ->whereNotNull('weekly_off_pattern')
+                ->where('weekly_off_pattern', '!=', '')
+                ->where('weekly_off_pattern', '!=', $clientDefaultPattern)
+                ->get();
+
+            if ($overrideEmployees->isNotEmpty()) {
+                $writer->addRow(['Section' => '--- EMPLOYEES WITH CUSTOM OFF-DAY PATTERNS ---', 'Details' => ''], $headerStyle);
+                $writer->addRow([
+                    'Section' => 'Special Rule Note',
+                    'Details' => 'These employees have a DIFFERENT weekly off pattern than the client default above. Their required working days differ from the number shown above — check each one individually below.',
+                ]);
+
+                foreach ($overrideEmployees as $empOverride) {
+                    $empContext = $this->validationService->calculateWorkingDaysContext((int) $clientId, $targetMonthStr, $empOverride);
+                    $writer->addRow([
+                        'Section' => $empOverride->employee_code . ' (' . $empOverride->full_name . ')',
+                        'Details' => $empContext['off_days_label'] . ' → Required Working Days: ' . $empContext['working_days_slots'],
+                    ]);
+                }
+                $writer->addRow(['Section' => '', 'Details' => '']);
+            }
+        }
+
+        // Section 5: Instruction Rule
         $writer->addRow(['Section' => '--- HOW TO FILL THIS SHEET ---', 'Details' => ''], $headerStyle);
         $writer->addRow(['Section' => 'Data Entry Instructions', 'Details' => 'Switch to Sheet 2 ("Attendance Entry") to enter attendance data. Enter ONLY real working days worked + LOP. For each employee, days_present + days_lop must equal ' . $workingDaysSlots . '.']);
 

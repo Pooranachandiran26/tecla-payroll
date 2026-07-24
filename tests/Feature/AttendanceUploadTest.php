@@ -727,4 +727,156 @@ class AttendanceUploadTest extends TestCase
 
         $this->assertGreaterThan(0, $dbCount);
     }
+
+    /**
+     * 18. Test template download includes per-employee custom off-day pattern callout section when overrides exist.
+     */
+    public function test_18_template_download_includes_custom_off_day_pattern_section_when_overrides_exist()
+    {
+        $client = Client::factory()->create([
+            'company_name' => 'OVERRIDE_TEST_CLIENT',
+            'weekly_off_pattern' => 'sat,sun',
+        ]);
+        \App\Models\ClientBranch::factory()->create(['client_id' => $client->id]);
+
+        $empOverride = Employee::factory()->create([
+            'client_id' => $client->id,
+            'employee_code' => 'EMP-OVR-01',
+            'full_name' => 'Override Employee',
+            'weekly_off_pattern' => 'sun',
+            'date_of_joining' => '2025-01-01',
+            'personal_email' => 'ovr01@example.com',
+            'pan_number' => 'ABCDE9991A',
+            'aadhaar_number' => '900080007001',
+            'bank_account_number' => '8888000011',
+            'status' => 'active',
+        ]);
+
+        $empDefault = Employee::factory()->create([
+            'client_id' => $client->id,
+            'employee_code' => 'EMP-DEF-01',
+            'full_name' => 'Default Employee',
+            'weekly_off_pattern' => null,
+            'date_of_joining' => '2025-01-01',
+            'personal_email' => 'def01@example.com',
+            'pan_number' => 'ABCDE9992B',
+            'aadhaar_number' => '900080007002',
+            'bank_account_number' => '8888000022',
+            'status' => 'active',
+        ]);
+
+        $response = $this->actingAs($this->admin)->get("/payroll/attendance/template?client_id={$client->id}&target_month=2026-08");
+        $response->assertStatus(200);
+        $downloadedFilePath = $response->getFile()->getPathname();
+
+        $reader = \Spatie\SimpleExcel\SimpleExcelReader::create($downloadedFilePath)->fromSheetName('Reference Info & Rules');
+        $rows = $reader->getRows()->toArray();
+
+        $sections = array_column($rows, 'Section');
+        $this->assertContains('--- EMPLOYEES WITH CUSTOM OFF-DAY PATTERNS ---', $sections);
+
+        $overrideRowKey = 'EMP-OVR-01 (Override Employee)';
+        $this->assertContains($overrideRowKey, $sections);
+
+        // Find the details string for EMP-OVR-01
+        $overrideRow = array_values(array_filter($rows, fn($r) => $r['Section'] === $overrideRowKey))[0];
+        $this->assertStringContainsString('Sunday → Required Working Days: 26', $overrideRow['Details']); // Aug 2026: 31 - 5 Sundays = 26 slots
+
+        // Default employee must NOT be listed in sections
+        $this->assertNotContains('EMP-DEF-01 (Default Employee)', $sections);
+    }
+
+    /**
+     * 19. Test template download omits custom off-day pattern section entirely when no overrides exist.
+     */
+    public function test_19_template_download_omits_custom_off_day_pattern_section_when_no_overrides()
+    {
+        $client = Client::factory()->create([
+            'company_name' => 'NO_OVERRIDE_CLIENT',
+            'weekly_off_pattern' => 'sat,sun',
+        ]);
+        \App\Models\ClientBranch::factory()->create(['client_id' => $client->id]);
+
+        Employee::factory()->create([
+            'client_id' => $client->id,
+            'employee_code' => 'EMP-DEF-02',
+            'full_name' => 'Standard Employee',
+            'weekly_off_pattern' => null,
+            'date_of_joining' => '2025-01-01',
+            'personal_email' => 'def02@example.com',
+            'pan_number' => 'ABCDE9993C',
+            'aadhaar_number' => '900080007003',
+            'bank_account_number' => '8888000033',
+            'status' => 'active',
+        ]);
+
+        $response = $this->actingAs($this->admin)->get("/payroll/attendance/template?client_id={$client->id}&target_month=2026-08");
+        $response->assertStatus(200);
+        $downloadedFilePath = $response->getFile()->getPathname();
+
+        $reader = \Spatie\SimpleExcel\SimpleExcelReader::create($downloadedFilePath)->fromSheetName('Reference Info & Rules');
+        $rows = $reader->getRows()->toArray();
+
+        $sections = array_column($rows, 'Section');
+        $this->assertNotContains('--- EMPLOYEES WITH CUSTOM OFF-DAY PATTERNS ---', $sections);
+    }
+
+    /**
+     * 20. Test zero drift check: template override working days EXACTLY matches validateFile() enforcement.
+     */
+    public function test_20_zero_drift_check_template_override_working_days_matches_validate_file()
+    {
+        $client = Client::factory()->create([
+            'company_name' => 'ZERO_DRIFT_CLIENT',
+            'weekly_off_pattern' => 'sat,sun',
+        ]);
+        \App\Models\ClientBranch::factory()->create(['client_id' => $client->id]);
+
+        $empOverride = Employee::factory()->create([
+            'client_id' => $client->id,
+            'employee_code' => 'EMP-DRIFT-01',
+            'full_name' => 'Drift Test Employee',
+            'weekly_off_pattern' => 'sun',
+            'date_of_joining' => '2025-01-01',
+            'personal_email' => 'drift01@example.com',
+            'pan_number' => 'ABCDE9994D',
+            'aadhaar_number' => '900080007004',
+            'bank_account_number' => '8888000044',
+            'status' => 'active',
+        ]);
+
+        // 1. Download template and extract working days slot number from Sheet 1
+        $response = $this->actingAs($this->admin)->get("/payroll/attendance/template?client_id={$client->id}&target_month=2026-08");
+        $downloadedFilePath = $response->getFile()->getPathname();
+
+        $reader = \Spatie\SimpleExcel\SimpleExcelReader::create($downloadedFilePath)->fromSheetName('Reference Info & Rules');
+        $rows = $reader->getRows()->toArray();
+
+        $overrideRowKey = 'EMP-DRIFT-01 (Drift Test Employee)';
+        $overrideRow = array_values(array_filter($rows, fn($r) => $r['Section'] === $overrideRowKey))[0];
+
+        preg_match('/Required Working Days: (\d+)/', $overrideRow['Details'], $matches);
+        $sheetSlots = (int) $matches[1]; // 26 days
+
+        // 2. Validate row with exact sheetSlots -> must be 'valid'
+        $csvPathValid = storage_path('app/temp_zero_drift_valid.csv');
+        file_put_contents($csvPathValid, "target_month,employee_code,days_present,days_lop\n2026-08,EMP-DRIFT-01,{$sheetSlots},0\n");
+
+        $service = app(\App\Services\AttendanceUploadValidationService::class);
+        $resValid = $service->validateFile($csvPathValid, $client->id, '2026-08');
+        @unlink($csvPathValid);
+
+        $this->assertEquals('valid', $resValid['rows'][0]['status']);
+        $this->assertEquals(0, $resValid['error_count']);
+
+        // 3. Validate row with overcount mismatch (25 present + 3 LOP = 28 total vs 26 required slots) -> must flag error
+        $csvPathInvalid = storage_path('app/temp_zero_drift_invalid.csv');
+        file_put_contents($csvPathInvalid, "target_month,employee_code,days_present,days_lop\n2026-08,EMP-DRIFT-01,25,3\n");
+
+        $resInvalid = $service->validateFile($csvPathInvalid, $client->id, '2026-08');
+        @unlink($csvPathInvalid);
+
+        $this->assertEquals(1, $resInvalid['error_count']);
+        $this->assertStringContainsString("⚠️ Numbers don't match — you entered 28 days total, but this month only has 26 working days", $resInvalid['rows'][0]['notes']);
+    }
 }
