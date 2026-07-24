@@ -418,13 +418,18 @@ class AttendanceUploadValidationService
         $empOffDays = $this->resolveOffDays($employee, $clientModel);
 
         $patternStr = strtolower($employee?->weekly_off_pattern ?? $clientModel?->weekly_off_pattern ?? 'sat,sun');
-        $offDaysLabels = [
-            'sun' => 'Sunday',
-            'sat,sun' => 'Saturday & Sunday',
-            'fri,sat' => 'Friday & Saturday',
+        $dayNamesMap = [
             'mon' => 'Monday',
+            'tue' => 'Tuesday',
+            'wed' => 'Wednesday',
+            'thu' => 'Thursday',
+            'fri' => 'Friday',
+            'sat' => 'Saturday',
+            'sun' => 'Sunday',
         ];
-        $offDaysLabel = $offDaysLabels[$patternStr] ?? strtoupper($patternStr);
+        $patternParts = array_filter(explode(',', strtolower($patternStr)));
+        $mappedParts = array_map(fn($p) => $dayNamesMap[trim($p)] ?? ucfirst(trim($p)), $patternParts);
+        $offDaysLabel = !empty($mappedParts) ? implode(' & ', $mappedParts) : 'None';
 
         $holidays = Holiday::where('client_id', $clientId)
             ->whereBetween('holiday_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
