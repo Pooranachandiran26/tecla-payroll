@@ -145,7 +145,7 @@ export default function LiveAttendanceMonitor({ clients, punches, selectedClient
 
         <div className="card p-4 mb-6 flex gap-4 items-center flex-wrap">
           <div className="text-[0.85rem] font-semibold text-[#1F3864]">Filters:</div>
-          <div className="flex-1 min-w-[150px]">
+          <div className="flex-1 min-w-[200px]">
             <Input placeholder="Search by Employee Name..." value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
           <div>
@@ -157,29 +157,27 @@ export default function LiveAttendanceMonitor({ clients, punches, selectedClient
             </Select>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-[0.85rem] font-semibold text-gray-500">Date:</span>
-            <Input 
+            <span className="text-[0.85rem] font-semibold text-gray-500 whitespace-nowrap">Date:</span>
+            <input 
               type="date" 
               value={date} 
               onChange={(e) => handleDateChange(e.target.value)} 
-              className="w-auto"
+              className="px-3 py-1.5 text-xs font-semibold bg-white border border-gray-300 rounded shadow-sm text-gray-700 focus:ring-2 focus:ring-blue-500 focus:outline-none h-[38px]"
             />
-            <Button 
-              variant="secondary" 
-              size="sm"
+            <button 
+              type="button"
               onClick={() => handleDateChange(todayStr)}
-              className={date === todayStr ? 'bg-blue-50 text-[#1F3864] font-bold border-blue-200' : ''}
+              className={`px-3 py-1.5 text-xs font-semibold border rounded shadow-sm transition-colors h-[38px] ${date === todayStr ? 'bg-[#1F3864] text-white border-[#1F3864]' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}
             >
               Today
-            </Button>
-            <Button 
-              variant="secondary" 
-              size="sm"
+            </button>
+            <button 
+              type="button"
               onClick={() => handleDateChange(yesterdayStr)}
-              className={date === yesterdayStr ? 'bg-blue-50 text-[#1F3864] font-bold border-blue-200' : ''}
+              className={`px-3 py-1.5 text-xs font-semibold border rounded shadow-sm transition-colors h-[38px] ${date === yesterdayStr ? 'bg-[#1F3864] text-white border-[#1F3864]' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}
             >
               Yesterday
-            </Button>
+            </button>
           </div>
         </div>
 
