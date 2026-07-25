@@ -242,9 +242,16 @@ class AttendanceUploadValidationService
                         );
                     } else {
                         // Over-count
+                        $scheduleReason = "";
+                        if (!empty($employee->weekly_off_pattern)) {
+                            $scheduleReason = " (due to employee's custom weekly off schedule: " . strtoupper($context['off_days_label']) . " off = {$context['off_days_count']} off-days)";
+                        } elseif ($effectiveStart->gt($monthStart)) {
+                            $scheduleReason = " (due to mid-month joining / tracking start on " . $effectiveStart->format('M d, Y') . ")";
+                        }
+
                         if ($daysLOP > 0) {
                             // Reject over-count with LOP
-                            $notes = "⚠️ Numbers don't match — you entered {$uploadedTotal} days total, but this month only has {$availableSlots} working days. Please fix and re-upload.";
+                            $notes = "⚠️ Numbers don't match — you entered {$uploadedTotal} days total, but this month only has {$availableSlots} working days{$scheduleReason}. Please fix and re-upload.";
                             $errorCount++;
                         } else {
                             // Cap present days if LOP is 0
@@ -252,7 +259,7 @@ class AttendanceUploadValidationService
                             $matchedRows++;
                             $reconciledPresent = $availableSlots;
                             $reconciledLop = 0;
-                            $notes = "⚠️ Adjusted — you entered {$daysPresent} present days, but this month only has {$availableSlots}. We've automatically capped it to {$availableSlots}.";
+                            $notes = "⚠️ Adjusted — you entered {$daysPresent} present days, but this month only has {$availableSlots}{$scheduleReason}. We've automatically capped it to {$availableSlots}.";
 
                             $dbPayloads = $this->expandToDaily(
                                 $employee->id,
