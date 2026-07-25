@@ -108,6 +108,10 @@ class EmployeeQueryController extends Controller
             }
         }
 
+        if ($request->filled('client_id') && $request->client_id !== 'all' && $request->client_id !== '') {
+            $queryBuilder->where('client_id', $request->client_id);
+        }
+
         if ($request->filled('status') && $request->status !== 'all') {
             $queryBuilder->where('status', $request->status);
         }
@@ -116,13 +120,58 @@ class EmployeeQueryController extends Controller
             $queryBuilder->where('category', $request->category);
         }
 
+        if ($request->filled('search')) {
+            $search = strtolower($request->search);
+            $queryBuilder->where(function ($q) use ($search) {
+                $q->where('subject', 'like', "%{$search}%")
+                  ->orWhere('message', 'like', "%{$search}%")
+                  ->orWhereHas('employee', function ($eq) use ($search) {
+                      $eq->where('full_name', 'like', "%{$search}%")
+                         ->orWhere('employee_code', 'like', "%{$search}%");
+                  })
+                  ->orWhereHas('client', function ($cq) use ($search) {
+                      $cq->where('company_name', 'like', "%{$search}%");
+                  });
+            });
+        }
+
         $queries = $queryBuilder->orderBy('id', 'desc')->get();
-        $pendingCount = EmployeeQuery::where('status', 'pending')->count();
+
+        // Calculate counts based on user scoping
+        $scopedBase = EmployeeQuery::query();
+        if ($user->role === 'manager') {
+            $assignedClientIds = Client::where('account_manager_id', $user->id)
+                ->orWhere('backup_account_manager_id', $user->id)
+                ->pluck('id')->toArray();
+            if (empty($assignedClientIds)) {
+                $scopedBase->whereRaw('1 = 0');
+            } else {
+                $scopedBase->whereIn('client_id', $assignedClientIds);
+            }
+        }
+
+        $stats = [
+            'total' => (clone $scopedBase)->count(),
+            'pending' => (clone $scopedBase)->where('status', 'pending')->count(),
+            'resolved' => (clone $scopedBase)->where('status', 'resolved')->count(),
+        ];
+
+        // Fetch client list for filter dropdown
+        $clientQuery = Client::select('id', 'company_name')->orderBy('company_name');
+        if ($user->role === 'manager') {
+            $assignedClientIds = Client::where('account_manager_id', $user->id)
+                ->orWhere('backup_account_manager_id', $user->id)
+                ->pluck('id')->toArray();
+            $clientQuery->whereIn('id', $assignedClientIds);
+        }
+        $clients = $clientQuery->get();
 
         return Inertia::render('Admin/EmployeeQueries', [
             'queries' => $queries,
-            'pendingCount' => $pendingCount,
-            'filters' => $request->only(['status', 'category']),
+            'stats' => $stats,
+            'pendingCount' => $stats['pending'],
+            'clients' => $clients,
+            'filters' => $request->only(['search', 'client_id', 'status', 'category']),
         ]);
     }
 
