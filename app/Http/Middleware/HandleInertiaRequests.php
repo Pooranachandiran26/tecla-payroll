@@ -68,6 +68,7 @@ class HandleInertiaRequests extends Middleware
                 'warning' => fn () => $request->session()->get('warning'),
                 'info' => fn () => $request->session()->get('info'),
             ],
+            'pendingQueryCount' => fn () => ($request->user() && in_array($request->user()->role, ['admin', 'manager'])) ? \App\Models\EmployeeQuery::where('status', 'pending')->count() : 0,
         ];
     }
 }
