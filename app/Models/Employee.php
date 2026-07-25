@@ -43,6 +43,11 @@ class Employee extends Model
         return trim(($this->first_name ?? '') . ' ' . ($this->last_name ?? ''));
     }
 
+    public function user()
+    {
+        return $this->hasOne(User::class, 'employee_id');
+    }
+
     public function client()
     {
         return $this->belongsTo(Client::class, 'client_id');

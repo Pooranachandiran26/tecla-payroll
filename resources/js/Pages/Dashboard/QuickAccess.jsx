@@ -1,9 +1,9 @@
 import React from 'react';
 import AuthenticatedLayout from '../../Layouts/AuthenticatedLayout';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import { 
   Users, UserPlus, UserCircle, UploadCloud, Banknote, History, ExternalLink, Activity, 
-  Settings, CheckSquare, Shield, FileText, Calendar, Lock 
+  Settings, CheckSquare, Shield, FileText, Calendar, Lock, MessageSquare 
 } from 'lucide-react';
 import { useRole } from '../../Contexts/RoleContext.jsx';
 import RoleGuard from '../../Components/RoleGuard.jsx';
@@ -12,6 +12,8 @@ import useToast from '../../Hooks/useToast';
 export default function QuickAccess() {
   const { role } = useRole();
   const { showToast } = useToast();
+  const { props } = usePage();
+  const pendingQueryCount = props.pendingQueryCount || 0;
 
   const config = {
     admin: {
@@ -59,7 +61,7 @@ export default function QuickAccess() {
       message: `Strict ${moduleName} Protection: Backend routes are strictly protected by role:${requiredRole} middleware check. Role Mismatch: Logged in as ${currentRoleTitle}, server blocks access with 403.`
     });
   };
-  const renderBtn = (id, href, icon, label, lockedTooltip = "Admin access only", requiredRole = null, moduleName = null) => {
+  const renderBtn = (id, href, icon, label, lockedTooltip = "Admin access only", requiredRole = null, moduleName = null, badgeCount = 0) => {
     const isLocked = currentConfig.locked.includes(id);
 
     if (isLocked) {
@@ -97,6 +99,11 @@ export default function QuickAccess() {
         <span className="qa-btn-label text-[0.72rem] font-semibold text-gray-500 text-center leading-tight max-w-[80px] transition-colors">
           {label}
         </span>
+        {badgeCount > 0 && (
+          <span className="absolute top-1.5 right-1.5 min-w-[18px] h-4 px-1 flex items-center justify-center bg-red-600 text-white font-bold text-[0.65rem] rounded-full shadow-sm">
+            {badgeCount}
+          </span>
+        )}
         {/* Custom CSS overrides for hover in this specific block */}
         <style>{`
           #${id}:hover .qa-btn-icon { background: linear-gradient(135deg, rgba(184,134,11,0.15) 0%, rgba(184,134,11,0.07) 100%); }
@@ -140,6 +147,7 @@ export default function QuickAccess() {
               {renderBtn('qa-salary-revision', '/employees/1/salary-revision', <History strokeWidth={1.6} />, 'Salary Revision')}
               {renderBtn('qa-employee-exit', '/employees/1/exit', <ExternalLink strokeWidth={1.6} />, 'Employee Exit / F&F')}
               {renderBtn('qa-bank-change', safeRoute('employees.bank-change-requests', '/employees/bank-change-requests'), <Banknote strokeWidth={1.6} />, 'Bank Change Requests')}
+              {renderBtn('qa-employee-queries', safeRoute('admin.employee-queries.index', '/admin/employee-queries'), <MessageSquare strokeWidth={1.6} />, 'Employee Queries', "Admin access only", null, null, pendingQueryCount)}
             </div>
           </div>
         )}

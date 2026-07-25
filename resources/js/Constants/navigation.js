@@ -34,6 +34,7 @@ export const candidateNav = [
   { name: 'Leave', url: safeRoute('employee.leave', '/employee/leave'), key: 'candidate-leave' },
   { name: 'Day Swaps', url: safeRoute('employee.day-swaps.index', '/employee/attendance/day-swaps'), key: 'candidate-day-swaps' },
   { name: 'Payslips', url: safeRoute('employee.payslips', '/employee/payslips'), key: 'candidate-payslips' },
+  { name: 'Contact Support', url: safeRoute('employee.contact', '/employee/contact'), key: 'candidate-contact' },
   { name: 'Profile', url: safeRoute('employee.profile', '/employee/profile'), key: 'candidate-profile' },
 ];
 
@@ -49,6 +50,7 @@ export const subNavs = {
     { name: 'Bank Change Requests', url: safeRoute('employees.bank-change-requests', '/employees/bank-change-requests') },
     { name: 'Day Swap Requests', url: safeRoute('employees.day-swaps', '/day-swap-requests') },
     { name: 'Leave Approval Queue', url: safeRoute('leave-requests.index', '/leave-requests') },
+    { name: 'Employee Queries', url: safeRoute('admin.employee-queries.index', '/admin/employee-queries') },
   ],
   payroll: [
     { name: 'Live Attendance Monitor', url: safeRoute('payroll.live-monitor', '/payroll/live-monitor') },
