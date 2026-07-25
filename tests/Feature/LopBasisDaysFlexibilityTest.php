@@ -37,6 +37,9 @@ class LopBasisDaysFlexibilityTest extends TestCase
     {
         return array_merge([
             'clientPartner' => $client->id,
+            'firstName' => 'Flex',
+            'lastName' => 'Employee',
+            'fatherName' => 'Father Employee',
             'fullName' => 'Flex Employee',
             'personalEmail' => 'flex@example.com',
             'phone' => '9876543210',

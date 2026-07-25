@@ -143,9 +143,15 @@ class EmployeePortalController extends Controller
             ->orderBy('created_at', 'desc')
             ->first();
 
+        $salaryRevisions = \App\Models\SalaryRevision::where('employee_id', $employee->id)
+            ->orderBy('effective_date', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
         return Inertia::render('EmployeePortal/EmployeeProfile', [
             'employee' => new EmployeeResource($employee),
-            'pendingBankRequest' => $pendingBankRequest
+            'pendingBankRequest' => $pendingBankRequest,
+            'salaryRevisions' => $salaryRevisions,
         ]);
     }
 
