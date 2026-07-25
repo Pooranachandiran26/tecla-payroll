@@ -487,10 +487,26 @@ class PayrollController extends Controller
 
                         if ($rev) {
                             $eff = \Carbon\Carbon::parse($rev->effective_date)->startOfDay();
-                            $daysBefore = $mStart->diffInDays($eff);
-                            $daysAfter = $eff->diffInDays($mEnd) + 1;
-                            $oldRate = (float)($rev->old_gross_salary ?: ($rev->old_basic_pay ? $rev->old_basic_pay * 2 : 0));
-                            $newRate = (float)($rev->new_gross_salary ?: ($rev->new_basic_pay ? $rev->new_basic_pay * 2 : 0));
+                            $daysBefore = (int)round($mStart->diffInDays($eff));
+                            $daysAfter = (int)round($eff->diffInDays($mEnd) + 1);
+                            $oldRate = (float)(
+                                ($rev->old_basic_pay ?? 0) +
+                                ($rev->old_hra ?? 0) +
+                                ($rev->old_conveyance ?? 0) +
+                                ($rev->old_da ?? 0) +
+                                ($rev->old_medical_allowance ?? 0) +
+                                ($rev->old_special_allowance ?? 0) +
+                                ($rev->old_other_additions ?? 0)
+                            );
+                            $newRate = (float)(
+                                ($rev->new_basic_pay ?? 0) +
+                                ($rev->new_hra ?? 0) +
+                                ($rev->new_conveyance ?? 0) +
+                                ($rev->new_da ?? 0) +
+                                ($rev->new_medical_allowance ?? 0) +
+                                ($rev->new_special_allowance ?? 0) +
+                                ($rev->new_other_additions ?? 0)
+                            );
                             $basePay = (float)$item->gross_total;
 
                             $item->mid_cycle_note = "Mid-Cycle Split: {$daysBefore} days @ old rate (₹" . number_format($oldRate, 0) . "/mo) + {$daysAfter} days @ new rate (₹" . number_format($newRate, 0) . "/mo) = ₹" . number_format($basePay, 0) . " this month base";
@@ -610,8 +626,24 @@ class PayrollController extends Controller
                             $eff = \Carbon\Carbon::parse($rev->effective_date)->startOfDay();
                             $daysBefore = $mStart->diffInDays($eff);
                             $daysAfter = $eff->diffInDays($mEnd) + 1;
-                            $oldRate = (float)($rev->old_gross_salary ?: ($rev->old_basic_pay ? $rev->old_basic_pay * 2 : 0));
-                            $newRate = (float)($rev->new_gross_salary ?: ($rev->new_basic_pay ? $rev->new_basic_pay * 2 : 0));
+                            $oldRate = (float)(
+                                ($rev->old_basic_pay ?? 0) +
+                                ($rev->old_hra ?? 0) +
+                                ($rev->old_conveyance ?? 0) +
+                                ($rev->old_da ?? 0) +
+                                ($rev->old_medical_allowance ?? 0) +
+                                ($rev->old_special_allowance ?? 0) +
+                                ($rev->old_other_additions ?? 0)
+                            );
+                            $newRate = (float)(
+                                ($rev->new_basic_pay ?? 0) +
+                                ($rev->new_hra ?? 0) +
+                                ($rev->new_conveyance ?? 0) +
+                                ($rev->new_da ?? 0) +
+                                ($rev->new_medical_allowance ?? 0) +
+                                ($rev->new_special_allowance ?? 0) +
+                                ($rev->new_other_additions ?? 0)
+                            );
                             $basePay = (float)$item->gross_total;
 
                             $item->mid_cycle_note = "Mid-Cycle Split: {$daysBefore} days @ old rate (₹" . number_format($oldRate, 0) . "/mo) + {$daysAfter} days @ new rate (₹" . number_format($newRate, 0) . "/mo) = ₹" . number_format($basePay, 0) . " this month base";

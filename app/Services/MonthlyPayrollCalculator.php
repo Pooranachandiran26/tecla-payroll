@@ -93,19 +93,29 @@ class MonthlyPayrollCalculator
 
         if ($revision) {
             $effectiveDate = Carbon::parse($revision->effective_date)->startOfDay();
-            $daysBefore = $monthStart->diffInDays($effectiveDate);
-            $daysAfter = $effectiveDate->diffInDays($monthEnd) + 1;
+            $daysBefore = (int)round($monthStart->diffInDays($effectiveDate));
+            $daysAfter = (int)round($effectiveDate->diffInDays($monthEnd) + 1);
             $paidDaysBefore = $attendanceBefore['paid_days'];
             $paidDaysAfter = $attendanceAfter['paid_days'];
 
-            $oldGross = (float)($revision->old_gross_salary ?? 0);
-            $newGross = (float)($revision->new_gross_salary ?? 0);
-            if ($oldGross == 0) {
-                $oldGross = (float)($revision->old_basic_pay ?? 0) * 2;
-            }
-            if ($newGross == 0) {
-                $newGross = (float)($revision->new_basic_pay ?? 0) * 2;
-            }
+            $oldGross = (float)(
+                ($revision->old_basic_pay ?? 0) +
+                ($revision->old_hra ?? 0) +
+                ($revision->old_conveyance ?? 0) +
+                ($revision->old_da ?? 0) +
+                ($revision->old_medical_allowance ?? 0) +
+                ($revision->old_special_allowance ?? 0) +
+                ($revision->old_other_additions ?? 0)
+            );
+            $newGross = (float)(
+                ($revision->new_basic_pay ?? 0) +
+                ($revision->new_hra ?? 0) +
+                ($revision->new_conveyance ?? 0) +
+                ($revision->new_da ?? 0) +
+                ($revision->new_medical_allowance ?? 0) +
+                ($revision->new_special_allowance ?? 0) +
+                ($revision->new_other_additions ?? 0)
+            );
 
             foreach ($components as $key => $column) {
                 $oldCol = 'old_' . $column;
