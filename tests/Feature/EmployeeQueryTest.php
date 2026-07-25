@@ -12,6 +12,7 @@ use App\Models\Employee;
 use App\Models\EmployeeQuery;
 use App\Events\EmployeeQuerySubmitted;
 use App\Mail\ClientQueryReceivedMail;
+use App\Mail\EmployeeQueryRespondedMail;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Mail;
 
@@ -284,5 +285,33 @@ class EmployeeQueryTest extends TestCase
             'admin_response' => 'Your PF deduction is correct as per standard 12% rules.',
             'resolved_by' => $this->admin->id,
         ]);
+    }
+
+    public function test_6_employee_receives_notification_when_query_is_responded_to()
+    {
+        Mail::fake();
+
+        $query = EmployeeQuery::create([
+            'employee_id' => $this->employeeA->id,
+            'client_id' => $this->clientWithContact->id,
+            'subject' => 'HRA Exemption Query',
+            'category' => 'benefits',
+            'message' => 'How is HRA calculated for Metro cities?',
+            'status' => 'pending',
+        ]);
+
+        $response = $this->actingAs($this->admin)->post(route('admin.employee-queries.respond', $query->id), [
+            'admin_response' => 'HRA exemption is calculated as minimum of 50% basic, actual HRA, or rent paid minus 10% basic.',
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
+
+        // Assert EmployeeQueryRespondedMail queued to employee's email
+        Mail::assertQueued(EmployeeQueryRespondedMail::class, function ($mail) use ($query) {
+            return $mail->hasTo($this->employeeA->personal_email) &&
+                   $mail->queryModel->id === $query->id &&
+                   str_contains($mail->queryModel->admin_response, 'HRA exemption is calculated');
+        });
     }
 }

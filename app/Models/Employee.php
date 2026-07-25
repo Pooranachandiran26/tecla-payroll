@@ -26,6 +26,11 @@ class Employee extends Model
         'aadhaar_number' => 'encrypted',
     ];
 
+    public function user()
+    {
+        return $this->hasOne(User::class, 'employee_id');
+    }
+
     public function client()
     {
         return $this->belongsTo(Client::class, 'client_id');

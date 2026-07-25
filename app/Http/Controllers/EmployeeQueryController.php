@@ -7,6 +7,7 @@ use App\Models\Client;
 use App\Models\Employee;
 use App\Events\EmployeeQuerySubmitted;
 use App\Mail\ClientQueryReceivedMail;
+use App\Mail\EmployeeQueryRespondedMail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
@@ -154,6 +155,20 @@ class EmployeeQueryController extends Controller
             'resolved_by' => $user->id,
             'resolved_at' => now(),
         ]);
+
+        // Dispatch email notification back to the employee
+        $query->load(['employee.user']);
+        $employee = $query->employee;
+        $userAccount = $employee ? ($employee->user ?: User::where('employee_id', $employee->id)->first()) : null;
+        $targetEmail = $employee ? ($employee->personal_email ?: ($userAccount ? $userAccount->email : null)) : null;
+
+        if ($targetEmail) {
+            try {
+                Mail::to($targetEmail)->queue(new EmployeeQueryRespondedMail($query));
+            } catch (\Throwable $e) {
+                Log::warning("Failed to queue EmployeeQueryRespondedMail for Query #{$query->id}: {$e->getMessage()}");
+            }
+        }
 
         return back()->with('success', 'Response recorded and query resolved successfully.');
     }
