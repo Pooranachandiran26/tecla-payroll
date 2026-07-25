@@ -34,6 +34,7 @@ class SalaryRevision extends Model
         'new_other_additions' => 'decimal:2',
         'new_net_take_home' => 'decimal:2',
         'new_ctc' => 'decimal:2',
+        'metadata' => 'array',
     ];
 
     public function employee()

@@ -26,6 +26,23 @@ class Employee extends Model
         'aadhaar_number' => 'encrypted',
     ];
 
+    protected static function booted()
+    {
+        static::saving(function ($employee) {
+            if (!empty($employee->first_name) || !empty($employee->last_name)) {
+                $employee->full_name = trim(($employee->first_name ?? '') . ' ' . ($employee->last_name ?? ''));
+            }
+        });
+    }
+
+    public function getFullNameAttribute($value)
+    {
+        if (!empty($value)) {
+            return $value;
+        }
+        return trim(($this->first_name ?? '') . ' ' . ($this->last_name ?? ''));
+    }
+
     public function user()
     {
         return $this->hasOne(User::class, 'employee_id');
