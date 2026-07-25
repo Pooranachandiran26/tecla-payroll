@@ -174,7 +174,9 @@ Route::middleware(['auth', 'active'])->group(function () {
             Route::get('/invoices/generate', fn() => Inertia::render('Invoicing/InvoiceGenerate'))->name('invoices.generate');
             Route::get('/compliance', [\App\Http\Controllers\ComplianceController::class, 'index'])->name('compliance.index');
             Route::get('/reports', fn() => Inertia::render('Reports/ReportsAnalytics'))->name('reports.index');
- 
+
+            Route::get('/admin/employee-queries', [\App\Http\Controllers\EmployeeQueryController::class, 'adminIndex'])->name('admin.employee-queries.index');
+            Route::post('/admin/employee-queries/{query}/respond', [\App\Http\Controllers\EmployeeQueryController::class, 'adminRespond'])->name('admin.employee-queries.respond');
         });
  
         // ADMIN ONLY
@@ -253,6 +255,9 @@ Route::middleware(['auth', 'active'])->group(function () {
             Route::post('/employee/leave-requests', [\App\Http\Controllers\EmployeePortalController::class, 'storeLeaveRequest'])->name('employee.leave.store');
             
             Route::get('/employee/payslips', fn() => Inertia::render('EmployeePortal/EmployeePayslips'))->name('employee.payslips');
+
+            Route::get('/employee/contact', [\App\Http\Controllers\EmployeeQueryController::class, 'employeeIndex'])->name('employee.contact');
+            Route::post('/employee/contact', [\App\Http\Controllers\EmployeeQueryController::class, 'employeeStore'])->name('employee.contact.store');
         });
     });
 });
