@@ -98,6 +98,15 @@ class MonthlyPayrollCalculator
             $paidDaysBefore = $attendanceBefore['paid_days'];
             $paidDaysAfter = $attendanceAfter['paid_days'];
 
+            $oldGross = (float)($revision->old_gross_salary ?? 0);
+            $newGross = (float)($revision->new_gross_salary ?? 0);
+            if ($oldGross == 0) {
+                $oldGross = (float)($revision->old_basic_pay ?? 0) * 2;
+            }
+            if ($newGross == 0) {
+                $newGross = (float)($revision->new_basic_pay ?? 0) * 2;
+            }
+
             foreach ($components as $key => $column) {
                 $oldCol = 'old_' . $column;
                 $newCol = 'new_' . $column;
@@ -111,6 +120,9 @@ class MonthlyPayrollCalculator
                 $proRatedComponents[$key] = round($oldComponentProrated + $newComponentProrated, 2);
             }
             $salaryRevisionApplied = true;
+
+            $revGrossBase = array_sum($proRatedComponents);
+            $midCycleNote = "Mid-Cycle Split: {$daysBefore} days @ old rate (₹" . number_format($oldGross, 0) . "/mo) + {$daysAfter} days @ new rate (₹" . number_format($newGross, 0) . "/mo) = ₹" . number_format($revGrossBase, 0) . " this month base";
         } else {
             // Check if employee joined mid-month (effectiveStart > monthStart)
             $isMidMonthHire = $effectiveStart->gt($monthStart);
@@ -307,7 +319,7 @@ class MonthlyPayrollCalculator
             'employer_lwf' => $employerLwf,
             'is_excluded' => false,
             'exclusion_reason' => null,
-            'warning_notes' => $ptWarning,
+            'warning_notes' => implode(' | ', array_filter([$ptWarning, isset($midCycleNote) ? $midCycleNote : null])),
             'attendance_source' => $attendanceSource,
             'salary_revision_applied' => $salaryRevisionApplied,
             'created_at' => now(),

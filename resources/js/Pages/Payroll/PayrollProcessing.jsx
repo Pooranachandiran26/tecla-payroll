@@ -253,41 +253,56 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
                                         const itemDeductions = (parseFloat(row.employee_pf) + parseFloat(row.employee_esi) + parseFloat(row.professional_tax) + parseFloat(row.lwf_deduction) + parseFloat(row.tds_deduction) + parseFloat(row.loan_emi_deduction));
 
                                         return (
-                                            <tr key={row.id}>
-                                                <td>{row.employee_code}</td>
-                                                <td><strong>{row.full_name}</strong></td>
-                                                <td>{parseFloat(row.paid_days).toFixed(1)} days</td>
-                                                
-                                                {earnVisible && (
-                                                    <>
-                                                        <td>₹{parseFloat(row.basic_pay).toLocaleString()}</td>
-                                                        <td>₹{parseFloat(row.hra).toLocaleString()}</td>
-                                                        <td>₹{parseFloat(row.conveyance).toLocaleString()}</td>
-                                                        <td>₹{parseFloat(row.da).toLocaleString()}</td>
-                                                        <td>₹{parseFloat(row.medical_allowance).toLocaleString()}</td>
-                                                        <td>₹{parseFloat(row.special_allowance).toLocaleString()}</td>
-                                                        <td>₹{parseFloat(row.other_additions).toLocaleString()}</td>
-                                                    </>
-                                                )}
-                                                
-                                                <td className="col-group-total">₹{parseFloat(row.gross_total).toLocaleString()}</td>
-                                                <td className="col-group-total" style={{ background: "#F8FAFC" }}>₹{parseFloat(row.lop_deduction).toLocaleString()}</td>
-                                                
-                                                {deductVisible && (
-                                                    <>
-                                                        <td>₹{parseFloat(row.employee_pf).toLocaleString()}</td>
-                                                        <td>₹{parseFloat(row.employee_esi).toLocaleString()}</td>
-                                                        <td>₹{parseFloat(row.professional_tax).toLocaleString()}</td>
-                                                        <td>₹{parseFloat(row.lwf_deduction).toLocaleString()}</td>
-                                                        <td>₹{parseFloat(row.tds_deduction).toLocaleString()}</td>
-                                                        <td>₹{parseFloat(row.loan_emi_deduction).toLocaleString()}</td>
-                                                    </>
-                                                )}
+                                            <React.Fragment key={row.id}>
+                                                <tr>
+                                                    <td>{row.employee_code}</td>
+                                                    <td><strong>{row.full_name}</strong></td>
+                                                    <td>{parseFloat(row.paid_days).toFixed(1)} days</td>
+                                                    
+                                                    {earnVisible && (
+                                                        <>
+                                                            <td>₹{parseFloat(row.basic_pay).toLocaleString()}</td>
+                                                            <td>₹{parseFloat(row.hra).toLocaleString()}</td>
+                                                            <td>₹{parseFloat(row.conveyance).toLocaleString()}</td>
+                                                            <td>₹{parseFloat(row.da).toLocaleString()}</td>
+                                                            <td>₹{parseFloat(row.medical_allowance).toLocaleString()}</td>
+                                                            <td>₹{parseFloat(row.special_allowance).toLocaleString()}</td>
+                                                            <td>₹{parseFloat(row.other_additions).toLocaleString()}</td>
+                                                        </>
+                                                    )}
+                                                    
+                                                    <td className="col-group-total">₹{parseFloat(row.gross_total).toLocaleString()}</td>
+                                                    <td className="col-group-total" style={{ background: "#F8FAFC" }}>₹{parseFloat(row.lop_deduction).toLocaleString()}</td>
+                                                    
+                                                    {deductVisible && (
+                                                        <>
+                                                            <td>₹{parseFloat(row.employee_pf).toLocaleString()}</td>
+                                                            <td>₹{parseFloat(row.employee_esi).toLocaleString()}</td>
+                                                            <td>₹{parseFloat(row.professional_tax).toLocaleString()}</td>
+                                                            <td>₹{parseFloat(row.lwf_deduction).toLocaleString()}</td>
+                                                            <td>₹{parseFloat(row.tds_deduction).toLocaleString()}</td>
+                                                            <td>₹{parseFloat(row.loan_emi_deduction).toLocaleString()}</td>
+                                                        </>
+                                                    )}
 
-                                                <td className="col-group-total">₹{itemDeductions.toLocaleString()}</td>
-                                                <td className="col-group-total" style={{ color: "var(--primary-navy)", fontSize: "1.1em" }}>₹{parseFloat(row.net_pay).toLocaleString()}</td>
-                                                <td><span className="badge badge-success">Processed</span></td>
-                                            </tr>
+                                                    <td className="col-group-total">₹{itemDeductions.toLocaleString()}</td>
+                                                    <td className="col-group-total" style={{ color: "var(--primary-navy)", fontSize: "1.1em" }}>₹{parseFloat(row.net_pay).toLocaleString()}</td>
+                                                    <td>
+                                                        <span className="badge badge-success">Processed</span>
+                                                        {row.salary_revision_applied && (
+                                                            <span className="badge badge-warning" style={{ marginLeft: "0.25rem" }}>Split</span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                                {row.salary_revision_applied && (
+                                                    <tr className="split-row">
+                                                        <td colSpan="3"></td>
+                                                        <td colSpan={earnVisible ? (deductVisible ? 19 : 12) : (deductVisible ? 11 : 4)}>
+                                                            ↳ <em>{row.mid_cycle_note || row.warning_notes || 'Mid-Cycle Split Applied'}</em>
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                            </React.Fragment>
                                         );
                                     })
                                 ) : (

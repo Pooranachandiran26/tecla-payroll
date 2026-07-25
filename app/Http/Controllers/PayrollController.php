@@ -475,6 +475,36 @@ class PayrollController extends Controller
                             'msg' => "{$item->full_name} ({$item->employee_code}) warning: {$item->warning_notes}"
                         ];
                     }
+
+                    if ($item->salary_revision_applied) {
+                        $mStart = \Carbon\Carbon::parse($selectedMonth)->startOfMonth();
+                        $mEnd = \Carbon\Carbon::parse($selectedMonth)->endOfMonth();
+                        $rev = \Illuminate\Support\Facades\DB::table('salary_revisions')
+                            ->where('employee_id', $item->employee_id)
+                            ->where('status', 'approved')
+                            ->whereBetween('effective_date', [$mStart->toDateString(), $mEnd->toDateString()])
+                            ->first();
+
+                        if ($rev) {
+                            $eff = \Carbon\Carbon::parse($rev->effective_date)->startOfDay();
+                            $daysBefore = $mStart->diffInDays($eff);
+                            $daysAfter = $eff->diffInDays($mEnd) + 1;
+                            $oldRate = (float)($rev->old_gross_salary ?: ($rev->old_basic_pay ? $rev->old_basic_pay * 2 : 0));
+                            $newRate = (float)($rev->new_gross_salary ?: ($rev->new_basic_pay ? $rev->new_basic_pay * 2 : 0));
+                            $basePay = (float)$item->gross_total;
+
+                            $item->mid_cycle_note = "Mid-Cycle Split: {$daysBefore} days @ old rate (₹" . number_format($oldRate, 0) . "/mo) + {$daysAfter} days @ new rate (₹" . number_format($newRate, 0) . "/mo) = ₹" . number_format($basePay, 0) . " this month base";
+                        } elseif (!empty($item->warning_notes) && str_contains($item->warning_notes, 'Mid-Cycle Split')) {
+                            $parts = explode(' | ', $item->warning_notes);
+                            foreach ($parts as $p) {
+                                if (str_contains($p, 'Mid-Cycle Split')) {
+                                    $item->mid_cycle_note = $p;
+                                }
+                            }
+                        } else {
+                            $item->mid_cycle_note = "Mid-Cycle Split applied for effective date in " . \Carbon\Carbon::parse($selectedMonth)->format('M Y');
+                        }
+                    }
                 }
             }
         }
@@ -565,6 +595,36 @@ class PayrollController extends Controller
                             'type' => 'amber',
                             'msg' => "{$item->full_name} ({$item->employee_code}) warning: {$item->warning_notes}"
                         ];
+                    }
+
+                    if ($item->salary_revision_applied) {
+                        $mStart = \Carbon\Carbon::parse($selectedMonth)->startOfMonth();
+                        $mEnd = \Carbon\Carbon::parse($selectedMonth)->endOfMonth();
+                        $rev = \Illuminate\Support\Facades\DB::table('salary_revisions')
+                            ->where('employee_id', $item->employee_id)
+                            ->where('status', 'approved')
+                            ->whereBetween('effective_date', [$mStart->toDateString(), $mEnd->toDateString()])
+                            ->first();
+
+                        if ($rev) {
+                            $eff = \Carbon\Carbon::parse($rev->effective_date)->startOfDay();
+                            $daysBefore = $mStart->diffInDays($eff);
+                            $daysAfter = $eff->diffInDays($mEnd) + 1;
+                            $oldRate = (float)($rev->old_gross_salary ?: ($rev->old_basic_pay ? $rev->old_basic_pay * 2 : 0));
+                            $newRate = (float)($rev->new_gross_salary ?: ($rev->new_basic_pay ? $rev->new_basic_pay * 2 : 0));
+                            $basePay = (float)$item->gross_total;
+
+                            $item->mid_cycle_note = "Mid-Cycle Split: {$daysBefore} days @ old rate (₹" . number_format($oldRate, 0) . "/mo) + {$daysAfter} days @ new rate (₹" . number_format($newRate, 0) . "/mo) = ₹" . number_format($basePay, 0) . " this month base";
+                        } elseif (!empty($item->warning_notes) && str_contains($item->warning_notes, 'Mid-Cycle Split')) {
+                            $parts = explode(' | ', $item->warning_notes);
+                            foreach ($parts as $p) {
+                                if (str_contains($p, 'Mid-Cycle Split')) {
+                                    $item->mid_cycle_note = $p;
+                                }
+                            }
+                        } else {
+                            $item->mid_cycle_note = "Mid-Cycle Split applied for effective date in " . \Carbon\Carbon::parse($selectedMonth)->format('M Y');
+                        }
                     }
                 }
             }
