@@ -43,6 +43,26 @@ class CtcFormulaTest extends TestCase
     }
 
     /** @test */
+    public function test_ctc_gratuity_accrual_uses_basic_plus_da_combined()
+    {
+        $client = Client::factory()->create(['gratuity_applicable' => true]);
+        $branch = ClientBranch::factory()->create(['client_id' => $client->id]);
+        $employee = Employee::factory()->create([
+            'client_id' => $client->id,
+            'branch_id' => $branch->id,
+            'basic_pay' => 9000,
+            'da' => 1000,
+            'gratuity_mode' => 'part_of_ctc',
+        ]);
+
+        $svc = new SalaryCalculationService();
+        $calc = $svc->calculateStructuralSalary($employee);
+
+        // (9000 + 1000) * (15 / 26 / 12) = 480.77
+        $this->assertEquals(480.77, $calc['gratuity_accrual_monthly']);
+    }
+
+    /** @test */
     public function test_ctc_excludes_gratuity_when_mode_is_over_and_above()
     {
         $client = Client::factory()->create(['gratuity_applicable' => true]);
