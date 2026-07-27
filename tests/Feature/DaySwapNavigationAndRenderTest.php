@@ -95,8 +95,8 @@ class DaySwapNavigationAndRenderTest extends TestCase
 
         // 1. Submit swap via POST
         $postResponse = $this->post(route('employee.day-swaps.store'), [
-            'original_date' => '2026-07-25',
-            'new_date' => '2026-07-28',
+            'original_date' => '2026-08-01',
+            'new_date' => '2026-08-04',
             'reason' => 'Rendering verification swap request',
         ]);
         $postResponse->assertRedirect();
@@ -108,8 +108,8 @@ class DaySwapNavigationAndRenderTest extends TestCase
         $getReponse->assertInertia(fn (Assert $page) => $page
             ->component('EmployeePortal/DaySwapRequests')
             ->has('requests', 1)
-            ->where('requests.0.originalDate', '2026-07-25')
-            ->where('requests.0.newDate', '2026-07-28')
+            ->where('requests.0.originalDate', '2026-08-01')
+            ->where('requests.0.newDate', '2026-08-04')
             ->where('requests.0.reason', 'Rendering verification swap request')
             ->where('requests.0.status', 'pending')
         );

@@ -302,11 +302,23 @@ export default function SalaryRevision({ employee, revisions }) {
                                         <div className="pt-2 border-t border-slate-200">
                                             <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Employer Contributions</div>
                                             <div className="space-y-1.5 text-xs">
-                                                <div className="flex justify-between items-center text-slate-600">
-                                                    <span>• Employer PF (13%)</span>
-                                                    <span className="font-semibold">{formatCurrency(emp.employer_pf_monthly)}</span>
+                                                <div className="flex justify-between items-center text-slate-600 pl-2">
+                                                    <span>• Employer EPF (12%)</span>
+                                                    <span className="font-semibold">{formatCurrency(emp.pf_applicable ? Math.round(Math.min(emp.basic_pay || 0, 15000) * 0.12) : 0)}</span>
                                                 </div>
-                                                <div className="flex justify-between items-center text-slate-600">
+                                                <div className="flex justify-between items-center text-slate-600 pl-2">
+                                                    <span>• EDLI (0.5%)</span>
+                                                    <span className="font-semibold">{emp.pf_applicable ? (emp.edli_exempted ? 'Exempted (₹0)' : formatCurrency(Math.round(Math.min(emp.basic_pay || 0, 15000) * 0.005))) : formatCurrency(0)}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center text-slate-600 pl-2">
+                                                    <span>• EPF Admin Charges (0.5%)</span>
+                                                    <span className="font-semibold">{formatCurrency(emp.pf_applicable ? Math.round(Math.min(emp.basic_pay || 0, 15000) * 0.005) : 0)}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center text-slate-800 font-bold pt-1 border-t border-dashed border-slate-200">
+                                                    <span>Total Employer PF Contribution</span>
+                                                    <span className="text-[#1F3864]">{formatCurrency(emp.employer_pf_monthly)}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center text-slate-600 pt-1">
                                                     <span>• Employer ESIC (3.25%)</span>
                                                     <span className="font-semibold">{formatCurrency(emp.employer_esi_monthly)}</span>
                                                 </div>
@@ -483,11 +495,23 @@ export default function SalaryRevision({ employee, revisions }) {
                                         <div className="pt-2 border-t border-blue-200">
                                             <div className="text-xs font-bold text-blue-700 uppercase tracking-wider mb-2">New Employer Contributions</div>
                                             <div className="space-y-1.5 text-xs">
-                                                <div className="flex justify-between items-center text-slate-700">
-                                                    <span>• Employer PF (13%)</span>
-                                                    <span className="font-semibold">{previewLoading ? '...' : (preview ? formatCurrency(preview.employer_pf_monthly) : '—')}</span>
+                                                <div className="flex justify-between items-center text-slate-700 pl-2">
+                                                    <span>• Employer EPF (12%)</span>
+                                                    <span className="font-semibold">{previewLoading ? '...' : (preview ? formatCurrency(preview.employer_epf_monthly) : '—')}</span>
                                                 </div>
-                                                <div className="flex justify-between items-center text-slate-700">
+                                                <div className="flex justify-between items-center text-slate-700 pl-2">
+                                                    <span>• EDLI (0.5%)</span>
+                                                    <span className="font-semibold">{previewLoading ? '...' : (preview ? (preview.edli_monthly === 0 ? 'Exempted (₹0)' : formatCurrency(preview.edli_monthly)) : '—')}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center text-slate-700 pl-2">
+                                                    <span>• EPF Admin Charges (0.5%)</span>
+                                                    <span className="font-semibold">{previewLoading ? '...' : (preview ? formatCurrency(preview.epf_admin_monthly) : '—')}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center text-slate-900 font-bold pt-1 border-t border-dashed border-blue-200">
+                                                    <span>Total Employer PF Contribution</span>
+                                                    <span className="text-[#1F3864]">{previewLoading ? '...' : (preview ? formatCurrency(preview.employer_pf_monthly) : '—')}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center text-slate-700 pt-1">
                                                     <span>• Employer ESIC (3.25%)</span>
                                                     <span className="font-semibold">{previewLoading ? '...' : (preview ? formatCurrency(preview.employer_esi_monthly) : '—')}</span>
                                                 </div>

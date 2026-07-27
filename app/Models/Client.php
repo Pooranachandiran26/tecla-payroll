@@ -41,6 +41,10 @@ class Client extends Model
     protected $casts = [
         'pan_number' => 'encrypted',
         'gstin' => 'encrypted',
+        'edli_exempted' => 'boolean',
+        'pf_applicable' => 'boolean',
+        'statutory_bonus_applicable' => 'boolean',
+        'gratuity_applicable' => 'boolean',
     ];
 
     public function contacts()

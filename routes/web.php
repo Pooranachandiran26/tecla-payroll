@@ -197,6 +197,10 @@ Route::middleware(['auth', 'active'])->group(function () {
             Route::put('/admin/settings/company', [SettingsController::class, 'updateCompanyProfile'])->name('admin.settings.company.update');
             
             Route::get('/admin/settings/pt-slabs', [SettingsController::class, 'getPtSlabs'])->name('admin.settings.pt-slabs');
+            Route::put('/admin/settings/pt-slabs/{id}', [SettingsController::class, 'updatePtSlab'])->name('admin.settings.pt-slabs.update');
+            
+            Route::get('/admin/settings/lwf-slabs', [SettingsController::class, 'getLwfSlabs'])->name('admin.settings.lwf-slabs');
+            Route::put('/admin/settings/lwf-slabs/{id}', [SettingsController::class, 'updateLwfSlab'])->name('admin.settings.lwf-slabs.update');
             
             Route::get('/admin/settings/payroll', [SettingsController::class, 'getPayrollConfig'])->name('admin.settings.payroll.show');
             Route::put('/admin/settings/payroll', [SettingsController::class, 'updatePayrollConfig'])->name('admin.settings.payroll.update');

@@ -276,15 +276,15 @@ export function getDefaultFormData() {
     noticePeriod: 30, creditLimit: '', latePenalty: '', billingCurrency: 'INR',
 
     // Statutory
-    pfCeiling: 15000, pfApplicable: true,
+    pfCeiling: 15000, pfApplicable: true, edliExempted: false,
     esiLimit: 21000, esiApplicable: true,
     ptState: 'auto', ptApplicable: true,
-    lwfFrequency: 'biannual', lwfApplicable: false,
+    lwfFrequency: 'annual', lwfApplicable: false,
     tdsRegime: 'new', tdsApplicable: true,
     gratuityMode: 'ctc_included', gratuityApplicable: true,
     bonusPct: 8.33, bonusApplicable: false,
     weeklyOffPattern: 'sat,sun',
-    lopBasis: '', // Resolved by useClientForm
+    lopBasis: '30', // Strictly 30 days divisor
 
     // Portal
     portalAccess: false, portalEmail: '', portalAccessLevel: 'view_only',

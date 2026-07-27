@@ -1082,20 +1082,14 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                       <div>
                         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                           <strong style={{ fontSize: "0.85rem" }}>Loss of Pay (LOP) Divisor Basis (Days)</strong>
-                          <span className={`badge ${overrides.lop ? 'badge-gold' : 'badge-neutral'}`}>{overrides.lop ? 'Overridden' : 'Inherited'}</span>
+                          <span className="badge badge-neutral">Standard</span>
                         </div>
-                        <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Denominator used for daily wage calculation (Basic / X).</span>
+                        <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Denominator used for daily wage calculation (Basic / 30). Standard fixed monthly divisor.</span>
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                        <input type="number" className={`form-control ${errors.lopBasis ? `is-${errors.lopBasis.type || 'error'}` : ''}`}
-                          style={{ width: "100px", textAlign: "center", fontWeight: "bold" }}
-                          min="15" max="31" placeholder="e.g. 26"
-                          value={formData.lopBasis}
-                          onChange={e => { handleInputChange('lopBasis', e.target.value); toggleOverride('lop'); }}
-                          onWheel={e => e.target.blur()} />
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", background: "#F1F5F9", border: "1px solid #CBD5E1", padding: "0.35rem 0.75rem", borderRadius: "6px", fontWeight: "bold", color: "var(--primary-navy)", fontSize: "0.85rem", whiteSpace: "nowrap" }}>
+                        🔒 Strictly 30 Days
                       </div>
                     </div>
-                    {errors.lopBasis && <div className={`field-msg ${errors.lopBasis.type || 'error'} show`}>{errors.lopBasis.msg}</div>}
                   </div>
 
                   <hr style={{ border: "0", borderTop: "1px solid var(--border-color)" }} />
@@ -1199,10 +1193,27 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                         <span style={{ fontSize: "1.5rem", fontWeight: "bold", color: "var(--accent-gold)" }}>₹{previewCalculations ? previewCalculations.net_take_home_monthly?.toLocaleString('en-IN') : grossCTC.toLocaleString('en-IN')}</span>
                       </div>
 
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", color: "var(--text-muted)", marginTop: "0.5rem" }}>
-                        <span>Estimated Employer Contributions:</span>
-                        <span>+ ₹{previewCalculations ? (previewCalculations.employer_pf_monthly + previewCalculations.employer_esi_monthly)?.toLocaleString('en-IN') : '0'}</span>
-                      </div>
+                      {previewCalculations && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem", background: "#F8FAFC", padding: "0.75rem", borderRadius: "6px", border: "1px solid var(--border-color)", fontSize: "0.78rem" }}>
+                          <div style={{ fontWeight: "700", color: "#334155", marginBottom: "0.15rem" }}>Employer Statutory Contributions Breakdown:</div>
+                          <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: "0.5rem" }}>
+                            <span>• Employer EPF (12%):</span>
+                            <strong>₹{(previewCalculations.employer_epf_monthly || 0).toLocaleString('en-IN')}</strong>
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: "0.5rem" }}>
+                            <span>• EDLI (0.5%):</span>
+                            <strong>{previewCalculations.edli_monthly === 0 ? '₹0.00 (Exempted)' : `₹${(previewCalculations.edli_monthly || 0).toLocaleString('en-IN')}`}</strong>
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: "0.5rem" }}>
+                            <span>• EPF Admin Charges (0.5%):</span>
+                            <strong>₹{(previewCalculations.epf_admin_monthly || 0).toLocaleString('en-IN')}</strong>
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px dashed #CBD5E1", paddingTop: "0.35rem", marginTop: "0.15rem", fontWeight: "700", color: "#1E293B" }}>
+                            <span>Total Employer PF Contribution:</span>
+                            <span style={{ color: "#1F3864" }}>₹{(previewCalculations.employer_pf_monthly || 0).toLocaleString('en-IN')}</span>
+                          </div>
+                        </div>
+                      )}
 
                       <div style={{ borderTop: "2px dashed var(--border-color)", paddingTop: "1rem", display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "0.5rem" }}>
                         <span style={{ fontWeight: "bold", color: "var(--text-color)", fontSize: "1.1rem" }}>Estimated Cost to Company (CTC):</span>

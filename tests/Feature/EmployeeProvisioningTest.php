@@ -208,9 +208,9 @@ class EmployeeProvisioningTest extends TestCase
         Mail::fake(); // Fake mail for Bulk upload
         
         // We can just construct a mock file for BulkUploadController::executeImport
-        $csvContent = "employee_code,client_code,full_name,personal_email,phone_number,date_of_birth,date_of_joining,designation,gender,employment_model,residential_address,basic_pay,pf_applicable,esi_applicable,pt_applicable,lwf_applicable,tds_regime,gratuity_mode,lop_basis_days,hra,conveyance,da,medical_allowance,special_allowance,other_additions,bank_account_number,bank_ifsc,bank_name,bank_branch,account_holder_name,pan_number,aadhaar_number\n";
-        $csvContent .= "EMP-BULK1,{$this->client->client_code},Alice Bulk,alice.bulk@example.com,9876543201,1992-01-01,2024-01-01,Developer,female,agency_contract,123 Test St,10000,0,0,0,0,old,part_of_ctc,30,5000,1600,0,1250,2150,0,123456789012,SBIN0001234,SBI,Main Branch,Alice Bulk,ABCDE1234F,123456789012\n";
-        $csvContent .= "EMP-BULK2,{$this->client->client_code},Bob Bulk,bob.bulk@example.com,9876543202,1993-01-01,2024-01-01,Tester,male,agency_contract,123 Test St,10000,0,0,0,0,old,part_of_ctc,30,5000,1600,0,1250,2150,0,223456789012,SBIN0001235,SBI,Main Branch,Bob Bulk,ABCDE1235F,223456789012\n";
+        $csvContent = "employee_code,full_name,client_code,branch_name,personal_email,phone_number,date_of_birth,date_of_joining,designation,gender,employment_model,residential_address,basic_pay,hra,conveyance,da,medical_allowance,special_allowance,other_additions,pf_applicable,esi_applicable,pt_applicable,lwf_applicable,tds_applicable,bank_account_number,bank_ifsc,bank_name,bank_branch,account_holder_name,pan_number\n";
+        $csvContent .= "EMP-BULK1,Alice Bulk,{$this->client->client_code},HQ,alice.bulk@example.com,9876543201,1992-01-01,2024-01-01,Developer,female,agency_contract,123 Test St,12000,3000,1000,0,1000,1000,0,0,0,0,0,0,123456789012,SBIN0001234,SBI,Main Branch,Alice Bulk,ABCDE1234F\n";
+        $csvContent .= "EMP-BULK2,Bob Bulk,{$this->client->client_code},HQ,bob.bulk@example.com,9876543202,1993-01-01,2024-01-01,Tester,male,agency_contract,123 Test St,12000,3000,1000,0,1000,1000,0,0,0,0,0,0,223456789012,SBIN0001235,SBI,Main Branch,Bob Bulk,ABCDE1235F\n";
 
         $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('bulk.csv', $csvContent);
 
