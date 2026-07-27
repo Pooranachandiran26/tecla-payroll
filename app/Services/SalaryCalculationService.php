@@ -50,7 +50,11 @@ class SalaryCalculationService
         $employeePf = 0.00;
 
         if (data_get($employeeData, 'pf_applicable', true)) {
-            $pfBase = min($basic, self::PF_WAGE_CEILING);
+            $pfCeiling = (float) data_get($employeeData, 'pf_ceiling', $client->pf_ceiling ?? self::PF_WAGE_CEILING);
+            if ($pfCeiling <= 0) {
+                $pfCeiling = self::PF_WAGE_CEILING;
+            }
+            $pfBase = min($basic, $pfCeiling);
             $employeePf = $pfBase * 0.12;
 
             $isEdliExempt = $client ? (bool)$client->edli_exempted : (bool)data_get($employeeData, 'edli_exempted', false);

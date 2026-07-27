@@ -118,7 +118,11 @@ class Employee extends Model
     public function getEmployeePfMonthlyAttribute()
     {
         if (!$this->pf_applicable) return 0.00;
-        return round(min((float)$this->basic_pay, \App\Services\SalaryCalculationService::PF_WAGE_CEILING) * 0.12, 2);
+        $pfCeiling = (float) ($this->client?->pf_ceiling ?? \App\Services\SalaryCalculationService::PF_WAGE_CEILING);
+        if ($pfCeiling <= 0) {
+            $pfCeiling = \App\Services\SalaryCalculationService::PF_WAGE_CEILING;
+        }
+        return round(min((float)$this->basic_pay, $pfCeiling) * 0.12, 2);
     }
 
     public function getEmployeeEsiMonthlyAttribute()
