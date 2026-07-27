@@ -9,9 +9,12 @@ import useToast from '../../Hooks/useToast.jsx';
 export default function ContactSupport({ queries = [] }) {
   const { showToast } = useToast();
 
+  const urlParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+  const initialCategory = urlParams.get('category') || 'general';
+
   const { data, setData, post, processing, errors, reset } = useForm({
     subject: '',
-    category: 'general',
+    category: initialCategory,
     message: '',
   });
 

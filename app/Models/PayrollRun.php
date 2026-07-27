@@ -18,10 +18,18 @@ class PayrollRun extends Model
 
         static::updating(function ($run) {
             $originalStatus = $run->getOriginal('status');
+            $dirtyFields = array_keys($run->getDirty());
 
-            // 1. If already locked, block all modifications
+            // Allowed metadata changes on a locked run
+            $metadataFields = ['review_email_sent_at', 'payslip_released_at', 'payslip_released_by', 'updated_at'];
+
+            // 1. If already locked, allow ONLY metadata fields
             if ($originalStatus === 'locked') {
-                throw new \Exception("Cannot modify a locked payroll run.");
+                $nonMetadataChanges = array_diff($dirtyFields, $metadataFields);
+                if (!empty($nonMetadataChanges)) {
+                    throw new \Exception("Cannot modify details of an approved or locked payroll run.");
+                }
+                return;
             }
 
             // 2. If status is changing
@@ -32,17 +40,19 @@ class PayrollRun extends Model
                 }
 
                 // Ensure no financial/core fields are changed during the status transition
-                $dirtyFields = array_keys($run->getDirty());
-                $allowedFields = ['status', 'approved_by', 'approved_at', 'locked_at', 'updated_at'];
+                $allowedFields = array_merge(['status', 'approved_by', 'approved_at', 'locked_at'], $metadataFields);
                 $invalidChanges = array_diff($dirtyFields, $allowedFields);
 
                 if (!empty($invalidChanges)) {
                     throw new \Exception("Cannot modify payroll run parameters or financial values during state transition.");
                 }
             } else {
-                // 3. If status is not changing, but run is already approved/locked, block all modifications
-                if (in_array($originalStatus, ['approved', 'locked'])) {
-                    throw new \Exception("Cannot modify details of an approved or locked payroll run.");
+                // 3. If status is not changing, but run is already approved, block non-metadata modifications
+                if ($originalStatus === 'approved') {
+                    $nonMetadataChanges = array_diff($dirtyFields, $metadataFields);
+                    if (!empty($nonMetadataChanges)) {
+                        throw new \Exception("Cannot modify details of an approved or locked payroll run.");
+                    }
                 }
             }
         });
