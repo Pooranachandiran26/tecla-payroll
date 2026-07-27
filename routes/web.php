@@ -177,6 +177,7 @@ Route::middleware(['auth', 'active'])->group(function () {
 
             Route::get('/admin/employee-queries', [\App\Http\Controllers\EmployeeQueryController::class, 'adminIndex'])->name('admin.employee-queries.index');
             Route::post('/admin/employee-queries/{query}/respond', [\App\Http\Controllers\EmployeeQueryController::class, 'adminRespond'])->name('admin.employee-queries.respond');
+            Route::post('/payroll/{id}/release-payslips', [\App\Http\Controllers\PayrollController::class, 'releasePayslips'])->name('payroll.run.release-payslips');
         });
  
         // ADMIN ONLY

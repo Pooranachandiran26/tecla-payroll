@@ -312,7 +312,7 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
                                 <div className="card">
                                     <h3 className="card-title" style={{ marginBottom: "0.5rem" }}>Authorization Lock</h3>
                                     <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "1.25rem" }}>
-                                        Approving and locking this run generates the branch invoices, performs reconciliation, and publishes employee payslips.
+                                        Approving and locking this run generates branch invoices, performs reconciliation, and sends automatic salary summary review emails.
                                     </p>
                                     
                                     <div>
@@ -328,6 +328,41 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
                                                     : '✓ Locked and Finalized') 
                                                 : '✓ Approve & Lock Batch'}
                                         </button>
+
+                                        {run.status === 'locked' && (
+                                            <div style={{ marginTop: "1rem", paddingTop: "1rem", borderTop: "1px solid var(--border-color)" }}>
+                                                <h4 style={{ fontSize: "0.9rem", color: "var(--primary-navy)", marginBottom: "0.5rem" }}>Stage 2: Official Payslips Release</h4>
+                                                
+                                                {run.payslip_released_at ? (
+                                                    <div style={{ backgroundColor: "#ECFDF5", border: "1px solid #A7F3D0", padding: "0.75rem", borderRadius: "var(--radius-sm)", marginBottom: "0.75rem" }}>
+                                                        <span style={{ fontSize: "0.8rem", color: "#065F46", fontWeight: 600, display: "block", marginBottom: "0.25rem" }}>
+                                                            ✅ Official Payslips Released on {new Date(run.payslip_released_at).toLocaleString()}
+                                                        </span>
+                                                        <span style={{ fontSize: "0.75rem", color: "#047857" }}>
+                                                            Released by: {run.released_by_user_name || 'Admin'}
+                                                        </span>
+                                                    </div>
+                                                ) : (
+                                                    <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "0.75rem" }}>
+                                                        Official PDF payslips have not been released yet. Click below to generate and email official PDF payslips to employees.
+                                                    </p>
+                                                )}
+
+                                                <button 
+                                                    className="btn btn-success" 
+                                                    style={{ width: "100%", padding: "0.6rem", backgroundColor: "#059669", borderColor: "#059669", color: "#ffffff" }}
+                                                    onClick={() => {
+                                                        router.post(route('payroll.run.release-payslips', run.id), {}, {
+                                                            onSuccess: () => showToast({ type: 'success', title: 'Success', message: 'Official payslips released and emailed successfully.' }),
+                                                            onError: (errs) => showToast({ type: 'error', title: 'Error', message: errs.error || 'Error releasing payslips' })
+                                                        });
+                                                    }}
+                                                >
+                                                    {run.payslip_released_at ? '📄 Re-send Official Payslips (All)' : '📄 Release Official PDF Payslips'}
+                                                </button>
+                                            </div>
+                                        )}
+
                                         <Link href={route('payroll.processing', { client_id: clientId, payroll_month: month })} className="btn btn-secondary" style={{ width: "100%", marginTop: "0.5rem", padding: "0.6rem", display: "block", textAlign: "center", boxSizing: "border-box" }}>
                                             Return to Calculations
                                         </Link>
@@ -336,7 +371,7 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
                                     {role !== 'admin' && (
                                         <div style={{ backgroundColor: "var(--status-danger-bg)", borderRadius: "var(--radius-sm)", padding: "0.75rem", border: "1px solid #FFCDD2", marginTop: "0.5rem" }}>
                                             <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--status-danger)" }}>
-                                                🔒 Manager: You do not have permissions to lock this payroll run. Please notify the Administrator.
+                                                🔒 Manager: Locking requires Administrator authorization. Stage 2 Payslip Release is allowed if you are assigned to this client.
                                             </span>
                                         </div>
                                     )}
