@@ -177,6 +177,7 @@ Route::middleware(['auth', 'active'])->group(function () {
 
             Route::get('/admin/employee-queries', [\App\Http\Controllers\EmployeeQueryController::class, 'adminIndex'])->name('admin.employee-queries.index');
             Route::post('/admin/employee-queries/{query}/respond', [\App\Http\Controllers\EmployeeQueryController::class, 'adminRespond'])->name('admin.employee-queries.respond');
+            Route::post('/payroll/{id}/release-payslips', [\App\Http\Controllers\PayrollController::class, 'releasePayslips'])->name('payroll.run.release-payslips');
         });
  
         // ADMIN ONLY
@@ -199,6 +200,10 @@ Route::middleware(['auth', 'active'])->group(function () {
             Route::put('/admin/settings/company', [SettingsController::class, 'updateCompanyProfile'])->name('admin.settings.company.update');
             
             Route::get('/admin/settings/pt-slabs', [SettingsController::class, 'getPtSlabs'])->name('admin.settings.pt-slabs');
+            Route::put('/admin/settings/pt-slabs/{id}', [SettingsController::class, 'updatePtSlab'])->name('admin.settings.pt-slabs.update');
+            
+            Route::get('/admin/settings/lwf-slabs', [SettingsController::class, 'getLwfSlabs'])->name('admin.settings.lwf-slabs');
+            Route::put('/admin/settings/lwf-slabs/{id}', [SettingsController::class, 'updateLwfSlab'])->name('admin.settings.lwf-slabs.update');
             
             Route::get('/admin/settings/payroll', [SettingsController::class, 'getPayrollConfig'])->name('admin.settings.payroll.show');
             Route::put('/admin/settings/payroll', [SettingsController::class, 'updatePayrollConfig'])->name('admin.settings.payroll.update');

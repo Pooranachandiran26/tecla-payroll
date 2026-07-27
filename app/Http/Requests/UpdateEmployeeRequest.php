@@ -18,10 +18,39 @@ class UpdateEmployeeRequest extends FormRequest
 
     protected function prepareForValidation()
     {
+        $firstName = $this->firstName ?: $this->first_name;
+        $lastName = $this->lastName ?: $this->last_name;
+        $fatherName = $this->fatherName ?: $this->father_name;
+
+        $fullName = trim(($firstName ?: '') . ' ' . ($lastName ?: ''));
+        if (empty($fullName)) {
+            $fullName = trim($this->fullName ?: $this->full_name ?: '');
+        }
+
+        if (empty($firstName) || empty($lastName)) {
+            if (!empty($fullName)) {
+                $parts = explode(' ', $fullName, 2);
+                if (empty($firstName)) $firstName = $parts[0] ?? 'Employee';
+                if (empty($lastName)) $lastName = $parts[1] ?? 'Name';
+            }
+        }
+
+        if (empty($fatherName)) {
+            $fatherName = 'N/A';
+        }
+
+        $motherName = $this->motherName ?: $this->mother_name;
+        $spouseName = $this->spouseName ?: $this->wifeName ?: $this->spouse_name;
+
         // Ensure default fallback values for boolean toggles if missing
         $this->merge([
             'client_id' => $this->clientPartner,
-            'full_name' => $this->fullName,
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+            'father_name' => $fatherName,
+            'mother_name' => $motherName,
+            'spouse_name' => $spouseName,
+            'full_name' => $fullName,
             'personal_email' => $this->personalEmail,
             'phone_number' => $this->phone,
             'emergency_contact_phone' => $this->emergencyContact,
@@ -62,7 +91,7 @@ class UpdateEmployeeRequest extends FormRequest
             'tds_regime' => $this->taxRegime ?? 'new',
             'declarations_accepted' => $this->declarations === 'yes' ? 1 : 0,
             'gratuity_mode' => $this->gratuityMode ?? 'part_of_ctc',
-            'lop_basis_days' => $this->lopBasis ?? '26',
+            'lop_basis_days' => '30',
             'weekly_off_pattern' => $this->weeklyOffPattern ?: $this->weekly_off_pattern ?: null,
             'emergency_contact_name' => $this->emergencyContactName,
             'previous_employer_name' => $this->prevEmployerName,
@@ -83,7 +112,12 @@ class UpdateEmployeeRequest extends FormRequest
 
         return [
             'client_id' => 'required|exists:clients,id',
-            'full_name' => 'required|string|max:255',
+            'first_name' => 'required|string|max:255',
+            'last_name' => 'required|string|max:255',
+            'father_name' => 'required|string|max:255',
+            'mother_name' => 'nullable|string|max:255',
+            'spouse_name' => 'nullable|string|max:255',
+            'full_name' => 'nullable|string|max:255',
             'personal_email' => 'required|email|unique:employees,personal_email,' . $employeeId . '|unique:users,email,'. $employeeId .',employee_id',
             'phone_number' => 'required|string|max:15|unique:employees,phone_number,' . $employeeId,
             'emergency_contact_phone' => 'nullable|string|max:15',

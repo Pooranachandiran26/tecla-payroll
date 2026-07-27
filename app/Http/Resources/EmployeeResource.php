@@ -22,6 +22,11 @@ class EmployeeResource extends JsonResource
             'client_id' => $this->client_id,
             'client_name' => $this->relationLoaded('client') && $this->client ? $this->client->company_name : null,
             'branch_id' => $this->branch_id,
+            'first_name' => $this->first_name,
+            'last_name' => $this->last_name,
+            'father_name' => $this->father_name,
+            'mother_name' => $this->mother_name,
+            'spouse_name' => $this->spouse_name,
             'full_name' => $this->full_name,
             'personal_email' => $this->personal_email,
             'phone_number' => $this->phone_number,
@@ -67,16 +72,19 @@ class EmployeeResource extends JsonResource
             'weekly_off_pattern' => $this->weekly_off_pattern,
             'weeklyOffPattern' => $this->weekly_off_pattern,
             
-            // Bank Info (Partially Masked)
+            // Bank Info (Partially Masked & Raw)
             'account_holder_name' => $this->account_holder_name,
             'bank_ifsc' => $this->bank_ifsc,
             'bank_name' => $this->bank_name,
             'bank_branch' => $this->bank_branch,
             'bank_account_number' => DataMasker::maskBankAccount($this->bank_account_number),
+            'raw_bank_account_number' => $this->bank_account_number,
             
-            // Sensitive Identity Fields (Masked)
+            // Sensitive Identity Fields (Masked & Raw)
             'pan_number' => DataMasker::maskIdentityNumber($this->pan_number),
+            'raw_pan_number' => $this->pan_number,
             'aadhaar_number' => DataMasker::maskIdentityNumber($this->aadhaar_number),
+            'raw_aadhaar_number' => $this->aadhaar_number,
             
             // Statutory IDs
             'uan_mode' => $this->uan_mode,

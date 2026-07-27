@@ -78,6 +78,24 @@ class User extends Authenticatable
     public function isAdmin() { return $this->role === 'admin'; }
     public function isManager() { return $this->role === 'manager'; }
     public function isLocked() { return in_array($this->status, ['locked', 'suspended']) || ($this->locked_until && $this->locked_until->isFuture()); }
+    public function isManagerForClient($clientId): bool
+    {
+        if ($this->role === 'admin') {
+            return true;
+        }
+
+        if ($this->role === 'manager') {
+            return Client::where('id', $clientId)
+                ->where(function ($query) {
+                    $query->where('account_manager_id', $this->id)
+                          ->orWhere('backup_account_manager_id', $this->id);
+                })
+                ->exists();
+        }
+
+        return false;
+    }
+
     public function incrementFailedAttempts() {
         $this->increment('failed_login_attempts');
     }

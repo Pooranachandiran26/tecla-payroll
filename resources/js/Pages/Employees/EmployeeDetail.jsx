@@ -9,13 +9,19 @@ import ComingSoonFeature from '../../Components/ui/ComingSoonFeature';
 import ConfirmDialog from '../../Components/ui/ConfirmDialog';
 import TaxDeclarationTab from './components/TaxDeclarationTab';
 import LoansAndAdvancesTab from './LoansAndAdvancesTab';
+import HistoryTimeline from '../../Components/HistoryTimeline';
+
+import { Eye, EyeOff } from 'lucide-react';
 
 export default function EmployeeDetail({ employee: empProp }) {
     const employee = empProp?.data || empProp || {};
-    const { auth, flash, attendanceRecords, attendanceStats, taxDeclaration, taxComparison, loans } = usePage().props;
+    const { auth, flash, attendanceRecords, attendanceStats, taxDeclaration, taxComparison, loans, salaryRevisions } = usePage().props;
     const { showToast } = useToast();
     const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, confirmText: '', reason: '' });
     const [activeTab, setActiveTab] = useState('overview');
+    const [showPan, setShowPan] = useState(false);
+    const [showAadhaar, setShowAadhaar] = useState(false);
+    const [showBankAccount, setShowBankAccount] = useState(false);
 
     const pendingDocsCount = employee.documents ? employee.documents.filter(d => d.status === 'pending').length : 0;
 
@@ -258,6 +264,7 @@ const renderDocumentRows = () => {
           </li>
           <li className={activeTab === 'tax' ? 'active' : ''} onClick={() => setActiveTab('tax')} style={{ cursor: 'pointer' }}>Tax Declaration</li>
           <li className={activeTab === 'loans' ? 'active' : ''} onClick={() => setActiveTab('loans')} style={{ cursor: 'pointer' }}>Loans &amp; Advances</li>
+          <li className={activeTab === 'history' ? 'active' : ''} onClick={() => setActiveTab('history')} style={{ cursor: 'pointer' }}>History</li>
         </ul>
 
         {/*  Tab 1: Overview  */}
@@ -291,6 +298,21 @@ const renderDocumentRows = () => {
                   <h4 className="data-label">Blood Group</h4>
                   <span className="data-value">{employee.blood_group || 'N/A'}</span>
                 </div>
+                <div>
+                  <h4 className="data-label">Father's Name</h4>
+                  <span className="data-value">{employee.father_name || 'N/A'}</span>
+                </div>
+                {employee.marital_status === 'married' || employee.spouse_name ? (
+                  <div>
+                    <h4 className="data-label">Wife / Spouse Name</h4>
+                    <span className="data-value">{employee.spouse_name || 'N/A'}</span>
+                  </div>
+                ) : (
+                  <div>
+                    <h4 className="data-label">Mother's Name</h4>
+                    <span className="data-value">{employee.mother_name || 'N/A'}</span>
+                  </div>
+                )}
                 <div>
                   <h4 className="data-label">Marital Status</h4>
                   <span className="data-value" style={{"textTransform": "capitalize"}}>{employee.marital_status || 'N/A'}</span>
@@ -332,8 +354,22 @@ const renderDocumentRows = () => {
                     <strong style={{"fontSize":"0.9rem"}}>{employee.bank_name || 'N/A'}</strong>
                   </div>
                   <div>
-                    <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>Account No (Masked)</div>
-                    <strong style={{"fontSize":"0.9rem"}}>{employee.bank_account_number || 'N/A'}</strong>
+                    <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>Account Number</div>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      <strong style={{"fontSize":"0.9rem","fontFamily":"monospace"}}>
+                        {showBankAccount ? (employee.raw_bank_account_number || employee.bank_account_number || 'N/A') : (employee.bank_account_number || 'N/A')}
+                      </strong>
+                      {employee.bank_account_number && (
+                        <button
+                          type="button"
+                          onClick={() => setShowBankAccount(!showBankAccount)}
+                          title={showBankAccount ? "Hide Account Number" : "Show Account Number"}
+                          style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: '2px', color: showBankAccount ? 'var(--primary-navy)' : '#64748B' }}
+                        >
+                          {showBankAccount ? <EyeOff size={14} /> : <Eye size={14} />}
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <div>
                     <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>IFSC Code</div>
@@ -570,9 +606,27 @@ const renderDocumentRows = () => {
                     <td style={{"color":"var(--accent-gold)"}}>₹{(employee.net_take_home_monthly || 0).toLocaleString('en-IN')}</td>
                   </tr>
                   <tr style={{"backgroundColor":"#FFFDF0","color":"#64748B"}}>
-                    <td><strong>Employer PF Contribution</strong></td>
-                    <td><span className="badge badge-neutral">Employer Cost</span></td>
-                    <td>₹{(employee.employer_pf_monthly || 0).toLocaleString('en-IN')}</td>
+                    <td style={{ paddingLeft: '1.5rem' }}>• 1. Employer EPF (12%)</td>
+                    <td><span className="badge badge-neutral">Employer Statutory Cost</span></td>
+                    <td>₹{employee.pf_applicable ? Math.round(Math.min(employee.basic_pay || 0, 15000) * 0.12).toLocaleString('en-IN') : 0}</td>
+                  </tr>
+                  <tr style={{"backgroundColor":"#FFFDF0","color":"#64748B"}}>
+                    <td style={{ paddingLeft: '1.5rem' }}>
+                      • 2. EDLI (0.5%)
+                      {Boolean(employee.edli_exempted) && <span style={{ marginLeft: '6px', fontSize: '0.7rem', color: '#166534', fontWeight: 'bold' }}>[Exempted]</span>}
+                    </td>
+                    <td><span className="badge badge-neutral">Employer Statutory Cost</span></td>
+                    <td>{employee.pf_applicable ? (employee.edli_exempted ? '₹0 (Exempted)' : `₹${Math.round(Math.min(employee.basic_pay || 0, 15000) * 0.005).toLocaleString('en-IN')}`) : 0}</td>
+                  </tr>
+                  <tr style={{"backgroundColor":"#FFFDF0","color":"#64748B"}}>
+                    <td style={{ paddingLeft: '1.5rem' }}>• 3. EPF Admin Charges (0.5%)</td>
+                    <td><span className="badge badge-neutral">Employer Admin Fee</span></td>
+                    <td>₹{employee.pf_applicable ? Math.round(Math.min(employee.basic_pay || 0, 15000) * 0.005).toLocaleString('en-IN') : 0}</td>
+                  </tr>
+                  <tr style={{"backgroundColor":"#FEF3C7","color":"#92400E","fontWeight":"bold","borderTop":"1px dashed #F59E0B","borderBottom":"1px dashed #F59E0B"}}>
+                    <td><strong>Total Employer PF Contribution</strong></td>
+                    <td><span className="badge badge-warning" style={{ background: '#FDE68A', color: '#78350F' }}>PF Subtotal</span></td>
+                    <td style={{ color: '#92400E', fontSize: '1.05rem' }}>₹{(employee.employer_pf_monthly || 0).toLocaleString('en-IN')}</td>
                   </tr>
                   <tr style={{"backgroundColor":"#FFFDF0","color":"#64748B"}}>
                     <td><strong>Employer ESIC Contribution</strong></td>
@@ -1309,6 +1363,11 @@ const renderDocumentRows = () => {
         {/*  Tab 7: Loans & Advances  */}
         <div className={`tab-content ${activeTab === 'loans' ? 'active' : ''}`} data-tab="loans">
           <LoansAndAdvancesTab employee={employee} loans={loans || []} />
+        </div>
+
+        {/*  Tab 8: History  */}
+        <div className={`tab-content ${activeTab === 'history' ? 'active' : ''}`} data-tab="history">
+          <HistoryTimeline revisions={salaryRevisions || []} isAdmin={true} />
         </div>
       </div>{/*  end tab-container  */}
     

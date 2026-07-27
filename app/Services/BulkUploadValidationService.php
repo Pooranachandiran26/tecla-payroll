@@ -202,7 +202,7 @@ class BulkUploadValidationService
 
             $tdsRegime = $normalizedRow['tds_regime'] ?? 'new';
             $gratuityMode = $normalizedRow['gratuity_mode'] ?? 'part_of_ctc';
-            $lopBasisDays = $normalizedRow['lop_basis_days'] ?? '26';
+            $lopBasisDays = '30';
 
             // Normalize declarations_accepted boolean (yes/no/true/false/1/0 string support, default to true)
             $rawDecl = $normalizedRow['declarations_accepted'] ?? null;

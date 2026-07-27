@@ -5,6 +5,8 @@ import Button from '../../Components/ui/Button';
 import RoleGuard from '../../Components/RoleGuard.jsx';
 import Pagination from '../../Components/ui/Pagination';
 
+import useToast from '../../Hooks/useToast';
+
 // Simple numbers-to-words helper in English
 function numberToEnglishWords(num) {
     if (num === 0) return 'zero';
@@ -38,7 +40,9 @@ function numberToEnglishWords(num) {
     return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
-export default function Payslip({ items, clients = [], selectedClientId, selectedMonth, clientBranding }) {
+export default function Payslip({ items, clients = [], selectedClientId, selectedMonth, clientBranding, lockedRun }) {
+    const { showToast } = useToast();
+    const [isReleasing, setIsReleasing] = useState(false);
     const [clientId, setClientId] = useState(selectedClientId || '');
     const [month, setMonth] = useState(selectedMonth || '2026-07-01');
     const [selectedItem, setSelectedItem] = useState(null);
@@ -288,8 +292,17 @@ export default function Payslip({ items, clients = [], selectedClientId, selecte
                                     <div className="flex gap-8">
                                         <div className="flex-1 bg-white border border-gray-200 rounded-md p-5 shadow-sm">
                                             <div className="flex flex-col gap-2 text-[0.85rem]">
-                                                <div className="flex justify-between"><span className="payslip-meta-label">Employer PF Contribution</span><span className="payslip-meta-val">₹{parseFloat(selectedItem.employer_pf).toLocaleString()}</span></div>
-                                                <div className="flex justify-between"><span className="payslip-meta-label">Employer ESI Contribution</span><span className="payslip-meta-val">₹{parseFloat(selectedItem.employer_esi).toLocaleString()}</span></div>
+                                                <div className="flex justify-between pl-2"><span className="payslip-meta-label">• Employer EPF (12%)</span><span className="payslip-meta-val">₹{Math.round(Math.min(selectedItem.basic_pay || 0, 15000) * 0.12).toLocaleString()}</span></div>
+                                                <div className="flex justify-between pl-2">
+                                                    <span className="payslip-meta-label">• EDLI (0.5%)</span>
+                                                    <span className="payslip-meta-val">{selectedItem.edli_exempted ? 'Exempted (₹0)' : `₹${Math.round(Math.min(selectedItem.basic_pay || 0, 15000) * 0.005).toLocaleString()}`}</span>
+                                                </div>
+                                                <div className="flex justify-between pl-2"><span className="payslip-meta-label">• EPF Admin Charges (0.5%)</span><span className="payslip-meta-val">₹{Math.round(Math.min(selectedItem.basic_pay || 0, 15000) * 0.005).toLocaleString()}</span></div>
+                                                <div className="flex justify-between font-bold text-[#1F3864] pt-1 border-t border-dashed border-gray-200">
+                                                    <span>Total Employer PF Contribution</span>
+                                                    <span>₹{parseFloat(selectedItem.employer_pf).toLocaleString()}</span>
+                                                </div>
+                                                <div className="flex justify-between pt-1"><span className="payslip-meta-label">Employer ESI Contribution</span><span className="payslip-meta-val">₹{parseFloat(selectedItem.employer_esi).toLocaleString()}</span></div>
                                                 <div className="flex justify-between"><span className="payslip-meta-label">Employer LWF Contribution</span><span className="payslip-meta-val">₹{parseFloat(selectedItem.employer_lwf).toLocaleString()}</span></div>
                                                 <hr className="border-t border-gray-200 my-1" />
                                                 <div className="flex justify-between font-bold">
@@ -323,7 +336,24 @@ export default function Payslip({ items, clients = [], selectedClientId, selecte
                                 </div>
                             </div>
 
-                            <div className="flex justify-end gap-4">
+                            <div className="flex justify-end gap-4 items-center">
+                                {lockedRun && (
+                                    <Button 
+                                        variant="primary" 
+                                        disabled={isReleasing}
+                                        onClick={() => {
+                                            setIsReleasing(true);
+                                            router.post(route('payroll.run.release-payslips', lockedRun.id), {}, {
+                                                onFinish: () => setIsReleasing(false),
+                                                onSuccess: () => showToast({ type: 'success', title: 'Success', message: 'Official PDF payslips released & emailed to employees.' }),
+                                                onError: (errs) => showToast({ type: 'error', title: 'Error', message: errs.error || 'Failed to release payslips.' })
+                                            });
+                                        }}
+                                        style={{ backgroundColor: '#059669', borderColor: '#059669', color: '#ffffff' }}
+                                    >
+                                        {isReleasing ? '⌛ Releasing...' : lockedRun.payslip_released_at ? '📄 Re-send Official Payslips' : '📄 Release & Email Official Payslips'}
+                                    </Button>
+                                )}
                                 <Button variant="secondary" onClick={() => window.print()}>🖨 Print Payslip</Button>
                             </div>
                         </div>

@@ -106,7 +106,7 @@ class BulkUploadController extends Controller
             'esic_number' => '',
             'tds_regime' => 'new',
             'gratuity_mode' => 'part_of_ctc',
-            'lop_basis_days' => (string)($client->lop_basis_days ?? '26'),
+            'lop_basis_days' => '30',
             'declarations_accepted' => '1',
             'reporting_manager_code' => ''
         ]);
@@ -125,8 +125,8 @@ class BulkUploadController extends Controller
         ]);
         $writer->addRow([
             'Setting Field' => 'Default LOP Basis',
-            'Value' => (string)($client->lop_basis_days ?? '26'),
-            'Notes' => 'Default monthly calculation basis (26 or 30 days)'
+            'Value' => '30',
+            'Notes' => 'Default monthly calculation basis (strictly 30 days)'
         ]);
         $writer->addRow([
             'Setting Field' => 'Contract Type / Employment Model',

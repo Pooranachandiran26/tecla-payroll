@@ -37,7 +37,10 @@ class AttendanceTrackingStartDateTest extends TestCase
     {
         return array_merge([
             'clientPartner' => $client->id,
-            'fullName' => 'Historical Employee',
+            'firstName' => 'Flex',
+            'lastName' => 'Employee',
+            'fatherName' => 'Father Employee',
+            'fullName' => 'Flex Employee',
             'personalEmail' => 'historical@example.com',
             'phone' => '9876543210',
             'dob' => '1990-01-01',

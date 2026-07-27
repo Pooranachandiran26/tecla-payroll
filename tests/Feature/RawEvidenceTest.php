@@ -220,6 +220,6 @@ class RawEvidenceTest extends TestCase
         $this->assertEquals('28', $client->cutoff_day);
         $this->assertEquals('TEST_raise_day', $client->invoice_raise_day);
         $this->assertEquals('TEST_convention', $client->payroll_convention);
-        $this->assertEquals('26', $client->lop_basis_days);
+        $this->assertEquals('30', $client->lop_basis_days);
     }
 }
