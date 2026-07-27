@@ -168,7 +168,7 @@ export default function StatutorySection({ formData, onChange, hook }) {
           </div>
           <div className="stat-rate">
             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>Wage Ceiling Override (₹)</div>
-            <input type="number" className="stat-rate-input" placeholder="15000"
+            <input type="number" className="stat-rate-input" placeholder="15000" max="15000" min="0"
               value={formData.pfCeiling} onChange={e => hook.handlePFCeiling(e.target.value)} onWheel={e => e.target.blur()} {...lockProps} />
             <div className={`field-hint ${hook.getPFCeilingHint().type}`} style={{ fontSize: '0.65rem', marginTop: '0.2rem' }}>
               {hook.getPFCeilingHint().text}
