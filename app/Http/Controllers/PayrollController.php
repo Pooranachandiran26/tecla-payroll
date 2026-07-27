@@ -107,12 +107,138 @@ class PayrollController extends Controller
                 // Trigger invoice generation upon locking
                 $invoiceService = app(\App\Services\InvoiceGenerationService::class);
                 $invoiceService->generateForRun($run);
-            });
+            }); // DB TRANSACTION COMMITS HERE PERMANENTLY
 
-            return redirect()->back()->with('success', 'Payroll run locked and invoices generated successfully.');
+            // Stage 1 (Automatic): Dispatch Salary Review & Summary Email OUTSIDE DB transaction
+            $this->dispatchSalaryReviewEmails($run);
+
+            return redirect()->back()->with('success', 'Payroll run locked, invoices generated, and salary summary emails dispatched successfully.');
         } catch (\Exception $e) {
             return redirect()->back()->with('error', $e->getMessage());
         }
+    }
+
+    /**
+     * Dispatch Stage 1 Salary Review & Summary emails to active employees in a locked run.
+     */
+    protected function dispatchSalaryReviewEmails(PayrollRun $run)
+    {
+        $items = \App\Models\PayrollRunItem::where('payroll_run_id', $run->id)
+            ->where('is_excluded', false)
+            ->get();
+
+        $mStart = \Carbon\Carbon::parse($run->payroll_month)->startOfMonth();
+        $mEnd = \Carbon\Carbon::parse($run->payroll_month)->endOfMonth();
+
+        foreach ($items as $item) {
+            try {
+                $employee = \App\Models\Employee::find($item->employee_id);
+                if (!$employee) continue;
+
+                $recipientEmail = $employee->personal_email ?: optional($employee->user)->email;
+                if (!$recipientEmail) continue;
+
+                $rawRecords = \Illuminate\Support\Facades\DB::table('attendance_records')
+                    ->where('employee_id', $employee->id)
+                    ->whereBetween('attendance_date', [$mStart->toDateString(), $mEnd->toDateString()])
+                    ->get();
+
+                $presentDays = $rawRecords->where('status', 'present')->count();
+
+                $weeklyOffDays = 0;
+                $curr = $mStart->copy();
+                while ($curr->lte($mEnd)) {
+                    if ($curr->isWeekend()) {
+                        $weeklyOffDays++;
+                    }
+                    $curr->addDay();
+                }
+
+                $holidayDays = \App\Models\Holiday::where('client_id', $employee->client_id)
+                    ->whereBetween('holiday_date', [$mStart->toDateString(), $mEnd->toDateString()])
+                    ->count();
+
+                $breakdown = [
+                    'present_days' => $presentDays,
+                    'lop_days' => (float)$item->lop_days,
+                    'weekly_off_days' => $weeklyOffDays,
+                    'holiday_days' => $holidayDays,
+                ];
+
+                $supportUrl = route('employee.contact', ['category' => 'payroll']);
+
+                \Illuminate\Support\Facades\Mail::to($recipientEmail)
+                    ->send(new \App\Mail\SalaryReviewSummaryMail($item, $run, $employee, $breakdown, $supportUrl));
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning("Salary review summary email failed for employee {$item->employee_id}: {$e->getMessage()}");
+            }
+        }
+
+        $run->update(['review_email_sent_at' => now()]);
+    }
+
+    /**
+     * Stage 2 (Manual): Release Official PDF Payslips to employees in a locked run.
+     */
+    public function releasePayslips(Request $request, $id)
+    {
+        $run = PayrollRun::findOrFail($id);
+
+        if ($run->status !== 'locked') {
+            if ($request->wantsJson()) {
+                return response()->json(['error' => 'Payslips can only be released for locked payroll runs.'], 422);
+            }
+            return redirect()->back()->with('error', 'Payslips can only be released for locked payroll runs.');
+        }
+
+        $user = Auth::user();
+        $isAuthorized = $user && ($user->role === 'admin' || ($user->role === 'manager' && $user->isManagerForClient($run->client_id)));
+
+        if (!$isAuthorized) {
+            if ($request->wantsJson()) {
+                return response()->json(['error' => 'You do not have permission to release payslips for this client.'], 403);
+            }
+            abort(403, 'You do not have permission to release payslips for this client.');
+        }
+
+        $pdfService = app(\App\Services\PayslipPdfService::class);
+
+        $query = \App\Models\PayrollRunItem::where('payroll_run_id', $run->id)
+            ->where('is_excluded', false);
+
+        if ($request->has('employee_id') && !empty($request->employee_id)) {
+            $query->where('employee_id', $request->employee_id);
+        }
+
+        $items = $query->get();
+
+        foreach ($items as $item) {
+            try {
+                $employee = \App\Models\Employee::find($item->employee_id);
+                if (!$employee) continue;
+
+                $recipientEmail = $employee->personal_email ?: optional($employee->user)->email;
+                if (!$recipientEmail) continue;
+
+                $pdfBytes = $pdfService->generatePdfBinary($item);
+
+                \Illuminate\Support\Facades\Mail::to($recipientEmail)
+                    ->send(new \App\Mail\OfficialPayslipReleasedMail($item, $run, $employee, $pdfBytes));
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning("Official payslip release email failed for employee {$item->employee_id}: {$e->getMessage()}");
+            }
+        }
+
+        $run->update([
+            'payslip_released_at' => now(),
+            'payslip_released_by' => Auth::id(),
+        ]);
+
+        if ($request->wantsJson()) {
+            return response()->json(['success' => 'Official payslips released successfully.']);
+        }
+
+        return redirect()->back()->with('success', 'Official payslips released and emailed successfully.');
     }
 
     /**
@@ -666,7 +792,9 @@ class PayrollController extends Controller
             'clients' => $clients,
             'selectedClientId' => (int) $selectedClientId,
             'selectedMonth' => $selectedMonth,
-            'run' => $run ? array_merge($run->load('client')->toArray(), $run->getCombinedStats()) : null,
+            'run' => $run ? array_merge($run->load('client')->toArray(), $run->getCombinedStats(), [
+                'released_by_user_name' => $run->payslip_released_by ? optional(\App\Models\User::find($run->payslip_released_by))->name : null,
+            ]) : null,
             'items' => $items,
             'preflight' => $preflight,
             'newHires' => $newHires,
@@ -717,12 +845,14 @@ class PayrollController extends Controller
             $selectedMonth = $latestRun ? $latestRun->payroll_month : '2026-07-01';
         }
 
-        $lockedRunIds = \App\Models\PayrollRun::where('status', 'locked')
+        $lockedRunQuery = \App\Models\PayrollRun::where('status', 'locked')
             ->where('payroll_month', $selectedMonth)
             ->when($selectedClientId, function ($query) use ($selectedClientId) {
                 $query->where('client_id', $selectedClientId);
-            })
-            ->pluck('id');
+            });
+
+        $lockedRun = (clone $lockedRunQuery)->first();
+        $lockedRunIds = $lockedRunQuery->pluck('id');
 
         $runItems = \App\Models\PayrollRunItem::with(['employee', 'payrollRun'])
             ->whereIn('payroll_run_id', $lockedRunIds)
@@ -776,6 +906,12 @@ class PayrollController extends Controller
             'selectedClientId' => $selectedClientId ? (int)$selectedClientId : null,
             'selectedMonth' => $selectedMonth,
             'clientBranding' => $clientBranding,
+            'lockedRun' => $lockedRun ? [
+                'id' => $lockedRun->id,
+                'status' => $lockedRun->status,
+                'payslip_released_at' => $lockedRun->payslip_released_at,
+                'released_by_user_name' => $lockedRun->payslip_released_by ? optional(\App\Models\User::find($lockedRun->payslip_released_by))->name : null,
+            ] : null,
         ]);
     }
 

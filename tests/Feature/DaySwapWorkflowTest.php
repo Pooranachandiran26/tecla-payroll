@@ -71,7 +71,7 @@ class DaySwapWorkflowTest extends TestCase
         $this->actingAs($this->employeeUser);
 
         $payload = [
-            'original_date' => '2026-07-25', // Saturday
+            'original_date' => '2026-08-01', // Saturday
             'new_date' => '2026-07-28',      // Tuesday
             'reason' => 'Working Saturday to take Tuesday off for family event',
         ];
@@ -86,7 +86,7 @@ class DaySwapWorkflowTest extends TestCase
         // Row 1: Original off-day worked
         $this->assertDatabaseHas('employee_attendance_overrides', [
             'employee_id' => $this->employee->id,
-            'override_date' => '2026-07-25',
+            'override_date' => '2026-08-01',
             'attendance_day_type' => 'work_day',
             'swap_target_date' => '2026-07-28',
             'status' => 'pending',
@@ -98,7 +98,7 @@ class DaySwapWorkflowTest extends TestCase
             'employee_id' => $this->employee->id,
             'override_date' => '2026-07-28',
             'attendance_day_type' => 'weekly_off',
-            'swap_target_date' => '2026-07-25',
+            'swap_target_date' => '2026-08-01',
             'status' => 'pending',
             'requested_by' => $this->employeeUser->id,
         ]);
@@ -107,7 +107,7 @@ class DaySwapWorkflowTest extends TestCase
         Queue::assertPushed(NotifyWatchersJob::class, function ($job) {
             return $job->category === 'system_alerts'
                 && str_contains($job->subject, 'Attendance Day Swap Requested')
-                && str_contains($job->summary, '2026-07-25')
+                && str_contains($job->summary, '2026-08-01')
                 && str_contains($job->summary, '2026-07-28');
         });
     }
@@ -120,10 +120,10 @@ class DaySwapWorkflowTest extends TestCase
     #[Test]
     public function test_2_duplicate_or_conflicting_swap_blocked()
     {
-        // Pre-create an existing approved override on 2026-07-25
+        // Pre-create an existing approved override on 2026-08-01
         EmployeeAttendanceOverride::create([
             'employee_id' => $this->employee->id,
-            'override_date' => '2026-07-25',
+            'override_date' => '2026-08-01',
             'attendance_day_type' => 'work_day',
             'reason' => 'Prior swap',
             'status' => 'approved',
@@ -132,9 +132,9 @@ class DaySwapWorkflowTest extends TestCase
 
         $this->actingAs($this->employeeUser);
 
-        // Attempt new swap request involving 2026-07-25 again
+        // Attempt new swap request involving 2026-08-01 again
         $payload = [
-            'original_date' => '2026-07-25', // Conflicting date!
+            'original_date' => '2026-08-01', // Conflicting date!
             'new_date' => '2026-07-29',
             'reason' => 'Attempting duplicate swap on same date',
         ];
@@ -159,7 +159,7 @@ class DaySwapWorkflowTest extends TestCase
         // Seed 2 paired pending rows
         $row1 = EmployeeAttendanceOverride::create([
             'employee_id' => $this->employee->id,
-            'override_date' => '2026-07-25',
+            'override_date' => '2026-08-01',
             'attendance_day_type' => 'work_day',
             'swap_target_date' => '2026-07-28',
             'reason' => 'Day swap',
@@ -171,7 +171,7 @@ class DaySwapWorkflowTest extends TestCase
             'employee_id' => $this->employee->id,
             'override_date' => '2026-07-28',
             'attendance_day_type' => 'weekly_off',
-            'swap_target_date' => '2026-07-25',
+            'swap_target_date' => '2026-08-01',
             'reason' => 'Day swap',
             'status' => 'pending',
             'requested_by' => $this->employeeUser->id,
@@ -198,7 +198,7 @@ class DaySwapWorkflowTest extends TestCase
         Mail::assertQueued(DaySwapApprovedMail::class, function ($mail) {
             return $mail->hasTo($this->employee->personal_email)
                 && $mail->employeeName === $this->employee->full_name
-                && $mail->originalDate === '2026-07-25'
+                && $mail->originalDate === '2026-08-01'
                 && $mail->newDate === '2026-07-28';
         });
     }
@@ -215,7 +215,7 @@ class DaySwapWorkflowTest extends TestCase
 
         $row1 = EmployeeAttendanceOverride::create([
             'employee_id' => $this->employee->id,
-            'override_date' => '2026-07-25',
+            'override_date' => '2026-08-01',
             'attendance_day_type' => 'work_day',
             'swap_target_date' => '2026-07-28',
             'reason' => 'Day swap',
@@ -227,7 +227,7 @@ class DaySwapWorkflowTest extends TestCase
             'employee_id' => $this->employee->id,
             'override_date' => '2026-07-28',
             'attendance_day_type' => 'weekly_off',
-            'swap_target_date' => '2026-07-25',
+            'swap_target_date' => '2026-08-01',
             'reason' => 'Day swap',
             'status' => 'pending',
             'requested_by' => $this->employeeUser->id,
@@ -272,13 +272,13 @@ class DaySwapWorkflowTest extends TestCase
         // 1. Employee submits swap: Sat Jul 25 (worked off-day) for Tue Jul 28 (off day)
         $this->actingAs($this->employeeUser);
         $this->post(route('employee.day-swaps.store'), [
-            'original_date' => '2026-07-25',
+            'original_date' => '2026-08-01',
             'new_date' => '2026-07-28',
             'reason' => 'End to end swap test',
         ]);
 
         $primaryRow = EmployeeAttendanceOverride::where('employee_id', $this->employee->id)
-            ->where('override_date', '2026-07-25')
+            ->where('override_date', '2026-08-01')
             ->firstOrFail();
 
         // 2. Admin approves the swap
@@ -307,7 +307,7 @@ class DaySwapWorkflowTest extends TestCase
         // Also seed an attendance record for Sat Jul 25 (the worked off-day) as 'present'
         DB::table('attendance_records')->insert([
             'employee_id' => $this->employee->id,
-            'attendance_date' => '2026-07-25',
+            'attendance_date' => '2026-08-01',
             'status' => 'present',
             'source' => 'live_punch',
             'created_at' => now(),
@@ -339,7 +339,7 @@ class DaySwapWorkflowTest extends TestCase
         // Manually seed ONLY 1 row of a swap pair (orphan row, missing row 2)
         $orphanRow = EmployeeAttendanceOverride::create([
             'employee_id' => $this->employee->id,
-            'override_date' => '2026-07-25',
+            'override_date' => '2026-08-01',
             'attendance_day_type' => 'work_day',
             'swap_target_date' => '2026-07-28', // points to Jul 28, but no row exists for Jul 28!
             'reason' => 'Orphan row test',

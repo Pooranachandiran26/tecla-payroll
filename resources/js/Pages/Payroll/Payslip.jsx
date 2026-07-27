@@ -5,6 +5,8 @@ import Button from '../../Components/ui/Button';
 import RoleGuard from '../../Components/RoleGuard.jsx';
 import Pagination from '../../Components/ui/Pagination';
 
+import useToast from '../../Hooks/useToast';
+
 // Simple numbers-to-words helper in English
 function numberToEnglishWords(num) {
     if (num === 0) return 'zero';
@@ -38,7 +40,9 @@ function numberToEnglishWords(num) {
     return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
-export default function Payslip({ items, clients = [], selectedClientId, selectedMonth, clientBranding }) {
+export default function Payslip({ items, clients = [], selectedClientId, selectedMonth, clientBranding, lockedRun }) {
+    const { showToast } = useToast();
+    const [isReleasing, setIsReleasing] = useState(false);
     const [clientId, setClientId] = useState(selectedClientId || '');
     const [month, setMonth] = useState(selectedMonth || '2026-07-01');
     const [selectedItem, setSelectedItem] = useState(null);
@@ -323,7 +327,24 @@ export default function Payslip({ items, clients = [], selectedClientId, selecte
                                 </div>
                             </div>
 
-                            <div className="flex justify-end gap-4">
+                            <div className="flex justify-end gap-4 items-center">
+                                {lockedRun && (
+                                    <Button 
+                                        variant="primary" 
+                                        disabled={isReleasing}
+                                        onClick={() => {
+                                            setIsReleasing(true);
+                                            router.post(route('payroll.run.release-payslips', lockedRun.id), {}, {
+                                                onFinish: () => setIsReleasing(false),
+                                                onSuccess: () => showToast({ type: 'success', title: 'Success', message: 'Official PDF payslips released & emailed to employees.' }),
+                                                onError: (errs) => showToast({ type: 'error', title: 'Error', message: errs.error || 'Failed to release payslips.' })
+                                            });
+                                        }}
+                                        style={{ backgroundColor: '#059669', borderColor: '#059669', color: '#ffffff' }}
+                                    >
+                                        {isReleasing ? '⌛ Releasing...' : lockedRun.payslip_released_at ? '📄 Re-send Official Payslips' : '📄 Release & Email Official Payslips'}
+                                    </Button>
+                                )}
                                 <Button variant="secondary" onClick={() => window.print()}>🖨 Print Payslip</Button>
                             </div>
                         </div>
