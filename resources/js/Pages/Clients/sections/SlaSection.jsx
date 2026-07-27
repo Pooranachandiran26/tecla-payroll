@@ -1,6 +1,7 @@
 import React from 'react';
 import { usePage } from '@inertiajs/react';
 import { CUTOFF_DAYS, PAYROLL_LOCK_DAYS, SALARY_CREDIT_DAYS, INVOICE_RAISE_DAYS, PAYROLL_CONVENTIONS } from '../constants/clientFormData';
+import { Clock, Calendar, Info } from 'lucide-react';
 
 export default function SlaSection({ formData, errors, onChange, hook }) {
   const { accountManagers = [] } = usePage().props;
@@ -9,12 +10,13 @@ export default function SlaSection({ formData, errors, onChange, hook }) {
   return (
     <>
       <div className="section-header">
-        <div className="section-icon">📅</div>
+        <div className="section-icon"><Clock size={18} /></div>
         <h3>SLA &amp; Payroll Calendar</h3>
       </div>
 
-      <div className="info-box" style={{ marginBottom: '1rem' }}>
-        📆 Define the payroll processing timeline for this client. These dates drive automated reminders and lock-outs.
+      <div className="info-box" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+        <Calendar size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
+        <div>Define the payroll processing timeline for this client. These dates drive automated reminders and lock-outs.</div>
       </div>
 
       <div className="form-row">
@@ -108,8 +110,9 @@ export default function SlaSection({ formData, errors, onChange, hook }) {
       </div>
 
       {formData.autoReminders && (
-        <div className="info-box" style={{ marginTop: '1rem', background: '#FFFBF0', borderColor: 'var(--accent-gold)' }}>
-          ℹ️ <strong>System will auto-send:</strong> Attendance reminder 3 days before cut-off | Invoice reminder 2 days before due date | Overdue alert on Day 1, 7, 15 after due date
+        <div className="info-box" style={{ marginTop: '1rem', background: '#FFFBF0', borderColor: 'var(--accent-gold)', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+          <Info size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
+          <div><strong>System will auto-send:</strong> Attendance reminder 3 days before cut-off | Invoice reminder 2 days before due date | Overdue alert on Day 1, 7, 15 after due date</div>
         </div>
       )}
 

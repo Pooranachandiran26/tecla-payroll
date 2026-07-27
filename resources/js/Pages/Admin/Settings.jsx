@@ -12,6 +12,7 @@ import Checkbox from '../../Components/ui/Checkbox';
 import ConfirmDialog from '../../Components/ui/ConfirmDialog';
 import useToast from '../../Hooks/useToast';
 import RoleGuard from '../../Components/RoleGuard.jsx';
+import { Plus, Trash2, Save, Info, Percent, Receipt, CheckCircle2 } from 'lucide-react';
 
 export default function Settings() {
   const { showToast } = useToast();
@@ -28,6 +29,7 @@ export default function Settings() {
     { key: 'notif', label: 'Notification Setup' },
     { key: 'onboarding', label: 'Onboarding Policy' },
     { key: 'payroll', label: 'Payroll Configuration' },
+    { key: 'gst', label: 'GST Settings' },
     { key: 'auth_security', label: 'Authentication & Security' }
   ];
 
@@ -71,7 +73,22 @@ export default function Settings() {
   // Payroll State
   const [payrollSettings, setPayrollSettings] = useState({});
   const [payrollLoading, setPayrollLoading] = useState(false);
-  
+
+  // GST Settings State
+  const [gstSettings, setGstSettings] = useState({
+    default_gst_rate: '18',
+    gst_rates: [
+      { rate: '18', label: '18% (Standard Services)', hsn_sac: '998311', description: 'Standard professional / staffing services' },
+      { rate: '0',  label: '0% (SEZ / Export without payment of IGST)', hsn_sac: '998311', description: 'Exports / SEZ supplies under LUT' },
+      { rate: 'exempt', label: 'Exempt', hsn_sac: '', description: 'Exempt category supplies' },
+    ],
+    default_reverse_charge: false,
+    default_tds_on_agency_fee: 'na',
+    notes: ''
+  });
+  const [gstLoading, setGstLoading] = useState(false);
+  const [gstSaving, setGstSaving] = useState(false);
+
   // Branding State
   const [brandingSettings, setBrandingSettings] = useState({});
   const [brandingLoading, setBrandingLoading] = useState(false);
@@ -124,6 +141,9 @@ export default function Settings() {
     }
     if (activeTab === 'notif' && watchers.length === 0) {
       fetchWatchers();
+    }
+    if (activeTab === 'gst' && !gstLoading) {
+      fetchGstSettings();
     }
   }, [activeTab]);
 
@@ -285,6 +305,70 @@ export default function Settings() {
       showToast({ type: 'success', title: 'Success', message: 'Global LOP Basis updated.' });
     } catch (err) {
       showToast({ type: 'error', title: 'Error', message: err.response?.data?.message || 'Failed to save payroll settings' });
+    }
+  };
+
+  // ── GST Settings Functions ──────────────────────────────
+  const fetchGstSettings = async () => {
+    setGstLoading(true);
+    try {
+      const res = await axios.get(route('admin.settings.gst.show'));
+      if (res.data && Object.keys(res.data).length > 0) {
+        let rates = res.data.gst_rates;
+        if (typeof rates === 'string') {
+          try { rates = JSON.parse(rates); } catch(e) {}
+        }
+        setGstSettings(prev => ({
+          ...prev,
+          ...res.data,
+          gst_rates: Array.isArray(rates) ? rates : prev.gst_rates
+        }));
+      }
+    } catch (e) {
+      showToast({ type: 'error', title: 'Error', message: 'Failed to load GST settings' });
+    } finally {
+      setGstLoading(false);
+    }
+  };
+
+  const saveGstSettings = async (e) => {
+    e.preventDefault();
+    setGstSaving(true);
+    try {
+      const payload = {
+        ...gstSettings,
+        default_gst_rate: String(gstSettings.default_gst_rate || '18'),
+        default_reverse_charge: Boolean(gstSettings.default_reverse_charge),
+        default_tds_on_agency_fee: String(gstSettings.default_tds_on_agency_fee || 'na'),
+        notes: String(gstSettings.notes || ''),
+        gst_rates: (gstSettings.gst_rates || []).map(r => ({
+          rate: String(r.rate || ''),
+          label: String(r.label || ''),
+          hsn_sac: String(r.hsn_sac || ''),
+          description: String(r.description || '')
+        }))
+      };
+
+      const res = await axios.put(route('admin.settings.gst.update'), payload);
+      showToast({ type: 'success', title: 'Saved', message: res.data?.message || 'GST settings updated successfully!' });
+      
+      // Re-fetch to ensure state sync with DB
+      const freshRes = await axios.get(route('admin.settings.gst.show'));
+      if (freshRes.data && freshRes.data.gst_rates) {
+        let freshRates = freshRes.data.gst_rates;
+        if (typeof freshRates === 'string') {
+          try { freshRates = JSON.parse(freshRates); } catch(e) {}
+        }
+        setGstSettings(prev => ({
+          ...prev,
+          ...freshRes.data,
+          gst_rates: Array.isArray(freshRates) ? freshRates : prev.gst_rates
+        }));
+      }
+    } catch (err) {
+      showToast({ type: 'error', title: 'Error', message: err.response?.data?.message || 'Failed to save GST settings' });
+    } finally {
+      setGstSaving(false);
     }
   };
 
@@ -1300,6 +1384,273 @@ export default function Settings() {
                 )}
                 <div className="text-xs text-gray-500 mt-1">Used when deducting Loss of Pay (LOP) for unapproved absences.</div>
               </div>
+            </div>
+          )}
+
+          {activeTab === 'gst' && (
+            <div className="max-w-4xl">
+              <h3 className="text-base text-blue-900 font-bold mb-1">GST / Taxation Settings</h3>
+              <p className="text-sm text-gray-500 mb-6">
+                Configure the GST Application Rate and related taxation defaults. The <strong>Default GST Rate</strong> is pre-filled on the Client Create / Edit form and can be overridden per client.
+              </p>
+
+              {gstLoading ? (
+                <div className="text-sm text-gray-500">Loading GST settings...</div>
+              ) : (
+                <form onSubmit={saveGstSettings} className="space-y-6">
+
+                  {/* Default Rate Card */}
+                  <Card title="Default GST Application Rate" noPadding>
+                    <div className="p-4 space-y-4">
+                      <div className="bg-amber-50 border border-amber-200 rounded-md p-3 text-xs text-amber-800 flex items-start gap-2">
+                        <Info size={16} className="text-amber-600 shrink-0 mt-0.5" />
+                        <div>
+                          This is the system-wide <strong>default</strong> rate. Clients in SEZ / Export categories should have their rate overridden to 0% at the client level.
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Default GST Rate <span className="text-red-500">*</span>
+                          </label>
+                          <select
+                            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            value={gstSettings.default_gst_rate || '18'}
+                            onChange={e => setGstSettings(prev => ({ ...prev, default_gst_rate: e.target.value }))}
+                          >
+                            {(gstSettings.gst_rates || []).map(r => (
+                              <option key={r.rate} value={r.rate}>{r.label}</option>
+                            ))}
+                          </select>
+                          <p className="text-xs text-gray-500 mt-1">Pre-filled on all new client forms. Can be changed per client.</p>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Default TDS on Agency Fee</label>
+                          <select
+                            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            value={gstSettings.default_tds_on_agency_fee || 'na'}
+                            onChange={e => setGstSettings(prev => ({ ...prev, default_tds_on_agency_fee: e.target.value }))}
+                          >
+                            <option value="na">Not Applicable</option>
+                            <option value="1">1% (Manpower Contracts — 194C)</option>
+                            <option value="2">2% (Technical Services — 194J)</option>
+                            <option value="10">10% (Professional Services — 194J)</option>
+                          </select>
+                          <p className="text-xs text-gray-500 mt-1">Default TDS deductible from agency fees on invoices.</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 p-3 border border-gray-200 rounded-md bg-slate-50">
+                        <input
+                          type="checkbox"
+                          id="default_reverse_charge"
+                          checked={Boolean(gstSettings.default_reverse_charge)}
+                          onChange={e => setGstSettings(prev => ({ ...prev, default_reverse_charge: e.target.checked }))}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          style={{ width: '16px', height: '16px' }}
+                        />
+                        <label htmlFor="default_reverse_charge" className="text-sm font-medium text-gray-700 cursor-pointer">
+                          Enable Reverse Charge Mechanism (RCM) by default
+                        </label>
+                      </div>
+                      <p className="text-xs text-gray-500 -mt-2">When enabled, GST liability is shifted to the client (recipient). Active invoices will bear a 'Reverse Charge Applicable' note.</p>
+                    </div>
+                  </Card>
+
+                  {/* GST Rate Table */}
+                  <Card 
+                    title="GST Rate Master Options" 
+                    noPadding 
+                    headerAction={
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setGstSettings(prev => ({
+                            ...prev,
+                            gst_rates: [
+                              ...(prev.gst_rates || []),
+                              { rate: '5', label: '5% (Low Rate Services)', hsn_sac: '998311', description: 'Custom 5% GST Rate' }
+                            ]
+                          }));
+                        }}
+                        style={{
+                          background: 'var(--primary-navy, #1e3a8a)',
+                          color: '#ffffff',
+                          border: 'none',
+                          padding: '0.35rem 0.75rem',
+                          borderRadius: '6px',
+                          fontSize: '0.8rem',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        <Plus size={14} /> Add GST Rate Option
+                      </button>
+                    }
+                  >
+                    <div className="p-4">
+                      <p className="text-xs text-gray-500 mb-3">
+                        Manage all GST Application Rate options. Added options automatically populate the GST rate selection dropdown on client forms.
+                      </p>
+                      <div className="overflow-x-auto">
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.83rem' }}>
+                          <thead>
+                            <tr style={{ background: '#F1F5F9', borderBottom: '1px solid #E2E8F0' }}>
+                              <th style={{ textAlign: 'left', padding: '0.5rem 0.75rem', fontWeight: '600', color: '#374151', width: '110px' }}>Rate Value</th>
+                              <th style={{ textAlign: 'left', padding: '0.5rem 0.75rem', fontWeight: '600', color: '#374151' }}>Label / Title</th>
+                              <th style={{ textAlign: 'left', padding: '0.5rem 0.75rem', fontWeight: '600', color: '#374151', width: '120px' }}>HSN/SAC Code</th>
+                              <th style={{ textAlign: 'left', padding: '0.5rem 0.75rem', fontWeight: '600', color: '#374151' }}>Description</th>
+                              <th style={{ textAlign: 'center', padding: '0.5rem 0.75rem', fontWeight: '600', color: '#374151', width: '80px' }}>Default?</th>
+                              <th style={{ textAlign: 'center', padding: '0.5rem 0.75rem', fontWeight: '600', color: '#374151', width: '70px' }}>Action</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(gstSettings.gst_rates || []).map((r, idx) => (
+                              <tr key={idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                                <td style={{ padding: '0.6rem 0.75rem' }}>
+                                  <input
+                                    className="border border-gray-300 rounded px-2 py-1 text-sm font-bold w-full"
+                                    value={r.rate}
+                                    placeholder="e.g. 18 or exempt"
+                                    onChange={e => {
+                                      const rates = [...(gstSettings.gst_rates || [])];
+                                      rates[idx] = { ...rates[idx], rate: e.target.value };
+                                      setGstSettings(prev => ({ ...prev, gst_rates: rates }));
+                                    }}
+                                  />
+                                </td>
+                                <td style={{ padding: '0.6rem 0.75rem' }}>
+                                  <input
+                                    className="border border-gray-300 rounded px-2 py-1 text-sm w-full"
+                                    value={r.label}
+                                    placeholder="Dropdown Option Label"
+                                    onChange={e => {
+                                      const rates = [...(gstSettings.gst_rates || [])];
+                                      rates[idx] = { ...rates[idx], label: e.target.value };
+                                      setGstSettings(prev => ({ ...prev, gst_rates: rates }));
+                                    }}
+                                  />
+                                </td>
+                                <td style={{ padding: '0.6rem 0.75rem' }}>
+                                  <input
+                                    className="border border-gray-300 rounded px-2 py-1 text-sm w-full font-mono"
+                                    value={r.hsn_sac || ''}
+                                    placeholder="e.g. 998311"
+                                    onChange={e => {
+                                      const rates = [...(gstSettings.gst_rates || [])];
+                                      rates[idx] = { ...rates[idx], hsn_sac: e.target.value };
+                                      setGstSettings(prev => ({ ...prev, gst_rates: rates }));
+                                    }}
+                                  />
+                                </td>
+                                <td style={{ padding: '0.6rem 0.75rem' }}>
+                                  <input
+                                    className="border border-gray-300 rounded px-2 py-1 text-sm w-full"
+                                    value={r.description || ''}
+                                    placeholder="Short description"
+                                    onChange={e => {
+                                      const rates = [...(gstSettings.gst_rates || [])];
+                                      rates[idx] = { ...rates[idx], description: e.target.value };
+                                      setGstSettings(prev => ({ ...prev, gst_rates: rates }));
+                                    }}
+                                  />
+                                </td>
+                                <td style={{ padding: '0.6rem 0.75rem', textAlign: 'center' }}>
+                                  <input
+                                    type="radio"
+                                    name="default_gst_rate_table"
+                                    checked={gstSettings.default_gst_rate === r.rate}
+                                    onChange={() => setGstSettings(prev => ({ ...prev, default_gst_rate: r.rate }))}
+                                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                                  />
+                                </td>
+                                <td style={{ padding: '0.6rem 0.75rem', textAlign: 'center' }}>
+                                  <button
+                                    type="button"
+                                    title="Delete Option"
+                                    disabled={(gstSettings.gst_rates || []).length <= 1}
+                                    onClick={() => {
+                                      setGstSettings(prev => ({
+                                        ...prev,
+                                        gst_rates: (prev.gst_rates || []).filter((_, i) => i !== idx)
+                                      }));
+                                    }}
+                                    style={{
+                                      background: 'none',
+                                      border: 'none',
+                                      color: (gstSettings.gst_rates || []).length <= 1 ? '#CBD5E1' : '#EF4444',
+                                      cursor: (gstSettings.gst_rates || []).length <= 1 ? 'not-allowed' : 'pointer',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      padding: '0.2rem 0.4rem'
+                                    }}
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <div className="mt-3 flex justify-between items-center">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setGstSettings(prev => ({
+                              ...prev,
+                              gst_rates: [
+                                ...(prev.gst_rates || []),
+                                { rate: '12', label: '12% (Reduced Rate Services)', hsn_sac: '998311', description: '12% GST Rate' }
+                              ]
+                            }));
+                          }}
+                          style={{
+                            background: '#F1F5F9',
+                            color: '#1E293B',
+                            border: '1px solid #CBD5E1',
+                            padding: '0.35rem 0.75rem',
+                            borderRadius: '6px',
+                            fontSize: '0.8rem',
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
+                        >
+                          <Plus size={14} /> Add Another Option
+                        </button>
+                        <span className="text-xs text-gray-500">{(gstSettings.gst_rates || []).length} rate options configured</span>
+                      </div>
+                    </div>
+                  </Card>
+
+                  {/* Notes */}
+                  <Card title="GST Compliance Notes" noPadding>
+                    <div className="p-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Internal Notes / Auditor Reference</label>
+                      <textarea
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+                        rows={3}
+                        value={gstSettings.notes || ''}
+                        onChange={e => setGstSettings(prev => ({ ...prev, notes: e.target.value }))}
+                        placeholder="e.g. Per GST Notification No. 20/2019, staffing services attract 18% GST under SAC 998311..."
+                      />
+                    </div>
+                  </Card>
+
+                  <Button type="submit" variant="primary" disabled={gstSaving} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    <Save size={15} /> {gstSaving ? 'Saving...' : 'Save GST Settings'}
+                  </Button>
+                </form>
+              )}
             </div>
           )}
 

@@ -20,30 +20,26 @@ export function ToastProvider({ children }) {
     }, 300);
   }, []);
 
-  const showToast = useCallback(({ type = 'info', title, message, duration = 4000 }) => {
+  const showToast = useCallback(({ type = 'info', title, message, duration = 2000 }) => {
     if (!message) return null;
 
-    let createdId = null;
+    const effectiveDuration = 2000; // Strictly 2 seconds for all alerts
+    const id = ++toastIdCounter;
 
     setToasts(prev => {
       // Prevent adding duplicate active toasts with the exact same message and type
       if (prev.some(t => !t.exiting && t.message === message && t.type === type)) {
         return prev;
       }
-
-      const id = ++toastIdCounter;
-      createdId = id;
-      const toast = { id, type, title, message, duration, exiting: false };
+      const toast = { id, type, title, message, duration: effectiveDuration, exiting: false };
       return [...prev, toast];
     });
 
-    if (duration > 0 && createdId) {
-      setTimeout(() => {
-        dismissToast(createdId);
-      }, duration);
-    }
+    setTimeout(() => {
+      dismissToast(id);
+    }, effectiveDuration);
 
-    return createdId;
+    return id;
   }, [dismissToast]);
 
   return (

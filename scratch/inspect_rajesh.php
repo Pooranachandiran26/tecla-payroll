@@ -47,6 +47,7 @@ if ($emp4) {
     echo "TEC-004 Employee Master Record:\n";
     echo "  ID: {$emp4->id}\n";
     echo "  Name: {$emp4->full_name}\n";
+    
     echo "  Basic Pay: ₹" . number_format($emp4->basic_pay, 2) . "\n";
     echo "  Gross Monthly Salary: ₹" . number_format($emp4->gross_monthly_salary, 2) . "\n";
     echo "  Created At: {$emp4->created_at}\n";
