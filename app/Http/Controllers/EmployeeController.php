@@ -18,9 +18,14 @@ class EmployeeController extends Controller
         $query = \App\Models\Employee::with(['client', 'documents']);
         
         if ($request->search) {
-            $query->where('employee_code', 'like', "%{$request->search}%")
+            $query->where(function($q) use ($request) {
+                $q->where('employee_code', 'like', "%{$request->search}%")
                   ->orWhere('full_name', 'like', "%{$request->search}%")
+                  ->orWhere('first_name', 'like', "%{$request->search}%")
+                  ->orWhere('last_name', 'like', "%{$request->search}%")
+                  ->orWhere('father_name', 'like', "%{$request->search}%")
                   ->orWhere('uan_number', 'like', "%{$request->search}%");
+            });
         }
         
         if ($request->client_id) {
@@ -186,6 +191,12 @@ class EmployeeController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
+        $salaryRevisions = \App\Models\SalaryRevision::with('approver')
+            ->where('employee_id', $employee->id)
+            ->orderBy('effective_date', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
         return \Inertia\Inertia::render('Employees/EmployeeDetail', [
             'employee' => new \App\Http\Resources\EmployeeResource($employee),
             'attendanceRecords' => $attendanceRecords,
@@ -193,6 +204,7 @@ class EmployeeController extends Controller
             'taxDeclaration' => $taxDeclaration,
             'taxComparison' => $taxComparison,
             'loans' => $loans,
+            'salaryRevisions' => $salaryRevisions,
         ]);
     }
 

@@ -15,6 +15,7 @@ $employeePayload = [
     'client_id' => $client->id,
     'branch_id' => $branch->id,
     
+    
     // Personal Info
     'full_name' => 'Aditi Verma',
     'date_of_birth' => '1995-05-15', // 18+

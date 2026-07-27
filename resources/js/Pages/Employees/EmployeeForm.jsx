@@ -27,6 +27,11 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
     }
     
     return {
+      firstName: emp?.first_name || (emp?.full_name ? emp.full_name.split(' ')[0] : ''),
+      lastName: emp?.last_name || (emp?.full_name ? emp.full_name.split(' ').slice(1).join(' ') : ''),
+      fatherName: emp?.father_name || '',
+      motherName: emp?.mother_name || '',
+      spouseName: emp?.spouse_name || '',
       fullName: emp?.full_name || '',
       gender: emp?.gender || '',
       bloodGroup: emp?.blood_group || '',
@@ -71,7 +76,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       taxRegime: emp?.tds_regime || 'new',
       declarations: emp ? (Boolean(emp.declarations_accepted) ? 'yes' : 'no') : 'yes',
       gratuityMode: emp?.gratuity_mode || 'part_of_ctc',
-      lopBasis: emp?.lop_basis_days || '30',
+      lopBasis: emp?.lop_basis_days || '26',
       weeklyOffPattern: emp?.weekly_off_pattern || emp?.weeklyOffPattern || '',
       weekly_off_pattern: emp?.weekly_off_pattern || emp?.weeklyOffPattern || '',
       emergencyContactName: emp?.emergency_contact_name || '',
@@ -170,8 +175,16 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       .then(res => {
         const d = res.data;
         setActiveClientDefaults(d);
+
+        const clientLop = d.lopBasisDays !== undefined && d.lopBasisDays !== null && d.lopBasisDays !== '' 
+          ? String(d.lopBasisDays).replace(/\D/g, '') 
+          : '26';
+        const clientNotice = d.noticePeriodDays !== undefined && d.noticePeriodDays !== null && d.noticePeriodDays !== ''
+          ? String(d.noticePeriodDays)
+          : '30';
+
         // Only apply client statutory defaults when adding a new employee.
-        // When editing an existing employee, retain their saved statutory profile.
+        // When editing an existing employee, retain their saved statutory profile and calculate override badges.
         if (!employee) {
           setFormData(prev => {
             const next = { ...prev };
@@ -185,9 +198,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
             if (!overrides.lwf) next.lwfToggle = d.lwfApplicable;
             if (!overrides.bonus) next.bonusToggle = d.statutoryBonusApplicable;
             if (!overrides.gratuity) {
-              if (d.gratuityMode === 'na') {
-                 next.gratuityMode = 'part_of_ctc';
-              } else if (d.gratuityMode === 'ctc_included') {
+              if (d.gratuityMode === 'na' || d.gratuityMode === 'ctc_included') {
                  next.gratuityMode = 'part_of_ctc';
               } else if (d.gratuityMode === 'over_ctc') {
                  next.gratuityMode = 'over_and_above';
@@ -196,20 +207,32 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
               }
             }
             if (!overrides.lop) {
-                 // inherit resolves to '26' globally
-                 let rawLop = String(d.lopBasisDays || '');
-                 if (rawLop.includes('30')) next.lopBasis = '30';
-                 else next.lopBasis = '26';
-              }
+                 next.lopBasis = clientLop;
+            }
             if (!overrides.noticePeriod) {
-                 next.noticePeriodDays = d.noticePeriodDays ?? 30;
-              }
+                 next.noticePeriodDays = clientNotice;
+            }
             return next;
+          });
+        } else {
+          // In edit mode: dynamically evaluate if saved LOP / notice period differ from client defaults
+          setOverrides(prev => {
+            const currentLop = formData.lopBasis ? String(formData.lopBasis).replace(/\D/g, '') : '';
+            const currentNotice = formData.noticePeriodDays !== undefined && formData.noticePeriodDays !== null && formData.noticePeriodDays !== '' ? String(formData.noticePeriodDays) : '';
+            
+            const isLopOverridden = currentLop !== '' && currentLop !== clientLop;
+            const isNoticeOverridden = currentNotice !== '' && currentNotice !== clientNotice;
+
+            return {
+              ...prev,
+              lop: isLopOverridden,
+              noticePeriod: isNoticeOverridden,
+            };
           });
         }
       })
       .catch(err => console.error("Failed to fetch statutory defaults:", err));
-  }, [formData.clientPartner, overrides, employee]);
+  }, [formData.clientPartner, employee]);
 
   // Helper for errors
   const setErrorMsg = (field, msg, type = 'error') => {
@@ -253,12 +276,10 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
   // Sync logic on client change is now handled above.
 
   // Validations
-  const validateFullName = () => {
-    if (!formData.fullName) return;
-    // Name change detection only applies in edit mode — compare against the
-    // server-provided employee record (not a hardcoded mockup name).
+  const validateNameFields = () => {
+    const currentFull = `${formData.firstName || ''} ${formData.lastName || ''}`.trim();
     const originalName = employee ? (employee.data?.full_name || employee.full_name) : null;
-    if (formMode !== 'add' && originalName && formData.fullName !== originalName) {
+    if (formMode !== 'add' && originalName && currentFull !== originalName) {
       setNameChangeUploadVisible(true);
       addBlocker('Name change requires supporting document upload'); 
     } else {
@@ -389,7 +410,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
     }
     // Real duplicate PAN checks happen server-side via SHA-256 hash uniqueness.
     clearErrorMsg('pan');
-    validateFullName();
+    validateNameFields();
   };
 
   const validateBasicPct = () => {
@@ -464,7 +485,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
     }
     
     const errorKeyMap = {
-      'client_id': 'clientPartner', 'full_name': 'fullName', 'personal_email': 'personalEmail',
+      'client_id': 'clientPartner', 'first_name': 'firstName', 'last_name': 'lastName', 'father_name': 'fatherName', 'mother_name': 'motherName', 'spouse_name': 'spouseName', 'full_name': 'fullName', 'personal_email': 'personalEmail',
       'phone_number': 'phone', 'emergency_contact_phone': 'emergencyContact', 'date_of_birth': 'dob',
       'date_of_joining': 'doj', 'attendance_tracking_start_date': 'attendanceTrackingStartDate', 'employment_model': 'empType', 'prior_employment_flag': 'priorEmploymentFlag',
       'residential_address': 'address', 'bank_account_number': 'accountNo', 'bank_ifsc': 'ifsc',
@@ -534,12 +555,61 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Full Name <span style={{ color: "var(--status-danger)" }}>*</span></label>
-                    <input type="text" className={`form-control ${errors.fullName ? `is-${errors.fullName.type || 'error'}` : ''}`} value={formData.fullName}
-                      onChange={e => { handleInputChange('fullName', e.target.value); handleInputChange('accountHolder', e.target.value); }}
-                      onBlur={validateFullName} required />
-                    {errors.fullName && <div className={`field-msg ${errors.fullName.type || 'error'} show`}>{errors.fullName.msg}</div>}
-                    
+                    <label>First Name <span style={{ color: "var(--status-danger)" }}>*</span></label>
+                    <input type="text" className={`form-control ${errors.firstName ? `is-${errors.firstName.type || 'error'}` : ''}`} value={formData.firstName}
+                      onChange={e => {
+                        const newFirst = e.target.value;
+                        handleInputChange('firstName', newFirst);
+                        const newFull = `${newFirst} ${formData.lastName || ''}`.trim();
+                        handleInputChange('fullName', newFull);
+                        handleInputChange('accountHolder', newFull);
+                      }}
+                      onBlur={validateNameFields} required />
+                    {errors.firstName && <div className={`field-msg ${errors.firstName.type || 'error'} show`}>{errors.firstName.msg}</div>}
+                  </div>
+
+                  <div className="form-group">
+                    <label>Last Name <span style={{ color: "var(--status-danger)" }}>*</span></label>
+                    <input type="text" className={`form-control ${errors.lastName ? `is-${errors.lastName.type || 'error'}` : ''}`} value={formData.lastName}
+                      onChange={e => {
+                        const newLast = e.target.value;
+                        handleInputChange('lastName', newLast);
+                        const newFull = `${formData.firstName || ''} ${newLast}`.trim();
+                        handleInputChange('fullName', newFull);
+                        handleInputChange('accountHolder', newFull);
+                      }}
+                      onBlur={validateNameFields} required />
+                    {errors.lastName && <div className={`field-msg ${errors.lastName.type || 'error'} show`}>{errors.lastName.msg}</div>}
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Marital Status</label>
+                    <select className="form-control" value={formData.maritalStatus} onChange={e => handleInputChange('maritalStatus', e.target.value)}>
+                      <option value="">-- Select --</option>
+                      <option value="single">Single</option>
+                      <option value="married">Married</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+
+                  {isAdd && (
+                    <div className="form-group">
+                      <label>Employee Code</label>
+                      <input type="text" className="form-control read-only-field" value="TEC-089 (auto-assigned on save)" readOnly />
+                      <div className="field-msg info show">🔒 Auto-generated on save. Cannot be manually set.</div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Father's Name <span style={{ color: "var(--status-danger)" }}>*</span></label>
+                    <input type="text" className={`form-control ${errors.fatherName ? `is-${errors.fatherName.type || 'error'}` : ''}`} value={formData.fatherName}
+                      onChange={e => handleInputChange('fatherName', e.target.value)} required />
+                    {errors.fatherName && <div className={`field-msg ${errors.fatherName.type || 'error'} show`}>{errors.fatherName.msg}</div>}
+
                     {nameChangeUploadVisible && (
                       <div style={{ marginTop: "0.75rem", padding: "0.75rem 1rem", background: "var(--status-warning-bg)", borderLeft: "3px solid var(--status-warning)", borderRadius: "var(--radius-sm)" }}>
                         <div style={{ fontSize: "0.85rem", color: "var(--status-warning)", fontWeight: "600", marginBottom: "0.5rem" }}>
@@ -550,11 +620,19 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                     )}
                   </div>
                   
-                  {isAdd && (
+                  {formData.maritalStatus === 'married' ? (
                     <div className="form-group">
-                      <label>Employee Code</label>
-                      <input type="text" className="form-control read-only-field" value="TEC-089 (auto-assigned on save)" readOnly />
-                      <div className="field-msg info show">🔒 Auto-generated on save. Cannot be manually set.</div>
+                      <label>Wife / Spouse Name</label>
+                      <input type="text" className={`form-control ${errors.spouseName ? `is-${errors.spouseName.type || 'error'}` : ''}`} value={formData.spouseName}
+                        onChange={e => handleInputChange('spouseName', e.target.value)} placeholder="Enter wife / spouse name" />
+                      {errors.spouseName && <div className={`field-msg ${errors.spouseName.type || 'error'} show`}>{errors.spouseName.msg}</div>}
+                    </div>
+                  ) : (
+                    <div className="form-group">
+                      <label>Mother's Name</label>
+                      <input type="text" className={`form-control ${errors.motherName ? `is-${errors.motherName.type || 'error'}` : ''}`} value={formData.motherName}
+                        onChange={e => handleInputChange('motherName', e.target.value)} placeholder="Enter mother's name" />
+                      {errors.motherName && <div className={`field-msg ${errors.motherName.type || 'error'} show`}>{errors.motherName.msg}</div>}
                     </div>
                   )}
                 </div>
@@ -597,15 +675,6 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                 </div>
 
                 <div className="form-row">
-                  <div className="form-group">
-                    <label>Marital Status</label>
-                    <select className="form-control" value={formData.maritalStatus} onChange={e => handleInputChange('maritalStatus', e.target.value)}>
-                      <option value="">-- Select --</option>
-                      <option value="single">Single</option>
-                      <option value="married">Married</option>
-                      <option value="other">Other</option>
-                    </select>
-                  </div>
                   <div className="form-group">
                     <label>Personal Email <span style={{ color: "var(--status-danger)" }}>*</span></label>
                     <input type="email" className={`form-control ${errors.personalEmail ? `is-${errors.personalEmail.type || 'error'}` : ''}`} value={formData.personalEmail}
@@ -751,7 +820,15 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                       <span className={`badge ${overrides.noticePeriod ? 'badge-gold' : 'badge-neutral'}`}>{overrides.noticePeriod ? 'Overridden' : 'Inherited'}</span>
                     </label>
                     <input type="number" className={`form-control ${errors.noticePeriodDays ? `is-${errors.noticePeriodDays.type || 'error'}` : ''}`} value={formData.noticePeriodDays} min="0"
-                      onChange={e => { handleInputChange('noticePeriodDays', e.target.value); toggleOverride('noticePeriod'); }} placeholder="e.g. 30" />
+                      onChange={e => {
+                        const val = e.target.value;
+                        handleInputChange('noticePeriodDays', val);
+                        const clientNotice = activeClientDefaults?.noticePeriodDays !== undefined && activeClientDefaults?.noticePeriodDays !== null && activeClientDefaults?.noticePeriodDays !== ''
+                          ? String(activeClientDefaults.noticePeriodDays)
+                          : '30';
+                        const isOverridden = val !== '' && String(val) !== clientNotice;
+                        setOverrides(prev => ({ ...prev, noticePeriod: isOverridden }));
+                      }} placeholder="e.g. 30" />
                     {errors.noticePeriodDays && <div className={`field-msg ${errors.noticePeriodDays.type || 'error'} show`}>{errors.noticePeriodDays.msg}</div>}
                   </div>
                 </div>
@@ -1262,7 +1339,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
             </div>
             
             {/* Right Side Notes Panel */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem", position: "sticky", top: "1.5rem", alignSelf: "start", maxHeight: "calc(100vh - 3rem)", overflowY: "auto", paddingRight: "0.25rem" }}>
               <div className="card" style={{ padding: "1.25rem", background: "#f8faff", border: "1px solid #d0dfff" }}>
                 <h4 style={{ margin: "0 0 0.5rem 0", fontSize: "0.95rem", color: "var(--primary-color)", display: "flex", alignItems: "center", gap: "0.4rem" }}>
                   <span style={{ fontSize: "1.1rem" }}>👤</span> Personal &amp; Employment Profile

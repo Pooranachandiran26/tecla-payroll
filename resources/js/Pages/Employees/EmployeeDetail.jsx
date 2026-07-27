@@ -9,10 +9,11 @@ import ComingSoonFeature from '../../Components/ui/ComingSoonFeature';
 import ConfirmDialog from '../../Components/ui/ConfirmDialog';
 import TaxDeclarationTab from './components/TaxDeclarationTab';
 import LoansAndAdvancesTab from './LoansAndAdvancesTab';
+import HistoryTimeline from '../../Components/HistoryTimeline';
 
 export default function EmployeeDetail({ employee: empProp }) {
     const employee = empProp?.data || empProp || {};
-    const { auth, flash, attendanceRecords, attendanceStats, taxDeclaration, taxComparison, loans } = usePage().props;
+    const { auth, flash, attendanceRecords, attendanceStats, taxDeclaration, taxComparison, loans, salaryRevisions } = usePage().props;
     const { showToast } = useToast();
     const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, confirmText: '', reason: '' });
     const [activeTab, setActiveTab] = useState('overview');
@@ -258,6 +259,7 @@ const renderDocumentRows = () => {
           </li>
           <li className={activeTab === 'tax' ? 'active' : ''} onClick={() => setActiveTab('tax')} style={{ cursor: 'pointer' }}>Tax Declaration</li>
           <li className={activeTab === 'loans' ? 'active' : ''} onClick={() => setActiveTab('loans')} style={{ cursor: 'pointer' }}>Loans &amp; Advances</li>
+          <li className={activeTab === 'history' ? 'active' : ''} onClick={() => setActiveTab('history')} style={{ cursor: 'pointer' }}>History</li>
         </ul>
 
         {/*  Tab 1: Overview  */}
@@ -291,6 +293,21 @@ const renderDocumentRows = () => {
                   <h4 className="data-label">Blood Group</h4>
                   <span className="data-value">{employee.blood_group || 'N/A'}</span>
                 </div>
+                <div>
+                  <h4 className="data-label">Father's Name</h4>
+                  <span className="data-value">{employee.father_name || 'N/A'}</span>
+                </div>
+                {employee.marital_status === 'married' || employee.spouse_name ? (
+                  <div>
+                    <h4 className="data-label">Wife / Spouse Name</h4>
+                    <span className="data-value">{employee.spouse_name || 'N/A'}</span>
+                  </div>
+                ) : (
+                  <div>
+                    <h4 className="data-label">Mother's Name</h4>
+                    <span className="data-value">{employee.mother_name || 'N/A'}</span>
+                  </div>
+                )}
                 <div>
                   <h4 className="data-label">Marital Status</h4>
                   <span className="data-value" style={{"textTransform": "capitalize"}}>{employee.marital_status || 'N/A'}</span>
@@ -1327,6 +1344,11 @@ const renderDocumentRows = () => {
         {/*  Tab 7: Loans & Advances  */}
         <div className={`tab-content ${activeTab === 'loans' ? 'active' : ''}`} data-tab="loans">
           <LoansAndAdvancesTab employee={employee} loans={loans || []} />
+        </div>
+
+        {/*  Tab 8: History  */}
+        <div className={`tab-content ${activeTab === 'history' ? 'active' : ''}`} data-tab="history">
+          <HistoryTimeline revisions={salaryRevisions || []} isAdmin={true} />
         </div>
       </div>{/*  end tab-container  */}
     
