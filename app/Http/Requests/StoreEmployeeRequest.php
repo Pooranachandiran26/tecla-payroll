@@ -91,7 +91,7 @@ class StoreEmployeeRequest extends FormRequest
             'tds_regime' => $this->taxRegime ?? 'new',
             'declarations_accepted' => $this->declarations === 'yes' ? 1 : 0,
             'gratuity_mode' => $this->gratuityMode ?? 'part_of_ctc',
-            'lop_basis_days' => $this->lopBasis ?? '26',
+            'lop_basis_days' => '30',
             'weekly_off_pattern' => $this->weeklyOffPattern ?: $this->weekly_off_pattern ?: null,
             'emergency_contact_name' => $this->emergencyContactName,
             'previous_employer_name' => $this->prevEmployerName,

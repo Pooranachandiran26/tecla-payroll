@@ -190,20 +190,38 @@ class MonthlyPayrollCalculator
                 $ptState = $client->registered_state;
             }
 
-            $ptSlab = DB::table('pt_slabs')
-                ->where('state', $ptState)
-                ->where('is_active', true)
-                ->where('min_salary', '<=', $grossTotal)
-                ->where(function($q) use ($grossTotal) {
-                    $q->where('max_salary', '>=', $grossTotal)
-                      ->orWhereNull('max_salary');
-                })
-                ->first();
+            // Normalize state abbreviations
+            $stateMap = [
+                'TN' => 'Tamil Nadu',
+                'MH' => 'Maharashtra',
+                'KA' => 'Karnataka',
+                'TS' => 'Telangana',
+                'WB' => 'West Bengal',
+                'GJ' => 'Gujarat',
+            ];
+            if (!empty($ptState) && isset($stateMap[strtoupper($ptState)])) {
+                $ptState = $stateMap[strtoupper($ptState)];
+            }
 
-            if ($ptSlab) {
-                $pt = (float)$ptSlab->deduction_amount;
+            // Programmatic enforcement: Maharashtra female PT exemption (gross <= 25,000 exempt per 2023 amendment)
+            if ($ptState === 'Maharashtra' && strtolower((string)$employee->gender) === 'female' && $grossTotal <= 25000) {
+                $pt = 0.00;
             } else {
-                $ptWarning = "PT slab missing for state: " . ($ptState ?: 'Unknown');
+                $ptSlab = DB::table('pt_slabs')
+                    ->where('state', $ptState)
+                    ->where('is_active', true)
+                    ->where('min_salary', '<=', $grossTotal)
+                    ->where(function($q) use ($grossTotal) {
+                        $q->where('max_salary', '>=', $grossTotal)
+                          ->orWhereNull('max_salary');
+                    })
+                    ->first();
+
+                if ($ptSlab) {
+                    $pt = (float)$ptSlab->deduction_amount;
+                } else {
+                    $ptWarning = "PT slab missing for state: " . ($ptState ?: 'Unknown');
+                }
             }
         }
 
@@ -216,6 +234,10 @@ class MonthlyPayrollCalculator
             if (empty($lwfState)) {
                 $client = DB::table('clients')->where('id', $employee->client_id)->first();
                 $lwfState = $client ? $client->registered_state : null;
+            }
+
+            if (!empty($lwfState) && isset($stateMap[strtoupper($lwfState)])) {
+                $lwfState = $stateMap[strtoupper($lwfState)];
             }
 
             $lwfSlab = DB::table('lwf_slabs')

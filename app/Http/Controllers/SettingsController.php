@@ -132,18 +132,126 @@ class SettingsController extends Controller
 
     public function getPtSlabs()
     {
-        $slabs = \Illuminate\Support\Facades\DB::table('pt_slabs')->where('is_active', true)->get()->map(function ($slab) {
-            return [
-                'id' => $slab->id,
-                'from' => '₹' . number_format($slab->min_salary),
-                'to' => $slab->max_salary ? '₹' . number_format($slab->max_salary) : 'No Limit',
-                'deduction' => '₹' . floatval($slab->deduction_amount) . ($slab->deduction_note ? ' ' . $slab->deduction_note : ''),
-                'exceptions' => $slab->exceptions_text,
-                'disabled' => true // Enforcing read-only on the frontend
-            ];
-        });
+        $slabs = \Illuminate\Support\Facades\DB::table('pt_slabs')
+            ->where('is_active', true)
+            ->orderBy('state')
+            ->orderBy('min_salary')
+            ->get()
+            ->map(function ($slab) {
+                $isHalfYearly = ($slab->frequency ?? 'monthly') === 'half_yearly';
+                $halfMin = $isHalfYearly ? floatval($slab->min_salary) * 6 : null;
+                $halfMax = ($isHalfYearly && $slab->max_salary !== null) ? floatval($slab->max_salary) * 6 : null;
+                $halfTax = $isHalfYearly ? floatval($slab->deduction_amount) * 6 : null;
+
+                return [
+                    'id' => $slab->id,
+                    'state' => $slab->state,
+                    'min_salary' => floatval($slab->min_salary),
+                    'max_salary' => $slab->max_salary !== null ? floatval($slab->max_salary) : null,
+                    'deduction_amount' => floatval($slab->deduction_amount),
+                    'deduction_note' => $slab->deduction_note,
+                    'exceptions_text' => $slab->exceptions_text,
+                    'frequency' => $slab->frequency ?? 'monthly',
+                    'from' => '₹' . number_format($slab->min_salary),
+                    'to' => $slab->max_salary !== null ? '₹' . number_format($slab->max_salary) : 'No Limit',
+                    'deduction' => '₹' . floatval($slab->deduction_amount) . ($slab->deduction_note ? ' ' . $slab->deduction_note : ''),
+                    'half_yearly_range' => $isHalfYearly ? ('₹' . number_format($halfMin) . ($halfMax ? ' to ₹' . number_format($halfMax) : ' & above')) : null,
+                    'half_yearly_tax' => $isHalfYearly ? ('₹' . number_format($halfTax, 0)) : null,
+                    'disabled' => false
+                ];
+            });
         
         return response()->json($slabs);
+    }
+
+    public function updatePtSlab(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'state' => 'required|string|max:255',
+            'min_salary' => 'required|numeric|min:0',
+            'max_salary' => 'nullable|numeric|min:0',
+            'deduction_amount' => 'required|numeric|min:0',
+            'deduction_note' => 'nullable|string|max:255',
+            'exceptions_text' => 'nullable|string|max:1000',
+            'frequency' => 'required|string|in:monthly,half_yearly',
+        ]);
+
+        $slab = \Illuminate\Support\Facades\DB::table('pt_slabs')->where('id', $id)->first();
+        if (!$slab) {
+            return response()->json(['message' => 'PT Slab not found.'], 404);
+        }
+
+        \Illuminate\Support\Facades\DB::table('pt_slabs')->where('id', $id)->update([
+            'state' => $validated['state'],
+            'min_salary' => $validated['min_salary'],
+            'max_salary' => $validated['max_salary'],
+            'deduction_amount' => $validated['deduction_amount'],
+            'deduction_note' => $validated['deduction_note'] ?? null,
+            'exceptions_text' => $validated['exceptions_text'] ?? null,
+            'frequency' => $validated['frequency'],
+            'updated_at' => now(),
+        ]);
+
+        app(\App\Services\AuditService::class)->log('pt_slab_updated', auth()->user(), null, null, [
+            'slab_id' => $id,
+            'old' => (array)$slab,
+            'new' => $validated
+        ]);
+
+        return response()->json(['message' => 'PT Slab updated successfully.']);
+    }
+
+    public function getLwfSlabs()
+    {
+        $slabs = \Illuminate\Support\Facades\DB::table('lwf_slabs')
+            ->where('is_active', true)
+            ->orderBy('state')
+            ->get()
+            ->map(function ($slab) {
+                return [
+                    'id' => $slab->id,
+                    'state' => $slab->state,
+                    'employee_contribution' => floatval($slab->employee_contribution),
+                    'employer_contribution' => floatval($slab->employer_contribution),
+                    'frequency' => $slab->frequency ?? 'yearly',
+                    'employee_formatted' => '₹' . number_format($slab->employee_contribution, 2),
+                    'employer_formatted' => '₹' . number_format($slab->employer_contribution, 2),
+                    'total_formatted' => '₹' . number_format($slab->employee_contribution + $slab->employer_contribution, 2),
+                ];
+            });
+
+        return response()->json($slabs);
+    }
+
+    public function updateLwfSlab(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'state' => 'required|string|max:255',
+            'employee_contribution' => 'required|numeric|min:0',
+            'employer_contribution' => 'required|numeric|min:0',
+            'frequency' => 'required|string|in:monthly,half_yearly,yearly',
+        ]);
+
+        $slab = \Illuminate\Support\Facades\DB::table('lwf_slabs')->where('id', $id)->first();
+        if (!$slab) {
+            return response()->json(['message' => 'LWF Slab not found.'], 404);
+        }
+
+        \Illuminate\Support\Facades\DB::table('lwf_slabs')->where('id', $id)->update([
+            'state' => $validated['state'],
+            'employee_contribution' => $validated['employee_contribution'],
+            'employer_contribution' => $validated['employer_contribution'],
+            'frequency' => $validated['frequency'],
+            'updated_at' => now(),
+        ]);
+
+        app(\App\Services\AuditService::class)->log('lwf_slab_updated', auth()->user(), null, null, [
+            'slab_id' => $id,
+            'old' => (array)$slab,
+            'new' => $validated
+        ]);
+
+        return response()->json(['message' => 'LWF Slab updated successfully.']);
     }
 
     public function getAuthSecurity()
