@@ -40,7 +40,7 @@ class EmployeeFactory extends Factory
             'aadhaar_number' => '123456789012',
             'esic_number' => '1234567890',
             'uan_number' => '100000000012',
-            'uan_mode' => 'existing',
+            'uan_mode' => 'existing_transfer',
             'pf_applicable' => 1,
             'esi_applicable' => 1,
             'pt_applicable' => 1,

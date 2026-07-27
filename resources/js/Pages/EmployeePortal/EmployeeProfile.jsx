@@ -16,7 +16,9 @@ import {
   FolderOpen, 
   TrendingUp, 
   AlertTriangle, 
-  Clock 
+  Clock,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 export default function EmployeeProfile({ employee: empProp, pendingBankRequest, salaryRevisions }) {
@@ -24,6 +26,9 @@ export default function EmployeeProfile({ employee: empProp, pendingBankRequest,
     const firstInitial = employee.full_name ? employee.full_name.charAt(0).toUpperCase() : '?';
     const { showToast } = useToast();
     const [activeTab, setActiveTab] = useState('overview');
+    const [showPan, setShowPan] = useState(false);
+    const [showAadhaar, setShowAadhaar] = useState(false);
+    const [showBankAccount, setShowBankAccount] = useState(false);
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [ifscVerifying, setIfscVerifying] = useState(false);
@@ -396,19 +401,69 @@ export default function EmployeeProfile({ employee: empProp, pendingBankRequest,
                                 <div>
                                     <div style={styles.row}>
                                         <span style={styles.label}>PAN Number</span>
-                                        <span style={{ ...styles.value, fontFamily: 'monospace' }}>{employee.pan_number || 'N/A'}</span>
+                                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                            <span style={{ ...styles.value, fontFamily: 'monospace' }}>
+                                                {showPan ? (employee.raw_pan_number || employee.pan_number || 'N/A') : (employee.pan_number || 'N/A')}
+                                            </span>
+                                            {employee.pan_number && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowPan(!showPan)}
+                                                    title={showPan ? "Hide PAN" : "Show PAN"}
+                                                    style={{ border: 'none', background: 'transparent', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', padding: '2px', color: showPan ? 'var(--primary-navy)' : '#64748B' }}
+                                                >
+                                                    {showPan ? <EyeOff size={15} /> : <Eye size={15} />}
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
                                     <div style={styles.row}>
                                         <span style={styles.label}>Aadhaar Number</span>
-                                        <span style={{ ...styles.value, fontFamily: 'monospace' }}>{employee.aadhaar_number || 'N/A'}</span>
+                                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                            <span style={{ ...styles.value, fontFamily: 'monospace' }}>
+                                                {showAadhaar ? (employee.raw_aadhaar_number || employee.aadhaar_number || 'N/A') : (employee.aadhaar_number || 'N/A')}
+                                            </span>
+                                            {employee.aadhaar_number && employee.aadhaar_number !== 'N/A' && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowAadhaar(!showAadhaar)}
+                                                    title={showAadhaar ? "Hide Aadhaar" : "Show Aadhaar"}
+                                                    style={{ border: 'none', background: 'transparent', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', padding: '2px', color: showAadhaar ? 'var(--primary-navy)' : '#64748B' }}
+                                                >
+                                                    {showAadhaar ? <EyeOff size={15} /> : <Eye size={15} />}
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div style={styles.row}>
+                                        <span style={styles.label}>Account Holder</span>
+                                        <span style={styles.value}>{employee.account_holder_name || 'N/A'}</span>
                                     </div>
                                     <div style={styles.row}>
                                         <span style={styles.label}>Bank Name</span>
                                         <span style={styles.value}>{employee.bank_name || 'Not Added'}</span>
                                     </div>
                                     <div style={styles.row}>
+                                        <span style={styles.label}>Bank Branch</span>
+                                        <span style={styles.value}>{employee.bank_branch || 'N/A'}</span>
+                                    </div>
+                                    <div style={styles.row}>
                                         <span style={styles.label}>Account Number</span>
-                                        <span style={{ ...styles.value, fontFamily: 'monospace' }}>{employee.bank_account_number || 'N/A'}</span>
+                                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                            <span style={{ ...styles.value, fontFamily: 'monospace' }}>
+                                                {showBankAccount ? (employee.raw_bank_account_number || employee.bank_account_number || 'N/A') : (employee.bank_account_number || 'N/A')}
+                                            </span>
+                                            {employee.bank_account_number && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowBankAccount(!showBankAccount)}
+                                                    title={showBankAccount ? "Hide Account Number" : "Show Account Number"}
+                                                    style={{ border: 'none', background: 'transparent', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', padding: '2px', color: showBankAccount ? 'var(--primary-navy)' : '#64748B' }}
+                                                >
+                                                    {showBankAccount ? <EyeOff size={15} /> : <Eye size={15} />}
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
                                     <div style={styles.rowLast}>
                                         <span style={styles.label}>IFSC Code</span>

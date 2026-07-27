@@ -39,13 +39,26 @@ class SalaryCalculationService
 
         $gross = $basic + $hra + $conveyance + $da + $medical + $special + $other;
 
-        // 2. Calculate PF
-        $employerPf = 0;
-        $employeePf = 0;
+        $clientId = data_get($employeeData, 'client_id');
+        $client = $clientId ? \App\Models\Client::find($clientId) : null;
+
+        // 2. Calculate PF & Employer Statutory Contributions
+        $employerEpf = 0.00;
+        $edli = 0.00;
+        $epfAdmin = 0.00;
+        $employerPf = 0.00;
+        $employeePf = 0.00;
+
         if (data_get($employeeData, 'pf_applicable', true)) {
             $pfBase = min($basic, self::PF_WAGE_CEILING);
             $employeePf = $pfBase * 0.12;
-            $employerPf = $pfBase * 0.13;
+
+            $isEdliExempt = $client ? (bool)$client->edli_exempted : (bool)data_get($employeeData, 'edli_exempted', false);
+
+            $employerEpf = $pfBase * 0.12;
+            $edli = $isEdliExempt ? 0.00 : ($pfBase * 0.005);
+            $epfAdmin = $pfBase * 0.005;
+            $employerPf = $employerEpf + $edli + $epfAdmin;
         }
 
         // 3. Calculate ESI
@@ -62,17 +75,47 @@ class SalaryCalculationService
         $ptOverride = data_get($employeeData, 'pt_deduction_override');
         $pt = $ptOverride !== null && $ptOverride !== '' ? (float) $ptOverride : 0;
 
-        // 5. Net Take Home
-        // Deductions: PF + ESI + PT + (LWF/TDS deferred or 0 for now as per instructions)
+        // 5. Gratuity Accrual (15 days per year = Basic * (15 / 26 / 12) = 4.80769% of Basic)
+        // Included in CTC ONLY IF client gratuity_applicable = true AND employee gratuity_mode = 'part_of_ctc'
+        $gratuityAccrual = 0.00;
+        
+        $gratuityApplicable = $client ? (bool)($client->gratuity_applicable ?? false) : (bool)data_get($employeeData, 'gratuity_applicable', true);
+        $gratuityMode = data_get($employeeData, 'gratuity_mode', $client->default_gratuity_mode ?? 'part_of_ctc');
+        
+        if ($gratuityApplicable && ($gratuityMode === 'part_of_ctc' || $gratuityMode === 'ctc_included')) {
+            $gratuityAccrual = $basic * (15 / 26 / 12);
+        }
+
+        // 6. Statutory Bonus Accrual (Payment of Bonus Act 1965 as amended in 2015)
+        // - Eligibility Cap: Basic pay <= Rs. 21,000/month (Sec 2(13)). Basic > Rs. 21,000 gets Rs. 0.00.
+        // - Calculation Base Ceiling: Min(Basic, Max(7000, state_min_wage)) (Sec 12).
+        $bonusAccrual = 0.00;
+        $bonusApplicable = $client ? (bool)($client->statutory_bonus_applicable ?? false) : (bool)data_get($employeeData, 'statutory_bonus_applicable', false);
+        $bonusPct = $client ? (float)($client->bonus_rate_percentage ?? $client->statutory_bonus_percentage ?? 8.33) : (float)data_get($employeeData, 'statutory_bonus_percentage', 8.33);
+
+        if ($bonusApplicable && $basic <= 21000.00) {
+            $stateMinWage = (float)data_get($employeeData, 'state_minimum_wage', 0);
+            $calcCeiling = max(7000.00, $stateMinWage);
+            $bonusBase = min($basic, $calcCeiling);
+            $bonusAccrual = $bonusBase * ($bonusPct / 100);
+        }
+
+        // 7. Net Take Home
+        // Deductions: PF + ESI + PT
         $netTakeHome = $gross - ($employeePf + $employeeEsi + $pt);
 
-        // 6. CTC
-        $ctc = $gross + $employerPf + $employerEsi;
+        // 8. CTC = Gross + Employer PF + Employer ESI + Gratuity Accrual + Statutory Bonus Accrual
+        $ctc = $gross + $employerPf + $employerEsi + $gratuityAccrual + $bonusAccrual;
 
         return [
             'gross_monthly_salary' => round($gross, 2),
             'employer_pf_monthly' => round($employerPf, 2),
+            'employer_epf_monthly' => round($employerEpf, 2),
+            'edli_monthly' => round($edli, 2),
+            'epf_admin_monthly' => round($epfAdmin, 2),
             'employer_esi_monthly' => round($employerEsi, 2),
+            'gratuity_accrual_monthly' => round($gratuityAccrual, 2),
+            'bonus_accrual_monthly' => round($bonusAccrual, 2),
             'net_take_home_monthly' => round($netTakeHome, 2),
             'ctc_monthly' => round($ctc, 2),
             // Including employee deductions to allow full UI breakdown

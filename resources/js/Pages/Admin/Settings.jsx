@@ -33,6 +33,13 @@ export default function Settings() {
 
   const [ptSlabs, setPtSlabs] = useState([]);
   const [ptSlabsLoading, setPtSlabsLoading] = useState(false);
+  const [editingPtSlab, setEditingPtSlab] = useState(null);
+  const [savingPtSlab, setSavingPtSlab] = useState(false);
+
+  const [lwfSlabs, setLwfSlabs] = useState([]);
+  const [lwfSlabsLoading, setLwfSlabsLoading] = useState(false);
+  const [editingLwfSlab, setEditingLwfSlab] = useState(null);
+  const [savingLwfSlab, setSavingLwfSlab] = useState(false);
 
   // Company Settings State
   const [companySettings, setCompanySettings] = useState({});
@@ -93,8 +100,9 @@ export default function Settings() {
     if (activeTab === 'company' && Object.keys(companySettings).length === 0) {
       fetchCompanySettings();
     }
-    if (activeTab === 'slabs' && ptSlabs.length === 0) {
-      fetchPtSlabs();
+    if (activeTab === 'slabs') {
+      if (ptSlabs.length === 0) fetchPtSlabs();
+      if (lwfSlabs.length === 0) fetchLwfSlabs();
     }
     if (activeTab === 'auth_security' && Object.keys(authSettings).length === 0) {
       fetchAuthSettings();
@@ -197,6 +205,50 @@ export default function Settings() {
       showToast({ type: 'error', title: 'Error', message: 'Failed to load statutory slabs' });
     } finally {
       setPtSlabsLoading(false);
+    }
+  };
+
+  const savePtSlab = async (e) => {
+    e.preventDefault();
+    if (!editingPtSlab) return;
+    setSavingPtSlab(true);
+    try {
+      await axios.put(route('admin.settings.pt-slabs.update', editingPtSlab.id), editingPtSlab);
+      showToast({ type: 'success', title: 'Success', message: 'PT Slab updated successfully.' });
+      setEditingPtSlab(null);
+      fetchPtSlabs();
+    } catch (err) {
+      showToast({ type: 'error', title: 'Error', message: err.response?.data?.message || 'Failed to update PT Slab' });
+    } finally {
+      setSavingPtSlab(false);
+    }
+  };
+
+  const fetchLwfSlabs = async () => {
+    setLwfSlabsLoading(true);
+    try {
+      const res = await axios.get(route('admin.settings.lwf-slabs'));
+      setLwfSlabs(res.data);
+    } catch (e) {
+      showToast({ type: 'error', title: 'Error', message: 'Failed to load LWF slabs' });
+    } finally {
+      setLwfSlabsLoading(false);
+    }
+  };
+
+  const saveLwfSlab = async (e) => {
+    e.preventDefault();
+    if (!editingLwfSlab) return;
+    setSavingLwfSlab(true);
+    try {
+      await axios.put(route('admin.settings.lwf-slabs.update', editingLwfSlab.id), editingLwfSlab);
+      showToast({ type: 'success', title: 'Success', message: 'LWF Slab updated successfully.' });
+      setEditingLwfSlab(null);
+      fetchLwfSlabs();
+    } catch (err) {
+      showToast({ type: 'error', title: 'Error', message: err.response?.data?.message || 'Failed to update LWF Slab' });
+    } finally {
+      setSavingLwfSlab(false);
     }
   };
 
@@ -688,17 +740,63 @@ export default function Settings() {
 
           {activeTab === 'slabs' && (
             <div>
-              <h3 className="text-lg font-bold text-gray-800">Professional Tax (PT) Slabs</h3>
-              <p className="text-sm text-gray-500 mb-4">PT rates dynamically map to employee work states for accurate monthly deduction.</p>
+              <div className="mb-4">
+                <h3 className="text-lg font-bold text-gray-800">Professional Tax (PT) Slabs</h3>
+                <p className="text-sm text-gray-500">PT rates dynamically map to employee work states for accurate monthly deduction.</p>
+              </div>
+
+              {/* Statutory Compliance Note for Half-Yearly States */}
+              <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4 text-xs text-blue-950 flex items-start gap-3">
+                <div className="text-lg mt-0.5">ℹ️</div>
+                <div>
+                  <h4 className="font-bold text-blue-900 text-sm mb-1">State Statutory Calculation Rules</h4>
+                  <p className="leading-relaxed mb-2">
+                    <strong>Maharashtra & Karnataka:</strong> Professional Tax is legislated on a <strong>Monthly Gross Salary</strong> basis.
+                  </p>
+                  <p className="leading-relaxed">
+                    <strong>Tamil Nadu:</strong> Legislate Professional Tax on a <strong>6-Month (Half-Yearly) Gross Income</strong> basis per <em>Tamil Nadu Municipalities Rules 1992</em>. Tecla Payroll automatically converts half-yearly govt brackets into <strong>Monthly Equivalent Salary Brackets</strong> (divided by 6) and deducts 1/6th of the half-yearly tax amount each month for a smooth monthly payroll calculation (e.g. Govt Half-Yearly ₹45,001–₹60,000 = ₹7,501–₹10,000/mo $\rightarrow$ ₹930/half-year = ₹155/month).
+                  </p>
+                </div>
+              </div>
               
               {ptSlabsLoading ? (
                 <div>Loading Slabs...</div>
               ) : (
                 <DataTable 
                   columns={[
-                    { label: 'From (Gross)', key: 'from' },
-                    { label: 'To (Gross)', key: 'to' },
-                    { label: 'Deduction', key: 'deduction' },
+                    { 
+                      label: 'State', 
+                      key: 'state',
+                      render: (_, row) => (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800">
+                          {row.state}
+                        </span>
+                      )
+                    },
+                    { label: 'Monthly Gross From', key: 'from' },
+                    { label: 'Monthly Gross To', key: 'to' },
+                    { label: 'Monthly Deduction', key: 'deduction' },
+                    { 
+                      label: 'Frequency', 
+                      key: 'frequency',
+                      render: (_, row) => (
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${row.frequency === 'half_yearly' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                          {row.frequency === 'half_yearly' ? 'Half-Yearly' : 'Monthly'}
+                        </span>
+                      )
+                    },
+                    { 
+                      label: 'Official Govt Slab (Half-Yearly)', 
+                      key: 'half_yearly_range',
+                      render: (_, row) => row.half_yearly_range ? (
+                        <div className="text-xs">
+                          <span className="font-semibold text-slate-700">{row.half_yearly_range}</span>
+                          <div className="text-slate-500 font-mono">Tax: {row.half_yearly_tax} / half-year</div>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-400">N/A (Monthly State)</span>
+                      )
+                    },
                     { label: 'Exceptions/Notes', key: 'exceptions' },
                     { 
                       label: 'Action', 
@@ -707,8 +805,7 @@ export default function Settings() {
                         <Button 
                           variant="secondary" 
                           size="sm" 
-                          disabled={row.disabled}
-                          onClick={() => showToast({ type: 'error', title: 'Action Locked', message: 'PT bracket editing is locked for compliance safety.' })}
+                          onClick={() => setEditingPtSlab({ ...row })}
                         >
                           Modify
                         </Button>
@@ -718,6 +815,206 @@ export default function Settings() {
                   data={ptSlabs}
                 />
               )}
+
+              {/* Edit PT Slab Modal */}
+              {editingPtSlab && (
+                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                  <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden border border-gray-100">
+                    <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-slate-50">
+                      <h4 className="font-bold text-slate-800">Modify PT Slab ({editingPtSlab.state})</h4>
+                      <button 
+                        type="button" 
+                        onClick={() => setEditingPtSlab(null)} 
+                        className="text-gray-400 hover:text-gray-600 font-bold text-lg"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <form onSubmit={savePtSlab} className="p-6 space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <Input 
+                          label="State" 
+                          value={editingPtSlab.state || ''} 
+                          onChange={e => setEditingPtSlab({ ...editingPtSlab, state: e.target.value })} 
+                          required 
+                        />
+                        <Select 
+                          label="Frequency" 
+                          value={editingPtSlab.frequency || 'monthly'} 
+                          onChange={e => setEditingPtSlab({ ...editingPtSlab, frequency: e.target.value })} 
+                          options={[
+                            { value: 'monthly', label: 'Monthly' },
+                            { value: 'half_yearly', label: 'Half-Yearly' }
+                          ]} 
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <Input 
+                          type="number" 
+                          label="Min Salary (From Gross ₹)" 
+                          value={editingPtSlab.min_salary ?? ''} 
+                          onChange={e => setEditingPtSlab({ ...editingPtSlab, min_salary: parseFloat(e.target.value) || 0 })} 
+                          required 
+                        />
+                        <Input 
+                          type="number" 
+                          label="Max Salary (To Gross ₹ — leave blank if No Limit)" 
+                          value={editingPtSlab.max_salary ?? ''} 
+                          onChange={e => setEditingPtSlab({ ...editingPtSlab, max_salary: e.target.value === '' ? null : parseFloat(e.target.value) })} 
+                          placeholder="No Limit" 
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <Input 
+                          type="number" 
+                          label="Deduction Amount (₹)" 
+                          value={editingPtSlab.deduction_amount ?? ''} 
+                          onChange={e => setEditingPtSlab({ ...editingPtSlab, deduction_amount: parseFloat(e.target.value) || 0 })} 
+                          required 
+                        />
+                        <Input 
+                          label="Deduction Note" 
+                          value={editingPtSlab.deduction_note || ''} 
+                          onChange={e => setEditingPtSlab({ ...editingPtSlab, deduction_note: e.target.value })} 
+                          placeholder="e.g. / month" 
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Exceptions & Statutory Notes</label>
+                        <textarea 
+                          className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                          rows={3} 
+                          value={editingPtSlab.exceptions_text || ''} 
+                          onChange={e => setEditingPtSlab({ ...editingPtSlab, exceptions_text: e.target.value })} 
+                          placeholder="e.g. Women earning <= Rs 25,000 exempt..." 
+                        />
+                      </div>
+                      <div className="flex justify-end gap-3 pt-2">
+                        <Button type="button" variant="secondary" onClick={() => setEditingPtSlab(null)}>
+                          Cancel
+                        </Button>
+                        <Button type="submit" variant="primary" disabled={savingPtSlab}>
+                          {savingPtSlab ? 'Saving...' : 'Update PT Slab'}
+                        </Button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
+
+              {/* Labour Welfare Fund (LWF) Slabs Section */}
+              <div className="mt-10 border-t border-gray-200 pt-8">
+                <div className="mb-4">
+                  <h3 className="text-lg font-bold text-gray-800">Labour Welfare Fund (LWF) State Rates</h3>
+                  <p className="text-sm text-gray-500">Statutory employee and employer contributions per state and frequency schedule.</p>
+                </div>
+
+                {lwfSlabsLoading ? (
+                  <div>Loading LWF Slabs...</div>
+                ) : (
+                  <DataTable 
+                    columns={[
+                      { 
+                        label: 'State', 
+                        key: 'state',
+                        render: (_, row) => (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-800">
+                            {row.state}
+                          </span>
+                        )
+                      },
+                      { label: 'Employee Contribution', key: 'employee_formatted' },
+                      { label: 'Employer Contribution', key: 'employer_formatted' },
+                      { label: 'Total Contribution', key: 'total_formatted' },
+                      { 
+                        label: 'Deduction Schedule', 
+                        key: 'frequency',
+                        render: (_, row) => (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-slate-100 text-slate-800 uppercase">
+                            {row.frequency === 'half_yearly' ? 'Bi-Annual (Jun & Dec)' : row.frequency === 'yearly' ? 'Annual (Dec)' : 'Monthly'}
+                          </span>
+                        )
+                      },
+                      { 
+                        label: 'Action', 
+                        key: 'id',
+                        render: (_, row) => (
+                          <Button 
+                            variant="secondary" 
+                            size="sm" 
+                            onClick={() => setEditingLwfSlab({ ...row })}
+                          >
+                            Modify
+                          </Button>
+                        )
+                      }
+                    ]}
+                    data={lwfSlabs}
+                  />
+                )}
+
+                {/* Edit LWF Slab Modal */}
+                {editingLwfSlab && (
+                  <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden border border-gray-100">
+                      <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-slate-50">
+                        <h4 className="font-bold text-slate-800">Modify LWF Slab ({editingLwfSlab.state})</h4>
+                        <button 
+                          type="button" 
+                          onClick={() => setEditingLwfSlab(null)} 
+                          className="text-gray-400 hover:text-gray-600 font-bold text-lg"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      <form onSubmit={saveLwfSlab} className="p-6 space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <Input 
+                            label="State" 
+                            value={editingLwfSlab.state || ''} 
+                            onChange={e => setEditingLwfSlab({ ...editingLwfSlab, state: e.target.value })} 
+                            required 
+                          />
+                          <Select 
+                            label="Deduction Schedule" 
+                            value={editingLwfSlab.frequency || 'yearly'} 
+                            onChange={e => setEditingLwfSlab({ ...editingLwfSlab, frequency: e.target.value })} 
+                            options={[
+                              { value: 'half_yearly', label: 'Bi-Annual (Jun & Dec)' },
+                              { value: 'yearly', label: 'Annual (Dec Only)' },
+                              { value: 'monthly', label: 'Monthly' }
+                            ]} 
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <Input 
+                            type="number" 
+                            label="Employee Contribution (₹)" 
+                            value={editingLwfSlab.employee_contribution ?? ''} 
+                            onChange={e => setEditingLwfSlab({ ...editingLwfSlab, employee_contribution: parseFloat(e.target.value) || 0 })} 
+                            required 
+                          />
+                          <Input 
+                            type="number" 
+                            label="Employer Contribution (₹)" 
+                            value={editingLwfSlab.employer_contribution ?? ''} 
+                            onChange={e => setEditingLwfSlab({ ...editingLwfSlab, employer_contribution: parseFloat(e.target.value) || 0 })} 
+                            required 
+                          />
+                        </div>
+                        <div className="flex justify-end gap-3 pt-2">
+                          <Button type="button" variant="secondary" onClick={() => setEditingLwfSlab(null)}>
+                            Cancel
+                          </Button>
+                          <Button type="submit" variant="primary" disabled={savingLwfSlab}>
+                            {savingLwfSlab ? 'Saving...' : 'Update LWF Slab'}
+                          </Button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

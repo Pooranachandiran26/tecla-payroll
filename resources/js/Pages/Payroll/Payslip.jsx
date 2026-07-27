@@ -292,8 +292,17 @@ export default function Payslip({ items, clients = [], selectedClientId, selecte
                                     <div className="flex gap-8">
                                         <div className="flex-1 bg-white border border-gray-200 rounded-md p-5 shadow-sm">
                                             <div className="flex flex-col gap-2 text-[0.85rem]">
-                                                <div className="flex justify-between"><span className="payslip-meta-label">Employer PF Contribution</span><span className="payslip-meta-val">₹{parseFloat(selectedItem.employer_pf).toLocaleString()}</span></div>
-                                                <div className="flex justify-between"><span className="payslip-meta-label">Employer ESI Contribution</span><span className="payslip-meta-val">₹{parseFloat(selectedItem.employer_esi).toLocaleString()}</span></div>
+                                                <div className="flex justify-between pl-2"><span className="payslip-meta-label">• Employer EPF (12%)</span><span className="payslip-meta-val">₹{Math.round(Math.min(selectedItem.basic_pay || 0, 15000) * 0.12).toLocaleString()}</span></div>
+                                                <div className="flex justify-between pl-2">
+                                                    <span className="payslip-meta-label">• EDLI (0.5%)</span>
+                                                    <span className="payslip-meta-val">{selectedItem.edli_exempted ? 'Exempted (₹0)' : `₹${Math.round(Math.min(selectedItem.basic_pay || 0, 15000) * 0.005).toLocaleString()}`}</span>
+                                                </div>
+                                                <div className="flex justify-between pl-2"><span className="payslip-meta-label">• EPF Admin Charges (0.5%)</span><span className="payslip-meta-val">₹{Math.round(Math.min(selectedItem.basic_pay || 0, 15000) * 0.005).toLocaleString()}</span></div>
+                                                <div className="flex justify-between font-bold text-[#1F3864] pt-1 border-t border-dashed border-gray-200">
+                                                    <span>Total Employer PF Contribution</span>
+                                                    <span>₹{parseFloat(selectedItem.employer_pf).toLocaleString()}</span>
+                                                </div>
+                                                <div className="flex justify-between pt-1"><span className="payslip-meta-label">Employer ESI Contribution</span><span className="payslip-meta-val">₹{parseFloat(selectedItem.employer_esi).toLocaleString()}</span></div>
                                                 <div className="flex justify-between"><span className="payslip-meta-label">Employer LWF Contribution</span><span className="payslip-meta-val">₹{parseFloat(selectedItem.employer_lwf).toLocaleString()}</span></div>
                                                 <hr className="border-t border-gray-200 my-1" />
                                                 <div className="flex justify-between font-bold">
