@@ -11,12 +11,17 @@ import TaxDeclarationTab from './components/TaxDeclarationTab';
 import LoansAndAdvancesTab from './LoansAndAdvancesTab';
 import HistoryTimeline from '../../Components/HistoryTimeline';
 
+import { Eye, EyeOff } from 'lucide-react';
+
 export default function EmployeeDetail({ employee: empProp }) {
     const employee = empProp?.data || empProp || {};
     const { auth, flash, attendanceRecords, attendanceStats, taxDeclaration, taxComparison, loans, salaryRevisions } = usePage().props;
     const { showToast } = useToast();
     const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, confirmText: '', reason: '' });
     const [activeTab, setActiveTab] = useState('overview');
+    const [showPan, setShowPan] = useState(false);
+    const [showAadhaar, setShowAadhaar] = useState(false);
+    const [showBankAccount, setShowBankAccount] = useState(false);
 
     const pendingDocsCount = employee.documents ? employee.documents.filter(d => d.status === 'pending').length : 0;
 
@@ -349,8 +354,22 @@ const renderDocumentRows = () => {
                     <strong style={{"fontSize":"0.9rem"}}>{employee.bank_name || 'N/A'}</strong>
                   </div>
                   <div>
-                    <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>Account No (Masked)</div>
-                    <strong style={{"fontSize":"0.9rem"}}>{employee.bank_account_number || 'N/A'}</strong>
+                    <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>Account Number</div>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      <strong style={{"fontSize":"0.9rem","fontFamily":"monospace"}}>
+                        {showBankAccount ? (employee.raw_bank_account_number || employee.bank_account_number || 'N/A') : (employee.bank_account_number || 'N/A')}
+                      </strong>
+                      {employee.bank_account_number && (
+                        <button
+                          type="button"
+                          onClick={() => setShowBankAccount(!showBankAccount)}
+                          title={showBankAccount ? "Hide Account Number" : "Show Account Number"}
+                          style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: '2px', color: showBankAccount ? 'var(--primary-navy)' : '#64748B' }}
+                        >
+                          {showBankAccount ? <EyeOff size={14} /> : <Eye size={14} />}
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <div>
                     <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>IFSC Code</div>
