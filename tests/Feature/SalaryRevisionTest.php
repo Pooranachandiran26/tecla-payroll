@@ -126,7 +126,7 @@ class SalaryRevisionTest extends TestCase
                          ->post("/employees/{$this->employee->id}/salary-revision/{$revision->id}/approve", $payload);
 
         $response->assertRedirect();
-        $response->assertSessionHas('success', 'Salary revision approved successfully.');
+        $response->assertSessionHas('success', 'Salary revision approved successfully and notification email sent.');
 
         // Verify revision status updated
         $revision->refresh();
