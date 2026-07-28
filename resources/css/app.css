@@ -297,6 +297,13 @@
   }
 
   /* Grid & Layout Utilities */
+  input[type="date"] {
+    cursor: pointer;
+  }
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+  }
+
   .grid-cols-4 {
     display: grid;
     grid-template-columns: repeat(4, 1fr);

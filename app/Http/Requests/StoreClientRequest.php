@@ -126,6 +126,11 @@ class StoreClientRequest extends FormRequest
                 'designation' => $this->poc1['designation'] ?? null,
                 'email' => $this->poc1['email'] ?? null,
                 'phone' => $this->poc1['phone'] ?? null,
+                'is_whatsapp_same' => isset($this->poc1['whatsappSame']) ? (bool)$this->poc1['whatsappSame'] : true,
+                'preference_email' => isset($this->poc1['prefs']['email']) ? (bool)$this->poc1['prefs']['email'] : true,
+                'preference_sms' => isset($this->poc1['prefs']['sms']) ? (bool)$this->poc1['prefs']['sms'] : false,
+                'preference_whatsapp' => isset($this->poc1['prefs']['wa']) ? (bool)$this->poc1['prefs']['wa'] : false,
+                'communication_preferences' => $this->poc1['preferences'] ?? ['Email'],
             ];
         }
         if ($this->has('poc2') && (isset($this->poc2['name']) || isset($this->poc2['email']))) {
@@ -136,6 +141,12 @@ class StoreClientRequest extends FormRequest
                 'designation' => $this->poc2['designation'] ?? null,
                 'email' => $this->poc2['email'] ?? null,
                 'phone' => $this->poc2['phone'] ?? null,
+                'is_whatsapp_same' => isset($this->poc2['whatsappSame']) ? (bool)$this->poc2['whatsappSame'] : true,
+                'cc_on_invoice' => isset($this->poc2['ccInvoice']) ? (bool)$this->poc2['ccInvoice'] : false,
+                'preference_email' => isset($this->poc2['prefs']['email']) ? (bool)$this->poc2['prefs']['email'] : true,
+                'preference_sms' => isset($this->poc2['prefs']['sms']) ? (bool)$this->poc2['prefs']['sms'] : false,
+                'preference_whatsapp' => isset($this->poc2['prefs']['wa']) ? (bool)$this->poc2['prefs']['wa'] : false,
+                'communication_preferences' => $this->poc2['preferences'] ?? ['Email'],
             ];
         }
         if ($this->has('poc3') && (isset($this->poc3['name']) || isset($this->poc3['email']))) {
@@ -146,6 +157,12 @@ class StoreClientRequest extends FormRequest
                 'designation' => $this->poc3['designation'] ?? null,
                 'email' => $this->poc3['email'] ?? null,
                 'phone' => $this->poc3['phone'] ?? null,
+                'is_whatsapp_same' => isset($this->poc3['whatsappSame']) ? (bool)$this->poc3['whatsappSame'] : true,
+                'receive_onboarding_kits' => isset($this->poc3['onboardingKits']) ? (bool)$this->poc3['onboardingKits'] : false,
+                'preference_email' => isset($this->poc3['prefs']['email']) ? (bool)$this->poc3['prefs']['email'] : true,
+                'preference_sms' => isset($this->poc3['prefs']['sms']) ? (bool)$this->poc3['prefs']['sms'] : false,
+                'preference_whatsapp' => isset($this->poc3['prefs']['wa']) ? (bool)$this->poc3['prefs']['wa'] : false,
+                'communication_preferences' => $this->poc3['preferences'] ?? ['Email'],
             ];
         }
         if ($this->has('extraContacts') && is_array($this->extraContacts)) {
@@ -158,6 +175,11 @@ class StoreClientRequest extends FormRequest
                     'designation' => $extra['designation'] ?? null,
                     'email' => $extra['email'] ?? null,
                     'phone' => $extra['phone'] ?? null,
+                    'is_whatsapp_same' => isset($extra['whatsappSame']) ? (bool)$extra['whatsappSame'] : true,
+                    'preference_email' => isset($extra['prefs']['email']) ? (bool)$extra['prefs']['email'] : true,
+                    'preference_sms' => isset($extra['prefs']['sms']) ? (bool)$extra['prefs']['sms'] : false,
+                    'preference_whatsapp' => isset($extra['prefs']['wa']) ? (bool)$extra['prefs']['wa'] : false,
+                    'communication_preferences' => $extra['preferences'] ?? ['Email'],
                 ];
             }
         }
@@ -314,6 +336,13 @@ class StoreClientRequest extends FormRequest
             'contacts.*.designation' => 'nullable|string',
             'contacts.*.email' => 'required|email',
             'contacts.*.phone' => ['required', 'regex:/^[6-9][0-9]{9}$/'],
+            'contacts.*.is_whatsapp_same' => 'nullable|boolean',
+            'contacts.*.cc_on_invoice' => 'nullable|boolean',
+            'contacts.*.receive_onboarding_kits' => 'nullable|boolean',
+            'contacts.*.preference_email' => 'nullable|boolean',
+            'contacts.*.preference_sms' => 'nullable|boolean',
+            'contacts.*.preference_whatsapp' => 'nullable|boolean',
+            'contacts.*.communication_preferences' => 'nullable|array',
 
             // Branches
             'branches' => 'nullable|array',

@@ -1151,6 +1151,7 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
       
       client.contacts.forEach(c => {
         const contactData = {
+          id: c.id,
           name: c.full_name || '',
           designation: c.designation || '',
           email: c.email || '',
@@ -1159,9 +1160,9 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
           ccInvoice: c.cc_on_invoice !== undefined ? !!c.cc_on_invoice : false,
           onboardingKits: c.receive_onboarding_kits !== undefined ? !!c.receive_onboarding_kits : false,
           prefs: {
-            email: c.preference_email !== undefined ? !!c.preference_email : true,
-            sms: c.preference_sms !== undefined ? !!c.preference_sms : false,
-            wa: c.preference_whatsapp !== undefined ? !!c.preference_whatsapp : false
+            email: c.preference_email !== undefined ? !!c.preference_email : (Array.isArray(c.communication_preferences) ? c.communication_preferences.includes('Email') : true),
+            sms: c.preference_sms !== undefined ? !!c.preference_sms : (Array.isArray(c.communication_preferences) ? c.communication_preferences.includes('SMS') : false),
+            wa: c.preference_whatsapp !== undefined ? !!c.preference_whatsapp : (Array.isArray(c.communication_preferences) ? (c.communication_preferences.includes('WhatsApp') || c.communication_preferences.includes('wa')) : false)
           }
         };
 

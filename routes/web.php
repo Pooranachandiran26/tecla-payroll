@@ -231,7 +231,10 @@ Route::middleware(['auth', 'active'])->group(function () {
             
             Route::get('/admin/settings/file-upload-policy', [SettingsController::class, 'getFileUploadPolicy'])->name('admin.settings.file-upload-policy.show');
             Route::put('/admin/settings/file-upload-policy', [SettingsController::class, 'updateFileUploadPolicy'])->name('admin.settings.file-upload-policy.update');
-            
+
+            Route::get('/admin/settings/gst', [SettingsController::class, 'getGstSettings'])->name('admin.settings.gst.show');
+            Route::put('/admin/settings/gst', [SettingsController::class, 'updateGstSettings'])->name('admin.settings.gst.update');
+
             Route::get('/admin/sessions', [SessionController::class, 'allSessions'])->name('admin.sessions');
             Route::delete('/admin/sessions/{id}', [SessionController::class, 'revokeAny'])->name('admin.sessions.destroy');
             Route::post('/admin/sessions/bulk-revoke', [SessionController::class, 'bulkRevoke'])->name('admin.sessions.bulk-revoke');
