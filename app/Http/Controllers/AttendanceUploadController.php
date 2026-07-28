@@ -148,14 +148,14 @@ class AttendanceUploadController extends Controller
                 $writer->addRow(['Section' => '--- EMPLOYEES WITH CUSTOM OFF-DAY PATTERNS ---', 'Details' => ''], $headerStyle);
                 $writer->addRow([
                     'Section' => 'Special Rule Note',
-                    'Details' => 'These employees have a DIFFERENT weekly off pattern than the client default above. Their required working days differ from the number shown above — check each one individually below.',
+                    'Details' => 'Custom weekly off pattern. Required working days differ from client default.',
                 ]);
 
                 foreach ($overrideEmployees as $empOverride) {
                     $empContext = $this->validationService->calculateWorkingDaysContext((int) $clientId, $targetMonthStr, $empOverride);
                     $writer->addRow([
                         'Section' => $empOverride->employee_code . ' (' . $empOverride->full_name . ')',
-                        'Details' => $empContext['off_days_label'] . ' → Required Working Days: ' . $empContext['working_days_slots'],
+                        'Details' => $empContext['off_days_label'] . ' | Required Working Days: ' . $empContext['working_days_slots'],
                     ]);
                 }
                 $writer->addRow(['Section' => '', 'Details' => '']);
@@ -185,13 +185,13 @@ class AttendanceUploadController extends Controller
                 $writer->addRow(['Section' => '--- MID-MONTH JOINERS & PARTIAL-MONTH TRACKING EMPLOYEES ---', 'Details' => ''], $headerStyle);
                 $writer->addRow([
                     'Section' => 'Special Joining Note',
-                    'Details' => 'These employees joined or started tracking mid-month during this target month. Their maximum available working days are LOWER than full month slots. Enter days_present + days_lop to match each employee\'s specific available days shown below.',
+                    'Details' => 'Joined mid-month. Max available working days are lower than full month slots.',
                 ]);
 
                 foreach ($midMonthList as $mm) {
                     $writer->addRow([
                         'Section' => $mm['emp']->employee_code . ' (' . $mm['emp']->full_name . ')',
-                        'Details' => 'Joined / Started: ' . $mm['start_date'] . ' → Max Available Working Days: ' . $mm['slots'] . ' Days',
+                        'Details' => 'Joined: ' . $mm['start_date'] . ' | Max Working Days: ' . $mm['slots'],
                     ]);
                 }
                 $writer->addRow(['Section' => '', 'Details' => '']);
@@ -200,7 +200,7 @@ class AttendanceUploadController extends Controller
 
         // Section 5: Instruction Rule
         $writer->addRow(['Section' => '--- HOW TO FILL THIS SHEET ---', 'Details' => ''], $headerStyle);
-        $writer->addRow(['Section' => 'Data Entry Instructions', 'Details' => 'Switch to Sheet 2 ("Attendance Entry") to enter attendance data. Enter ONLY real working days worked + LOP. For full-month employees, days_present + days_lop must equal ' . $workingDaysSlots . '. For mid-month joiners, days_present + days_lop must match their individual max available days shown above.']);
+        $writer->addRow(['Section' => 'Data Entry Instructions', 'Details' => 'In Sheet 2, enter working days + LOP. Total (present + LOP) must match required days for each employee.']);
 
         // --- SHEET 2: "Attendance Entry" (SECOND TAB — DATA ENTRY SHEET) ---
         $writer->addNewSheetAndMakeItCurrent('Attendance Entry');
