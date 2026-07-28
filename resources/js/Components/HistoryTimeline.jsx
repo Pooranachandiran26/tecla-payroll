@@ -10,7 +10,8 @@ import {
   RotateCcw, 
   X, 
   FileText,
-  IndianRupee 
+  IndianRupee,
+  Award 
 } from 'lucide-react';
 
 export default function HistoryTimeline({ revisions = [], isAdmin = false }) {
@@ -285,18 +286,36 @@ export default function HistoryTimeline({ revisions = [], isAdmin = false }) {
                       width: "38px",
                       height: "38px",
                       borderRadius: "50%",
-                      backgroundColor: "#EFF6FF",
-                      color: "#1E40AF",
+                      backgroundColor: item.is_promotion ? "#F3E8FF" : "#EFF6FF",
+                      color: item.is_promotion ? "#7E22CE" : "#1E40AF",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center"
                     }}>
-                      <TrendingUp size={18} color="#1E40AF" />
+                      <TrendingUp size={18} color={item.is_promotion ? "#7E22CE" : "#1E40AF"} />
                     </div>
                     <div>
-                      <h4 style={{ margin: 0, fontSize: "0.95rem", fontWeight: "700", color: "#1E293B" }}>
-                        Salary Revision
-                      </h4>
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                        <h4 style={{ margin: 0, fontSize: "0.95rem", fontWeight: "700", color: "#1E293B" }}>
+                          Salary Revision
+                        </h4>
+                        {item.is_promotion && (
+                          <span style={{
+                            backgroundColor: "#F3E8FF",
+                            color: "#6B21A8",
+                            border: "1px solid #E9D5FF",
+                            padding: "0.15rem 0.5rem",
+                            borderRadius: "4px",
+                            fontSize: "0.72rem",
+                            fontWeight: "700",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "4px"
+                          }}>
+                            <Award size={13} color="#6B21A8" /> Promotion
+                          </span>
+                        )}
+                      </div>
                       <div style={{ display: "flex", gap: "1rem", fontSize: "0.78rem", color: "#64748B", marginTop: "2px" }}>
                         <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
                           <Calendar size={13} color="#64748B" /> Effective: <strong>{formatDate(item.effective_date)}</strong>
@@ -363,6 +382,27 @@ export default function HistoryTimeline({ revisions = [], isAdmin = false }) {
                     </div>
                   </div>
                 </div>
+
+                {/* Designation Diff for Promotion */}
+                {item.is_promotion && (item.old_designation || item.new_designation) && (
+                  <div style={{
+                    marginTop: "0.75rem",
+                    padding: "0.6rem 0.85rem",
+                    backgroundColor: "#F3E8FF",
+                    borderRadius: "6px",
+                    border: "1px solid #E9D5FF",
+                    fontSize: "0.83rem",
+                    color: "#581C87",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem"
+                  }}>
+                    <Award size={15} color="#7E22CE" />
+                    <span style={{ fontWeight: "700" }}>Designation Promotion:</span>
+                    <span style={{ textDecoration: "line-through", color: "#7E22CE" }}>{item.old_designation || 'Current Role'}</span>
+                    <span style={{ fontWeight: "800", color: "#6B21A8" }}>→ {item.new_designation}</span>
+                  </div>
+                )}
 
                 {/* Revision Reason */}
                 {item.reason_for_revision && (

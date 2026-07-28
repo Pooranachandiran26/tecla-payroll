@@ -146,7 +146,7 @@ export default function ClientsList({ clients, stats = {} }) {
                 Manage all client profiles, contracts, and view high-level payroll metrics.
               </p>
             </div>
-            <Link href={route('clients.create')} className="btn btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <Link href={route('clients.create')} prefetch className="btn btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
               <Plus size={16} /> Add New Client
             </Link>
           </div>
@@ -269,7 +269,7 @@ export default function ClientsList({ clients, stats = {} }) {
                           <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
                             <div className="client-avatar">{c.company_name?.charAt(0) || 'C'}</div>
                             <div>
-                              <Link href={route('clients.show', c.id)} className="client-name">{c.company_name}</Link>
+                              <Link href={route('clients.show', c.id)} prefetch className="client-name">{c.company_name}</Link>
                               <div className="client-meta">
                                 <span>{c.client_code}</span>
                                 {c.gstin && <span> • GST: {c.gstin}</span>}
@@ -424,6 +424,7 @@ export default function ClientsList({ clients, stats = {} }) {
               label="Type 'DELETE' to confirm" 
               value={deleteDialog.confirmText} 
               onChange={e => setDeleteDialog(prev => ({ ...prev, confirmText: e.target.value }))}
+              onPaste={e => e.preventDefault()}
               placeholder="DELETE"
             />
             <div>

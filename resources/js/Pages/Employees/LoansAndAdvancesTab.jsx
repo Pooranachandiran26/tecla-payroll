@@ -3,12 +3,14 @@ import { router, usePage } from '@inertiajs/react';
 import Button from '@/Components/ui/Button';
 import Card from '@/Components/ui/Card';
 import Modal from '@/Components/ui/Modal';
-import { Plus, CreditCard, DollarSign, Calendar, History, PauseCircle, PlayCircle, XCircle } from 'lucide-react';
+import ConfirmDialog from '@/Components/ui/ConfirmDialog';
+import { Plus, CreditCard, DollarSign, Calendar, History, PauseCircle, PlayCircle, XCircle, AlertTriangle } from 'lucide-react';
 
 export default function LoansAndAdvancesTab({ employee, loans = [] }) {
   const { errors } = usePage().props;
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedLoanForHistory, setSelectedLoanForHistory] = useState(null);
+  const [statusDialog, setStatusDialog] = useState({ isOpen: false, loanId: null, newStatus: '' });
   const [submitting, setSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -58,9 +60,7 @@ export default function LoansAndAdvancesTab({ employee, loans = [] }) {
   };
 
   const handleStatusChange = (loanId, newStatus) => {
-    if (confirm(`Are you sure you want to change loan status to ${newStatus}?`)) {
-      router.patch(route('employees.loans.update-status', loanId), { status: newStatus });
-    }
+    setStatusDialog({ isOpen: true, loanId, newStatus });
   };
 
   const getTypeBadge = (type) => {
@@ -318,8 +318,9 @@ export default function LoansAndAdvancesTab({ employee, loans = [] }) {
             />
           </div>
 
-          <div className="p-3 bg-amber-50/60 border border-amber-200 rounded text-[11px] text-amber-800">
-            <strong>⚠ Statutory 50% Cap Protection Notice:</strong> If total deductions (Statutory + TDS + EMI) exceed 50% of the employee's gross monthly salary during payroll processing, the EMI will be capped automatically, and any excess will be deferred to subsequent months.
+          <div className="p-3 bg-amber-50/60 border border-amber-200 rounded text-[11px] text-amber-800 flex items-center gap-1.5">
+            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+            <span><strong>Statutory 50% Cap Protection Notice:</strong> If total deductions (Statutory + TDS + EMI) exceed 50% of the employee's gross monthly salary during payroll processing, the EMI will be capped automatically, and any excess will be deferred to subsequent months.</span>
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
@@ -395,6 +396,21 @@ export default function LoansAndAdvancesTab({ employee, loans = [] }) {
           </div>
         </Modal>
       )}
+
+      {/* Confirm Dialog for Loan Status Change */}
+      <ConfirmDialog
+        isOpen={statusDialog.isOpen}
+        title="Change Loan Status"
+        message={`Are you sure you want to change this loan status to ${statusDialog.newStatus?.toUpperCase()}?`}
+        confirmLabel="Confirm Status Change"
+        variant={statusDialog.newStatus === 'cancelled' ? 'danger' : 'primary'}
+        onClose={() => setStatusDialog({ isOpen: false, loanId: null, newStatus: '' })}
+        onConfirm={() => {
+          router.patch(route('employees.loans.update-status', statusDialog.loanId), { status: statusDialog.newStatus }, {
+            onFinish: () => setStatusDialog({ isOpen: false, loanId: null, newStatus: '' })
+          });
+        }}
+      />
     </div>
   );
 }

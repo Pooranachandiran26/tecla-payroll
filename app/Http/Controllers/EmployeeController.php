@@ -17,6 +17,13 @@ class EmployeeController extends Controller
     {
         $query = \App\Models\Employee::with(['client', 'documents']);
         
+        $user = $request->user();
+
+        if ($user && $user->role === 'manager') {
+            $managedClientIds = $user->getManagedClientIds();
+            $query->whereIn('client_id', $managedClientIds);
+        }
+
         if ($request->search) {
             $query->where(function($q) use ($request) {
                 $q->where('employee_code', 'like', "%{$request->search}%")
@@ -42,7 +49,11 @@ class EmployeeController extends Controller
 
         $employees = $query->orderBy('id', 'desc')->paginate(10)->withQueryString();
         
-        $clients = \App\Models\Client::where('status', 'active')->select('id', 'company_name')->get();
+        $clientsQuery = \App\Models\Client::where('status', 'active');
+        if ($user && $user->role === 'manager') {
+            $clientsQuery->whereIn('id', $user->getManagedClientIds());
+        }
+        $clients = $clientsQuery->select('id', 'company_name')->get();
         
         return \Inertia\Inertia::render('Employees/EmployeesList', [
             'employees' => \App\Http\Resources\EmployeeResource::collection($employees),

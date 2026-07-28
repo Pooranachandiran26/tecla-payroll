@@ -31,6 +31,26 @@ class StoreSalaryRevisionRequest extends FormRequest
             'new_other_additions' => 'required|numeric|min:0',
             'effective_date' => 'required|date|before_or_equal:today',
             'reason_for_revision' => 'required|string|max:255',
+            'is_promotion' => 'nullable|boolean',
+            'new_designation' => [
+                'required_if:is_promotion,true,1',
+                'nullable',
+                'string',
+                'max:255',
+                function ($attribute, $value, $fail) {
+                    if ($this->boolean('is_promotion')) {
+                        $employeeId = $this->route('id') ?? $this->route('employee');
+                        $employee = $employeeId ? \App\Models\Employee::find($employeeId) : null;
+                        if ($employee && strtolower(trim((string)$value)) === strtolower(trim((string)$employee->designation))) {
+                            $fail('The new designation must differ from the current designation.');
+                        }
+                        if ($employee && !empty($employee->probation_end_date) && \Carbon\Carbon::parse($employee->probation_end_date)->startOfDay()->isFuture()) {
+                            $formattedDate = \Carbon\Carbon::parse($employee->probation_end_date)->format('d M Y');
+                            $fail("Warning: Employee is currently under probation until {$formattedDate}. Probation period must end before promoting an employee.");
+                        }
+                    }
+                },
+            ],
         ];
     }
 }

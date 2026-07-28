@@ -1,6 +1,20 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, router } from '@inertiajs/react';
+import { 
+  ArrowLeft, 
+  Landmark, 
+  Lock, 
+  Settings, 
+  Info, 
+  AlertOctagon, 
+  User, 
+  IndianRupee, 
+  Scale, 
+  AlertTriangle, 
+  Save, 
+  X 
+} from 'lucide-react';
 import './EmployeeForm.css';
 import RoleGuard from '../../Components/RoleGuard.jsx';
 import axios from 'axios';
@@ -258,6 +272,31 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       next.delete(key);
       return next;
     });
+  };
+
+  const calculateProbationEndDate = (monthsToAdd) => {
+    if (!formData.doj) {
+      setErrorMsg('doj', 'Please select Date of Joining first to calculate Probation End Date.', 'error');
+      setErrorMsg('probationEndDate', 'Please select Date of Joining first to use month presets.', 'error');
+      return;
+    }
+    clearErrorMsg('probationEndDate');
+
+    const parts = formData.doj.split('-');
+    if (parts.length !== 3) return;
+    
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10);
+    const day = parseInt(parts[2], 10);
+    if (!year || !month || !day) return;
+
+    const targetDate = new Date(year, month - 1 + parseInt(monthsToAdd, 10), day);
+    const yyyy = targetDate.getFullYear();
+    const mm = String(targetDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(targetDate.getDate()).padStart(2, '0');
+    
+    const formattedDate = `${yyyy}-${mm}-${dd}`;
+    handleInputChange('probationEndDate', formattedDate);
   };
 
   const handleInputChange = (field, value) => {
@@ -541,7 +580,9 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
         
         <div className="legacy-react-wrapper">
           <div style={{ marginBottom: "1.5rem" }}>
-            <Link href={route('employees.index')} style={{ fontSize: "0.85rem", fontWeight: "600" }}>← Back to Employees Directory</Link>
+            <Link href={route('employees.index')} style={{ fontSize: "0.85rem", fontWeight: "600", display: "inline-flex", alignItems: "center", gap: "5px" }}>
+              <ArrowLeft size={14} /> Back to Employees Directory
+            </Link>
             <h2 id="form-page-title" style={{ marginTop: "0.5rem" }}>
               {isAdd ? 'Add New Employee' : `Edit Employee — ${isActive ? 'Active' : 'Onboarding'}`}
             </h2>
@@ -604,7 +645,9 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                     <div className="form-group">
                       <label>Employee Code</label>
                       <input type="text" className="form-control read-only-field" value="TEC-089 (auto-assigned on save)" readOnly />
-                      <div className="field-msg info show">🔒 Auto-generated on save. Cannot be manually set.</div>
+                      <div className="field-msg info show" style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                        <Lock size={12} /> Auto-generated on save. Cannot be manually set.
+                      </div>
                     </div>
                   )}
                 </div>
@@ -801,7 +844,43 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Probation End Date</label>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                      <label style={{ margin: 0 }}>Probation End Date</label>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                        <span style={{ fontSize: '0.7rem', color: '#64748B', fontWeight: '600', marginRight: '0.15rem' }}>Months:</span>
+                        {[2, 4, 6, 12].map(m => (
+                          <button
+                            key={m}
+                            type="button"
+                            onClick={() => calculateProbationEndDate(m)}
+                            style={{
+                              padding: '0.15rem 0.45rem',
+                              fontSize: '0.75rem',
+                              fontWeight: '700',
+                              borderRadius: '0.25rem',
+                              border: '1px solid #CBD5E1',
+                              backgroundColor: '#F8FAFC',
+                              color: '#1F3864',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease-in-out'
+                            }}
+                            title={`Calculate +${m} months from Date of Joining (${formData.doj || 'Today'})`}
+                            onMouseEnter={e => {
+                              e.currentTarget.style.backgroundColor = '#1F3864';
+                              e.currentTarget.style.color = '#FFFFFF';
+                              e.currentTarget.style.borderColor = '#1F3864';
+                            }}
+                            onMouseLeave={e => {
+                              e.currentTarget.style.backgroundColor = '#F8FAFC';
+                              e.currentTarget.style.color = '#1F3864';
+                              e.currentTarget.style.borderColor = '#CBD5E1';
+                            }}
+                          >
+                            {m}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                     <input type="date" className={`form-control ${errors.probationEndDate ? `is-${errors.probationEndDate.type || 'error'}` : ''}`} value={formData.probationEndDate}
                       onChange={e => handleInputChange('probationEndDate', e.target.value)} />
                     {errors.probationEndDate && <div className={`field-msg ${errors.probationEndDate.type || 'error'} show`}>{errors.probationEndDate.msg}</div>}
@@ -860,14 +939,17 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                   Secure Disbursement Details
                 </h3>
 
-                <div className="section-banner info">
-                  🏦 <strong>Bank details can only be set here during initial employee creation.</strong>
-                  Once the employee is <em>Active</em>, bank changes must go through the Bank Change Requests approval flow.
+                <div className="section-banner info" style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                  <Landmark size={18} className="shrink-0 text-blue-600" />
+                  <span>
+                    <strong>Bank details can only be set here during initial employee creation.</strong> Once the employee is <em>Active</em>, bank changes must go through the Bank Change Requests approval flow.
+                  </span>
                 </div>
 
                 {isActive ? (
                   <div style={{ marginBottom: "1.5rem", padding: "0.75rem 1rem", background: "#F8FAFC", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", fontSize: "0.85rem", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                    <span style={{ fontWeight: "500", color: "var(--text-main)" }}>🔒 Locked — use <Link href={route('employees.bank-change-requests')} style={{ color: "var(--primary-navy)", fontWeight: "600", textDecoration: "underline" }}>Bank Change Requests</Link> to update</span>
+                    <Lock size={14} className="shrink-0 text-slate-500" />
+                    <span style={{ fontWeight: "500", color: "var(--text-main)" }}>Locked — use <Link href={route('employees.bank-change-requests')} style={{ color: "var(--primary-navy)", fontWeight: "600", textDecoration: "underline" }}>Bank Change Requests</Link> to update</span>
                   </div>
                 ) : (
                   <div>
@@ -950,7 +1032,8 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
 
                 {isActive ? (
                   <div style={{ marginBottom: "1.5rem", padding: "0.75rem 1rem", background: "#F8FAFC", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", fontSize: "0.85rem", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                    <span style={{ fontWeight: "500", color: "var(--text-main)" }}>🔒 Locked — use <Link href={route('employees.salary-revision.create', empId)} style={{ color: "var(--primary-navy)", fontWeight: "600", textDecoration: "underline" }}>Revise Salary</Link> to update</span>
+                    <Lock size={14} className="shrink-0 text-slate-500" />
+                    <span style={{ fontWeight: "500", color: "var(--text-main)" }}>Locked — use <Link href={route('employees.salary-revision.create', empId)} style={{ color: "var(--primary-navy)", fontWeight: "600", textDecoration: "underline" }}>Revise Salary</Link> to update</span>
                   </div>
                 ) : (
                   <div>
@@ -1009,8 +1092,8 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                 <h3 style={{ borderBottom: "1px solid var(--border-color)", paddingBottom: "0.5rem", marginTop: "2rem", marginBottom: "0.5rem", fontSize: "1.05rem" }}>
                   Statutory Applicability for This Employee
                 </h3>
-                <p style={{ color: "var(--text-muted)", fontSize: "0.75rem", marginBottom: "1.25rem" }}>
-                  ⚙️ <span style={{ fontWeight: "500", color: "var(--primary-navy)" }}>Defaults inherited from client...</span> Toggling any setting creates an override.
+                <p style={{ color: "var(--text-muted)", fontSize: "0.75rem", marginBottom: "1.25rem", display: "flex", alignItems: "center", gap: "4px" }}>
+                  <Settings size={14} className="shrink-0 text-[#1F3864]" /> <span style={{ fontWeight: "500", color: "var(--primary-navy)" }}>Defaults inherited from client...</span> Toggling any setting creates an override.
                 </p>
 
                 <div style={{ display: "flex", flexDirection: "column", gap: "1rem", backgroundColor: "#F8FAFC", padding: "1rem", borderRadius: "var(--radius-md)", border: "1px solid var(--border-color)", marginBottom: "1.5rem" }}>
@@ -1041,10 +1124,13 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                             <option value="existing_transfer">Existing UAN</option>
                           </select>
                           {errors.uanMode && <div className={`field-msg ${errors.uanMode.type || 'error'} show`}>{errors.uanMode.msg || errors.uanMode}</div>}
-                          <small style={{ color: "var(--text-muted)", display: "block", marginTop: "4px" }}>
-                            {formData.uanMode === 'new' 
-                              ? 'ℹ️ Select for first-time employees. EPFO portal auto-generates 12-digit UAN upon ECR upload.' 
-                              : 'ℹ️ Mandatory 12-digit UAN number from previous employer.'}
+                          <small style={{ color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "4px", marginTop: "4px" }}>
+                            <Info size={13} className="shrink-0 text-blue-600" />
+                            <span>
+                              {formData.uanMode === 'new' 
+                                ? 'Select for first-time employees. EPFO portal auto-generates 12-digit UAN upon ECR upload.' 
+                                : 'Mandatory 12-digit UAN number from previous employer.'}
+                            </span>
                           </small>
                         </div>
                         {formData.uanMode === 'existing_transfer' && (
@@ -1089,10 +1175,13 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                             <option value="existing_transfer">Existing IP Number</option>
                           </select>
                           {errors.esiMode && <div className={`field-msg ${errors.esiMode.type || 'error'} show`}>{errors.esiMode.msg || errors.esiMode}</div>}
-                          <small style={{ color: "var(--text-muted)", display: "block", marginTop: "4px" }}>
-                            {formData.esiMode === 'new' 
-                              ? 'ℹ️ Select for first-time workers. ESIC portal auto-generates 10-digit IP number upon registration upload.' 
-                              : 'ℹ️ Mandatory 10-digit ESIC IP number from previous employer.'}
+                          <small style={{ color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "4px", marginTop: "4px" }}>
+                            <Info size={13} className="shrink-0 text-blue-600" />
+                            <span>
+                              {formData.esiMode === 'new' 
+                                ? 'Select for first-time workers. ESIC portal auto-generates 10-digit IP number upon registration upload.' 
+                                : 'Mandatory 10-digit ESIC IP number from previous employer.'}
+                            </span>
                           </small>
                         </div>
                         {formData.esiMode === 'existing_transfer' && (
@@ -1139,10 +1228,13 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                               <option value="new">New Tax Regime</option>
                               <option value="employee_choice">Employee Choice</option>
                             </select>
-                            <small style={{ color: "var(--text-muted)", display: "block", marginTop: "4px" }}>
-                              {formData.taxRegime === 'new' 
-                                ? 'ℹ️ New Regime (Default for FY26-27): ₹75,000 Standard Deduction, zero tax up to ₹12L (Sec 87A rebate).' 
-                                : 'ℹ️ Old Regime: ₹50,000 Standard Deduction, 80C, 80D, 24b & HRA exemptions applicable.'}
+                            <small style={{ color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "4px", marginTop: "4px" }}>
+                              <Info size={13} className="shrink-0 text-blue-600" />
+                              <span>
+                                {formData.taxRegime === 'new' 
+                                  ? 'New Regime (Default for FY26-27): ₹75,000 Standard Deduction, zero tax up to ₹12L (Sec 87A rebate).' 
+                                  : 'Old Regime: ₹50,000 Standard Deduction, 80C, 80D, 24b & HRA exemptions applicable.'}
+                              </span>
                             </small>
                           </div>
                           <div className="form-group" style={{ marginBottom: "0" }}>
@@ -1205,8 +1297,8 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                         </div>
                         <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Denominator used for daily wage calculation (Basic / 30). Standard fixed monthly divisor.</span>
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", background: "#F1F5F9", border: "1px solid #CBD5E1", padding: "0.35rem 0.75rem", borderRadius: "6px", fontWeight: "bold", color: "var(--primary-navy)", fontSize: "0.85rem", whiteSpace: "nowrap" }}>
-                        🔒 Strictly 30 Days
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", background: "#F1F5F9", border: "1px solid #CBD5E1", padding: "0.35rem 0.75rem", borderRadius: "6px", fontWeight: "bold", color: "var(--primary-navy)", fontSize: "0.85rem", whiteSpace: "nowrap" }}>
+                        <Lock size={13} /> Strictly 30 Days
                       </div>
                     </div>
                   </div>
@@ -1401,7 +1493,9 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                 {/* Validation Summary */}
                 {blockingErrors.size > 0 && (
                   <div className="card" style={{ marginTop: "1rem", border: "1px solid var(--status-danger)", backgroundColor: "var(--status-danger-bg)" }}>
-                    <h4 style={{ color: "var(--status-danger)", marginBottom: "0.75rem" }}>⛔ Blocking Errors</h4>
+                    <h4 style={{ color: "var(--status-danger)", marginBottom: "0.75rem", display: "flex", alignItems: "center", gap: "6px" }}>
+                      <AlertOctagon size={18} /> Blocking Errors
+                    </h4>
                     <ul style={{ fontSize: "0.82rem", color: "var(--status-danger)", paddingLeft: "1.1rem", margin: "0", lineHeight: "1.8" }}>
                       {[...blockingErrors].map(err => <li key={err}>{err}</li>)}
                     </ul>
@@ -1409,19 +1503,24 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                 )}
 
                 {isAdd && (
-                  <div className="alert-banner info" style={{ marginTop: "1rem", backgroundColor: "#E0F2FE", border: "1px solid #BAE6FD", color: "#0369A1", padding: "1rem", borderRadius: "var(--radius-sm)" }}>
-                    ℹ️ <strong>Note:</strong> New employees start in <strong>Onboarding</strong> status. Upload and get all required documents verified to activate them under their assigned client.
+                  <div className="alert-banner info" style={{ marginTop: "1rem", backgroundColor: "#E0F2FE", border: "1px solid #BAE6FD", color: "#0369A1", padding: "1rem", borderRadius: "var(--radius-sm)", display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                    <Info size={18} className="shrink-0 text-[#0369A1]" />
+                    <span>
+                      <strong>Note:</strong> New employees start in <strong>Onboarding</strong> status. Upload and get all required documents verified to activate them under their assigned client.
+                    </span>
                   </div>
                 )}
 
                 <div style={{ display: "flex", gap: "1rem", justifyContent: "flex-end", marginTop: "2rem" }}>
-                  <Link href={route('employees.index')} className="btn btn-secondary">Cancel</Link>
-                  <button type="submit" className="btn btn-primary" disabled={processing} onClick={() => {
+                  <Link href={route('employees.index')} className="btn btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                    <X size={15} /> Cancel
+                  </Link>
+                  <button type="submit" className="btn btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }} disabled={processing} onClick={() => {
                     if (blockingErrors.size > 0) {
                       showToast({ type: 'error', title: 'Cannot Save Employee', message: Array.from(blockingErrors).join(' | ') });
                     }
                   }}>
-                    {processing ? 'Saving...' : 'Save Employee Configuration'}
+                    <Save size={15} /> {processing ? 'Saving...' : 'Save Employee Configuration'}
                   </button>
                 </div>
               </form>
@@ -1431,7 +1530,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
             <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem", position: "sticky", top: "1.5rem", alignSelf: "start", maxHeight: "calc(100vh - 3rem)", overflowY: "auto", paddingRight: "0.25rem" }}>
               <div className="card" style={{ padding: "1.25rem", background: "#f8faff", border: "1px solid #d0dfff" }}>
                 <h4 style={{ margin: "0 0 0.5rem 0", fontSize: "0.95rem", color: "var(--primary-color)", display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                  <span style={{ fontSize: "1.1rem" }}>👤</span> Personal &amp; Employment Profile
+                  <User size={18} className="shrink-0 text-[#1F3864]" /> Personal &amp; Employment Profile
                 </h4>
                 <p style={{ margin: 0, fontSize: "0.83rem", color: "var(--text-muted)", lineHeight: "1.5" }}>
                   • <strong>PAN Name Matching:</strong> Ensure Full Name matches PAN card exactly for statutory filing.<br/>
@@ -1442,7 +1541,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
               
               <div className="card" style={{ padding: "1.25rem", background: "#f8faff", border: "1px solid #d0dfff" }}>
                 <h4 style={{ margin: "0 0 0.5rem 0", fontSize: "0.95rem", color: "var(--primary-color)", display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                  <span style={{ fontSize: "1.1rem" }}>🏦</span> Banking Security Info
+                  <Landmark size={18} className="shrink-0 text-[#1F3864]" /> Banking Security Info
                 </h4>
                 <p style={{ margin: 0, fontSize: "0.83rem", color: "var(--text-muted)", lineHeight: "1.5" }}>
                   • <strong>Live Razorpay Verification:</strong> Valid IFSC codes auto-fetch Bank Name and Branch.<br/>
@@ -1453,7 +1552,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
               
               <div className="card" style={{ padding: "1.25rem", background: "#f8faff", border: "1px solid #d0dfff" }}>
                 <h4 style={{ margin: "0 0 0.5rem 0", fontSize: "0.95rem", color: "var(--primary-color)", display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                  <span style={{ fontSize: "1.1rem" }}>💰</span> Salary &amp; Deductions Cap
+                  <IndianRupee size={18} className="shrink-0 text-[#1F3864]" /> Salary &amp; Deductions Cap
                 </h4>
                 <p style={{ margin: 0, fontSize: "0.83rem", color: "var(--text-muted)", lineHeight: "1.5" }}>
                   • <strong>Wage Code Rule:</strong> Basic Pay should be 50%+ of CTC.<br/>
@@ -1463,7 +1562,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
               
               <div className="card" style={{ padding: "1.25rem", background: "#f8faff", border: "1px solid #d0dfff" }}>
                 <h4 style={{ margin: "0 0 0.5rem 0", fontSize: "0.95rem", color: "var(--primary-color)", display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                  <span style={{ fontSize: "1.1rem" }}>⚖️</span> Statutory Modes (PF / ESI / TDS)
+                  <Scale size={18} className="shrink-0 text-[#1F3864]" /> Statutory Modes (PF / ESI / TDS)
                 </h4>
                 <p style={{ margin: 0, fontSize: "0.83rem", color: "var(--text-muted)", lineHeight: "1.5" }}>
                   • <strong>PF &amp; ESI Modes:</strong> Select <em>"Pending / New Registration"</em> for first-time workers (EPFO/ESIC portals auto-issue numbers upon upload).<br/>
@@ -1479,7 +1578,9 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
             <div className="modal-overlay active">
               <div className="modal-box" style={{ width: "440px" }}>
                 <div className="modal-header">
-                  <h3>⚠ Confirm Employment Type Change</h3>
+                  <h3 style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <AlertTriangle size={18} className="shrink-0 text-amber-600" /> Confirm Employment Type Change
+                  </h3>
                   <button className="modal-close" onClick={() => setShowEmpTypeModal(false)}>×</button>
                 </div>
                 <div>

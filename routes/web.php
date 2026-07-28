@@ -19,6 +19,7 @@ use App\Http\Controllers\AttendanceUploadController;
 use App\Http\Controllers\BankChangeRequestController;
 use App\Http\Controllers\DaySwapController;
 use App\Http\Controllers\ClientHolidayController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmployeeLoanController;
 
 // -----------------------------------------------------------------------
@@ -75,7 +76,7 @@ Route::middleware(['auth', 'active'])->group(function () {
 
         // ADMIN & MANAGER
         Route::middleware('role:admin,manager')->group(function () {
-            Route::get('/dashboard', fn() => Inertia::render('Dashboard/Dashboard'))->name('dashboard');
+            Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
             Route::get('/quick-access', fn() => Inertia::render('Dashboard/QuickAccess'))->name('quick-access');
 
             Route::post('/export/employees', [\App\Http\Controllers\ExportController::class, 'exportEmployeeData'])->name('employees.export');
@@ -142,6 +143,7 @@ Route::middleware(['auth', 'active'])->group(function () {
             Route::get('/employees/{id}/salary-revision', [SalaryRevisionController::class, 'create'])->name('employees.salary-revision.create');
             Route::post('/employees/{id}/salary-revision', [SalaryRevisionController::class, 'store'])->name('employees.salary-revision.store');
             Route::post('/employees/{id}/salary-revision/{revisionId}/approve', [SalaryRevisionController::class, 'approve'])->name('employees.salary-revision.approve');
+            Route::post('/employees/{id}/salary-revision/{revisionId}/send-email', [SalaryRevisionController::class, 'sendEmail'])->name('employees.salary-revision.send-email');
             
             Route::get('/bank-change-requests', [BankChangeRequestController::class, 'index'])->name('employees.bank-change-requests');
             Route::post('/bank-change-requests/{id}/approve', [BankChangeRequestController::class, 'approve'])->name('employees.bank-change-requests.approve');
@@ -200,6 +202,7 @@ Route::middleware(['auth', 'active'])->group(function () {
             Route::get('/admin/activity-log', [\App\Http\Controllers\Admin\ActivityLogController::class, 'index'])->name('admin.activity-log');
             Route::get('/admin/users', [UserController::class, 'index'])->name('admin.users');
             Route::post('/admin/users', [UserController::class, 'store'])->name('admin.users.store');
+            Route::put('/admin/users/{user}/managed-clients', [UserController::class, 'updateManagedClients'])->name('admin.users.update-managed-clients');
             Route::get('/admin/settings', fn() => Inertia::render('Admin/Settings'))->name('admin.settings');
             
             Route::apiResource('admin/watchers', \App\Http\Controllers\NotificationWatcherController::class)->except(['show']);

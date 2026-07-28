@@ -30,9 +30,15 @@ class ClientController extends Controller
     {
         $this->authorize('viewAny', Client::class);
 
+        $user = $request->user();
+
         $query = Client::withCount(['employees' => function ($query) {
             $query->where('status', 'active');
         }]);
+
+        if ($user && $user->role === 'manager') {
+            $query->whereIn('id', $user->getManagedClientIds());
+        }
 
         if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
