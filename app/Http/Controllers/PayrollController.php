@@ -1350,18 +1350,12 @@ class PayrollController extends Controller
                     }
                     if ($empStart->gt($monthStartCorr) && $empStart->lte($monthEndCorr)) {
                         $empCtx = app(\App\Services\AttendanceUploadValidationService::class)->calculateWorkingDaysContext($parentRun->client_id, $parentRun->payroll_month, $sampleEmp);
-                        $existingPunchesCorr = \App\Models\AttendanceRecord::where('employee_id', $sampleEmp->id)
-                            ->whereBetween('attendance_date', [$monthStartCorr->toDateString(), $monthEndCorr->toDateString()])
-                            ->whereIn('source', ['live_punch', 'override'])
-                            ->count();
-                        $netSlotsCorr = max(0, $empCtx['working_days_slots'] - $existingPunchesCorr);
-
                         $midMonthCorrList[] = [
                             'emp' => $sampleEmp,
                             'start_date' => $empStart->format('M d, Y'),
                             'total_slots' => $empCtx['working_days_slots'],
-                            'punches' => $existingPunchesCorr,
-                            'slots' => $netSlotsCorr,
+                            'punches' => $empCtx['existing_punches_count'],
+                            'slots' => $empCtx['net_available_slots'],
                         ];
                     }
                 }
@@ -1395,18 +1389,13 @@ class PayrollController extends Controller
                     }
                     $isMidMonth = $empStart->gt($monthStartCorr) && $empStart->lte($monthEndCorr);
                     if (!$isMidMonth) {
-                        $existingPunches = \App\Models\AttendanceRecord::where('employee_id', $sampleEmp->id)
-                            ->whereBetween('attendance_date', [$monthStartCorr->toDateString(), $monthEndCorr->toDateString()])
-                            ->whereIn('source', ['live_punch', 'override'])
-                            ->count();
-                        if ($existingPunches > 0) {
-                            $empCtx = app(\App\Services\AttendanceUploadValidationService::class)->calculateWorkingDaysContext($parentRun->client_id, $parentRun->payroll_month, $sampleEmp);
-                            $netSlots = max(0, $empCtx['working_days_slots'] - $existingPunches);
+                        $empCtx = app(\App\Services\AttendanceUploadValidationService::class)->calculateWorkingDaysContext($parentRun->client_id, $parentRun->payroll_month, $sampleEmp);
+                        if ($empCtx['existing_punches_count'] > 0) {
                             $punchedFullMonthCorr[] = [
                                 'emp' => $sampleEmp,
                                 'total_slots' => $empCtx['working_days_slots'],
-                                'punches' => $existingPunches,
-                                'slots' => $netSlots,
+                                'punches' => $empCtx['existing_punches_count'],
+                                'slots' => $empCtx['net_available_slots'],
                             ];
                         }
                     }
