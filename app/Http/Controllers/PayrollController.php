@@ -1187,9 +1187,17 @@ class PayrollController extends Controller
     {
         $parentRunId = $request->query('parent_run_id');
         $rows = [];
+        $context = null;
+        $parentRun = null;
+
         if ($parentRunId) {
             $parentRun = PayrollRun::find($parentRunId);
             if ($parentRun) {
+                $context = app(\App\Services\AttendanceUploadValidationService::class)->calculateWorkingDaysContext(
+                    $parentRun->client_id,
+                    $parentRun->payroll_month
+                );
+
                 $allRunIds = $parentRun->children()->pluck('id')->prepend($parentRun->id)->toArray();
 
                 $rawItems = \Illuminate\Support\Facades\DB::table('payroll_run_items')
@@ -1214,7 +1222,6 @@ class PayrollController extends Controller
             }
         }
 
-        // Fallback if no run items found
         if (empty($rows)) {
             $rows[] = [
                 'employee_code' => 'TEC-101',
@@ -1226,7 +1233,84 @@ class PayrollController extends Controller
 
         $tempPath = storage_path('app/temp_corr_tmpl_' . \Illuminate\Support\Str::random(16) . '.xlsx');
         $writer = \Spatie\SimpleExcel\SimpleExcelWriter::create($tempPath, 'xlsx');
-        $writer->nameCurrentSheet('Attendance Entry');
+
+        $headerStyle = (new \OpenSpout\Common\Entity\Style\Style())
+            ->setFontBold()
+            ->setFontSize(11)
+            ->setFontColor(\OpenSpout\Common\Entity\Style\Color::WHITE)
+            ->setBackgroundColor('1F3864');
+
+        // --- SHEET 1: "Reference Info & Rules" (FIRST TAB) ---
+        $writer->nameCurrentSheet('Reference Info & Rules');
+
+        if ($context) {
+            // Section 1: Client & Payroll Cycle Timing
+            $writer->addRow(['Section' => '--- CLIENT & PAYROLL CYCLE TIMING ---', 'Details' => ''], $headerStyle);
+            $writer->addRow(['Section' => 'Target Client', 'Details' => $context['client_name'] ?? 'N/A']);
+            $writer->addRow(['Section' => 'Payroll Target Month', 'Details' => ($context['month_label'] ?? '') . ' (' . ($parentRun ? $parentRun->payroll_month : '') . ')']);
+            $writer->addRow(['Section' => 'Cycle Ends', 'Details' => $context['cycle_ends_formatted'] ?? 'N/A']);
+            $writer->addRow(['Section' => 'Target Lock Date', 'Details' => $context['target_lock_date_formatted'] ?? 'N/A']);
+            $writer->addRow(['Section' => 'Target Salary Credit', 'Details' => $context['target_salary_credit_formatted'] ?? 'N/A']);
+            $writer->addRow(['Section' => '', 'Details' => '']);
+
+            // Section 2: Working Days Breakdown
+            $writer->addRow(['Section' => '--- ATTENDANCE BREAKDOWN & RULES ---', 'Details' => ''], $headerStyle);
+            $writer->addRow(['Section' => 'Total Calendar Days', 'Details' => (string)($context['total_calendar_days'] ?? 30)]);
+            $writer->addRow(['Section' => 'Off-Days Pattern', 'Details' => ($context['off_days_label'] ?? 'Sunday') . ' (' . ($context['off_days_count'] ?? 0) . ' off days)']);
+            $writer->addRow(['Section' => 'Workday Holidays Count', 'Details' => (string)($context['workday_holiday_count'] ?? 0)]);
+            $writer->addRow(['Section' => 'Required Working Days Slots', 'Details' => (string)($context['working_days_slots'] ?? 26)]);
+            $writer->addRow(['Section' => '', 'Details' => '']);
+
+            // Section 3: Configured Holidays
+            if (!empty($context['holidays'])) {
+                $writer->addRow(['Section' => '--- CONFIGURABLE HOLIDAYS ---', 'Details' => ''], $headerStyle);
+                foreach ($context['holidays'] as $h) {
+                    $offText = $h['is_off_day'] ? ' (Falls on Weekly Off)' : ' (Paid Holiday)';
+                    $writer->addRow(['Section' => $h['date'], 'Details' => $h['name'] . $offText]);
+                }
+                $writer->addRow(['Section' => '', 'Details' => '']);
+            }
+
+            // Section 4: Employees with Custom Off-Day Patterns
+            if ($parentRun && $parentRun->client_id) {
+                $clientModel = \App\Models\Client::find($parentRun->client_id);
+                $clientDefaultPattern = strtolower($clientModel?->weekly_off_pattern ?? 'sat,sun');
+
+                $overrideEmployees = \App\Models\Employee::where('client_id', $parentRun->client_id)
+                    ->where('status', 'active')
+                    ->whereNotNull('weekly_off_pattern')
+                    ->where('weekly_off_pattern', '!=', '')
+                    ->where('weekly_off_pattern', '!=', $clientDefaultPattern)
+                    ->get();
+
+                if ($overrideEmployees->isNotEmpty()) {
+                    $writer->addRow(['Section' => '--- EMPLOYEES WITH CUSTOM OFF-DAY PATTERNS ---', 'Details' => ''], $headerStyle);
+                    $writer->addRow([
+                        'Section' => 'Special Rule Note',
+                        'Details' => 'These employees have a DIFFERENT weekly off pattern than the client default above. Their required working days differ from the number shown above — check each one individually below.',
+                    ]);
+
+                    foreach ($overrideEmployees as $empOverride) {
+                        $empContext = app(\App\Services\AttendanceUploadValidationService::class)->calculateWorkingDaysContext($parentRun->client_id, $parentRun->payroll_month, $empOverride);
+                        $writer->addRow([
+                            'Section' => $empOverride->employee_code . ' (' . $empOverride->full_name . ')',
+                            'Details' => $empContext['off_days_label'] . ' → Required Working Days: ' . $empContext['working_days_slots'],
+                        ]);
+                    }
+                    $writer->addRow(['Section' => '', 'Details' => '']);
+                }
+            }
+
+            // Section 5: Instruction Rule
+            $writer->addRow(['Section' => '--- HOW TO FILL THIS SHEET ---', 'Details' => ''], $headerStyle);
+            $writer->addRow(['Section' => 'Data Entry Instructions', 'Details' => 'Switch to Sheet 2 ("Attendance Entry") to enter attendance data. Enter real days_present + days_lop. For each employee, days_present + days_lop should equal Total Calendar Days (' . ($context['total_calendar_days'] ?? 30) . ').']);
+        } else {
+            $writer->addRow(['Section' => '--- HOW TO FILL THIS SHEET ---', 'Details' => ''], $headerStyle);
+            $writer->addRow(['Section' => 'Data Entry Instructions', 'Details' => 'Switch to Sheet 2 ("Attendance Entry") to enter attendance data. Enter real days_present + days_lop.']);
+        }
+
+        // --- SHEET 2: "Attendance Entry" (SECOND TAB) ---
+        $writer->addNewSheetAndMakeItCurrent('Attendance Entry');
 
         foreach ($rows as $row) {
             $writer->addRow($row);
