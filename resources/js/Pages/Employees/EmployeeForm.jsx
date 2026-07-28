@@ -1266,8 +1266,34 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                       
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", color: "var(--text-muted)" }}>
                         <span>Estimated Employee Deductions (PF, ESI, PT):</span>
-                        <span>- ₹{previewCalculations ? (previewCalculations.employee_pf_monthly + previewCalculations.employee_esi_monthly + previewCalculations.pt_monthly)?.toLocaleString('en-IN') : '0'}</span>
+                        <span style={{ fontWeight: "600", color: "#991B1B" }}>- ₹{previewCalculations ? (previewCalculations.employee_pf_monthly + previewCalculations.employee_esi_monthly + previewCalculations.pt_monthly)?.toLocaleString('en-IN') : '0'}</span>
                       </div>
+
+                      {previewCalculations && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem", background: "#FFF5F5", padding: "0.75rem", borderRadius: "6px", border: "1px solid #FED7D7", fontSize: "0.78rem" }}>
+                          <div style={{ fontWeight: "700", color: "#9B2C2C", marginBottom: "0.15rem" }}>Employee Deductions Breakdown:</div>
+                          
+                          <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: "0.5rem" }}>
+                            <span>• Employee PF Contribution (12%):</span>
+                            <strong>₹{(previewCalculations.employee_pf_monthly || 0).toLocaleString('en-IN')}</strong>
+                          </div>
+
+                          <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: "0.5rem" }}>
+                            <span>• Employee ESI Contribution (0.75%):</span>
+                            <strong>{previewCalculations.employee_esi_monthly > 0 ? `₹${(previewCalculations.employee_esi_monthly || 0).toLocaleString('en-IN')}` : '₹0.00 (Exempt / Not Applicable)'}</strong>
+                          </div>
+
+                          <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: "0.5rem" }}>
+                            <span>• Professional Tax (PT):</span>
+                            <strong>₹{(previewCalculations.pt_monthly || 0).toLocaleString('en-IN')}</strong>
+                          </div>
+
+                          <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px dashed #FEB2B2", paddingTop: "0.35rem", marginTop: "0.15rem", fontWeight: "700", color: "#742A2A" }}>
+                            <span>Total Employee Deductions:</span>
+                            <span>- ₹{(previewCalculations.employee_pf_monthly + previewCalculations.employee_esi_monthly + previewCalculations.pt_monthly).toLocaleString('en-IN')}</span>
+                          </div>
+                        </div>
+                      )}
 
                       <div style={{ backgroundColor: "var(--primary-navy)", color: "white", padding: "1rem", borderRadius: "var(--radius-sm)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <span style={{ fontWeight: "500" }}>Estimated Net Take Home:</span>
