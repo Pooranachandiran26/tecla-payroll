@@ -1299,7 +1299,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
 
                           {previewCalculations.gratuity_accrual_monthly > 0 && (
                             <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: "0.5rem", marginTop: "0.15rem", color: "#0F766E" }}>
-                              <span>• Monthly Gratuity Accrual (Basic+DA × 15/312):</span>
+                              <span>• Monthly Gratuity Accrual (15 days/yr = ~4.81% of Basic+DA):</span>
                               <strong>+ ₹{(previewCalculations.gratuity_accrual_monthly || 0).toLocaleString('en-IN')}</strong>
                             </div>
                           )}
