@@ -112,6 +112,9 @@ class PayrollController extends Controller
             // Stage 1 (Automatic): Dispatch Salary Review & Summary Email OUTSIDE DB transaction
             $this->dispatchSalaryReviewEmails($run);
 
+            // Resolve linked employee queries and dispatch adjustment emails
+            $this->dispatchLinkedQueryResolutionEmails($run);
+
             return redirect()->back()->with('success', 'Payroll run locked, invoices generated, and salary summary emails dispatched successfully.');
         } catch (\Exception $e) {
             return redirect()->back()->with('error', $e->getMessage());
@@ -175,6 +178,73 @@ class PayrollController extends Controller
         }
 
         $run->update(['review_email_sent_at' => now()]);
+    }
+
+    /**
+     * Resolve linked employee queries and dispatch adjustment emails when a supplementary run is locked.
+     */
+    protected function dispatchLinkedQueryResolutionEmails(PayrollRun $run)
+    {
+        $queryItems = \App\Models\PayrollRunItem::where('payroll_run_id', $run->id)
+            ->whereNotNull('employee_query_id')
+            ->get();
+
+        foreach ($queryItems as $qItem) {
+            try {
+                $queryModel = \App\Models\EmployeeQuery::find($qItem->employee_query_id);
+                if ($queryModel) {
+                    $queryModel->update([
+                        'status' => 'resolved',
+                        'resolved_by' => Auth::id() ?? $run->processed_by,
+                        'resolved_at' => now(),
+                    ]);
+
+                    $emp = \App\Models\Employee::find($qItem->employee_id);
+                    $parentRun = \App\Models\PayrollRun::find($run->parent_run_id ?? $run->id);
+
+                    if ($emp && $parentRun) {
+                        $recipient = $emp->personal_email ?: optional($emp->user)->email;
+                        if ($recipient) {
+                            $allRunIds = $parentRun->children()->pluck('id')->prepend($parentRun->id)->toArray();
+                            $rawEmpItems = \Illuminate\Support\Facades\DB::table('payroll_run_items')
+                                ->whereIn('payroll_run_id', $allRunIds)
+                                ->where('employee_id', $emp->id)
+                                ->get();
+
+                            $consolidated = app(\App\Services\PayrollCorrectionService::class)
+                                ->consolidateItemsForDisplay($rawEmpItems)
+                                ->first();
+
+                            $origItem = \Illuminate\Support\Facades\DB::table('payroll_run_items')
+                                ->where('payroll_run_id', $parentRun->id)
+                                ->where('employee_id', $emp->id)
+                                ->first();
+
+                            $parentNet = $origItem ? (float)$origItem->net_pay : (float)$consolidated->net_pay;
+                            $netVariance = round((float)$consolidated->net_pay - $parentNet, 2);
+
+                            $adjustmentSummary = [
+                                'corrected_paid_days' => (float)$consolidated->paid_days,
+                                'final_net_pay' => (float)$consolidated->net_pay,
+                                'net_variance' => $netVariance,
+                            ];
+
+                            \Illuminate\Support\Facades\Mail::to($recipient)->send(
+                                new \App\Mail\QueryResolvedWithPayrollAdjustmentMail(
+                                    $queryModel,
+                                    $qItem,
+                                    $parentRun,
+                                    $emp,
+                                    $adjustmentSummary
+                                )
+                            );
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning("Linked query resolution email failed for Query #{$qItem->employee_query_id}: {$e->getMessage()}");
+            }
+        }
     }
 
     /**
@@ -587,35 +657,7 @@ class PayrollController extends Controller
                     ->orderBy('payroll_run_items.id', 'asc')
                     ->get();
 
-                $items = $rawItems->groupBy('employee_id')->map(function ($empItems) {
-                    $baseItem = clone $empItems->first();
-                    if ($empItems->count() === 1) {
-                        return $baseItem;
-                    }
-
-                    $numericFields = [
-                        'paid_days', 'lop_days', 'basic_pay', 'hra', 'conveyance', 'da',
-                        'medical_allowance', 'special_allowance', 'other_additions',
-                        'gross_total', 'employee_pf', 'employee_esi', 'professional_tax',
-                        'lwf_deduction', 'lop_deduction', 'tds_deduction', 'loan_emi_deduction',
-                        'net_pay', 'employer_pf', 'employer_esi', 'employer_lwf'
-                    ];
-
-                    foreach ($numericFields as $field) {
-                        $baseItem->$field = round((float)$empItems->sum($field), 2);
-                    }
-
-                    $latestItem = $empItems->last();
-                    $baseItem->exclusion_reason = $latestItem->exclusion_reason;
-                    $baseItem->warning_notes = $latestItem->warning_notes;
-
-                    if ($empItems->pluck('is_excluded')->contains(0)) {
-                        $baseItem->is_excluded = 0;
-                        $baseItem->exclusion_reason = null;
-                    }
-
-                    return $baseItem;
-                })->values();
+                $items = $this->consolidateItemsForDisplay($rawItems);
 
                 foreach ($items as $item) {
                     if ($item->is_excluded) {
@@ -740,35 +782,7 @@ class PayrollController extends Controller
                     ->orderBy('payroll_run_items.id', 'asc')
                     ->get();
 
-                $items = $rawItems->groupBy('employee_id')->map(function ($empItems) {
-                    $baseItem = clone $empItems->first();
-                    if ($empItems->count() === 1) {
-                        return $baseItem;
-                    }
-
-                    $numericFields = [
-                        'paid_days', 'lop_days', 'basic_pay', 'hra', 'conveyance', 'da',
-                        'medical_allowance', 'special_allowance', 'other_additions',
-                        'gross_total', 'employee_pf', 'employee_esi', 'professional_tax',
-                        'lwf_deduction', 'lop_deduction', 'tds_deduction', 'loan_emi_deduction',
-                        'net_pay', 'employer_pf', 'employer_esi', 'employer_lwf'
-                    ];
-
-                    foreach ($numericFields as $field) {
-                        $baseItem->$field = round((float)$empItems->sum($field), 2);
-                    }
-
-                    $latestItem = $empItems->last();
-                    $baseItem->exclusion_reason = $latestItem->exclusion_reason;
-                    $baseItem->warning_notes = $latestItem->warning_notes;
-
-                    if ($empItems->pluck('is_excluded')->contains(0)) {
-                        $baseItem->is_excluded = 0;
-                        $baseItem->exclusion_reason = null;
-                    }
-
-                    return $baseItem;
-                })->values();
+                $items = $this->consolidateItemsForDisplay($rawItems);
 
                 $newHires = $run->getNewHireCandidates()->map(fn($emp) => [
                     'id' => $emp->id,
@@ -910,23 +924,39 @@ class PayrollController extends Controller
         $lockedRun = (clone $lockedRunQuery)->first();
         $lockedRunIds = $lockedRunQuery->pluck('id');
 
-        $runItems = \App\Models\PayrollRunItem::with(['employee', 'payrollRun'])
+        $rawItems = \Illuminate\Support\Facades\DB::table('payroll_run_items')
+            ->join('employees', 'payroll_run_items.employee_id', '=', 'employees.id')
             ->whereIn('payroll_run_id', $lockedRunIds)
+            ->select(
+                'payroll_run_items.*',
+                'payroll_run_items.id as id',
+                'employees.full_name',
+                'employees.employee_code',
+                'employees.designation',
+                'employees.bank_name',
+                'employees.bank_account_number',
+                'employees.employment_model'
+            )
+            ->orderBy('payroll_run_items.id', 'asc')
+            ->get();
+
+        $runItems = $this->consolidateItemsForDisplay($rawItems)
             ->where('is_excluded', false)
-            ->orderBy('id', 'desc')
-            ->get()
-            ->unique('employee_id')
             ->values();
 
-        $mappedItems = $runItems->map(function ($item) {
-            $employee = $item->employee;
-            return array_merge($item->toArray(), [
-                'full_name' => $employee ? $employee->full_name : '—',
-                'employee_code' => $employee ? $employee->employee_code : '—',
-                'designation' => $employee ? $employee->designation : '—',
-                'bank_name' => $employee ? $employee->bank_name : '—',
-                'bank_account_number' => $employee ? $employee->bank_account_number : '—',
-                'employment_model' => $employee ? $employee->employment_model : '—',
+        $employeeIds = $runItems->pluck('employee_id')->unique();
+        $employees = \App\Models\Employee::whereIn('id', $employeeIds)->get()->keyBy('id');
+
+        $mappedItems = $runItems->map(function ($item) use ($employees) {
+            $arr = (array)$item;
+            $emp = $employees->get($item->employee_id);
+            return array_merge($arr, [
+                'full_name' => $emp ? $emp->full_name : ($arr['full_name'] ?? '—'),
+                'employee_code' => $emp ? $emp->employee_code : ($arr['employee_code'] ?? '—'),
+                'designation' => $emp ? $emp->designation : ($arr['designation'] ?? '—'),
+                'bank_name' => $emp ? $emp->bank_name : ($arr['bank_name'] ?? '—'),
+                'bank_account_number' => $emp ? $emp->bank_account_number : ($arr['bank_account_number'] ?? '—'),
+                'employment_model' => $emp ? $emp->employment_model : ($arr['employment_model'] ?? '—'),
             ]);
         });
 
@@ -1167,28 +1197,142 @@ class PayrollController extends Controller
     public function downloadCorrectionTemplate(Request $request)
     {
         $parentRunId = $request->query('parent_run_id');
-        $employees = [];
+        $rows = [];
+        $context = null;
+        $parentRun = null;
+
         if ($parentRunId) {
             $parentRun = PayrollRun::find($parentRunId);
             if ($parentRun) {
-                $employees = \App\Models\Employee::where('client_id', $parentRun->client_id)
-                    ->where('status', 'active')
-                    ->limit(20)
+                $context = app(\App\Services\AttendanceUploadValidationService::class)->calculateWorkingDaysContext(
+                    $parentRun->client_id,
+                    $parentRun->payroll_month
+                );
+
+                $allRunIds = $parentRun->children()->pluck('id')->prepend($parentRun->id)->toArray();
+
+                $rawItems = \Illuminate\Support\Facades\DB::table('payroll_run_items')
+                    ->join('employees', 'payroll_run_items.employee_id', '=', 'employees.id')
+                    ->whereIn('payroll_run_id', $allRunIds)
+                    ->select('payroll_run_items.*', 'payroll_run_items.id as id', 'employees.full_name', 'employees.employee_code')
+                    ->orderBy('payroll_run_items.id', 'asc')
                     ->get();
+
+                $consolidatedItems = $this->consolidateItemsForDisplay($rawItems);
+
+                foreach ($consolidatedItems as $item) {
+                    if (!$item->is_excluded) {
+                        $rows[] = [
+                            'employee_code' => $item->employee_code,
+                            'days_present' => (float)$item->paid_days,
+                            'days_lop' => (float)$item->lop_days,
+                            'reason' => 'Correction reason example',
+                        ];
+                    }
+                }
             }
         }
 
-        $tempPath = storage_path('app/temp_corr_tmpl_' . \Illuminate\Support\Str::random(16) . '.xlsx');
-        $writer = \Spatie\SimpleExcel\SimpleExcelWriter::create($tempPath, 'xlsx');
-        $writer->nameCurrentSheet('Attendance Entry');
-
-        foreach ($employees as $emp) {
-            $writer->addRow([
-                'employee_code' => $emp->employee_code,
+        if (empty($rows)) {
+            $rows[] = [
+                'employee_code' => 'TEC-101',
                 'days_present' => 30,
                 'days_lop' => 0,
                 'reason' => 'Correction reason example',
-            ]);
+            ];
+        }
+
+        $tempPath = storage_path('app/temp_corr_tmpl_' . \Illuminate\Support\Str::random(16) . '.xlsx');
+        $writer = \Spatie\SimpleExcel\SimpleExcelWriter::create($tempPath, 'xlsx', function ($spoutWriter) {
+            $options = $spoutWriter->getOptions();
+            if (method_exists($options, 'setColumnWidth')) {
+                $options->setColumnWidth(35.0, 1);
+                $options->setColumnWidth(75.0, 2);
+            }
+        });
+
+        $headerStyle = (new \OpenSpout\Common\Entity\Style\Style())
+            ->setFontBold()
+            ->setFontSize(11)
+            ->setFontColor(\OpenSpout\Common\Entity\Style\Color::WHITE)
+            ->setBackgroundColor('1F3864');
+
+        // --- SHEET 1: "Reference Info & Rules" (FIRST TAB) ---
+        $writer->nameCurrentSheet('Reference Info & Rules');
+
+        if ($context) {
+            $reqSlots = $context['working_days_slots'] ?? 26;
+
+            // Section 1: Client & Payroll Cycle Timing
+            $writer->addRow(['Section' => '--- CLIENT & PAYROLL CYCLE TIMING ---', 'Details' => ''], $headerStyle);
+            $writer->addRow(['Section' => 'Target Client', 'Details' => $context['client_name'] ?? 'N/A']);
+            $writer->addRow(['Section' => 'Payroll Target Month', 'Details' => ($context['month_label'] ?? '') . ' (' . ($parentRun ? $parentRun->payroll_month : '') . ')']);
+            $writer->addRow(['Section' => 'Cycle Ends', 'Details' => $context['cycle_ends_formatted'] ?? 'N/A']);
+            $writer->addRow(['Section' => 'Target Lock Date', 'Details' => $context['target_lock_date_formatted'] ?? 'N/A']);
+            $writer->addRow(['Section' => 'Target Salary Credit', 'Details' => $context['target_salary_credit_formatted'] ?? 'N/A']);
+            $writer->addRow(['Section' => '', 'Details' => '']);
+
+            // Section 2: Working Days Breakdown
+            $writer->addRow(['Section' => '--- ATTENDANCE BREAKDOWN & RULES ---', 'Details' => ''], $headerStyle);
+            $writer->addRow(['Section' => 'Total Calendar Days', 'Details' => (string)($context['total_calendar_days'] ?? 30)]);
+            $writer->addRow(['Section' => 'Off-Days Pattern', 'Details' => ($context['off_days_label'] ?? 'Sunday') . ' (' . ($context['off_days_count'] ?? 0) . ' off days)']);
+            $writer->addRow(['Section' => 'Workday Holidays Count', 'Details' => (string)($context['workday_holiday_count'] ?? 0)]);
+            $writer->addRow(['Section' => 'Required Working Days Slots', 'Details' => (string)($reqSlots)]);
+            $writer->addRow(['Section' => '', 'Details' => '']);
+
+            // Section 3: Configured Holidays
+            if (!empty($context['holidays'])) {
+                $writer->addRow(['Section' => '--- CONFIGURABLE HOLIDAYS ---', 'Details' => ''], $headerStyle);
+                foreach ($context['holidays'] as $h) {
+                    $offText = $h['is_off_day'] ? ' (Falls on Weekly Off)' : ' (Paid Holiday)';
+                    $writer->addRow(['Section' => $h['date'], 'Details' => $h['name'] . $offText]);
+                }
+                $writer->addRow(['Section' => '', 'Details' => '']);
+            }
+
+            // Section 4: Employees with Custom Off-Day Patterns
+            if ($parentRun && $parentRun->client_id) {
+                $clientModel = \App\Models\Client::find($parentRun->client_id);
+                $clientDefaultPattern = strtolower($clientModel?->weekly_off_pattern ?? 'sat,sun');
+
+                $overrideEmployees = \App\Models\Employee::where('client_id', $parentRun->client_id)
+                    ->where('status', 'active')
+                    ->whereNotNull('weekly_off_pattern')
+                    ->where('weekly_off_pattern', '!=', '')
+                    ->where('weekly_off_pattern', '!=', $clientDefaultPattern)
+                    ->get();
+
+                if ($overrideEmployees->isNotEmpty()) {
+                    $writer->addRow(['Section' => '--- EMPLOYEES WITH CUSTOM OFF-DAY PATTERNS ---', 'Details' => ''], $headerStyle);
+                    $writer->addRow([
+                        'Section' => 'Special Rule Note',
+                        'Details' => 'These employees have a DIFFERENT weekly off pattern than the client default above. Their required working days differ from the number shown above — check each one individually below.',
+                    ]);
+
+                    foreach ($overrideEmployees as $empOverride) {
+                        $empContext = app(\App\Services\AttendanceUploadValidationService::class)->calculateWorkingDaysContext($parentRun->client_id, $parentRun->payroll_month, $empOverride);
+                        $writer->addRow([
+                            'Section' => $empOverride->employee_code . ' (' . $empOverride->full_name . ')',
+                            'Details' => $empContext['off_days_label'] . ' → Required Working Days: ' . $empContext['working_days_slots'],
+                        ]);
+                    }
+                    $writer->addRow(['Section' => '', 'Details' => '']);
+                }
+            }
+
+            // Section 5: Instruction Rule
+            $writer->addRow(['Section' => '--- HOW TO FILL THIS SHEET ---', 'Details' => ''], $headerStyle);
+            $writer->addRow(['Section' => 'Data Entry Instructions', 'Details' => 'Switch to Sheet 2 ("Attendance Entry") to enter attendance data. Enter ONLY real working days worked + LOP. For each employee, days_present + days_lop must equal ' . $reqSlots . '.']);
+        } else {
+            $writer->addRow(['Section' => '--- HOW TO FILL THIS SHEET ---', 'Details' => ''], $headerStyle);
+            $writer->addRow(['Section' => 'Data Entry Instructions', 'Details' => 'Switch to Sheet 2 ("Attendance Entry") to enter attendance data. Enter ONLY real working days worked + LOP.']);
+        }
+
+        // --- SHEET 2: "Attendance Entry" (SECOND TAB) ---
+        $writer->addNewSheetAndMakeItCurrent('Attendance Entry');
+
+        foreach ($rows as $row) {
+            $writer->addRow($row);
         }
 
         return response()->download($tempPath, 'Batch_Correction_Template.xlsx')->deleteFileAfterSend(true);
@@ -1262,5 +1406,20 @@ class PayrollController extends Controller
         $service->applyBatchCorrection($parentRun, $request->items, $request->reason);
 
         return redirect()->back()->with('success', 'Batch payroll corrections added to draft supplementary run successfully.');
+    }
+
+    /**
+     * Consolidate payroll run items across parent and child supplementary runs for display.
+     * 
+     * Applies base items (parent + new-hire supplementary) and ONLY the latest correction delta
+     * per original payroll run item, avoiding additive stacking of multiple corrections.
+     * Also resolves latest metadata (exclusion_reason, warning_notes) across all items.
+     *
+     * @param \Illuminate\Support\Collection $rawItems
+     * @return \Illuminate\Support\Collection
+     */
+    private function consolidateItemsForDisplay(\Illuminate\Support\Collection $rawItems): \Illuminate\Support\Collection
+    {
+        return app(\App\Services\PayrollCorrectionService::class)->consolidateItemsForDisplay($rawItems);
     }
 }

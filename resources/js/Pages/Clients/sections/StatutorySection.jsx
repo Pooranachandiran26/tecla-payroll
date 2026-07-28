@@ -417,10 +417,10 @@ export default function StatutorySection({ formData, onChange, hook }) {
           </div>
           <div className="stat-rate" style={{ minWidth: '240px' }}>
             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>Gratuity Mode</div>
-            <select className="stat-rate-input" value={formData.gratuityMode} onChange={e => onChange('gratuityMode', e.target.value)} {...lockProps}>
-              <option value="ctc_included">Included in CTC (4.81% monthly accrual)</option>
-              <option value="payable_on_separation">Payable on Separation (Employer Liability)</option>
-              <option value="not_applicable">Not Applicable</option>
+            <select className="stat-rate-input" value={formData.gratuityMode === 'payable_on_separation' ? 'over_ctc' : (formData.gratuityMode === 'not_applicable' ? 'na' : formData.gratuityMode)} onChange={e => onChange('gratuityMode', e.target.value)} {...lockProps}>
+              <option value="ctc_included">Deduct from CTC (Accrued ~4.81%)</option>
+              <option value="over_ctc">Payable on Separation (Employer Liability)</option>
+              <option value="na">Not Applicable</option>
             </select>
 
             {/* Live Gratuity Rules Box */}

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\EmployeeQuery;
 use App\Models\Client;
 use App\Models\Employee;
+use App\Models\User;
 use App\Events\EmployeeQuerySubmitted;
 use App\Mail\ClientQueryReceivedMail;
 use App\Mail\EmployeeQueryRespondedMail;
@@ -133,6 +134,16 @@ class EmployeeQueryController extends Controller
                       $cq->where('company_name', 'like', "%{$search}%");
                   });
             });
+        }
+
+        if ($request->filled('employee_id')) {
+            $queryBuilder->where('employee_id', $request->employee_id);
+        }
+
+        if ($request->wantsJson() || $request->header('Accept') === 'application/json') {
+            return response()->json([
+                'queries' => $queryBuilder->orderBy('id', 'desc')->get()
+            ]);
         }
 
         $queries = $queryBuilder->orderBy('id', 'desc')->get();
