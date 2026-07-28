@@ -1359,6 +1359,8 @@ class PayrollController extends Controller
                         $midMonthCorrList[] = [
                             'emp' => $sampleEmp,
                             'start_date' => $empStart->format('M d, Y'),
+                            'total_slots' => $empCtx['working_days_slots'],
+                            'punches' => $existingPunchesCorr,
                             'slots' => $netSlotsCorr,
                         ];
                     }
@@ -1372,9 +1374,55 @@ class PayrollController extends Controller
                     ]);
 
                     foreach ($midMonthCorrList as $mm) {
+                        $punchNote = $mm['punches'] > 0 ? " ({$mm['total_slots']} Total - {$mm['punches']} Live Punches)" : '';
                         $writer->addRow([
                             'Section' => $mm['emp']->employee_code . ' (' . $mm['emp']->full_name . ')',
-                            'Details' => 'Joined: ' . $mm['start_date'] . ' | Max Working Days: ' . $mm['slots'],
+                            'Details' => 'Joined: ' . $mm['start_date'] . ' | Max Working Days: ' . $mm['slots'] . $punchNote,
+                        ]);
+                    }
+                    $writer->addRow(['Section' => '', 'Details' => '']);
+                }
+
+                // Section 4C: Full-Month Employees with Existing Live Punches
+                $punchedFullMonthCorr = [];
+                foreach ($allClientEmps as $sampleEmp) {
+                    $empStart = \Carbon\Carbon::parse($sampleEmp->date_of_joining)->startOfDay();
+                    if (!empty($sampleEmp->attendance_tracking_start_date)) {
+                        $atsd = \Carbon\Carbon::parse($sampleEmp->attendance_tracking_start_date)->startOfDay();
+                        if ($atsd->gt($empStart)) {
+                            $empStart = $atsd->copy();
+                        }
+                    }
+                    $isMidMonth = $empStart->gt($monthStartCorr) && $empStart->lte($monthEndCorr);
+                    if (!$isMidMonth) {
+                        $existingPunches = \App\Models\AttendanceRecord::where('employee_id', $sampleEmp->id)
+                            ->whereBetween('attendance_date', [$monthStartCorr->toDateString(), $monthEndCorr->toDateString()])
+                            ->whereIn('source', ['live_punch', 'override'])
+                            ->count();
+                        if ($existingPunches > 0) {
+                            $empCtx = app(\App\Services\AttendanceUploadValidationService::class)->calculateWorkingDaysContext($parentRun->client_id, $parentRun->payroll_month, $sampleEmp);
+                            $netSlots = max(0, $empCtx['working_days_slots'] - $existingPunches);
+                            $punchedFullMonthCorr[] = [
+                                'emp' => $sampleEmp,
+                                'total_slots' => $empCtx['working_days_slots'],
+                                'punches' => $existingPunches,
+                                'slots' => $netSlots,
+                            ];
+                        }
+                    }
+                }
+
+                if (!empty($punchedFullMonthCorr)) {
+                    $writer->addRow(['Section' => '--- EMPLOYEES WITH EXISTING LIVE PUNCHES ---', 'Details' => ''], $headerStyle);
+                    $writer->addRow([
+                        'Section' => 'Live Punch Note',
+                        'Details' => 'These employees have existing live punches logged. Remaining available days are adjusted below.',
+                    ]);
+
+                    foreach ($punchedFullMonthCorr as $pfm) {
+                        $writer->addRow([
+                            'Section' => $pfm['emp']->employee_code . ' (' . $pfm['emp']->full_name . ')',
+                            'Details' => 'Max Working Days: ' . $pfm['slots'] . ' (' . $pfm['total_slots'] . ' Total - ' . $pfm['punches'] . ' Live Punches)',
                         ]);
                     }
                     $writer->addRow(['Section' => '', 'Details' => '']);
