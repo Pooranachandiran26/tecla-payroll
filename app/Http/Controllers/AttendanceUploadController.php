@@ -155,7 +155,7 @@ class AttendanceUploadController extends Controller
                     $empContext = $this->validationService->calculateWorkingDaysContext((int) $clientId, $targetMonthStr, $empOverride);
                     $writer->addRow([
                         'Section' => $empOverride->employee_code . ' (' . $empOverride->full_name . ')',
-                        'Details' => $empContext['off_days_label'] . ' | Required Working Days: ' . $empContext['working_days_slots'],
+                        'Details' => $empContext['off_days_label'] . ' → Required Working Days: ' . $empContext['working_days_slots'],
                     ]);
                 }
                 $writer->addRow(['Section' => '', 'Details' => '']);
@@ -173,10 +173,16 @@ class AttendanceUploadController extends Controller
                 }
                 if ($empStart->gt($monthStart) && $empStart->lte($monthEnd)) {
                     $empCtx = $this->validationService->calculateWorkingDaysContext((int) $clientId, $targetMonthStr, $sampleEmp);
+                    $existingPunches = \App\Models\AttendanceRecord::where('employee_id', $sampleEmp->id)
+                        ->whereBetween('attendance_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
+                        ->whereIn('source', ['live_punch', 'override'])
+                        ->count();
+                    $netSlots = max(0, $empCtx['working_days_slots'] - $existingPunches);
+
                     $midMonthList[] = [
                         'emp' => $sampleEmp,
                         'start_date' => $empStart->format('M d, Y'),
-                        'slots' => $empCtx['working_days_slots'],
+                        'slots' => $netSlots,
                     ];
                 }
             }
@@ -207,7 +213,11 @@ class AttendanceUploadController extends Controller
         if (!empty($sampleEmployees) && count($sampleEmployees) > 0) {
             foreach ($sampleEmployees as $emp) {
                 $empCtx = $this->validationService->calculateWorkingDaysContext((int) $clientId, $targetMonthStr, $emp);
-                $empWorkingDays = $empCtx['working_days_slots'];
+                $existingPunches = \App\Models\AttendanceRecord::where('employee_id', $emp->id)
+                    ->whereBetween('attendance_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
+                    ->whereIn('source', ['live_punch', 'override'])
+                    ->count();
+                $empWorkingDays = max(0, $empCtx['working_days_slots'] - $existingPunches);
 
                 $writer->addRow([
                     'target_month' => $targetMonthVal,

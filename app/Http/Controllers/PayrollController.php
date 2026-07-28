@@ -1328,7 +1328,7 @@ class PayrollController extends Controller
                         $empContext = app(\App\Services\AttendanceUploadValidationService::class)->calculateWorkingDaysContext($parentRun->client_id, $parentRun->payroll_month, $empOverride);
                         $writer->addRow([
                             'Section' => $empOverride->employee_code . ' (' . $empOverride->full_name . ')',
-                            'Details' => $empContext['off_days_label'] . ' | Required Working Days: ' . $empContext['working_days_slots'],
+                            'Details' => $empContext['off_days_label'] . ' → Required Working Days: ' . $empContext['working_days_slots'],
                         ]);
                     }
                     $writer->addRow(['Section' => '', 'Details' => '']);
@@ -1350,10 +1350,16 @@ class PayrollController extends Controller
                     }
                     if ($empStart->gt($monthStartCorr) && $empStart->lte($monthEndCorr)) {
                         $empCtx = app(\App\Services\AttendanceUploadValidationService::class)->calculateWorkingDaysContext($parentRun->client_id, $parentRun->payroll_month, $sampleEmp);
+                        $existingPunchesCorr = \App\Models\AttendanceRecord::where('employee_id', $sampleEmp->id)
+                            ->whereBetween('attendance_date', [$monthStartCorr->toDateString(), $monthEndCorr->toDateString()])
+                            ->whereIn('source', ['live_punch', 'override'])
+                            ->count();
+                        $netSlotsCorr = max(0, $empCtx['working_days_slots'] - $existingPunchesCorr);
+
                         $midMonthCorrList[] = [
                             'emp' => $sampleEmp,
                             'start_date' => $empStart->format('M d, Y'),
-                            'slots' => $empCtx['working_days_slots'],
+                            'slots' => $netSlotsCorr,
                         ];
                     }
                 }
