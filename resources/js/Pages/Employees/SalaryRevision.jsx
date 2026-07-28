@@ -315,7 +315,7 @@ export default function SalaryRevision({ employee, revisions }) {
                                                     <span className="font-semibold">{formatCurrency(emp.pf_applicable ? Math.round(Math.min(emp.basic_pay || 0, 15000) * 0.005) : 0)}</span>
                                                 </div>
                                                 <div className="flex justify-between items-center text-slate-800 font-bold pt-1 border-t border-dashed border-slate-200">
-                                                    <span>Total Employer PF Contribution</span>
+                                                    <span>Total Employer PF & EPFO Charges</span>
                                                     <span className="text-[#1F3864]">{formatCurrency(emp.employer_pf_monthly)}</span>
                                                 </div>
                                                 <div className="flex justify-between items-center text-slate-600 pt-1">
@@ -508,7 +508,7 @@ export default function SalaryRevision({ employee, revisions }) {
                                                     <span className="font-semibold">{previewLoading ? '...' : (preview ? formatCurrency(preview.epf_admin_monthly) : '—')}</span>
                                                 </div>
                                                 <div className="flex justify-between items-center text-slate-900 font-bold pt-1 border-t border-dashed border-blue-200">
-                                                    <span>Total Employer PF Contribution</span>
+                                                    <span>Total Employer PF & EPFO Charges</span>
                                                     <span className="text-[#1F3864]">{previewLoading ? '...' : (preview ? formatCurrency(preview.employer_pf_monthly) : '—')}</span>
                                                 </div>
                                                 <div className="flex justify-between items-center text-slate-700 pt-1">

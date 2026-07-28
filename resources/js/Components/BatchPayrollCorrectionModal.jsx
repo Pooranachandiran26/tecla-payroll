@@ -168,7 +168,6 @@ export default function BatchPayrollCorrectionModal({ isOpen, onClose, parentRun
             items: itemsPayload,
         }, {
             onSuccess: () => {
-                showToast({ type: 'success', title: 'Success', message: 'Batch corrections added to draft supplementary run.' });
                 onClose();
             },
             onError: (errs) => {

@@ -215,7 +215,7 @@ export default function Payslip({ items, clients = [], selectedClientId, selecte
                                     </div>
                                     <div className="flex-1 flex flex-col gap-3 text-[0.85rem]">
                                         <div className="flex justify-between"><span className="payslip-meta-label">Employee Name</span><span className="payslip-meta-val">{selectedItem.full_name}</span></div>
-                                        <div className="flex justify-between"><span className="payslip-meta-label">Account No</span><span className="payslip-meta-val">{selectedItem.bank_account_number || '—'}</span></div>
+                                        <div className="flex justify-between"><span className="payslip-meta-label">Account No</span><span className="payslip-meta-val truncate max-w-[200px]" title={selectedItem.bank_account_number}>{selectedItem.bank_account_number || '—'}</span></div>
                                         <div className="flex justify-between"><span className="payslip-meta-label">Actual Working Days</span><span className="payslip-meta-val">{parseFloat(selectedItem.paid_days).toFixed(1)}</span></div>
                                     </div>
                                 </div>
@@ -303,7 +303,7 @@ export default function Payslip({ items, clients = [], selectedClientId, selecte
                                                 </div>
                                                 <div className="flex justify-between pl-2"><span className="payslip-meta-label">• EPF Admin Charges (0.5%)</span><span className="payslip-meta-val">₹{Math.round(Math.min(selectedItem.basic_pay || 0, 15000) * 0.005).toLocaleString()}</span></div>
                                                 <div className="flex justify-between font-bold text-[#1F3864] pt-1 border-t border-dashed border-gray-200">
-                                                    <span>Total Employer PF Contribution</span>
+                                                    <span>Total Employer PF & EPFO Charges</span>
                                                     <span>₹{parseFloat(selectedItem.employer_pf).toLocaleString()}</span>
                                                 </div>
                                                 <div className="flex justify-between pt-1"><span className="payslip-meta-label">Employer ESI Contribution</span><span className="payslip-meta-val">₹{parseFloat(selectedItem.employer_esi).toLocaleString()}</span></div>

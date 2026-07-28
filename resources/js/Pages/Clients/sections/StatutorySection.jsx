@@ -204,11 +204,11 @@ export default function StatutorySection({ formData, onChange, hook }) {
             <span>0.5% on wages up to ₹15,000. Employer contribution only.</span>
             {Boolean(formData.edliExempted) ? (
               <small style={{ color: '#15803D', display: 'block', marginTop: '4px', fontWeight: '600' }}>
-                <Shield size={13} style={{ display: 'inline', marginRight: '4px', verticalAlign: '-1px' }} /> EDLI Exempted Establishment: Approved group life insurance active. EDLI contribution set to ₹0.00 (Reduces total Employer PF contribution from ₹1,950 to ₹1,875). Employer EPF (12%) and Admin Charges (0.5%) remain active.
+                <Shield size={13} style={{ display: 'inline', marginRight: '4px', verticalAlign: '-1px' }} /> EDLI Exempted Establishment: Approved group life insurance active. EDLI contribution set to ₹0.00 (Reduces total Employer PF & EPFO charges from ₹1,950 to ₹1,875). Employer EPF (12%) and Admin Charges (0.5%) remain active.
               </small>
             ) : (
               <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '4px' }}>
-                Standard EPFO EDLI rate (0.5% up to ₹15k = ₹75/mo) is <strong>auto-computed</strong> into total Employer PF cost (₹1,950 total). Turn toggle ON if establishment is EDLI Exempted under Sec 17(2A).
+                Standard EPFO EDLI rate (0.5% up to ₹15k = ₹75/mo) is <strong>auto-computed</strong> into total Employer PF & EPFO cost (₹1,950 total). Turn toggle ON if establishment is EDLI Exempted under Sec 17(2A).
               </small>
             )}
           </div>
@@ -417,10 +417,10 @@ export default function StatutorySection({ formData, onChange, hook }) {
           </div>
           <div className="stat-rate" style={{ minWidth: '240px' }}>
             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>Gratuity Mode</div>
-            <select className="stat-rate-input" value={formData.gratuityMode} onChange={e => onChange('gratuityMode', e.target.value)} {...lockProps}>
-              <option value="ctc_included">Included in CTC (4.81% monthly accrual)</option>
-              <option value="payable_on_separation">Payable on Separation (Employer Liability)</option>
-              <option value="not_applicable">Not Applicable</option>
+            <select className="stat-rate-input" value={formData.gratuityMode === 'payable_on_separation' ? 'over_ctc' : (formData.gratuityMode === 'not_applicable' ? 'na' : formData.gratuityMode)} onChange={e => onChange('gratuityMode', e.target.value)} {...lockProps}>
+              <option value="ctc_included">Deduct from CTC (Accrued ~4.81%)</option>
+              <option value="over_ctc">Payable on Separation (Employer Liability)</option>
+              <option value="na">Not Applicable</option>
             </select>
 
             {/* Live Gratuity Rules Box */}

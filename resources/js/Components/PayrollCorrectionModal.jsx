@@ -113,7 +113,6 @@ export default function PayrollCorrectionModal({ isOpen, onClose, parentRun, ite
             employee_query_id: queryId || null,
         }, {
             onSuccess: () => {
-                showToast({ type: 'success', title: 'Success', message: 'Payroll correction added to draft supplementary run.' });
                 onClose();
             },
             onError: (errs) => {

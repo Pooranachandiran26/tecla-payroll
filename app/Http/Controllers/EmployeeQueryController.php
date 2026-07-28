@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\EmployeeQuery;
 use App\Models\Client;
 use App\Models\Employee;
+use App\Models\User;
 use App\Events\EmployeeQuerySubmitted;
 use App\Mail\ClientQueryReceivedMail;
 use App\Mail\EmployeeQueryRespondedMail;

@@ -445,18 +445,22 @@ class PayrollCorrectionService
     {
         $patternContext = $this->detectSystemicPatterns($parentRun);
 
-        $query = DB::table('payroll_run_items')
-            ->where('payroll_run_id', $parentRun->id)
+        $allRunIds = $parentRun->children()->pluck('id')->prepend($parentRun->id)->toArray();
+
+        $rawItems = DB::table('payroll_run_items')
+            ->whereIn('payroll_run_id', $allRunIds)
+            ->get();
+
+        $consolidated = $this->consolidateItemsForDisplay($rawItems)
             ->where('is_excluded', false);
 
         if (!empty($selectedEmployeeIds)) {
-            $query->whereIn('employee_id', $selectedEmployeeIds);
+            $consolidated = $consolidated->whereIn('employee_id', $selectedEmployeeIds);
         }
 
-        $items = $query->get();
         $previewItems = [];
 
-        foreach ($items as $item) {
+        foreach ($consolidated as $item) {
             $employee = Employee::find($item->employee_id);
             if (!$employee) continue;
 
@@ -465,7 +469,20 @@ class PayrollCorrectionService
             $correctedLopDays = $override ? (float)$override['lop_days'] : (float)$item->lop_days;
 
             $preview = $this->calculateCorrectionPreview($employee, $parentRun, $correctedPaidDays, $correctedLopDays);
+
+            $currentNet = (float)$item->net_pay;
+            $targetNet = (float)$preview['corrected']['net_pay'];
+            $netVariance = round($targetNet - $currentNet, 2);
+
+            $preview['delta']['net_pay'] = $netVariance;
+
             $previewItems[] = array_merge($preview, [
+                'current_effective' => [
+                    'paid_days' => (float)$item->paid_days,
+                    'lop_days' => (float)$item->lop_days,
+                    'net_pay' => $currentNet,
+                ],
+                'net_variance' => $netVariance,
                 'reason' => $override['reason'] ?? null,
             ]);
         }
@@ -474,6 +491,62 @@ class PayrollCorrectionService
             'pattern_context' => $patternContext,
             'items' => $previewItems,
         ];
+    }
+
+    /**
+     * Consolidate payroll run items across parent and child supplementary runs for display/preview.
+     */
+    public function consolidateItemsForDisplay(\Illuminate\Support\Collection $rawItems): \Illuminate\Support\Collection
+    {
+        $numericFields = [
+            'paid_days', 'lop_days', 'basic_pay', 'hra', 'conveyance', 'da',
+            'medical_allowance', 'special_allowance', 'other_additions',
+            'gross_total', 'employee_pf', 'employee_esi', 'professional_tax',
+            'lwf_deduction', 'lop_deduction', 'tds_deduction', 'loan_emi_deduction',
+            'net_pay', 'employer_pf', 'employer_esi', 'employer_lwf'
+        ];
+
+        return $rawItems->groupBy('employee_id')->map(function ($empItems) use ($numericFields) {
+            if ($empItems->count() === 1) {
+                return clone $empItems->first();
+            }
+
+            $baseItems = $empItems->filter(fn($i) => !($i->is_correction ?? false));
+            $correctionItems = $empItems->filter(fn($i) => (bool)($i->is_correction ?? false));
+
+            $baseItem = clone ($baseItems->first() ?? $empItems->first());
+
+            foreach ($numericFields as $field) {
+                $baseItem->$field = round((float)$baseItems->sum($field), 2);
+            }
+
+            if ($correctionItems->isNotEmpty()) {
+                $latestCorrections = $correctionItems->groupBy(function ($item) {
+                    return $item->original_payroll_run_item_id ?? ('emp_' . $item->employee_id);
+                })->map(function ($group) {
+                    return $group->sortByDesc(fn($i) => ($i->created_at ?? '') . '_' . sprintf('%010d', $i->id))->first();
+                });
+
+                foreach ($latestCorrections as $corr) {
+                    foreach ($numericFields as $field) {
+                        $baseItem->$field = round((float)$baseItem->$field + (float)($corr->$field ?? 0), 2);
+                    }
+                }
+            }
+
+            $latestOverall = $empItems->sortByDesc(fn($i) => ($i->created_at ?? '') . '_' . sprintf('%010d', $i->id))->first();
+            if ($latestOverall) {
+                $baseItem->warning_notes = $latestOverall->warning_notes ?? null;
+                $baseItem->exclusion_reason = $latestOverall->exclusion_reason ?? null;
+            }
+
+            if ($empItems->pluck('is_excluded')->contains(0)) {
+                $baseItem->is_excluded = 0;
+                $baseItem->exclusion_reason = null;
+            }
+
+            return $baseItem;
+        })->values();
     }
 
     /**
@@ -566,15 +639,13 @@ class PayrollCorrectionService
                 $savedItem = PayrollRunItem::create($itemData);
             }
 
-            // Explicit Query Resolution (only if queryId passed)
+            // Explicit Query Link: Mark query in_progress at draft creation time (do NOT set resolved until locked)
             if ($queryId) {
                 $query = EmployeeQuery::find($queryId);
                 if ($query) {
                     $query->update([
-                        'status' => 'resolved',
-                        'admin_response' => "Resolved via Payroll Correction: {$reason}",
-                        'resolved_by' => Auth::id(),
-                        'resolved_at' => now(),
+                        'status' => 'in_progress',
+                        'admin_response' => "Payroll adjustment created in draft supplementary run: {$reason}",
                         'correction_run_item_id' => $savedItem->id,
                     ]);
                 }
@@ -684,10 +755,8 @@ class PayrollCorrectionService
                     $query = EmployeeQuery::find($queryId);
                     if ($query) {
                         $query->update([
-                            'status' => 'resolved',
-                            'admin_response' => "Resolved via Payroll Correction: {$reason}",
-                            'resolved_by' => Auth::id(),
-                            'resolved_at' => now(),
+                            'status' => 'in_progress',
+                            'admin_response' => "Payroll adjustment created in draft supplementary run: {$reason}",
                             'correction_run_item_id' => $savedItem->id,
                         ]);
                     }
