@@ -633,6 +633,7 @@ class PayrollController extends Controller
         $items = [];
         $preflight = [];
         $client = null;
+        $newHires = [];
 
         if ($selectedClientId) {
             $client = \App\Models\Client::find($selectedClientId);
@@ -658,6 +659,18 @@ class PayrollController extends Controller
                     ->get();
 
                 $items = $this->consolidateItemsForDisplay($rawItems);
+
+                $newHires = $run->getNewHireCandidates()->map(fn($emp) => [
+                    'id' => $emp->id,
+                    'full_name' => $emp->full_name,
+                    'employee_code' => $emp->employee_code,
+                    'date_of_joining' => $emp->date_of_joining,
+                ])->toArray();
+
+                $pendingSupplementaryRuns = $run->children()
+                    ->where('status', '!=', 'locked')
+                    ->get(['id', 'status', 'created_at', 'total_employees_processed', 'total_employees_excluded', 'total_gross_earnings', 'total_net_disbursement'])
+                    ->toArray();
 
                 foreach ($items as $item) {
                     if ($item->is_excluded) {
@@ -728,6 +741,8 @@ class PayrollController extends Controller
             'run' => $run ? array_merge($run->load('client')->toArray(), $run->getCombinedStats()) : null,
             'items' => $items,
             'preflight' => $preflight,
+            'newHires' => $newHires,
+            'pendingSupplementaryRuns' => $pendingSupplementaryRuns ?? [],
             'cycleInfo' => $client ? [
                 'payroll_lock_day' => $client->payroll_lock_day,
                 'salary_credit_day' => $client->salary_credit_day,
