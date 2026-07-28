@@ -211,6 +211,7 @@ export default function ClientDetail({ client, employees }) {
             label="Type 'DELETE' to confirm" 
             value={deleteDialog.confirmText} 
             onChange={e => setDeleteDialog(prev => ({ ...prev, confirmText: e.target.value }))}
+            onPaste={e => e.preventDefault()}
             placeholder="DELETE"
           />
           <div>

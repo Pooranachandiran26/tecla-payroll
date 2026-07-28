@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, router } from '@inertiajs/react';
+import { Upload, UserPlus, Eye, Edit, AlertCircle, Search, Filter } from 'lucide-react';
 import './EmployeesList.css';
 
 import RoleGuard from '../../Components/RoleGuard.jsx';
+
 export default function EmployeesList({ employees = { data: [], links: [] }, clients = [], filters = {} }) {
     const [search, setSearch] = useState(filters.search || '');
     const [clientId, setClientId] = useState(filters.client_id || '');
@@ -47,14 +49,20 @@ export default function EmployeesList({ employees = { data: [], links: [] }, cli
           <p style={{"color":"var(--text-muted)","fontSize":"0.9rem"}}>Manage agency personnel, statutory rules, salary revisions, and leave balances.</p>
         </div>
         <div style={{"display":"flex","gap":"0.75rem"}}>
-          <Link href={route('employees.bulk-upload')} className="btn btn-secondary">📥 Bulk Upload Employees</Link>
-          <a href={route('employees.create')} className="btn btn-primary">➕ Add New Employee</a>
+          <Link href={route('employees.bulk-upload')} className="btn btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <Upload size={15} /> Bulk Upload Employees
+          </Link>
+          <a href={route('employees.create')} className="btn btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <UserPlus size={15} /> Add New Employee
+          </a>
         </div>
       </div>
 
       {/*  Filters Row  */}
       <div className="card" style={{"padding":"1rem","marginBottom":"1.5rem","display":"flex","gap":"1rem","alignItems":"center","flexWrap":"wrap"}}>
-        <div style={{"fontSize":"0.85rem","fontWeight":"600","color":"var(--primary-navy)"}}>Filters:</div>
+        <div style={{"fontSize":"0.85rem","fontWeight":"600","color":"var(--primary-navy)", display: 'inline-flex', alignItems: 'center', gap: '4px'}}>
+          <Filter size={14} /> Filters:
+        </div>
         <div style={{"flex":"1","minWidth":"200px"}}>
           <input type="text" className="form-control" placeholder="Search by Employee Code, Name or UAN..." style={{"padding":"0.4rem 0.75rem"}} value={search} onChange={e => setSearch(e.target.value)} onKeyPress={handleKeyPress} />
         </div>
@@ -82,7 +90,9 @@ export default function EmployeesList({ employees = { data: [], links: [] }, cli
             <option value="onboarding">Onboarding</option>
           </select>
         </div>
-        <button className="btn btn-navy" style={{"padding":"0.4rem 1rem"}} onClick={applyFilters}>Apply</button>
+        <button className="btn btn-navy" style={{"padding":"0.4rem 1rem", display: 'inline-flex', alignItems: 'center', gap: '5px'}} onClick={applyFilters}>
+          <Search size={14} /> Apply
+        </button>
       </div>
 
       {/*  Table Card  */}
@@ -130,16 +140,20 @@ export default function EmployeesList({ employees = { data: [], links: [] }, cli
                               </span>
                             )}
                             {emp.documents && emp.documents.filter(d => d.status === 'pending').length > 0 && (
-                                <span className="badge badge-danger" style={{"fontSize":"0.7rem", "padding":"0.2rem 0.4rem", whiteSpace: 'nowrap'}}>
-                                    🔴 Action Required
+                                <span className="badge badge-danger" style={{"fontSize":"0.7rem", "padding":"0.2rem 0.4rem", whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '3px'}}>
+                                    <AlertCircle size={12} /> Action Required
                                 </span>
                             )}
                         </div>
                       </div>
                     </td>
                     <td style={{ whiteSpace: 'nowrap' }}>
-                      <Link href={route('employees.show', emp.id)} className="btn btn-secondary btn-xs" style={{"marginRight":"0.5rem"}}>View Profile</Link>
-                      <Link href={route('employees.edit', emp.id)} className="btn btn-navy btn-xs">Edit</Link>
+                      <Link href={route('employees.show', emp.id)} className="btn btn-secondary btn-xs" style={{"marginRight":"0.5rem", display: 'inline-flex', alignItems: 'center', gap: '4px'}}>
+                        <Eye size={13} /> View Profile
+                      </Link>
+                      <Link href={route('employees.edit', emp.id)} className="btn btn-navy btn-xs" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <Edit size={13} /> Edit
+                      </Link>
                     </td>
                   </tr>
                 ))

@@ -11,13 +11,36 @@ import TaxDeclarationTab from './components/TaxDeclarationTab';
 import LoansAndAdvancesTab from './LoansAndAdvancesTab';
 import HistoryTimeline from '../../Components/HistoryTimeline';
 
-import { Eye, EyeOff } from 'lucide-react';
+import { 
+  Eye, 
+  EyeOff, 
+  FileText, 
+  Image, 
+  Check, 
+  X, 
+  Upload, 
+  ArrowLeft, 
+  Mail, 
+  TrendingUp, 
+  LogOut, 
+  Edit, 
+  Play, 
+  Pause, 
+  Trash2, 
+  Lock, 
+  Folder, 
+  AlertTriangle 
+} from 'lucide-react';
 
 export default function EmployeeDetail({ employee: empProp }) {
     const employee = empProp?.data || empProp || {};
     const { auth, flash, attendanceRecords, attendanceStats, taxDeclaration, taxComparison, loans, salaryRevisions } = usePage().props;
     const { showToast } = useToast();
     const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, confirmText: '', reason: '' });
+    const [resendInviteDialogOpen, setResendInviteDialogOpen] = useState(false);
+    const [reactivateDialogOpen, setReactivateDialogOpen] = useState(false);
+    const [suspendDialogOpen, setSuspendDialogOpen] = useState(false);
+    const [actionLoading, setActionLoading] = useState(false);
     const [activeTab, setActiveTab] = useState('overview');
     const [showPan, setShowPan] = useState(false);
     const [showAadhaar, setShowAadhaar] = useState(false);
@@ -38,15 +61,15 @@ export default function EmployeeDetail({ employee: empProp }) {
 
     
 const ALL_DOCUMENTS = [
-    { type: "pan_card", name: "PAN Card (copy)", req: "Always Required", isMandatory: true, icon: "📄" },
-    { type: "aadhaar_card", name: "Aadhaar Card (copy)", req: "Always Required", isMandatory: true, icon: "📄" },
-    { type: "bank_passbook", name: "Bank Proof (cancelled cheque / passbook)", req: "Always Required", isMandatory: true, icon: "📄" },
-    { type: "education_certificate", name: "Educational Certificates", req: "Optional", isMandatory: false, icon: "📄" },
-    { type: "offer_letter", name: "Signed Offer Letter / Employment Contract", req: "Always Required", isMandatory: true, icon: "📄" },
-    { type: "photo", name: "Photograph", req: "Always Required", isMandatory: true, icon: "🖼" },
-    { type: "relieving_letter", name: "Previous Employer: Relieving Letter", req: "Conditional", isMandatory: true, conditional: true, icon: "📄" },
-    { type: "previous_payslips", name: "Previous Employer: Last 3 Months Payslips", req: "Conditional", isMandatory: true, conditional: true, icon: "📄" },
-    { type: "form16", name: "Previous Employer: Form 16", req: "Conditional", isMandatory: true, conditional: true, icon: "📄" }
+    { type: "pan_card", name: "PAN Card (copy)", req: "Always Required", isMandatory: true, icon: "file" },
+    { type: "aadhaar_card", name: "Aadhaar Card (copy)", req: "Always Required", isMandatory: true, icon: "file" },
+    { type: "bank_passbook", name: "Bank Proof (cancelled cheque / passbook)", req: "Always Required", isMandatory: true, icon: "file" },
+    { type: "education_certificate", name: "Educational Certificates", req: "Optional", isMandatory: false, icon: "file" },
+    { type: "offer_letter", name: "Signed Offer Letter / Employment Contract", req: "Always Required", isMandatory: true, icon: "file" },
+    { type: "photo", name: "Photograph", req: "Always Required", isMandatory: true, icon: "image" },
+    { type: "relieving_letter", name: "Previous Employer: Relieving Letter", req: "Conditional", isMandatory: true, conditional: true, icon: "file" },
+    { type: "previous_payslips", name: "Previous Employer: Last 3 Months Payslips", req: "Conditional", isMandatory: true, conditional: true, icon: "file" },
+    { type: "form16", name: "Previous Employer: Form 16", req: "Conditional", isMandatory: true, conditional: true, icon: "file" }
 ];
 
 const renderDocumentRows = () => {
@@ -76,7 +99,7 @@ const renderDocumentRows = () => {
             <tr key={docDef.type}>
                 <td>
                     <div style={{"fontWeight":"600","color":"var(--primary-navy)","display":"flex","alignItems":"center","gap":"0.5rem"}}>
-                        <span>{docDef.icon}</span> {docDef.name}
+                        <span>{docDef.icon === 'image' ? <Image size={16} className="text-[#1F3864]" /> : <FileText size={16} className="text-[#1F3864]" />}</span> {docDef.name}
                     </div>
                     <div style={{"fontSize":"0.75rem","color":"var(--text-muted)","marginLeft":"1.5rem","marginTop":"0.2rem"}}>
                         PDF, JPG, PNG (Max: 5MB)
@@ -94,16 +117,20 @@ const renderDocumentRows = () => {
                                 className="btn btn-xs" 
                                 style={{"backgroundColor":"var(--primary-navy)","color":"white","textDecoration":"none","display":"inline-flex","alignItems":"center","gap":"0.25rem"}}
                             >
-                                👁 View
+                                <Eye size={13} /> View
                             </a>
                         )}
                         {uploadedDoc && uploadedDoc.status === "pending" && (
                             <>
-                                <button className="btn btn-xs" style={{"backgroundColor":"var(--status-success)","color":"white"}} onClick={() => router.put(route('employees.documents.verify', { id: employee.id, docId: uploadedDoc.id }), { status: "verified" })}>✓ Verify</button>
-                                <button className="btn btn-danger btn-xs" onClick={() => {
+                                <button className="btn btn-xs" style={{"backgroundColor":"var(--status-success)","color":"white", display: 'inline-flex', alignItems: 'center', gap: '3px'}} onClick={() => router.put(route('employees.documents.verify', { id: employee.id, docId: uploadedDoc.id }), { status: "verified" })}>
+                                    <Check size={13} /> Verify
+                                </button>
+                                <button className="btn btn-danger btn-xs" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }} onClick={() => {
                                     const reason = prompt("Rejection Reason:");
                                     if(reason) router.put(route('employees.documents.verify', { id: employee.id, docId: uploadedDoc.id }), { status: "rejected", rejection_reason: reason });
-                                }}>✕ Reject</button>
+                                }}>
+                                    <X size={13} /> Reject
+                                </button>
                             </>
                         )}
                         {(!uploadedDoc || uploadedDoc.status === "rejected") && (
@@ -116,7 +143,9 @@ const renderDocumentRows = () => {
                                         router.post(route('employees.documents.store', employee.id), formData);
                                     }
                                 }} />
-                                <button className="btn btn-navy btn-xs" onClick={() => document.getElementById(`file_${docDef.type}`).click()}>📤 Upload Document</button>
+                                <button className="btn btn-navy btn-xs" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => document.getElementById(`file_${docDef.type}`).click()}>
+                                    <Upload size={13} /> Upload Document
+                                </button>
                             </div>
                         )}
                     </div>
@@ -133,7 +162,9 @@ const renderDocumentRows = () => {
             <div className="legacy-react-wrapper">
                 
       <div style={{"marginBottom":"1.5rem"}}>
-        <a href={route('employees.index')} style={{"fontSize":"0.85rem","fontWeight":"600"}}>← Back to Employees Directory</a>
+        <a href={route('employees.index')} style={{"fontSize":"0.85rem","fontWeight":"600", display: 'inline-flex', alignItems: 'center', gap: '5px'}}>
+          <ArrowLeft size={14} /> Back to Employees Directory
+        </a>
         <div className="flex-row-between" style={{"marginTop":"0.5rem","marginBottom":"0"}}>
           <div style={{"display":"flex","alignItems":"center","gap":"1rem"}}>
             <h2 id="page-emp-name">{employee.full_name || 'Employee Profile'}</h2>
@@ -147,52 +178,48 @@ const renderDocumentRows = () => {
           <div style={{"display":"flex","gap":"0.75rem"}}>
             {employee.personal_email && (
                 <button 
-                    onClick={() => {
-                        if (confirm('Resend invitation email to this employee?')) {
-                            router.post(route('employees.resend-invitation', employee.id));
-                        }
-                    }} 
+                    onClick={() => setResendInviteDialogOpen(true)} 
                     className="btn" 
-                    style={{"backgroundColor":"white","color":"var(--primary-navy)","border":"1px solid var(--primary-navy)"}}
+                    style={{"backgroundColor":"white","color":"var(--primary-navy)","border":"1px solid var(--primary-navy)", display: 'inline-flex', alignItems: 'center', gap: '5px'}}
                 >
-                    ✉️ Resend Invite
+                    <Mail size={15} /> Resend Invite
                 </button>
             )}
-            <a href={route('employees.salary-revision.create', employee.id)} className="btn btn-navy">📈 Revise Salary</a>
-            <a href={route('employees.exit.show', { id: employee.id, stage: 1 })} className="btn btn-danger">🚪 Initiate Exit Process</a>
-            <Link href={route('employees.edit', employee.id)} className="btn btn-secondary">✏️ Edit Profile</Link>
+            <a href={route('employees.salary-revision.create', employee.id)} className="btn btn-navy" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+              <TrendingUp size={15} /> Revise Salary
+            </a>
+            <a href={route('employees.exit.show', { id: employee.id, stage: 1 })} className="btn btn-danger" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+              <LogOut size={15} /> Initiate Exit Process
+            </a>
+            <Link href={route('employees.edit', employee.id)} className="btn btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+              <Edit size={15} /> Edit Profile
+            </Link>
             
             {employee.status === 'suspended' ? (
               <button 
                   className="btn btn-primary" 
-                  onClick={() => {
-                      if (confirm('Are you sure you want to reactivate this employee?')) {
-                          router.post(route('employees.activate', employee.id));
-                      }
-                  }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                  onClick={() => setReactivateDialogOpen(true)}
               >
-                  ▶️ Reactivate
+                  <Play size={15} /> Reactivate
               </button>
             ) : (
               <button 
                   className="btn btn-warning" 
-                  onClick={() => {
-                      if (confirm('Are you sure you want to suspend this employee?')) {
-                          router.post(route('employees.deactivate', employee.id));
-                      }
-                  }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                  onClick={() => setSuspendDialogOpen(true)}
               >
-                  ⏸ Suspend
+                  <Pause size={15} /> Suspend
               </button>
             )}
 
             {auth.user.role === 'admin' && (
               <button 
                 className="btn btn-danger" 
-                style={{ backgroundColor: 'var(--status-danger)', color: 'white', borderColor: 'var(--status-danger)' }} 
+                style={{ backgroundColor: 'var(--status-danger)', color: 'white', borderColor: 'var(--status-danger)', display: 'inline-flex', alignItems: 'center', gap: '5px' }} 
                 onClick={() => setDeleteDialog({ isOpen: true, confirmText: '', reason: '' })}
               >
-                🗑️ Delete
+                <Trash2 size={15} /> Delete
               </button>
             )}
           </div>
@@ -231,6 +258,7 @@ const renderDocumentRows = () => {
               style={{ width: '100%', padding: '0.5rem', border: '1px solid #D1D5DB', borderRadius: '0.375rem' }}
               value={deleteDialog.confirmText} 
               onChange={e => setDeleteDialog(prev => ({ ...prev, confirmText: e.target.value }))}
+              onPaste={e => e.preventDefault()}
               placeholder="DELETE"
             />
           </div>
@@ -248,6 +276,69 @@ const renderDocumentRows = () => {
           </div>
         </div>
       </ConfirmDialog>
+
+      {/* Resend Invitation Modal */}
+      <ConfirmDialog
+        isOpen={resendInviteDialogOpen}
+        title="Resend Invitation Email"
+        message={`Are you sure you want to resend the invitation email to ${employee.full_name || 'this employee'} (${employee.personal_email})?`}
+        confirmLabel="Resend Invite"
+        cancelLabel="Cancel"
+        variant="primary"
+        loading={actionLoading}
+        onClose={() => setResendInviteDialogOpen(false)}
+        onConfirm={() => {
+          setActionLoading(true);
+          router.post(route('employees.resend-invitation', employee.id), {}, {
+            onFinish: () => {
+              setActionLoading(false);
+              setResendInviteDialogOpen(false);
+            }
+          });
+        }}
+      />
+
+      {/* Reactivate Employee Modal */}
+      <ConfirmDialog
+        isOpen={reactivateDialogOpen}
+        title="Reactivate Employee"
+        message={`Are you sure you want to reactivate ${employee.full_name || 'this employee'}? Their status will be restored to Active.`}
+        confirmLabel="Reactivate Employee"
+        cancelLabel="Cancel"
+        variant="primary"
+        loading={actionLoading}
+        onClose={() => setReactivateDialogOpen(false)}
+        onConfirm={() => {
+          setActionLoading(true);
+          router.post(route('employees.activate', employee.id), {}, {
+            onFinish: () => {
+              setActionLoading(false);
+              setReactivateDialogOpen(false);
+            }
+          });
+        }}
+      />
+
+      {/* Suspend Employee Modal */}
+      <ConfirmDialog
+        isOpen={suspendDialogOpen}
+        title="Suspend Employee"
+        message={`Are you sure you want to suspend ${employee.full_name || 'this employee'}? They will be unable to access the portal while suspended.`}
+        confirmLabel="Suspend Employee"
+        cancelLabel="Cancel"
+        variant="warning"
+        loading={actionLoading}
+        onClose={() => setSuspendDialogOpen(false)}
+        onConfirm={() => {
+          setActionLoading(true);
+          router.post(route('employees.deactivate', employee.id), {}, {
+            onFinish: () => {
+              setActionLoading(false);
+              setSuspendDialogOpen(false);
+            }
+          });
+        }}
+      />
 
       {/*  Tab Container  */}
       <div className="tab-container card">
@@ -376,8 +467,8 @@ const renderDocumentRows = () => {
                     <strong style={{"fontSize":"0.9rem"}}>{employee.bank_ifsc || 'N/A'}</strong>
                   </div>
                 </div>
-                <div style={{"marginTop":"0.5rem","fontSize":"0.75rem","color":"var(--text-muted)"}}>
-                  🔒 Bank details can only be changed via the
+                <div style={{"marginTop":"0.5rem","fontSize":"0.75rem","color":"var(--text-muted)", display: 'flex', alignItems: 'center', gap: '4px'}}>
+                  <Lock size={12} className="shrink-0 text-slate-500" /> Bank details can only be changed via the
                   <a href={route('employees.bank-change-requests')} style={{"color":"var(--primary-navy)","fontWeight":"600"}}>Bank Change Requests</a> approval flow.
                 </div>
               </div>
@@ -405,8 +496,8 @@ const renderDocumentRows = () => {
                     <strong style={{"fontSize":"1.05rem","color":"var(--accent-gold)"}}>₹{(employee.ctc_monthly || 0).toLocaleString('en-IN')}</strong>
                   </div>
                 </div>
-                <div style={{"marginTop":"0.5rem","fontSize":"0.75rem","color":"var(--text-muted)"}}>
-                  🔒 Salary structure is read-only. Use <a href={route('employees.salary-revision.create', employee.id)} style={{"color":"var(--primary-navy)","fontWeight":"600"}}>Revise Salary</a> to apply promotions or increments.
+                <div style={{"marginTop":"0.5rem","fontSize":"0.75rem","color":"var(--text-muted)", display: 'flex', alignItems: 'center', gap: '4px'}}>
+                  <Lock size={12} className="shrink-0 text-slate-500" /> Salary structure is read-only. Use <a href={route('employees.salary-revision.create', employee.id)} style={{"color":"var(--primary-navy)","fontWeight":"600"}}>Revise Salary</a> to apply promotions or increments.
                 </div>
               </div>
             </div>
@@ -453,10 +544,11 @@ const renderDocumentRows = () => {
                   </div>
                 </div>
 
-                <div style={{"marginTop":"1rem","paddingTop":"1rem","borderTop":"1px solid var(--border-color)","fontSize":"0.75rem","color":"var(--text-muted)"}}>
-                  🔒 Statutory toggles (PF/ESI/PT/TDS) can only be changed via the
-                  <a href={`${route('employees.create')}?id=${employee.id}&mode=edit-active`} style={{"color":"var(--primary-navy)","fontWeight":"500"}}>Employee Configuration Form</a>
-                  — not through Edit Profile.
+                <div style={{"marginTop":"1rem","paddingTop":"1rem","borderTop":"1px solid var(--border-color)","fontSize":"0.75rem","color":"var(--text-muted)", display: 'flex', alignItems: 'center', gap: '4px'}}>
+                  <Lock size={12} className="shrink-0 text-slate-500" />
+                  <span>
+                    Statutory toggles (PF/ESI/PT/TDS) can only be changed via the <a href={`${route('employees.create')}?id=${employee.id}&mode=edit-active`} style={{"color":"var(--primary-navy)","fontWeight":"500"}}>Employee Configuration Form</a> — not through Edit Profile.
+                  </span>
                 </div>
               </div>
             </div>
@@ -1304,7 +1396,7 @@ const renderDocumentRows = () => {
               <div style={{"display":"flex","justifyContent":"space-between","alignItems":"center","flexWrap":"wrap","gap":"1rem"}}>
                 <div style={{"flex":"1","minWidth":"300px"}}>
                   <h3 style={{"fontSize":"1.15rem","marginBottom":"0.4rem","color":"var(--primary-navy)","display":"flex","alignItems":"center","gap":"0.5rem"}}>
-                    <span>📂</span> Documents &amp; KYC Verification
+                    <Folder size={18} className="text-[#1F3864]" /> Documents &amp; KYC Verification
                   </h3>
                   <div style={{"fontSize":"0.95rem","fontWeight":"600","color":"var(--accent-gold)","marginTop":"0.5rem"}}>
                     {employee.documents_verified_count || 0} of {employee.documents_required_count || 5} required documents verified
@@ -1379,7 +1471,7 @@ const renderDocumentRows = () => {
 
       <div className="edit-panel-header">
         <div>
-          <h3>✏️ Edit Profile</h3>
+          <h3 style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Edit size={18} /> Edit Profile</h3>
           <div style={{"fontSize":"0.75rem","opacity":"0.75","marginTop":"0.15rem"}}>Aarav Sharma · TEC-088</div>
         </div>
         <button className="close-btn" onClick={(event) => { window.closeEditPanel() }}>×</button>
