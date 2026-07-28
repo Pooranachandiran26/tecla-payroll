@@ -123,7 +123,9 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
   useEffect(() => {
     const timer = setTimeout(async () => {
       try {
+        const selectedClientId = formData.clientPartner || (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('client_id') : null);
         const payload = {
+          client_id: selectedClientId,
           basic_pay: formData.basicSal || 0,
           hra: formData.hraSal || 0,
           conveyance: formData.conveyanceSal || 0,
@@ -133,7 +135,8 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
           other_additions: formData.otherSal || 0,
           pf_applicable: formData.pfToggle,
           esi_applicable: formData.esiToggle,
-          pt_deduction_override: formData.ptDeduction
+          pt_deduction_override: formData.ptDeduction,
+          gender: formData.gender
         };
         const res = await axios.post(route('employees.calculate-preview'), payload);
         if (res.status === 200) {
@@ -145,6 +148,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
     }, 500);
     return () => clearTimeout(timer);
   }, [
+    formData.clientPartner, formData.gender,
     formData.basicSal, formData.hraSal, formData.conveyanceSal, 
     formData.daSal, formData.medicalSal, formData.specialSal, 
     formData.otherSal, formData.pfToggle, formData.esiToggle, 
