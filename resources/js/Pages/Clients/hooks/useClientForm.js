@@ -1109,7 +1109,10 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
       lwfApplicable: client.lwf_applicable !== undefined ? client.lwf_applicable : false,
       tdsRegime: client.tds_regime || 'new',
       tdsApplicable: client.tds_applicable !== undefined ? client.tds_applicable : true,
-      gratuityMode: client.default_gratuity_mode || 'ctc_included',
+      gratuityMode: (function(m) {
+        const map = { payable_on_separation: 'over_ctc', over_and_above: 'over_ctc', not_applicable: 'na' };
+        return map[m] || m || 'ctc_included';
+      })(client.default_gratuity_mode),
       gratuityApplicable: true, // Not in DB, default true
       bonusPct: client.bonus_rate_percentage || 8.33,
       bonusApplicable: client.statutory_bonus_applicable !== undefined ? client.statutory_bonus_applicable : false,

@@ -67,7 +67,10 @@ class UpdateClientRequest extends FormRequest
             
             // Statutory
             'pt_state' => $this->ptState,
-            'default_gratuity_mode' => $this->gratuityMode ?: 'ctc_included',
+            'default_gratuity_mode' => (function($mode) {
+                $map = ['payable_on_separation' => 'over_ctc', 'over_and_above' => 'over_ctc', 'over_ctc' => 'over_ctc', 'ctc_included' => 'ctc_included', 'part_of_ctc' => 'ctc_included', 'not_applicable' => 'na', 'na' => 'na'];
+                return $map[$mode] ?? ($mode ?: 'ctc_included');
+            })($this->gratuityMode),
             'gratuity_applicable' => $this->gratuityApplicable ? 1 : 0,
             'statutory_bonus_applicable' => $this->statutoryBonusApplicable ? 1 : 0,
             'bonus_rate_percentage' => $this->bonusRate !== null ? $this->bonusRate : ($this->route('client')?->bonus_rate_percentage ?? 8.33),
