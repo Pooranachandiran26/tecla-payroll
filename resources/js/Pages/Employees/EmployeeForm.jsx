@@ -1272,7 +1272,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
 
                       {previewCalculations && (
                         <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem", background: "#F8FAFC", padding: "0.75rem", borderRadius: "6px", border: "1px solid var(--border-color)", fontSize: "0.78rem" }}>
-                          <div style={{ fontWeight: "700", color: "#334155", marginBottom: "0.15rem" }}>Employer Statutory Contributions Breakdown:</div>
+                          <div style={{ fontWeight: "700", color: "#334155", marginBottom: "0.15rem" }}>Employer Contributions & Accruals Breakdown:</div>
                           <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: "0.5rem" }}>
                             <span>• Employer EPF (12%):</span>
                             <strong>₹{(previewCalculations.employer_epf_monthly || 0).toLocaleString('en-IN')}</strong>
@@ -1289,6 +1289,27 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                             <span>Total Employer PF Contribution:</span>
                             <span style={{ color: "#1F3864" }}>₹{(previewCalculations.employer_pf_monthly || 0).toLocaleString('en-IN')}</span>
                           </div>
+
+                          {previewCalculations.employer_esi_monthly > 0 && (
+                            <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: "0.5rem", marginTop: "0.15rem" }}>
+                              <span>• Employer ESI Contribution (3.25%):</span>
+                              <strong>₹{(previewCalculations.employer_esi_monthly || 0).toLocaleString('en-IN')}</strong>
+                            </div>
+                          )}
+
+                          {previewCalculations.gratuity_accrual_monthly > 0 && (
+                            <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: "0.5rem", marginTop: "0.15rem", color: "#0F766E" }}>
+                              <span>• Monthly Gratuity Accrual (Basic+DA × 15/312):</span>
+                              <strong>+ ₹{(previewCalculations.gratuity_accrual_monthly || 0).toLocaleString('en-IN')}</strong>
+                            </div>
+                          )}
+
+                          {previewCalculations.bonus_accrual_monthly > 0 && (
+                            <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: "0.5rem", marginTop: "0.15rem", color: "#B45309" }}>
+                              <span>• Monthly Statutory Bonus Accrual:</span>
+                              <strong>+ ₹{(previewCalculations.bonus_accrual_monthly || 0).toLocaleString('en-IN')}</strong>
+                            </div>
+                          )}
                         </div>
                       )}
 
