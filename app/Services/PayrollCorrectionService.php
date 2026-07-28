@@ -358,24 +358,66 @@ class PayrollCorrectionService
         $rawRows = [];
 
         if (in_array($extension, ['xlsx', 'xls'])) {
-            $reader = SimpleExcelReader::create($filePath);
-            if (method_exists($reader, 'fromSheetName')) {
-                $reader->fromSheetName('Attendance Entry');
-            }
-            $excelRows = $reader->getRows()->toArray();
-            foreach ($excelRows as $r) {
-                $cleanRow = [];
-                foreach ($r as $k => $v) {
-                    $cleanKey = strtolower(trim(preg_replace('/[\x{FEFF}\x{FFFE}]/u', '', (string)$k)));
-                    $cleanRow[$cleanKey] = is_string($v) ? trim($v) : (string)$v;
+            $reader = new \OpenSpout\Reader\XLSX\Reader();
+            $reader->open($filePath);
+
+            $targetSheet = null;
+            $headerMap = [];
+
+            foreach ($reader->getSheetIterator() as $sheet) {
+                foreach ($sheet->getRowIterator() as $row) {
+                    $cells = array_map(function ($cell) {
+                        $val = $cell->getValue();
+                        $valStr = is_object($val) && method_exists($val, '__toString') ? (string)$val : (string)($val ?? '');
+                        return strtolower(trim(preg_replace('/[\x{FEFF}\x{FFFE}]/u', '', $valStr)));
+                    }, $row->getCells());
+
+                    $idxEmpCode = array_search('employee_code', $cells);
+                    if ($idxEmpCode === false) $idxEmpCode = array_search('emp_code', $cells);
+                    $idxDaysPresent = array_search('days_present', $cells);
+                    $idxDaysLOP = array_search('days_lop', $cells);
+
+                    if ($idxEmpCode !== false && $idxDaysPresent !== false && $idxDaysLOP !== false) {
+                        $targetSheet = $sheet;
+                        $headerMap = [
+                            'emp_code' => $idxEmpCode,
+                            'days_present' => $idxDaysPresent,
+                            'days_lop' => $idxDaysLOP,
+                            'reason' => array_search('reason', $cells),
+                        ];
+                        break 2;
+                    }
                 }
-                $rawRows[] = [
-                    'employee_code' => (string)($cleanRow['employee_code'] ?? $cleanRow['emp_code'] ?? ''),
-                    'days_present' => (string)($cleanRow['days_present'] ?? ''),
-                    'days_lop' => (string)($cleanRow['days_lop'] ?? ''),
-                    'reason' => (string)($cleanRow['reason'] ?? ''),
-                ];
             }
+
+            if ($targetSheet && !empty($headerMap)) {
+                $isHeader = true;
+                foreach ($targetSheet->getRowIterator() as $row) {
+                    $cellValues = array_map(fn($c) => (string)($c->getValue() ?? ''), $row->getCells());
+
+                    if ($isHeader) {
+                        $isHeader = false;
+                        continue;
+                    }
+
+                    if (empty(array_filter($cellValues))) continue;
+
+                    $empCode = isset($cellValues[$headerMap['emp_code']]) ? trim($cellValues[$headerMap['emp_code']]) : '';
+                    $daysPresent = isset($cellValues[$headerMap['days_present']]) ? trim($cellValues[$headerMap['days_present']]) : '';
+                    $daysLOP = isset($cellValues[$headerMap['days_lop']]) ? trim($cellValues[$headerMap['days_lop']]) : '';
+                    $reason = ($headerMap['reason'] !== false && isset($cellValues[$headerMap['reason']])) ? trim($cellValues[$headerMap['reason']]) : '';
+
+                    if (empty($empCode)) continue;
+
+                    $rawRows[] = [
+                        'employee_code' => $empCode,
+                        'days_present' => $daysPresent,
+                        'days_lop' => $daysLOP,
+                        'reason' => $reason,
+                    ];
+                }
+            }
+            $reader->close();
         } else {
             $handle = fopen($filePath, 'r');
             if (!$handle) {
