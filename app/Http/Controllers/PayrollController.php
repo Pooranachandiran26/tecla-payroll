@@ -583,7 +583,7 @@ class PayrollController extends Controller
                 $rawItems = \Illuminate\Support\Facades\DB::table('payroll_run_items')
                     ->join('employees', 'payroll_run_items.employee_id', '=', 'employees.id')
                     ->whereIn('payroll_run_id', $allRunIds)
-                    ->select('payroll_run_items.*', 'employees.full_name', 'employees.employee_code')
+                    ->select('payroll_run_items.*', 'payroll_run_items.id as id', 'employees.full_name', 'employees.employee_code')
                     ->orderBy('payroll_run_items.id', 'asc')
                     ->get();
 
@@ -604,6 +604,10 @@ class PayrollController extends Controller
                     foreach ($numericFields as $field) {
                         $baseItem->$field = round((float)$empItems->sum($field), 2);
                     }
+
+                    $latestItem = $empItems->last();
+                    $baseItem->exclusion_reason = $latestItem->exclusion_reason;
+                    $baseItem->warning_notes = $latestItem->warning_notes;
 
                     if ($empItems->pluck('is_excluded')->contains(0)) {
                         $baseItem->is_excluded = 0;
@@ -732,7 +736,7 @@ class PayrollController extends Controller
                 $rawItems = \Illuminate\Support\Facades\DB::table('payroll_run_items')
                     ->join('employees', 'payroll_run_items.employee_id', '=', 'employees.id')
                     ->whereIn('payroll_run_id', $allRunIds)
-                    ->select('payroll_run_items.*', 'employees.full_name', 'employees.employee_code')
+                    ->select('payroll_run_items.*', 'payroll_run_items.id as id', 'employees.full_name', 'employees.employee_code')
                     ->orderBy('payroll_run_items.id', 'asc')
                     ->get();
 
@@ -753,6 +757,10 @@ class PayrollController extends Controller
                     foreach ($numericFields as $field) {
                         $baseItem->$field = round((float)$empItems->sum($field), 2);
                     }
+
+                    $latestItem = $empItems->last();
+                    $baseItem->exclusion_reason = $latestItem->exclusion_reason;
+                    $baseItem->warning_notes = $latestItem->warning_notes;
 
                     if ($empItems->pluck('is_excluded')->contains(0)) {
                         $baseItem->is_excluded = 0;
