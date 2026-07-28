@@ -130,6 +130,9 @@ class AttendanceUploadController extends Controller
         }
 
         // Section 4: Employees with Custom Off-Day Patterns (Only if overrides exist)
+        $monthStart = \Carbon\Carbon::parse($targetMonthVal . '-01');
+        $monthEnd = $monthStart->copy()->endOfMonth();
+
         if (!empty($clientId)) {
             $clientModel = Client::find((int) $clientId);
             $clientDefaultPattern = strtolower($clientModel?->weekly_off_pattern ?? 'sat,sun');
@@ -157,20 +160,59 @@ class AttendanceUploadController extends Controller
                 }
                 $writer->addRow(['Section' => '', 'Details' => '']);
             }
+
+            // Section 4B: Mid-Month Joiners & Partial-Month Tracking Employees
+            $midMonthList = [];
+            foreach ($sampleEmployees as $sampleEmp) {
+                $empStart = \Carbon\Carbon::parse($sampleEmp->date_of_joining)->startOfDay();
+                if (!empty($sampleEmp->attendance_tracking_start_date)) {
+                    $atsd = \Carbon\Carbon::parse($sampleEmp->attendance_tracking_start_date)->startOfDay();
+                    if ($atsd->gt($empStart)) {
+                        $empStart = $atsd->copy();
+                    }
+                }
+                if ($empStart->gt($monthStart) && $empStart->lte($monthEnd)) {
+                    $empCtx = $this->validationService->calculateWorkingDaysContext((int) $clientId, $targetMonthStr, $sampleEmp);
+                    $midMonthList[] = [
+                        'emp' => $sampleEmp,
+                        'start_date' => $empStart->format('M d, Y'),
+                        'slots' => $empCtx['working_days_slots'],
+                    ];
+                }
+            }
+
+            if (!empty($midMonthList)) {
+                $writer->addRow(['Section' => '--- MID-MONTH JOINERS & PARTIAL-MONTH TRACKING EMPLOYEES ---', 'Details' => ''], $headerStyle);
+                $writer->addRow([
+                    'Section' => 'Special Joining Note',
+                    'Details' => 'These employees joined or started tracking mid-month during this target month. Their maximum available working days are LOWER than full month slots. Enter days_present + days_lop to match each employee\'s specific available days shown below.',
+                ]);
+
+                foreach ($midMonthList as $mm) {
+                    $writer->addRow([
+                        'Section' => $mm['emp']->employee_code . ' (' . $mm['emp']->full_name . ')',
+                        'Details' => 'Joined / Started: ' . $mm['start_date'] . ' → Max Available Working Days: ' . $mm['slots'] . ' Days',
+                    ]);
+                }
+                $writer->addRow(['Section' => '', 'Details' => '']);
+            }
         }
 
         // Section 5: Instruction Rule
         $writer->addRow(['Section' => '--- HOW TO FILL THIS SHEET ---', 'Details' => ''], $headerStyle);
-        $writer->addRow(['Section' => 'Data Entry Instructions', 'Details' => 'Switch to Sheet 2 ("Attendance Entry") to enter attendance data. Enter ONLY real working days worked + LOP. For each employee, days_present + days_lop must equal ' . $workingDaysSlots . '.']);
+        $writer->addRow(['Section' => 'Data Entry Instructions', 'Details' => 'Switch to Sheet 2 ("Attendance Entry") to enter attendance data. Enter ONLY real working days worked + LOP. For full-month employees, days_present + days_lop must equal ' . $workingDaysSlots . '. For mid-month joiners, days_present + days_lop must match their individual max available days shown above.']);
 
         // --- SHEET 2: "Attendance Entry" (SECOND TAB — DATA ENTRY SHEET) ---
         $writer->addNewSheetAndMakeItCurrent('Attendance Entry');
         if (!empty($sampleEmployees) && count($sampleEmployees) > 0) {
             foreach ($sampleEmployees as $emp) {
+                $empCtx = $this->validationService->calculateWorkingDaysContext((int) $clientId, $targetMonthStr, $emp);
+                $empWorkingDays = $empCtx['working_days_slots'];
+
                 $writer->addRow([
                     'target_month' => $targetMonthVal,
                     'employee_code' => $emp->employee_code,
-                    'days_present' => (string) $workingDaysSlots,
+                    'days_present' => (string) $empWorkingDays,
                     'days_lop' => '0',
                 ]);
             }

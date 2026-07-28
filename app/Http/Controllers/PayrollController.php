@@ -1333,11 +1333,51 @@ class PayrollController extends Controller
                     }
                     $writer->addRow(['Section' => '', 'Details' => '']);
                 }
+
+                // Section 4B: Mid-Month Joiners & Partial-Month Tracking Employees
+                $monthStartCorr = \Carbon\Carbon::parse($parentRun->payroll_month)->startOfMonth();
+                $monthEndCorr = $monthStartCorr->copy()->endOfMonth();
+                $allClientEmps = \App\Models\Employee::where('client_id', $parentRun->client_id)->where('status', 'active')->get();
+                $midMonthCorrList = [];
+
+                foreach ($allClientEmps as $sampleEmp) {
+                    $empStart = \Carbon\Carbon::parse($sampleEmp->date_of_joining)->startOfDay();
+                    if (!empty($sampleEmp->attendance_tracking_start_date)) {
+                        $atsd = \Carbon\Carbon::parse($sampleEmp->attendance_tracking_start_date)->startOfDay();
+                        if ($atsd->gt($empStart)) {
+                            $empStart = $atsd->copy();
+                        }
+                    }
+                    if ($empStart->gt($monthStartCorr) && $empStart->lte($monthEndCorr)) {
+                        $empCtx = app(\App\Services\AttendanceUploadValidationService::class)->calculateWorkingDaysContext($parentRun->client_id, $parentRun->payroll_month, $sampleEmp);
+                        $midMonthCorrList[] = [
+                            'emp' => $sampleEmp,
+                            'start_date' => $empStart->format('M d, Y'),
+                            'slots' => $empCtx['working_days_slots'],
+                        ];
+                    }
+                }
+
+                if (!empty($midMonthCorrList)) {
+                    $writer->addRow(['Section' => '--- MID-MONTH JOINERS & PARTIAL-MONTH TRACKING EMPLOYEES ---', 'Details' => ''], $headerStyle);
+                    $writer->addRow([
+                        'Section' => 'Special Joining Note',
+                        'Details' => 'These employees joined or started tracking mid-month during this target month. Their maximum available working days are LOWER than full month slots. Enter days_present + days_lop to match each employee\'s specific available days shown below.',
+                    ]);
+
+                    foreach ($midMonthCorrList as $mm) {
+                        $writer->addRow([
+                            'Section' => $mm['emp']->employee_code . ' (' . $mm['emp']->full_name . ')',
+                            'Details' => 'Joined / Started: ' . $mm['start_date'] . ' → Max Available Working Days: ' . $mm['slots'] . ' Days',
+                        ]);
+                    }
+                    $writer->addRow(['Section' => '', 'Details' => '']);
+                }
             }
 
             // Section 5: Instruction Rule
             $writer->addRow(['Section' => '--- HOW TO FILL THIS SHEET ---', 'Details' => ''], $headerStyle);
-            $writer->addRow(['Section' => 'Data Entry Instructions', 'Details' => 'Switch to Sheet 2 ("Attendance Entry") to enter attendance data. Enter ONLY real working days worked + LOP. For each employee, days_present + days_lop must equal ' . $reqSlots . '.']);
+            $writer->addRow(['Section' => 'Data Entry Instructions', 'Details' => 'Switch to Sheet 2 ("Attendance Entry") to enter attendance data. Enter ONLY real working days worked + LOP. For full-month employees, days_present + days_lop must equal ' . $reqSlots . '. For mid-month joiners, days_present + days_lop must match their individual max available days shown above.']);
         } else {
             $writer->addRow(['Section' => '--- HOW TO FILL THIS SHEET ---', 'Details' => ''], $headerStyle);
             $writer->addRow(['Section' => 'Data Entry Instructions', 'Details' => 'Switch to Sheet 2 ("Attendance Entry") to enter attendance data. Enter ONLY real working days worked + LOP.']);

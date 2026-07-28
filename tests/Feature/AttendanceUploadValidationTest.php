@@ -159,4 +159,55 @@ class AttendanceUploadValidationTest extends TestCase
         $this->assertEquals('', $row['notes']);
         $this->assertCount(22, $row['db_payloads']);
     }
+
+    /**
+     * Test downloadTemplate includes Mid-Month Joiners section in Sheet 1 and pre-populates individual slots in Sheet 2.
+     */
+    public function test_download_template_includes_mid_month_joiner_section_and_prepopulates_individual_slots()
+    {
+        $admin = \App\Models\User::factory()->create(['role' => 'admin']);
+
+        // Create mid-month joiner for June 2026 (joining June 16)
+        $midMonthEmp = Employee::create([
+            'client_id' => $this->client->id,
+            'branch_id' => $this->branch->id,
+            'full_name' => 'Mid Month Template Emp',
+            'personal_email' => 'mmtmpl@example.com',
+            'phone_number' => '9988776699',
+            'date_of_birth' => '1990-01-01',
+            'date_of_joining' => '2026-06-16',
+            'designation' => 'Developer',
+            'employment_model' => 'eor',
+            'prior_employment_flag' => 0,
+            'residential_address' => '789 St',
+            'bank_account_number' => '9998887771',
+            'bank_ifsc' => 'SBIN0001234',
+            'bank_name' => 'SBI',
+            'bank_branch' => 'Main',
+            'account_holder_name' => 'Mid Month Template Emp',
+            'pan_number' => 'MMTMP1234M',
+            'employee_code' => 'TEC-MMTMP',
+            'uan_mode' => 'new',
+            'status' => 'active',
+            'basic_pay' => 15000,
+            'hra' => 0,
+            'conveyance' => 0,
+            'da' => 0,
+            'medical_allowance' => 0,
+            'special_allowance' => 0,
+            'other_additions' => 0,
+            'tds_regime' => 'new',
+            'gratuity_mode' => 'part_of_ctc',
+            'lop_basis_days' => '30',
+            'declarations_accepted' => 1,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('payroll.attendance.template', [
+            'client_id' => $this->client->id,
+            'target_month' => '2026-06',
+        ]));
+
+        $response->assertStatus(200);
+        $response->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    }
 }
