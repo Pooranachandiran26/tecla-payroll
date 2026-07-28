@@ -363,14 +363,26 @@ class PayrollCorrectionService
 
             $targetSheet = null;
             $headerMap = [];
+            $headerRowIndex = 0;
+
+            $cleanCellStr = function ($val): string {
+                if ($val === null) return '';
+                if (is_object($val) && method_exists($val, '__toString')) {
+                    $val = (string)$val;
+                }
+                if (!is_string($val)) {
+                    $val = (string)$val;
+                }
+                $val = str_replace(["\xEF\xBB\xBF", "\xFE\xFF", "\xFF\xFE"], '', $val);
+                $clean = preg_replace('/[^\x20-\x7E]/', '', $val);
+                return strtolower(trim($clean !== null ? $clean : $val));
+            };
 
             foreach ($reader->getSheetIterator() as $sheet) {
+                $rIdx = 0;
                 foreach ($sheet->getRowIterator() as $row) {
-                    $cells = array_map(function ($cell) {
-                        $val = $cell->getValue();
-                        $valStr = is_object($val) && method_exists($val, '__toString') ? (string)$val : (string)($val ?? '');
-                        return strtolower(trim(preg_replace('/[\x{FEFF}\x{FFFE}]/u', '', $valStr)));
-                    }, $row->getCells());
+                    $rIdx++;
+                    $cells = array_map(fn($cell) => $cleanCellStr($cell->getValue()), $row->getCells());
 
                     $idxEmpCode = array_search('employee_code', $cells);
                     if ($idxEmpCode === false) $idxEmpCode = array_search('emp_code', $cells);
@@ -379,6 +391,7 @@ class PayrollCorrectionService
 
                     if ($idxEmpCode !== false && $idxDaysPresent !== false && $idxDaysLOP !== false) {
                         $targetSheet = $sheet;
+                        $headerRowIndex = $rIdx;
                         $headerMap = [
                             'emp_code' => $idxEmpCode,
                             'days_present' => $idxDaysPresent,
@@ -390,32 +403,34 @@ class PayrollCorrectionService
                 }
             }
 
-            if ($targetSheet && !empty($headerMap)) {
-                $isHeader = true;
-                foreach ($targetSheet->getRowIterator() as $row) {
-                    $cellValues = array_map(fn($c) => (string)($c->getValue() ?? ''), $row->getCells());
+            if (!$targetSheet || empty($headerMap)) {
+                $reader->close();
+                throw new \Exception("Missing required headers: employee_code, days_present, days_lop.");
+            }
 
-                    if ($isHeader) {
-                        $isHeader = false;
-                        continue;
-                    }
-
-                    if (empty(array_filter($cellValues))) continue;
-
-                    $empCode = isset($cellValues[$headerMap['emp_code']]) ? trim($cellValues[$headerMap['emp_code']]) : '';
-                    $daysPresent = isset($cellValues[$headerMap['days_present']]) ? trim($cellValues[$headerMap['days_present']]) : '';
-                    $daysLOP = isset($cellValues[$headerMap['days_lop']]) ? trim($cellValues[$headerMap['days_lop']]) : '';
-                    $reason = ($headerMap['reason'] !== false && isset($cellValues[$headerMap['reason']])) ? trim($cellValues[$headerMap['reason']]) : '';
-
-                    if (empty($empCode)) continue;
-
-                    $rawRows[] = [
-                        'employee_code' => $empCode,
-                        'days_present' => $daysPresent,
-                        'days_lop' => $daysLOP,
-                        'reason' => $reason,
-                    ];
+            $curIdx = 0;
+            foreach ($targetSheet->getRowIterator() as $row) {
+                $curIdx++;
+                if ($curIdx <= $headerRowIndex) {
+                    continue;
                 }
+
+                $cellValues = array_map(fn($c) => (string)($c->getValue() ?? ''), $row->getCells());
+                if (empty(array_filter($cellValues))) continue;
+
+                $empCode = isset($cellValues[$headerMap['emp_code']]) ? trim($cellValues[$headerMap['emp_code']]) : '';
+                $daysPresent = isset($cellValues[$headerMap['days_present']]) ? trim($cellValues[$headerMap['days_present']]) : '';
+                $daysLOP = isset($cellValues[$headerMap['days_lop']]) ? trim($cellValues[$headerMap['days_lop']]) : '';
+                $reason = ($headerMap['reason'] !== false && isset($cellValues[$headerMap['reason']])) ? trim($cellValues[$headerMap['reason']]) : '';
+
+                if (empty($empCode)) continue;
+
+                $rawRows[] = [
+                    'employee_code' => $empCode,
+                    'days_present' => $daysPresent,
+                    'days_lop' => $daysLOP,
+                    'reason' => $reason,
+                ];
             }
             $reader->close();
         } else {
