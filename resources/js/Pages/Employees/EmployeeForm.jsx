@@ -1316,7 +1316,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                             <strong>₹{(previewCalculations.epf_admin_monthly || 0).toLocaleString('en-IN')}</strong>
                           </div>
                           <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px dashed #CBD5E1", paddingTop: "0.35rem", marginTop: "0.15rem", fontWeight: "700", color: "#1E293B" }}>
-                            <span>Total Employer PF Contribution:</span>
+                            <span>Total Employer PF & EPFO Charges:</span>
                             <span style={{ color: "#1F3864" }}>₹{(previewCalculations.employer_pf_monthly || 0).toLocaleString('en-IN')}</span>
                           </div>
 
