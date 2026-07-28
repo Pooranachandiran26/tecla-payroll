@@ -136,6 +136,16 @@ class EmployeeQueryController extends Controller
             });
         }
 
+        if ($request->filled('employee_id')) {
+            $queryBuilder->where('employee_id', $request->employee_id);
+        }
+
+        if ($request->wantsJson() || $request->header('Accept') === 'application/json') {
+            return response()->json([
+                'queries' => $queryBuilder->orderBy('id', 'desc')->get()
+            ]);
+        }
+
         $queries = $queryBuilder->orderBy('id', 'desc')->get();
 
         // Calculate counts based on user scoping

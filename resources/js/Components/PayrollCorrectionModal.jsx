@@ -34,10 +34,13 @@ export default function PayrollCorrectionModal({ isOpen, onClose, parentRun, ite
             setCorrectedLopDays(Math.max(0, rawLop));
 
             // Fetch open queries for selected employee
-            axios.get(route('admin.employee-queries.index'), { params: { employee_id: selectedItem.employee_id, status: 'pending' } })
+            axios.get(route('admin.employee-queries.index'), {
+                params: { employee_id: selectedItem.employee_id, status: 'pending' },
+                headers: { 'Accept': 'application/json' }
+            })
                 .then(res => {
                     const data = res.data.queries?.data || res.data.queries || [];
-                    setOpenQueries(data);
+                    setOpenQueries(Array.isArray(data) ? data : []);
                 })
                 .catch(() => setOpenQueries([]));
         }
