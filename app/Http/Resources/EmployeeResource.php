@@ -16,6 +16,9 @@ class EmployeeResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $calc = app(\App\Services\SalaryCalculationService::class)->calculateStructuralSalary($this->resource);
+        $ptApplicable = $calc['pt_monthly'] > 0 || !empty($this->client?->pt_state) || (bool)$this->pt_applicable;
+
         return [
             'id' => $this->id,
             'employee_code' => $this->employee_code,
@@ -45,7 +48,7 @@ class EmployeeResource extends JsonResource
             'emergency_contact_phone' => $this->emergency_contact_phone,
             'residential_address' => $this->residential_address,
             
-            // Numeric salary fields are NOT masked
+            // Numeric salary fields are NOT masked (Calculated live via SalaryCalculationService)
             'basic_pay' => $this->basic_pay,
             'hra' => $this->hra,
             'conveyance' => $this->conveyance,
@@ -53,19 +56,19 @@ class EmployeeResource extends JsonResource
             'medical_allowance' => $this->medical_allowance,
             'special_allowance' => $this->special_allowance,
             'other_additions' => $this->other_additions,
-            'gross_monthly_salary' => $this->gross_monthly_salary,
-            'net_take_home_monthly' => $this->net_take_home_monthly,
-            'employer_pf_monthly' => $this->employer_pf_monthly,
-            'employer_esi_monthly' => $this->employer_esi_monthly,
-            'ctc_monthly' => $this->ctc_monthly,
-            'employee_pf_monthly' => $this->employee_pf_monthly,
-            'employee_esi_monthly' => $this->employee_esi_monthly,
-            'pt_monthly' => (float)($this->pt_deduction_override ?: 0),
+            'gross_monthly_salary' => $calc['gross_monthly_salary'],
+            'net_take_home_monthly' => $calc['net_take_home_monthly'],
+            'employer_pf_monthly' => $calc['employer_pf_monthly'],
+            'employer_esi_monthly' => $calc['employer_esi_monthly'],
+            'ctc_monthly' => $calc['ctc_monthly'],
+            'employee_pf_monthly' => $calc['employee_pf_monthly'],
+            'employee_esi_monthly' => $calc['employee_esi_monthly'],
+            'pt_monthly' => $calc['pt_monthly'],
             
             // Statutory settings
-            'pf_applicable' => $this->pf_applicable,
-            'esi_applicable' => $this->esi_applicable,
-            'pt_applicable' => $this->pt_applicable,
+            'pf_applicable' => $this->pf_applicable !== null ? (bool)$this->pf_applicable : true,
+            'esi_applicable' => $this->esi_applicable !== null ? (bool)$this->esi_applicable : true,
+            'pt_applicable' => $ptApplicable,
             'lwf_applicable' => $this->lwf_applicable,
             'tds_regime' => $this->tds_regime,
             'gratuity_mode' => $this->gratuity_mode,

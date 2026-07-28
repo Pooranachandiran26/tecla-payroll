@@ -77,40 +77,41 @@ class SalaryCalculationService
         // 4. Professional Tax
         $ptOverride = data_get($employeeData, 'pt_deduction_override');
         $pt = 0.00;
+        $empPtApp = data_get($employeeData, 'pt_applicable');
+        $ptState = data_get($employeeData, 'pt_state', $client->pt_state ?? $client->registered_state ?? null);
+        $isPtActive = filter_var($empPtApp ?? true, FILTER_VALIDATE_BOOLEAN) && !empty($ptState);
+
         if ($ptOverride !== null && $ptOverride !== '') {
             $pt = (float) $ptOverride;
-        } elseif (data_get($employeeData, 'pt_applicable', true)) {
-            $ptState = data_get($employeeData, 'pt_state', $client->pt_state ?? $client->registered_state ?? null);
-            if (!empty($ptState)) {
-                $stateMap = [
-                    'TN' => 'Tamil Nadu',
-                    'MH' => 'Maharashtra',
-                    'KA' => 'Karnataka',
-                    'TS' => 'Telangana',
-                    'WB' => 'West Bengal',
-                    'GJ' => 'Gujarat',
-                ];
-                if (isset($stateMap[strtoupper($ptState)])) {
-                    $ptState = $stateMap[strtoupper($ptState)];
-                }
+        } elseif ($isPtActive && !empty($ptState)) {
+            $stateMap = [
+                'TN' => 'Tamil Nadu',
+                'MH' => 'Maharashtra',
+                'KA' => 'Karnataka',
+                'TS' => 'Telangana',
+                'WB' => 'West Bengal',
+                'GJ' => 'Gujarat',
+            ];
+            if (isset($stateMap[strtoupper($ptState)])) {
+                $ptState = $stateMap[strtoupper($ptState)];
+            }
 
-                $gender = data_get($employeeData, 'gender');
-                if ($ptState === 'Maharashtra' && strtolower((string)$gender) === 'female' && $gross <= 25000) {
-                    $pt = 0.00;
-                } else {
-                    $ptSlab = \Illuminate\Support\Facades\DB::table('pt_slabs')
-                        ->where('state', $ptState)
-                        ->where('is_active', true)
-                        ->where('min_salary', '<=', $gross)
-                        ->where(function($q) use ($gross) {
-                            $q->where('max_salary', '>=', $gross)
-                              ->orWhereNull('max_salary');
-                        })
-                        ->first();
+            $gender = data_get($employeeData, 'gender');
+            if ($ptState === 'Maharashtra' && strtolower((string)$gender) === 'female' && $gross <= 25000) {
+                $pt = 0.00;
+            } else {
+                $ptSlab = \Illuminate\Support\Facades\DB::table('pt_slabs')
+                    ->where('state', $ptState)
+                    ->where('is_active', true)
+                    ->where('min_salary', '<=', $gross)
+                    ->where(function($q) use ($gross) {
+                        $q->where('max_salary', '>=', $gross)
+                          ->orWhereNull('max_salary');
+                    })
+                    ->first();
 
-                    if ($ptSlab) {
-                        $pt = (float) $ptSlab->deduction_amount;
-                    }
+                if ($ptSlab) {
+                    $pt = (float) $ptSlab->deduction_amount;
                 }
             }
         }

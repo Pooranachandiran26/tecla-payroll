@@ -824,6 +824,7 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
       invoiceFooterNotes: formData.invoiceFooterNotes,
       pfCeiling: parseFloat(formData.pfCeiling || '15000'),
       pfApplicable: formData.pfApplicable,
+      edliExempted: formData.edliExempted,
       esiLimit: parseFloat(formData.esiLimit || '21000'),
       esiApplicable: formData.esiApplicable,
       ptState: formData.ptState,

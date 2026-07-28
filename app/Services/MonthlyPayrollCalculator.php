@@ -177,64 +177,72 @@ class MonthlyPayrollCalculator
 
         // e. Add PT, LWF, and TDS
         
-        // 1. PT Calculation
+        // 1. PT Calculation — respect employee pt_applicable toggle & pt_deduction_override
         $pt = 0.00;
         $ptWarning = null;
-        if ($employee->pt_applicable) {
-            $client = DB::table('clients')->where('id', $employee->client_id)->first();
-            $ptState = $client ? $client->pt_state : null;
-            if (empty($ptState) || $ptState === 'auto') {
-                $branch = DB::table('client_branches')->where('id', $employee->branch_id)->first();
-                $ptState = $branch ? $branch->state : null;
-            }
-            if (empty($ptState) && $client) {
-                $ptState = $client->registered_state;
-            }
+        $client = DB::table('clients')->where('id', $employee->client_id)->first();
+        $isPtActive = (bool)$employee->pt_applicable;
 
-            // Normalize state abbreviations
-            $stateMap = [
-                'TN' => 'Tamil Nadu',
-                'MH' => 'Maharashtra',
-                'KA' => 'Karnataka',
-                'TS' => 'Telangana',
-                'WB' => 'West Bengal',
-                'GJ' => 'Gujarat',
-            ];
-            if (!empty($ptState) && isset($stateMap[strtoupper($ptState)])) {
-                $ptState = $stateMap[strtoupper($ptState)];
-            }
-
-            // Programmatic enforcement: Maharashtra female PT exemption (gross <= 25,000 exempt per 2023 amendment)
-            if ($ptState === 'Maharashtra' && strtolower((string)$employee->gender) === 'female' && $grossTotal <= 25000) {
-                $pt = 0.00;
+        if ($isPtActive) {
+            $ptOverride = $employee->pt_deduction_override;
+            if ($ptOverride !== null && $ptOverride !== '' && (float)$ptOverride > 0) {
+                $pt = (float)$ptOverride;
             } else {
-                $ptSlab = DB::table('pt_slabs')
-                    ->where('state', $ptState)
-                    ->where('is_active', true)
-                    ->where('min_salary', '<=', $grossTotal)
-                    ->where(function($q) use ($grossTotal) {
-                        $q->where('max_salary', '>=', $grossTotal)
-                          ->orWhereNull('max_salary');
-                    })
-                    ->first();
+                $ptState = $client ? $client->pt_state : null;
+                if (empty($ptState) || $ptState === 'auto') {
+                    $branch = DB::table('client_branches')->where('id', $employee->branch_id)->first();
+                    $ptState = $branch ? $branch->state : null;
+                }
+                if (empty($ptState) && $client) {
+                    $ptState = $client->registered_state;
+                }
 
-                if ($ptSlab) {
-                    $pt = (float)$ptSlab->deduction_amount;
-                } else {
-                    $ptWarning = "PT slab missing for state: " . ($ptState ?: 'Unknown');
+                // Normalize state abbreviations
+                $stateMap = [
+                    'TN' => 'Tamil Nadu',
+                    'MH' => 'Maharashtra',
+                    'KA' => 'Karnataka',
+                    'TS' => 'Telangana',
+                    'WB' => 'West Bengal',
+                    'GJ' => 'Gujarat',
+                ];
+                if (!empty($ptState) && isset($stateMap[strtoupper($ptState)])) {
+                    $ptState = $stateMap[strtoupper($ptState)];
+                }
+
+                if (!empty($ptState)) {
+                    // Programmatic enforcement: Maharashtra female PT exemption (gross <= 25,000 exempt per 2023 amendment)
+                    if ($ptState === 'Maharashtra' && strtolower((string)$employee->gender) === 'female' && $grossTotal <= 25000) {
+                        $pt = 0.00;
+                    } else {
+                        $ptSlab = DB::table('pt_slabs')
+                            ->where('state', $ptState)
+                            ->where('is_active', true)
+                            ->where('min_salary', '<=', $grossTotal)
+                            ->where(function($q) use ($grossTotal) {
+                                $q->where('max_salary', '>=', $grossTotal)
+                                  ->orWhereNull('max_salary');
+                            })
+                            ->first();
+
+                        if ($ptSlab) {
+                            $pt = (float)$ptSlab->deduction_amount;
+                        } else {
+                            $ptWarning = "PT slab missing for state: " . ($ptState ?: 'Unknown');
+                        }
+                    }
                 }
             }
         }
 
-        // 2. LWF Calculation
+        // 2. LWF Calculation — respect employee lwf_applicable toggle
         $lwfDeduction = 0.00;
         $employerLwf = 0.00;
-        if ($employee->lwf_applicable) {
+        if ((bool)$employee->lwf_applicable) {
             $branch = DB::table('client_branches')->where('id', $employee->branch_id)->first();
             $lwfState = $branch ? $branch->state : null;
-            if (empty($lwfState)) {
-                $client = DB::table('clients')->where('id', $employee->client_id)->first();
-                $lwfState = $client ? $client->registered_state : null;
+            if (empty($lwfState) && $client) {
+                $lwfState = $client->registered_state;
             }
 
             if (!empty($lwfState) && isset($stateMap[strtoupper($lwfState)])) {
