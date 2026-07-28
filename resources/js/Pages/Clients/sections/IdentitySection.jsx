@@ -1,5 +1,6 @@
 import React from 'react';
 import { COMPANY_TYPES, INDUSTRIES, COUNTRIES } from '../constants/clientFormData';
+import { Building2, Zap, Info } from 'lucide-react';
 
 export default function IdentitySection({ formData, errors, hints, onChange, onValidate, hook }) {
   const isIndia = formData.country === 'India';
@@ -9,7 +10,7 @@ export default function IdentitySection({ formData, errors, hints, onChange, onV
   return (
     <>
       <div className="section-header">
-        <div className="section-icon">🏢</div>
+        <div className="section-icon"><Building2 size={18} /></div>
         <h3>Company Identity</h3>
         <span className="section-badge">MANDATORY</span>
       </div>
@@ -165,7 +166,7 @@ export default function IdentitySection({ formData, errors, hints, onChange, onV
             style={{ textTransform: 'uppercase' }}
             value={formData.pfEstablishmentCode || ''}
             onChange={e => onChange('pfEstablishmentCode', e.target.value)} />
-          <div className="field-hint">📌 Client's statutory PF registration code (Required for <strong>EOR candidate</strong> filings).</div>
+          <div className="field-hint"><Info size={13} style={{ display: 'inline', marginRight: '4px', verticalAlign: '-1px' }} /> Client's statutory PF registration code (Required for <strong>EOR candidate</strong> filings).</div>
         </div>
         <div className="form-group">
           <label style={{ color: 'var(--text-primary)' }}>ESI Code Number <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(Required for EOR)</span></label>
@@ -173,7 +174,7 @@ export default function IdentitySection({ formData, errors, hints, onChange, onV
             style={{ textTransform: 'uppercase' }}
             value={formData.esiCodeNumber || ''}
             onChange={e => onChange('esiCodeNumber', e.target.value)} />
-          <div className="field-hint">📌 Client's statutory ESI employer code (Required for <strong>EOR candidate</strong> filings).</div>
+          <div className="field-hint"><Info size={13} style={{ display: 'inline', marginRight: '4px', verticalAlign: '-1px' }} /> Client's statutory ESI employer code (Required for <strong>EOR candidate</strong> filings).</div>
         </div>
       </div>
 
@@ -198,8 +199,8 @@ export default function IdentitySection({ formData, errors, hints, onChange, onV
             }}
             onChange={e => onChange('clientCode', e.target.value)} />
           <button type="button" className="btn btn-secondary" onClick={hook.autoGenerateCode}
-            style={{ whiteSpace: 'nowrap' }}>
-            ⚡ Auto-Generate
+            style={{ whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <Zap size={14} /> Auto-Generate
           </button>
           <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
             Unique internal reference code for payroll processing.

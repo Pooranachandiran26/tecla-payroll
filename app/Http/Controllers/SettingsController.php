@@ -536,4 +536,77 @@ class SettingsController extends Controller
 
         return response()->json(['message' => 'File Upload Policy updated successfully']);
     }
+
+    // ───────────────────────────────────────────────────
+    //  GST Settings
+    // ───────────────────────────────────────────────────
+
+    public function getGstSettings()
+    {
+        $settings = SettingsService::group('gst');
+
+        if (!empty($settings['gst_rates'])) {
+            if (is_string($settings['gst_rates'])) {
+                try {
+                    $settings['gst_rates'] = json_decode($settings['gst_rates'], true);
+                } catch (\Exception $e) {}
+            }
+            if (is_array($settings['gst_rates'])) {
+                $settings['gst_rates'] = array_values($settings['gst_rates']);
+            }
+        } else {
+            $settings['gst_rates'] = [];
+        }
+
+        if (!isset($settings['default_gst_rate'])) {
+            $settings['default_gst_rate'] = '18';
+        }
+        if (!isset($settings['default_reverse_charge'])) {
+            $settings['default_reverse_charge'] = false;
+        }
+        if (!isset($settings['default_tds_on_agency_fee'])) {
+            $settings['default_tds_on_agency_fee'] = 'na';
+        }
+        if (!isset($settings['notes'])) {
+            $settings['notes'] = '';
+        }
+
+        return response()->json($settings);
+    }
+
+    public function updateGstSettings(Request $request)
+    {
+        $validated = $request->validate([
+            'default_gst_rate'          => 'required|max:20',
+            'default_reverse_charge'    => 'nullable|boolean',
+            'default_tds_on_agency_fee' => 'nullable|max:20',
+            'notes'                     => 'nullable|string|max:1000',
+            'gst_rates'                 => 'nullable|array',
+            'gst_rates.*.rate'          => 'required|max:20',
+            'gst_rates.*.label'         => 'required|max:120',
+            'gst_rates.*.hsn_sac'       => 'nullable|max:20',
+            'gst_rates.*.description'   => 'nullable|max:255',
+        ]);
+
+        SettingsService::set('gst.default_gst_rate',          (string) $validated['default_gst_rate'], auth()->id());
+        SettingsService::set('gst.default_reverse_charge',    filter_var($validated['default_reverse_charge'] ?? false, FILTER_VALIDATE_BOOLEAN), auth()->id());
+        SettingsService::set('gst.default_tds_on_agency_fee', (string) ($validated['default_tds_on_agency_fee'] ?? 'na'), auth()->id());
+        SettingsService::set('gst.notes',                     (string) ($validated['notes'] ?? ''), auth()->id());
+
+        if (isset($validated['gst_rates'])) {
+            $setting = Setting::firstOrNew(['group' => 'gst', 'key' => 'gst_rates']);
+            $setting->type = 'json';
+            $setting->value = json_encode(array_values($validated['gst_rates']));
+            $setting->updated_by = auth()->id();
+            $setting->save();
+
+            \Illuminate\Support\Facades\Cache::forget("settings.gst");
+        }
+
+        app(\App\Services\AuditService::class)->log('settings.gst_updated', auth()->user(), null, null, [
+            'default_gst_rate' => $validated['default_gst_rate'],
+        ]);
+
+        return response()->json(['message' => 'GST settings updated successfully.']);
+    }
 }

@@ -580,14 +580,42 @@ class PayrollController extends Controller
             if ($run) {
                 $allRunIds = $run->children()->pluck('id')->prepend($run->id)->toArray();
 
-                $items = \Illuminate\Support\Facades\DB::table('payroll_run_items')
+                $rawItems = \Illuminate\Support\Facades\DB::table('payroll_run_items')
                     ->join('employees', 'payroll_run_items.employee_id', '=', 'employees.id')
                     ->whereIn('payroll_run_id', $allRunIds)
-                    ->select('payroll_run_items.*', 'employees.full_name', 'employees.employee_code')
-                    ->orderBy('payroll_run_items.id', 'desc')
-                    ->get()
-                    ->unique('employee_id')
-                    ->values();
+                    ->select('payroll_run_items.*', 'payroll_run_items.id as id', 'employees.full_name', 'employees.employee_code')
+                    ->orderBy('payroll_run_items.id', 'asc')
+                    ->get();
+
+                $items = $rawItems->groupBy('employee_id')->map(function ($empItems) {
+                    $baseItem = clone $empItems->first();
+                    if ($empItems->count() === 1) {
+                        return $baseItem;
+                    }
+
+                    $numericFields = [
+                        'paid_days', 'lop_days', 'basic_pay', 'hra', 'conveyance', 'da',
+                        'medical_allowance', 'special_allowance', 'other_additions',
+                        'gross_total', 'employee_pf', 'employee_esi', 'professional_tax',
+                        'lwf_deduction', 'lop_deduction', 'tds_deduction', 'loan_emi_deduction',
+                        'net_pay', 'employer_pf', 'employer_esi', 'employer_lwf'
+                    ];
+
+                    foreach ($numericFields as $field) {
+                        $baseItem->$field = round((float)$empItems->sum($field), 2);
+                    }
+
+                    $latestItem = $empItems->last();
+                    $baseItem->exclusion_reason = $latestItem->exclusion_reason;
+                    $baseItem->warning_notes = $latestItem->warning_notes;
+
+                    if ($empItems->pluck('is_excluded')->contains(0)) {
+                        $baseItem->is_excluded = 0;
+                        $baseItem->exclusion_reason = null;
+                    }
+
+                    return $baseItem;
+                })->values();
 
                 foreach ($items as $item) {
                     if ($item->is_excluded) {
@@ -705,14 +733,42 @@ class PayrollController extends Controller
             if ($run) {
                 $allRunIds = $run->children()->pluck('id')->prepend($run->id)->toArray();
 
-                $items = \Illuminate\Support\Facades\DB::table('payroll_run_items')
+                $rawItems = \Illuminate\Support\Facades\DB::table('payroll_run_items')
                     ->join('employees', 'payroll_run_items.employee_id', '=', 'employees.id')
                     ->whereIn('payroll_run_id', $allRunIds)
-                    ->select('payroll_run_items.*', 'employees.full_name', 'employees.employee_code')
-                    ->orderBy('payroll_run_items.id', 'desc')
-                    ->get()
-                    ->unique('employee_id')
-                    ->values();
+                    ->select('payroll_run_items.*', 'payroll_run_items.id as id', 'employees.full_name', 'employees.employee_code')
+                    ->orderBy('payroll_run_items.id', 'asc')
+                    ->get();
+
+                $items = $rawItems->groupBy('employee_id')->map(function ($empItems) {
+                    $baseItem = clone $empItems->first();
+                    if ($empItems->count() === 1) {
+                        return $baseItem;
+                    }
+
+                    $numericFields = [
+                        'paid_days', 'lop_days', 'basic_pay', 'hra', 'conveyance', 'da',
+                        'medical_allowance', 'special_allowance', 'other_additions',
+                        'gross_total', 'employee_pf', 'employee_esi', 'professional_tax',
+                        'lwf_deduction', 'lop_deduction', 'tds_deduction', 'loan_emi_deduction',
+                        'net_pay', 'employer_pf', 'employer_esi', 'employer_lwf'
+                    ];
+
+                    foreach ($numericFields as $field) {
+                        $baseItem->$field = round((float)$empItems->sum($field), 2);
+                    }
+
+                    $latestItem = $empItems->last();
+                    $baseItem->exclusion_reason = $latestItem->exclusion_reason;
+                    $baseItem->warning_notes = $latestItem->warning_notes;
+
+                    if ($empItems->pluck('is_excluded')->contains(0)) {
+                        $baseItem->is_excluded = 0;
+                        $baseItem->exclusion_reason = null;
+                    }
+
+                    return $baseItem;
+                })->values();
 
                 $newHires = $run->getNewHireCandidates()->map(fn($emp) => [
                     'id' => $emp->id,
@@ -1030,5 +1086,170 @@ class PayrollController extends Controller
             'selectedClientId' => $selectedClientId ? (int) $selectedClientId : '',
             'selectedDate' => $selectedDate,
         ]);
+    }
+
+    /**
+     * Preview single-employee payroll correction.
+     */
+    public function previewCorrection(Request $request)
+    {
+        $request->validate([
+            'parent_run_id' => 'required|exists:payroll_runs,id',
+            'employee_id' => 'required|exists:employees,id',
+            'corrected_paid_days' => 'required|numeric|min:0|max:31',
+            'corrected_lop_days' => 'required|numeric|min:0|max:31',
+        ]);
+
+        $parentRun = PayrollRun::findOrFail($request->parent_run_id);
+        $employee = \App\Models\Employee::findOrFail($request->employee_id);
+
+        $service = app(\App\Services\PayrollCorrectionService::class);
+        $preview = $service->calculateCorrectionPreview(
+            $employee,
+            $parentRun,
+            (float)$request->corrected_paid_days,
+            (float)$request->corrected_lop_days
+        );
+
+        return response()->json($preview);
+    }
+
+    /**
+     * Store single-employee payroll correction into a DRAFT supplementary run.
+     */
+    public function storeCorrection(Request $request)
+    {
+        $request->validate([
+            'parent_run_id' => 'required|exists:payroll_runs,id',
+            'employee_id' => 'required|exists:employees,id',
+            'corrected_paid_days' => 'required|numeric|min:0|max:31',
+            'corrected_lop_days' => 'required|numeric|min:0|max:31',
+            'reason' => 'required|string|max:500',
+            'employee_query_id' => 'nullable|exists:employee_queries,id',
+        ]);
+
+        $parentRun = PayrollRun::findOrFail($request->parent_run_id);
+        $employee = \App\Models\Employee::findOrFail($request->employee_id);
+
+        $service = app(\App\Services\PayrollCorrectionService::class);
+        $preview = $service->calculateCorrectionPreview(
+            $employee,
+            $parentRun,
+            (float)$request->corrected_paid_days,
+            (float)$request->corrected_lop_days
+        );
+
+        $service->applyCorrection(
+            $employee,
+            $parentRun,
+            $preview,
+            $request->reason,
+            $request->employee_query_id ? (int)$request->employee_query_id : null
+        );
+
+        return redirect()->back()->with('success', 'Payroll correction added to draft supplementary run successfully.');
+    }
+
+    /**
+     * Download template for batch payroll correction.
+     */
+    public function downloadCorrectionTemplate(Request $request)
+    {
+        $parentRunId = $request->query('parent_run_id');
+        $employees = [];
+        if ($parentRunId) {
+            $parentRun = PayrollRun::find($parentRunId);
+            if ($parentRun) {
+                $employees = \App\Models\Employee::where('client_id', $parentRun->client_id)
+                    ->where('status', 'active')
+                    ->limit(20)
+                    ->get();
+            }
+        }
+
+        $tempPath = storage_path('app/temp_corr_tmpl_' . \Illuminate\Support\Str::random(16) . '.xlsx');
+        $writer = \Spatie\SimpleExcel\SimpleExcelWriter::create($tempPath, 'xlsx');
+        $writer->nameCurrentSheet('Attendance Entry');
+
+        foreach ($employees as $emp) {
+            $writer->addRow([
+                'employee_code' => $emp->employee_code,
+                'days_present' => 30,
+                'days_lop' => 0,
+                'reason' => 'Correction reason example',
+            ]);
+        }
+
+        return response()->download($tempPath, 'Batch_Correction_Template.xlsx')->deleteFileAfterSend(true);
+    }
+
+    /**
+     * Parse uploaded correction file (.xlsx/.csv) without writing to DB.
+     */
+    public function importBatchCorrection(Request $request)
+    {
+        $request->validate([
+            'parent_run_id' => 'required|exists:payroll_runs,id',
+            'file' => 'required|file|mimes:csv,xlsx,xls,txt|max:5120',
+        ]);
+
+        $parentRun = PayrollRun::findOrFail($request->parent_run_id);
+        $file = $request->file('file');
+
+        $service = app(\App\Services\PayrollCorrectionService::class);
+        $parsedRows = $service->parseCorrectionFile($file->getRealPath(), $parentRun);
+
+        return response()->json([
+            'success' => true,
+            'items' => $parsedRows,
+        ]);
+    }
+
+    /**
+     * Preview batch payroll correction across multiple employees.
+     */
+    public function previewBatchCorrection(Request $request)
+    {
+        $request->validate([
+            'parent_run_id' => 'required|exists:payroll_runs,id',
+            'employee_ids' => 'nullable|array',
+            'employee_ids.*' => 'exists:employees,id',
+            'days_overrides' => 'nullable|array',
+        ]);
+
+        $parentRun = PayrollRun::findOrFail($request->parent_run_id);
+
+        $service = app(\App\Services\PayrollCorrectionService::class);
+        $preview = $service->calculateBatchPreview(
+            $parentRun,
+            $request->employee_ids ?? [],
+            $request->days_overrides ?? []
+        );
+
+        return response()->json($preview);
+    }
+
+    /**
+     * Store batch payroll correction into a single DRAFT supplementary run.
+     */
+    public function storeBatchCorrection(Request $request)
+    {
+        $request->validate([
+            'parent_run_id' => 'required|exists:payroll_runs,id',
+            'reason' => 'required|string|max:500',
+            'items' => 'required|array|min:1',
+            'items.*.employee_id' => 'required|exists:employees,id',
+            'items.*.corrected_paid_days' => 'required|numeric|min:0|max:31',
+            'items.*.corrected_lop_days' => 'required|numeric|min:0|max:31',
+            'items.*.reason' => 'nullable|string|max:500',
+            'items.*.employee_query_id' => 'nullable|exists:employee_queries,id',
+        ]);
+
+        $parentRun = PayrollRun::findOrFail($request->parent_run_id);
+
+        $service = app(\App\Services\PayrollCorrectionService::class);
+        $service->applyBatchCorrection($parentRun, $request->items, $request->reason);
+
+        return redirect()->back()->with('success', 'Batch payroll corrections added to draft supplementary run successfully.');
     }
 }

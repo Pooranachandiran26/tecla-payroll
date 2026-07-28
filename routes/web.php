@@ -178,6 +178,14 @@ Route::middleware(['auth', 'active'])->group(function () {
             Route::get('/admin/employee-queries', [\App\Http\Controllers\EmployeeQueryController::class, 'adminIndex'])->name('admin.employee-queries.index');
             Route::post('/admin/employee-queries/{query}/respond', [\App\Http\Controllers\EmployeeQueryController::class, 'adminRespond'])->name('admin.employee-queries.respond');
             Route::post('/payroll/{id}/release-payslips', [\App\Http\Controllers\PayrollController::class, 'releasePayslips'])->name('payroll.run.release-payslips');
+
+            // Payroll Correction routes
+            Route::post('/payroll/correction/preview', [\App\Http\Controllers\PayrollController::class, 'previewCorrection'])->name('payroll.correction.preview');
+            Route::post('/payroll/correction/store', [\App\Http\Controllers\PayrollController::class, 'storeCorrection'])->name('payroll.correction.store');
+            Route::get('/payroll/correction/template', [\App\Http\Controllers\PayrollController::class, 'downloadCorrectionTemplate'])->name('payroll.correction.template');
+            Route::post('/payroll/correction/batch-import', [\App\Http\Controllers\PayrollController::class, 'importBatchCorrection'])->name('payroll.correction.batch-import');
+            Route::post('/payroll/correction/batch-preview', [\App\Http\Controllers\PayrollController::class, 'previewBatchCorrection'])->name('payroll.correction.batch-preview');
+            Route::post('/payroll/correction/batch-store', [\App\Http\Controllers\PayrollController::class, 'storeBatchCorrection'])->name('payroll.correction.batch-store');
         });
  
         // ADMIN ONLY
@@ -223,7 +231,10 @@ Route::middleware(['auth', 'active'])->group(function () {
             
             Route::get('/admin/settings/file-upload-policy', [SettingsController::class, 'getFileUploadPolicy'])->name('admin.settings.file-upload-policy.show');
             Route::put('/admin/settings/file-upload-policy', [SettingsController::class, 'updateFileUploadPolicy'])->name('admin.settings.file-upload-policy.update');
-            
+
+            Route::get('/admin/settings/gst', [SettingsController::class, 'getGstSettings'])->name('admin.settings.gst.show');
+            Route::put('/admin/settings/gst', [SettingsController::class, 'updateGstSettings'])->name('admin.settings.gst.update');
+
             Route::get('/admin/sessions', [SessionController::class, 'allSessions'])->name('admin.sessions');
             Route::delete('/admin/sessions/{id}', [SessionController::class, 'revokeAny'])->name('admin.sessions.destroy');
             Route::post('/admin/sessions/bulk-revoke', [SessionController::class, 'bulkRevoke'])->name('admin.sessions.bulk-revoke');

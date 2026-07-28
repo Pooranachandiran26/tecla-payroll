@@ -1,17 +1,39 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
 import { CONTRACT_TYPES, BILLING_MODELS, CURRENCIES, INVOICE_CYCLES, PAYMENT_NET_TERMS, OT_BILLING_RULES } from '../constants/clientFormData';
+import { FileText, Globe } from 'lucide-react';
 
-export default function ContractSection({ formData, errors, onChange, hook }) {
+export default function ContractSection({ formData, errors, onChange, hook, gstSettings }) {
   const isIndia = formData.country === 'India';
   const showMarkup = formData.billingModel === 'markup';
   const showFixedCandidate = formData.billingModel === 'fixed_per_candidate';
   const showFixedMonthly = formData.billingModel === 'fixed_per_month';
   const showHourly = formData.billingModel === 'hourly';
 
+  const [gstMasterRates, setGstMasterRates] = useState(gstSettings?.gst_rates || []);
+
+  useEffect(() => {
+    if (gstSettings?.gst_rates && Array.isArray(gstSettings.gst_rates) && gstSettings.gst_rates.length > 0) {
+      setGstMasterRates(gstSettings.gst_rates);
+    } else {
+      axios.get(route('admin.settings.gst.show'))
+        .then(res => {
+          let rates = res.data?.gst_rates;
+          if (typeof rates === 'string') {
+            try { rates = JSON.parse(rates); } catch(e) {}
+          }
+          if (Array.isArray(rates) && rates.length > 0) {
+            setGstMasterRates(rates);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [gstSettings]);
+
   return (
     <>
       <div className="section-header">
-        <div className="section-icon">📄</div>
+        <div className="section-icon"><FileText size={18} /></div>
         <h3>Contract Terms &amp; Billing Configuration</h3>
       </div>
 
@@ -137,26 +159,31 @@ export default function ContractSection({ formData, errors, onChange, hook }) {
           )}
         </div>
       </div>
-      <div className="form-group">
-        <label className="toggle-container" style={{ margin: 0 }}>
-          <input type="checkbox" className="toggle-input"
-            checked={formData.autoRenewal} onChange={e => onChange('autoRenewal', e.target.checked)} />
-          <span className="toggle-switch"></span>
-          <span style={{ fontSize: '0.875rem', fontWeight: 500, marginLeft: '0.75rem', display: 'inline-block', verticalAlign: 'middle' }}>Auto-Renewal (renew for same period if not terminated)</span>
-        </label>
-      </div>
-
       <div style={{ background: '#F8FAFC', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '1rem', marginTop: '1rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-          <label className="toggle-container" style={{ margin: 0 }}>
-            <input type="checkbox" className="toggle-input"
-              checked={formData.poRequired} onChange={e => onChange('poRequired', e.target.checked)} />
-            <span className="toggle-switch"></span>
-          </label>
-          <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>Purchase Order (PO) Required before invoicing</span>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem', alignItems: 'center' }}>
+          {/* Toggle 1: Auto Renewal */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <label className="toggle-container" style={{ margin: 0 }}>
+              <input type="checkbox" className="toggle-input"
+                checked={formData.autoRenewal} onChange={e => onChange('autoRenewal', e.target.checked)} />
+              <span className="toggle-switch"></span>
+            </label>
+            <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>Auto-Renewal (renew for same period if not terminated)</span>
+          </div>
+
+          {/* Toggle 2: PO Required */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <label className="toggle-container" style={{ margin: 0 }}>
+              <input type="checkbox" className="toggle-input"
+                checked={formData.poRequired} onChange={e => onChange('poRequired', e.target.checked)} />
+              <span className="toggle-switch"></span>
+            </label>
+            <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>Purchase Order (PO) Required before invoicing</span>
+          </div>
         </div>
+
         {formData.poRequired && (
-          <div className="form-row conditional-field">
+          <div className="form-row conditional-field" style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
             <div className="form-group">
               <label>PO Number <span style={{ color: 'var(--status-danger)' }}>*</span></label>
               <input type="text" className={`form-control ${errors.poNumber ? 'invalid' : ''}`}
@@ -227,9 +254,13 @@ export default function ContractSection({ formData, errors, onChange, hook }) {
           <div className="form-group">
             <label>GST Application Rate</label>
             <select className="form-control" value={formData.gstRate} onChange={e => hook.handleGSTRateChange(e.target.value)}>
-              <option value="18">18% (Standard Services)</option>
-              <option value="0">0% (SEZ / Export without payment of IGST)</option>
-              <option value="exempt">Exempt</option>
+              {gstMasterRates.map((r, idx) => (
+                <option key={idx} value={r.rate}>{r.label || `${r.rate}%`}</option>
+              ))}
+              {formData.gstRate && 
+               !gstMasterRates.some(r => String(r.rate) === String(formData.gstRate)) && (
+                <option value={formData.gstRate}>{formData.gstRate}% (Saved Rate)</option>
+              )}
             </select>
             {formData.gstRate === '0' && (
               <div className="form-group conditional-field" style={{ marginTop: '0.5rem' }}>
@@ -266,8 +297,9 @@ export default function ContractSection({ formData, errors, onChange, hook }) {
           </div>
         </div>
       ) : (
-        <div className="info-box">
-          🌐 <strong>International Billing:</strong> GST and Indian TDS rules are not applicable. Ensure Export of Services rules are followed for zero-rated invoicing.
+        <div className="info-box" style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+          <Globe size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
+          <div><strong>International Billing:</strong> GST and Indian TDS rules are not applicable. Ensure Export of Services rules are followed for zero-rated invoicing.</div>
         </div>
       )}
 
