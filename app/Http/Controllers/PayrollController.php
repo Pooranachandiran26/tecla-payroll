@@ -976,7 +976,14 @@ class PayrollController extends Controller
      */
     public function indexLiveMonitor(Request $request)
     {
-        $clients = \App\Models\Client::where('status', 'active')
+        $user = $request->user();
+
+        $clientsQuery = \App\Models\Client::where('status', 'active');
+        if ($user && $user->role === 'manager') {
+            $clientsQuery->whereIn('id', $user->getManagedClientIds());
+        }
+
+        $clients = $clientsQuery
             ->select('id', 'company_name')
             ->orderBy('id', 'desc')
             ->get();
@@ -990,6 +997,10 @@ class PayrollController extends Controller
                 $join->on('employees.id', '=', 'attendance_records.employee_id')
                      ->where('attendance_records.attendance_date', '=', $selectedDate);
             });
+
+        if ($user && $user->role === 'manager') {
+            $query->whereIn('employees.client_id', $user->getManagedClientIds());
+        }
 
         if ($selectedClientId) {
             $query->where('employees.client_id', $selectedClientId);

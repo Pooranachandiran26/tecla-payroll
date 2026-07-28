@@ -76,4 +76,20 @@ class DashboardAdvancedTest extends TestCase
             ->has('topClients')
         );
     }
+
+    /** @test */
+    public function test_dashboard_filters_metrics_by_client_id()
+    {
+        $response = $this->actingAs($this->admin)->get(route('dashboard', ['client_id' => $this->client->id]));
+
+        $response->assertStatus(200);
+        $response->assertInertia(fn ($page) => $page
+            ->component('Dashboard/Dashboard')
+            ->where('selectedClientId', $this->client->id)
+            ->has('selectedClient')
+            ->where('selectedClient.company_name', 'Dashboard Test Corp')
+            ->where('metrics.totalActiveEmployees', 1)
+            ->where('metrics.monthlyCtcTotal', 63000)
+        );
+    }
 }
