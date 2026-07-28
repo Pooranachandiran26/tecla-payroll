@@ -54,7 +54,7 @@ class DataTableRegressionTest extends TestCase
         $this->assertFileExists($filePath);
 
         // Compile component using esbuild
-        $compileCmd = 'powershell -ExecutionPolicy Bypass -Command "npx esbuild resources/js/Pages/Payroll/PayrollApproval.jsx --bundle --platform=node --format=cjs --external:react --external:@inertiajs/react --external:@/Layouts/AuthenticatedLayout --external:../../Components/RoleGuard.jsx --external:../../Hooks/useToast --outfile=tests/js/PayrollApproval.compiled.cjs"';
+        $compileCmd = 'powershell -ExecutionPolicy Bypass -Command "npx esbuild resources/js/Pages/Payroll/PayrollApproval.jsx --bundle --platform=node --format=cjs --external:react --external:@inertiajs/react --external:@/Layouts/AuthenticatedLayout --external:../../Components/RoleGuard.jsx --external:../../Hooks/useToast --external:../../Components/PayrollCorrectionModal --external:../../Components/BatchPayrollCorrectionModal --outfile=tests/js/PayrollApproval.compiled.cjs"';
         exec($compileCmd, $compileOutput, $compileExitCode);
         $this->assertEquals(0, $compileExitCode, 'esbuild compilation of PayrollApproval.jsx failed: ' . implode("\n", $compileOutput));
 

@@ -143,6 +143,12 @@
         </tr>
     </table>
 
+    @if(!empty($item->is_correction))
+    <div style="background-color: #EFF6FF; border: 1px solid #BFDBFE; color: #1E40AF; padding: 6px 10px; font-weight: bold; font-size: 10px; margin-bottom: 12px; border-radius: 3px;">
+        📌 Payroll Adjustment / Correction: {{ $item->correction_reason }}
+    </div>
+    @endif
+
     @if($midCycleNote)
     <div class="split-box">
         ↳ {{ $midCycleNote }}

@@ -45,7 +45,9 @@ const mockModules = {
   },
   '@/Layouts/AuthenticatedLayout': ({ children }) => ({ type: 'AuthenticatedLayout', children }),
   '../../Components/RoleGuard.jsx': ({ children }) => ({ type: 'RoleGuard', children }),
-  '../../Hooks/useToast': () => ({ showToast: () => {} })
+  '../../Hooks/useToast': () => ({ showToast: () => {} }),
+  '../../Components/PayrollCorrectionModal': () => ({ type: 'PayrollCorrectionModal' }),
+  '../../Components/BatchPayrollCorrectionModal': () => ({ type: 'BatchPayrollCorrectionModal' })
 };
 
 const originalRequire = module.constructor.prototype.require;
