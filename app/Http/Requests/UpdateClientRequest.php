@@ -284,7 +284,7 @@ class UpdateClientRequest extends FormRequest
             'gratuity_applicable' => 'nullable|boolean',
             'statutory_bonus_applicable' => 'nullable|boolean',
             'bonus_rate_percentage' => 'nullable|numeric|min:0|max:100',
-            'pf_ceiling' => 'nullable|numeric|min:0',
+            'pf_ceiling' => 'nullable|numeric|min:0|max:15000',
             'pf_applicable' => 'nullable|boolean',
             'edli_exempted' => 'nullable|boolean',
             'esi_limit' => 'nullable|numeric|min:0',

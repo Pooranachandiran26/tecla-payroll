@@ -93,27 +93,27 @@ class PayslipPdfService
         $netPayWords = $this->numberToEnglishWords((int)round((float)$item->net_pay));
         $formattedMonth = Carbon::parse($run->payroll_month)->format('F Y');
 
-        if (class_exists(\Barryvdh\DomPDF\Facade\Pdf::class)) {
-            $pdf = Pdf::loadView('pdf.payslip', [
-                'item' => $item,
-                'employee' => $employee,
-                'run' => $run,
-                'client' => $client,
-                'displayName' => $displayName,
-                'companyAddress' => $companyAddress,
-                'accentColor' => $accentColor,
-                'logoUrl' => $logoUrl,
-                'midCycleNote' => $midCycleNote,
-                'netPayWords' => $netPayWords,
-                'formattedMonth' => $formattedMonth,
-            ]);
+        $data = [
+            'item' => $item,
+            'employee' => $employee,
+            'run' => $run,
+            'client' => $client,
+            'displayName' => $displayName,
+            'companyAddress' => $companyAddress,
+            'accentColor' => $accentColor,
+            'logoUrl' => $logoUrl,
+            'midCycleNote' => $midCycleNote,
+            'netPayWords' => $netPayWords,
+            'formattedMonth' => $formattedMonth,
+        ];
 
+        if (class_exists(\Barryvdh\DomPDF\Facade\Pdf::class) || class_exists('Barryvdh\DomPDF\Facade\Pdf')) {
+            $pdf = Pdf::loadView('pdf.payslip', $data);
             $pdf->setPaper('A4', 'portrait');
-
             return $pdf->output();
         }
 
-        return "%PDF-1.4 Payslip PDF Content for Employee ID " . ($item->employee_id ?? '');
+        return view('pdf.payslip', $data)->render();
     }
 
     private function numberToEnglishWords(int $num): string

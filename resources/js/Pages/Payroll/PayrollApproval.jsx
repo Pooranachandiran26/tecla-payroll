@@ -5,6 +5,9 @@ import RoleGuard from '../../Components/RoleGuard.jsx';
 import useToast from '../../Hooks/useToast';
 import './PayrollApproval.css';
 
+import PayrollCorrectionModal from '../../Components/PayrollCorrectionModal';
+import BatchPayrollCorrectionModal from '../../Components/BatchPayrollCorrectionModal';
+
 export default function PayrollApproval({ clients, selectedClientId, selectedMonth, run, items, preflight, cycleInfo, newHires = [], pendingSupplementaryRuns = [] }) {
     const { showToast } = useToast();
     const [clientId, setClientId] = useState(selectedClientId);
@@ -12,6 +15,8 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
     const [showBreakdown, setShowBreakdown] = useState(false);
     const [showDisbursementModal, setShowDisbursementModal] = useState(false);
     const [showSupplementaryModal, setShowSupplementaryModal] = useState(false);
+    const [showSingleCorrectionModal, setShowSingleCorrectionModal] = useState(false);
+    const [showBatchCorrectionModal, setShowBatchCorrectionModal] = useState(false);
 
     const getMonthOptions = () => {
         const options = [];
@@ -360,6 +365,25 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
                                                 >
                                                     {run.payslip_released_at ? '📄 Re-send Official Payslips (All)' : '📄 Release Official PDF Payslips'}
                                                 </button>
+
+                                                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
+                                                    <button 
+                                                        type="button" 
+                                                        className="btn btn-secondary" 
+                                                        style={{ flex: 1, padding: "0.5rem", fontSize: "0.8rem" }}
+                                                        onClick={() => setShowSingleCorrectionModal(true)}
+                                                    >
+                                                        🔧 Correct Single Employee
+                                                    </button>
+                                                    <button 
+                                                        type="button" 
+                                                        className="btn btn-secondary" 
+                                                        style={{ flex: 1, padding: "0.5rem", fontSize: "0.8rem", backgroundColor: "#3B82F6", color: "#ffffff", borderColor: "#3B82F6" }}
+                                                        onClick={() => setShowBatchCorrectionModal(true)}
+                                                    >
+                                                        ⚡ Batch Correction
+                                                    </button>
+                                                </div>
                                             </div>
                                         )}
 
@@ -463,6 +487,20 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
                         </div>
                     </div>
                 )}
+
+                <PayrollCorrectionModal 
+                    isOpen={showSingleCorrectionModal} 
+                    onClose={() => setShowSingleCorrectionModal(false)} 
+                    parentRun={run} 
+                    items={items} 
+                />
+
+                <BatchPayrollCorrectionModal 
+                    isOpen={showBatchCorrectionModal} 
+                    onClose={() => setShowBatchCorrectionModal(false)} 
+                    parentRun={run} 
+                    items={items} 
+                />
             </AuthenticatedLayout>
         </RoleGuard>
     );

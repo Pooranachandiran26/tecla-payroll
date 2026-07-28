@@ -180,6 +180,14 @@ Route::middleware(['auth', 'active'])->group(function () {
             Route::get('/admin/employee-queries', [\App\Http\Controllers\EmployeeQueryController::class, 'adminIndex'])->name('admin.employee-queries.index');
             Route::post('/admin/employee-queries/{query}/respond', [\App\Http\Controllers\EmployeeQueryController::class, 'adminRespond'])->name('admin.employee-queries.respond');
             Route::post('/payroll/{id}/release-payslips', [\App\Http\Controllers\PayrollController::class, 'releasePayslips'])->name('payroll.run.release-payslips');
+
+            // Payroll Correction routes
+            Route::post('/payroll/correction/preview', [\App\Http\Controllers\PayrollController::class, 'previewCorrection'])->name('payroll.correction.preview');
+            Route::post('/payroll/correction/store', [\App\Http\Controllers\PayrollController::class, 'storeCorrection'])->name('payroll.correction.store');
+            Route::get('/payroll/correction/template', [\App\Http\Controllers\PayrollController::class, 'downloadCorrectionTemplate'])->name('payroll.correction.template');
+            Route::post('/payroll/correction/batch-import', [\App\Http\Controllers\PayrollController::class, 'importBatchCorrection'])->name('payroll.correction.batch-import');
+            Route::post('/payroll/correction/batch-preview', [\App\Http\Controllers\PayrollController::class, 'previewBatchCorrection'])->name('payroll.correction.batch-preview');
+            Route::post('/payroll/correction/batch-store', [\App\Http\Controllers\PayrollController::class, 'storeBatchCorrection'])->name('payroll.correction.batch-store');
         });
  
         // ADMIN ONLY

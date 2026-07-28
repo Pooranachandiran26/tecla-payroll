@@ -286,9 +286,9 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
 
   const getPFCeilingHint = useCallback(() => {
     if (parseFloat(formData.pfCeiling) > 15000) {
-      return { text: 'Voluntary PF — contributions computed on actual basic.', type: 'warning' };
+      return { text: '⚠️ Maximum allowed is ₹15,000. Raising above the statutory ceiling requires additional EPS-split configuration not yet available.', type: 'danger' };
     }
-    return { text: 'Standard EPFO statutory wage ceiling is ₹15,000.', type: '' };
+    return { text: 'Wage Ceiling Override (₹) — must be ₹15,000 or lower. Standard EPFO statutory ceiling is ₹15,000.', type: '' };
   }, [formData.pfCeiling]);
 
   const handleESILimit = useCallback((value) => {

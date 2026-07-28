@@ -50,7 +50,11 @@ class SalaryCalculationService
         $employeePf = 0.00;
 
         if (data_get($employeeData, 'pf_applicable', true)) {
-            $pfBase = min($basic, self::PF_WAGE_CEILING);
+            $pfCeiling = (float) data_get($employeeData, 'pf_ceiling', $client->pf_ceiling ?? self::PF_WAGE_CEILING);
+            if ($pfCeiling <= 0) {
+                $pfCeiling = self::PF_WAGE_CEILING;
+            }
+            $pfBase = min($basic, $pfCeiling);
             $employeePf = $pfBase * 0.12;
 
             $isEdliExempt = $client ? (bool)$client->edli_exempted : (bool)data_get($employeeData, 'edli_exempted', false);
@@ -71,9 +75,45 @@ class SalaryCalculationService
         }
 
         // 4. Professional Tax
-        // Use override if set, otherwise 0
         $ptOverride = data_get($employeeData, 'pt_deduction_override');
-        $pt = $ptOverride !== null && $ptOverride !== '' ? (float) $ptOverride : 0;
+        $pt = 0.00;
+        if ($ptOverride !== null && $ptOverride !== '') {
+            $pt = (float) $ptOverride;
+        } elseif (data_get($employeeData, 'pt_applicable', true)) {
+            $ptState = data_get($employeeData, 'pt_state', $client->pt_state ?? $client->registered_state ?? null);
+            if (!empty($ptState)) {
+                $stateMap = [
+                    'TN' => 'Tamil Nadu',
+                    'MH' => 'Maharashtra',
+                    'KA' => 'Karnataka',
+                    'TS' => 'Telangana',
+                    'WB' => 'West Bengal',
+                    'GJ' => 'Gujarat',
+                ];
+                if (isset($stateMap[strtoupper($ptState)])) {
+                    $ptState = $stateMap[strtoupper($ptState)];
+                }
+
+                $gender = data_get($employeeData, 'gender');
+                if ($ptState === 'Maharashtra' && strtolower((string)$gender) === 'female' && $gross <= 25000) {
+                    $pt = 0.00;
+                } else {
+                    $ptSlab = \Illuminate\Support\Facades\DB::table('pt_slabs')
+                        ->where('state', $ptState)
+                        ->where('is_active', true)
+                        ->where('min_salary', '<=', $gross)
+                        ->where(function($q) use ($gross) {
+                            $q->where('max_salary', '>=', $gross)
+                              ->orWhereNull('max_salary');
+                        })
+                        ->first();
+
+                    if ($ptSlab) {
+                        $pt = (float) $ptSlab->deduction_amount;
+                    }
+                }
+            }
+        }
 
         // 5. Gratuity Accrual (15 days per year = Basic * (15 / 26 / 12) = 4.80769% of Basic)
         // Included in CTC ONLY IF client gratuity_applicable = true AND employee gratuity_mode = 'part_of_ctc'
@@ -83,7 +123,8 @@ class SalaryCalculationService
         $gratuityMode = data_get($employeeData, 'gratuity_mode', $client->default_gratuity_mode ?? 'part_of_ctc');
         
         if ($gratuityApplicable && ($gratuityMode === 'part_of_ctc' || $gratuityMode === 'ctc_included')) {
-            $gratuityAccrual = $basic * (15 / 26 / 12);
+            $gratuityBase = $basic + $da;
+            $gratuityAccrual = $gratuityBase * (15 / 26 / 12);
         }
 
         // 6. Statutory Bonus Accrual (Payment of Bonus Act 1965 as amended in 2015)

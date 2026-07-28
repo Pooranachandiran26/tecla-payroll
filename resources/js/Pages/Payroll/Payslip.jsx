@@ -6,6 +6,8 @@ import RoleGuard from '../../Components/RoleGuard.jsx';
 import Pagination from '../../Components/ui/Pagination';
 
 import useToast from '../../Hooks/useToast';
+import PayrollCorrectionModal from '../../Components/PayrollCorrectionModal';
+import BatchPayrollCorrectionModal from '../../Components/BatchPayrollCorrectionModal';
 
 // Simple numbers-to-words helper in English
 function numberToEnglishWords(num) {
@@ -43,6 +45,8 @@ function numberToEnglishWords(num) {
 export default function Payslip({ items, clients = [], selectedClientId, selectedMonth, clientBranding, lockedRun }) {
     const { showToast } = useToast();
     const [isReleasing, setIsReleasing] = useState(false);
+    const [showSingleCorrectionModal, setShowSingleCorrectionModal] = useState(false);
+    const [showBatchCorrectionModal, setShowBatchCorrectionModal] = useState(false);
     const [clientId, setClientId] = useState(selectedClientId || '');
     const [month, setMonth] = useState(selectedMonth || '2026-07-01');
     const [selectedItem, setSelectedItem] = useState(null);
@@ -299,7 +303,7 @@ export default function Payslip({ items, clients = [], selectedClientId, selecte
                                                 </div>
                                                 <div className="flex justify-between pl-2"><span className="payslip-meta-label">• EPF Admin Charges (0.5%)</span><span className="payslip-meta-val">₹{Math.round(Math.min(selectedItem.basic_pay || 0, 15000) * 0.005).toLocaleString()}</span></div>
                                                 <div className="flex justify-between font-bold text-[#1F3864] pt-1 border-t border-dashed border-gray-200">
-                                                    <span>Total Employer PF Contribution</span>
+                                                    <span>Total Employer PF & EPFO Charges</span>
                                                     <span>₹{parseFloat(selectedItem.employer_pf).toLocaleString()}</span>
                                                 </div>
                                                 <div className="flex justify-between pt-1"><span className="payslip-meta-label">Employer ESI Contribution</span><span className="payslip-meta-val">₹{parseFloat(selectedItem.employer_esi).toLocaleString()}</span></div>
@@ -336,23 +340,38 @@ export default function Payslip({ items, clients = [], selectedClientId, selecte
                                 </div>
                             </div>
 
-                            <div className="flex justify-end gap-4 items-center">
+                            <div className="flex justify-end gap-3 items-center flex-wrap">
                                 {lockedRun && (
-                                    <Button 
-                                        variant="primary" 
-                                        disabled={isReleasing}
-                                        onClick={() => {
-                                            setIsReleasing(true);
-                                            router.post(route('payroll.run.release-payslips', lockedRun.id), {}, {
-                                                onFinish: () => setIsReleasing(false),
-                                                onSuccess: () => showToast({ type: 'success', title: 'Success', message: 'Official PDF payslips released & emailed to employees.' }),
-                                                onError: (errs) => showToast({ type: 'error', title: 'Error', message: errs.error || 'Failed to release payslips.' })
-                                            });
-                                        }}
-                                        style={{ backgroundColor: '#059669', borderColor: '#059669', color: '#ffffff' }}
-                                    >
-                                        {isReleasing ? '⌛ Releasing...' : lockedRun.payslip_released_at ? '📄 Re-send Official Payslips' : '📄 Release & Email Official Payslips'}
-                                    </Button>
+                                    <>
+                                        <Button 
+                                            variant="secondary"
+                                            onClick={() => setShowSingleCorrectionModal(true)}
+                                        >
+                                            🔧 Correct Single Employee
+                                        </Button>
+                                        <Button 
+                                            variant="secondary"
+                                            onClick={() => setShowBatchCorrectionModal(true)}
+                                            style={{ backgroundColor: '#3B82F6', color: '#ffffff', borderColor: '#3B82F6' }}
+                                        >
+                                            ⚡ Batch Correction
+                                        </Button>
+                                        <Button 
+                                            variant="primary" 
+                                            disabled={isReleasing}
+                                            onClick={() => {
+                                                setIsReleasing(true);
+                                                router.post(route('payroll.run.release-payslips', lockedRun.id), {}, {
+                                                    onFinish: () => setIsReleasing(false),
+                                                    onSuccess: () => showToast({ type: 'success', title: 'Success', message: 'Official PDF payslips released & emailed to employees.' }),
+                                                    onError: (errs) => showToast({ type: 'error', title: 'Error', message: errs.error || 'Failed to release payslips.' })
+                                                });
+                                            }}
+                                            style={{ backgroundColor: '#059669', borderColor: '#059669', color: '#ffffff' }}
+                                        >
+                                            {isReleasing ? '⌛ Releasing...' : lockedRun.payslip_released_at ? '📄 Re-send Official Payslips' : '📄 Release & Email Official Payslips'}
+                                        </Button>
+                                    </>
                                 )}
                                 <Button variant="secondary" onClick={() => window.print()}>🖨 Print Payslip</Button>
                             </div>
@@ -405,6 +424,20 @@ export default function Payslip({ items, clients = [], selectedClientId, selecte
                         No finalized payslips available for the selected client and month.
                     </div>
                 )}
+
+                <PayrollCorrectionModal 
+                    isOpen={showSingleCorrectionModal} 
+                    onClose={() => setShowSingleCorrectionModal(false)} 
+                    parentRun={lockedRun} 
+                    items={items?.data || []} 
+                />
+
+                <BatchPayrollCorrectionModal 
+                    isOpen={showBatchCorrectionModal} 
+                    onClose={() => setShowBatchCorrectionModal(false)} 
+                    parentRun={lockedRun} 
+                    items={items?.data || []} 
+                />
             </AuthenticatedLayout>
         </RoleGuard>
     );

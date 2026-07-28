@@ -137,7 +137,9 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
   useEffect(() => {
     const timer = setTimeout(async () => {
       try {
+        const selectedClientId = formData.clientPartner || (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('client_id') : null);
         const payload = {
+          client_id: selectedClientId,
           basic_pay: formData.basicSal || 0,
           hra: formData.hraSal || 0,
           conveyance: formData.conveyanceSal || 0,
@@ -147,7 +149,8 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
           other_additions: formData.otherSal || 0,
           pf_applicable: formData.pfToggle,
           esi_applicable: formData.esiToggle,
-          pt_deduction_override: formData.ptDeduction
+          pt_deduction_override: formData.ptDeduction,
+          gender: formData.gender
         };
         const res = await axios.post(route('employees.calculate-preview'), payload);
         if (res.status === 200) {
@@ -159,6 +162,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
     }, 500);
     return () => clearTimeout(timer);
   }, [
+    formData.clientPartner, formData.gender,
     formData.basicSal, formData.hraSal, formData.conveyanceSal, 
     formData.daSal, formData.medicalSal, formData.specialSal, 
     formData.otherSal, formData.pfToggle, formData.esiToggle, 
@@ -1354,8 +1358,34 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                       
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", color: "var(--text-muted)" }}>
                         <span>Estimated Employee Deductions (PF, ESI, PT):</span>
-                        <span>- ₹{previewCalculations ? (previewCalculations.employee_pf_monthly + previewCalculations.employee_esi_monthly + previewCalculations.pt_monthly)?.toLocaleString('en-IN') : '0'}</span>
+                        <span style={{ fontWeight: "600", color: "#991B1B" }}>- ₹{previewCalculations ? (previewCalculations.employee_pf_monthly + previewCalculations.employee_esi_monthly + previewCalculations.pt_monthly)?.toLocaleString('en-IN') : '0'}</span>
                       </div>
+
+                      {previewCalculations && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem", background: "#FFF5F5", padding: "0.75rem", borderRadius: "6px", border: "1px solid #FED7D7", fontSize: "0.78rem" }}>
+                          <div style={{ fontWeight: "700", color: "#9B2C2C", marginBottom: "0.15rem" }}>Employee Deductions Breakdown:</div>
+                          
+                          <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: "0.5rem" }}>
+                            <span>• Employee PF Contribution (12%):</span>
+                            <strong>₹{(previewCalculations.employee_pf_monthly || 0).toLocaleString('en-IN')}</strong>
+                          </div>
+
+                          <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: "0.5rem" }}>
+                            <span>• Employee ESI Contribution (0.75%):</span>
+                            <strong>{previewCalculations.employee_esi_monthly > 0 ? `₹${(previewCalculations.employee_esi_monthly || 0).toLocaleString('en-IN')}` : '₹0.00 (Exempt / Not Applicable)'}</strong>
+                          </div>
+
+                          <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: "0.5rem" }}>
+                            <span>• Professional Tax (PT):</span>
+                            <strong>₹{(previewCalculations.pt_monthly || 0).toLocaleString('en-IN')}</strong>
+                          </div>
+
+                          <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px dashed #FEB2B2", paddingTop: "0.35rem", marginTop: "0.15rem", fontWeight: "700", color: "#742A2A" }}>
+                            <span>Total Employee Deductions:</span>
+                            <span>- ₹{(previewCalculations.employee_pf_monthly + previewCalculations.employee_esi_monthly + previewCalculations.pt_monthly).toLocaleString('en-IN')}</span>
+                          </div>
+                        </div>
+                      )}
 
                       <div style={{ backgroundColor: "var(--primary-navy)", color: "white", padding: "1rem", borderRadius: "var(--radius-sm)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <span style={{ fontWeight: "500" }}>Estimated Net Take Home:</span>
@@ -1364,7 +1394,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
 
                       {previewCalculations && (
                         <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem", background: "#F8FAFC", padding: "0.75rem", borderRadius: "6px", border: "1px solid var(--border-color)", fontSize: "0.78rem" }}>
-                          <div style={{ fontWeight: "700", color: "#334155", marginBottom: "0.15rem" }}>Employer Statutory Contributions Breakdown:</div>
+                          <div style={{ fontWeight: "700", color: "#334155", marginBottom: "0.15rem" }}>Employer Contributions & Accruals Breakdown:</div>
                           <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: "0.5rem" }}>
                             <span>• Employer EPF (12%):</span>
                             <strong>₹{(previewCalculations.employer_epf_monthly || 0).toLocaleString('en-IN')}</strong>
@@ -1378,9 +1408,30 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                             <strong>₹{(previewCalculations.epf_admin_monthly || 0).toLocaleString('en-IN')}</strong>
                           </div>
                           <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px dashed #CBD5E1", paddingTop: "0.35rem", marginTop: "0.15rem", fontWeight: "700", color: "#1E293B" }}>
-                            <span>Total Employer PF Contribution:</span>
+                            <span>Total Employer PF & EPFO Charges:</span>
                             <span style={{ color: "#1F3864" }}>₹{(previewCalculations.employer_pf_monthly || 0).toLocaleString('en-IN')}</span>
                           </div>
+
+                          {previewCalculations.employer_esi_monthly > 0 && (
+                            <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: "0.5rem", marginTop: "0.15rem" }}>
+                              <span>• Employer ESI Contribution (3.25%):</span>
+                              <strong>₹{(previewCalculations.employer_esi_monthly || 0).toLocaleString('en-IN')}</strong>
+                            </div>
+                          )}
+
+                          {previewCalculations.gratuity_accrual_monthly > 0 && (
+                            <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: "0.5rem", marginTop: "0.15rem", color: "#0F766E" }}>
+                              <span>• Monthly Gratuity Accrual (15 days/yr = ~4.81% of Basic+DA):</span>
+                              <strong>+ ₹{(previewCalculations.gratuity_accrual_monthly || 0).toLocaleString('en-IN')}</strong>
+                            </div>
+                          )}
+
+                          {previewCalculations.bonus_accrual_monthly > 0 && (
+                            <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: "0.5rem", marginTop: "0.15rem", color: "#B45309" }}>
+                              <span>• Monthly Statutory Bonus Accrual:</span>
+                              <strong>+ ₹{(previewCalculations.bonus_accrual_monthly || 0).toLocaleString('en-IN')}</strong>
+                            </div>
+                          )}
                         </div>
                       )}
 

@@ -13,6 +13,17 @@
     <div style="border: 1px solid #e2e8f0; border-top: none; padding: 25px; background-color: #ffffff; border-radius: 0 0 6px 6px;">
         <p>Dear <strong>{{ $employee->full_name }}</strong> (Code: {{ $employee->employee_code }}),</p>
 
+        @if(!empty($item->is_correction))
+            <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 15px; margin: 15px 0;">
+                <p style="margin: 0; color: #1e40af; font-size: 14px; font-weight: bold;">
+                    📌 Payroll Adjustment / Correction for {{ $formattedMonth }}: {{ $item->correction_reason }}
+                </p>
+                <p style="margin: 5px 0 0 0; color: #1e3a8a; font-size: 13px;">
+                    This email contains the net salary adjustment variance calculated for your account.
+                </p>
+            </div>
+        @endif
+
         <p>Your monthly salary for <strong>{{ $formattedMonth }}</strong> has been calculated. Below is your detailed attendance and compensation summary:</p>
 
         <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 15px; margin: 20px 0;">

@@ -716,7 +716,7 @@ const renderDocumentRows = () => {
                     <td>₹{employee.pf_applicable ? Math.round(Math.min(employee.basic_pay || 0, 15000) * 0.005).toLocaleString('en-IN') : 0}</td>
                   </tr>
                   <tr style={{"backgroundColor":"#FEF3C7","color":"#92400E","fontWeight":"bold","borderTop":"1px dashed #F59E0B","borderBottom":"1px dashed #F59E0B"}}>
-                    <td><strong>Total Employer PF Contribution</strong></td>
+                    <td><strong>Total Employer PF & EPFO Charges</strong></td>
                     <td><span className="badge badge-warning" style={{ background: '#FDE68A', color: '#78350F' }}>PF Subtotal</span></td>
                     <td style={{ color: '#92400E', fontSize: '1.05rem' }}>₹{(employee.employer_pf_monthly || 0).toLocaleString('en-IN')}</td>
                   </tr>
