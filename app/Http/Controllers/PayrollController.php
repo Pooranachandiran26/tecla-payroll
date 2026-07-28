@@ -1232,7 +1232,13 @@ class PayrollController extends Controller
         }
 
         $tempPath = storage_path('app/temp_corr_tmpl_' . \Illuminate\Support\Str::random(16) . '.xlsx');
-        $writer = \Spatie\SimpleExcel\SimpleExcelWriter::create($tempPath, 'xlsx');
+        $writer = \Spatie\SimpleExcel\SimpleExcelWriter::create($tempPath, 'xlsx', function ($spoutWriter) {
+            $options = $spoutWriter->getOptions();
+            if (method_exists($options, 'setColumnWidth')) {
+                $options->setColumnWidth(35.0, 1);
+                $options->setColumnWidth(75.0, 2);
+            }
+        });
 
         $headerStyle = (new \OpenSpout\Common\Entity\Style\Style())
             ->setFontBold()
@@ -1244,6 +1250,8 @@ class PayrollController extends Controller
         $writer->nameCurrentSheet('Reference Info & Rules');
 
         if ($context) {
+            $reqSlots = $context['working_days_slots'] ?? 26;
+
             // Section 1: Client & Payroll Cycle Timing
             $writer->addRow(['Section' => '--- CLIENT & PAYROLL CYCLE TIMING ---', 'Details' => ''], $headerStyle);
             $writer->addRow(['Section' => 'Target Client', 'Details' => $context['client_name'] ?? 'N/A']);
@@ -1258,7 +1266,7 @@ class PayrollController extends Controller
             $writer->addRow(['Section' => 'Total Calendar Days', 'Details' => (string)($context['total_calendar_days'] ?? 30)]);
             $writer->addRow(['Section' => 'Off-Days Pattern', 'Details' => ($context['off_days_label'] ?? 'Sunday') . ' (' . ($context['off_days_count'] ?? 0) . ' off days)']);
             $writer->addRow(['Section' => 'Workday Holidays Count', 'Details' => (string)($context['workday_holiday_count'] ?? 0)]);
-            $writer->addRow(['Section' => 'Required Working Days Slots', 'Details' => (string)($context['working_days_slots'] ?? 26)]);
+            $writer->addRow(['Section' => 'Required Working Days Slots', 'Details' => (string)($reqSlots)]);
             $writer->addRow(['Section' => '', 'Details' => '']);
 
             // Section 3: Configured Holidays
@@ -1303,10 +1311,10 @@ class PayrollController extends Controller
 
             // Section 5: Instruction Rule
             $writer->addRow(['Section' => '--- HOW TO FILL THIS SHEET ---', 'Details' => ''], $headerStyle);
-            $writer->addRow(['Section' => 'Data Entry Instructions', 'Details' => 'Switch to Sheet 2 ("Attendance Entry") to enter attendance data. Enter real days_present + days_lop. For each employee, days_present + days_lop should equal Total Calendar Days (' . ($context['total_calendar_days'] ?? 30) . ').']);
+            $writer->addRow(['Section' => 'Data Entry Instructions', 'Details' => 'Switch to Sheet 2 ("Attendance Entry") to enter attendance data. Enter ONLY real working days worked + LOP. For each employee, days_present + days_lop must equal ' . $reqSlots . '.']);
         } else {
             $writer->addRow(['Section' => '--- HOW TO FILL THIS SHEET ---', 'Details' => ''], $headerStyle);
-            $writer->addRow(['Section' => 'Data Entry Instructions', 'Details' => 'Switch to Sheet 2 ("Attendance Entry") to enter attendance data. Enter real days_present + days_lop.']);
+            $writer->addRow(['Section' => 'Data Entry Instructions', 'Details' => 'Switch to Sheet 2 ("Attendance Entry") to enter attendance data. Enter ONLY real working days worked + LOP.']);
         }
 
         // --- SHEET 2: "Attendance Entry" (SECOND TAB) ---
