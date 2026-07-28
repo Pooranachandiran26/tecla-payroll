@@ -286,9 +286,9 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
 
   const getPFCeilingHint = useCallback(() => {
     if (parseFloat(formData.pfCeiling) > 15000) {
-      return { text: 'Voluntary PF — contributions computed on actual basic.', type: 'warning' };
+      return { text: '⚠️ Maximum allowed is ₹15,000. Raising above the statutory ceiling requires additional EPS-split configuration not yet available.', type: 'danger' };
     }
-    return { text: 'Standard EPFO statutory wage ceiling is ₹15,000.', type: '' };
+    return { text: 'Wage Ceiling Override (₹) — must be ₹15,000 or lower. Standard EPFO statutory ceiling is ₹15,000.', type: '' };
   }, [formData.pfCeiling]);
 
   const handleESILimit = useCallback((value) => {
@@ -1151,6 +1151,7 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
       
       client.contacts.forEach(c => {
         const contactData = {
+          id: c.id,
           name: c.full_name || '',
           designation: c.designation || '',
           email: c.email || '',
@@ -1159,9 +1160,9 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
           ccInvoice: c.cc_on_invoice !== undefined ? !!c.cc_on_invoice : false,
           onboardingKits: c.receive_onboarding_kits !== undefined ? !!c.receive_onboarding_kits : false,
           prefs: {
-            email: c.preference_email !== undefined ? !!c.preference_email : true,
-            sms: c.preference_sms !== undefined ? !!c.preference_sms : false,
-            wa: c.preference_whatsapp !== undefined ? !!c.preference_whatsapp : false
+            email: c.preference_email !== undefined ? !!c.preference_email : (Array.isArray(c.communication_preferences) ? c.communication_preferences.includes('Email') : true),
+            sms: c.preference_sms !== undefined ? !!c.preference_sms : (Array.isArray(c.communication_preferences) ? c.communication_preferences.includes('SMS') : false),
+            wa: c.preference_whatsapp !== undefined ? !!c.preference_whatsapp : (Array.isArray(c.communication_preferences) ? (c.communication_preferences.includes('WhatsApp') || c.communication_preferences.includes('wa')) : false)
           }
         };
 

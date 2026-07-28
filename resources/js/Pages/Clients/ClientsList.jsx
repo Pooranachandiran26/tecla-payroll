@@ -7,6 +7,7 @@ import ConfirmDialog from '../../Components/ui/ConfirmDialog';
 import Input from '../../Components/ui/Input';
 import useToast from '../../Hooks/useToast';
 import { usePage } from '@inertiajs/react';
+import { Plus, Search, Filter, Building2, Users, FileText, CheckCircle2, AlertTriangle, RotateCcw } from 'lucide-react';
 
 export default function ClientsList({ clients, stats = {} }) {
   const { auth } = usePage().props;
@@ -145,12 +146,16 @@ export default function ClientsList({ clients, stats = {} }) {
                 Manage all client profiles, contracts, and view high-level payroll metrics.
               </p>
             </div>
-            <Link href={route('clients.create')} className="btn btn-primary">➕ Add New Client</Link>
+            <Link href={route('clients.create')} className="btn btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              <Plus size={16} /> Add New Client
+            </Link>
           </div>
 
           {/* Advanced Filters Row */}
           <div className="card" style={{ padding: "1rem", marginBottom: "1.5rem", display: "flex", gap: "1rem", alignItems: "center", flexWrap: "wrap" }}>
-            <div style={{ fontSize: "0.85rem", fontWeight: "600", color: "var(--primary-navy)" }}>Filters:</div>
+            <div style={{ fontSize: "0.85rem", fontWeight: "600", color: "var(--primary-navy)", display: "flex", alignItems: "center", gap: "5px" }}>
+              <Filter size={15} /> Filters:
+            </div>
 
             <div style={{ flex: "1", minWidth: "200px" }}>
               <input type="text" name="search" className="form-control" placeholder="Search by Client Name, Code, GSTIN or PAN..."
@@ -212,7 +217,9 @@ export default function ClientsList({ clients, stats = {} }) {
               </label>
             </div>
 
-            <button className="btn btn-secondary" style={{ padding: "0.4rem 1rem", border: "none", color: "var(--text-muted)" }} onClick={clearFilters}>Clear Filters</button>
+            <button className="btn btn-secondary" style={{ padding: "0.4rem 1rem", border: "none", color: "var(--text-muted)", display: "inline-flex", alignItems: 'center', gap: '5px' }} onClick={clearFilters}>
+              <RotateCcw size={13} /> Clear Filters
+            </button>
           </div>
 
           {/* Summary Stats Bar */}

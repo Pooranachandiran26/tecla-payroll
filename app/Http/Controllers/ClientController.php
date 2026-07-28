@@ -99,6 +99,25 @@ class ClientController extends Controller
         ]);
     }
 
+    private function getGstMasterSettings()
+    {
+        $gstSettings = \App\Services\SettingsService::group('gst');
+        if (!empty($gstSettings['gst_rates'])) {
+            if (is_string($gstSettings['gst_rates'])) {
+                try {
+                    $gstSettings['gst_rates'] = json_decode($gstSettings['gst_rates'], true);
+                } catch (\Exception $e) {}
+            }
+            if (is_array($gstSettings['gst_rates'])) {
+                $gstSettings['gst_rates'] = array_values($gstSettings['gst_rates']);
+            }
+        } else {
+            $gstSettings['gst_rates'] = [];
+        }
+
+        return $gstSettings;
+    }
+
     /**
      * Show the form for creating a new resource.
      */
@@ -115,7 +134,8 @@ class ClientController extends Controller
             
         return Inertia::render('Clients/ClientForm', [
             'accountManagers' => $accountManagers,
-            'defaultLopBasis' => $defaultLopBasis
+            'defaultLopBasis' => $defaultLopBasis,
+            'gstSettings'     => $this->getGstMasterSettings()
         ]);
     }
 
@@ -135,9 +155,10 @@ class ClientController extends Controller
         $defaultLopBasis = \App\Services\SettingsService::get('payroll_configuration.default_lop_basis', '30');
             
         return Inertia::render('Clients/ClientForm', [
-            'client' => $client,
+            'client'          => $client,
             'accountManagers' => $accountManagers,
-            'defaultLopBasis' => $defaultLopBasis
+            'defaultLopBasis' => $defaultLopBasis,
+            'gstSettings'     => $this->getGstMasterSettings()
         ]);
     }
 

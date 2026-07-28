@@ -29,7 +29,7 @@ window.countText = countText;
       t.textContent = message;
       t.style.transform = 'translateY(0)';
       t.style.opacity = '1';
-      setTimeout(() => { t.style.transform = 'translateY(100px)'; t.style.opacity = '0'; }, 3000);
+      setTimeout(() => { t.style.transform = 'translateY(100px)'; t.style.opacity = '0'; }, 2000);
     }
 
     const defaultClients = [

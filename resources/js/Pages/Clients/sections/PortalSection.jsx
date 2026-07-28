@@ -1,4 +1,5 @@
 import React, { useRef } from 'react';
+import { Globe, Image } from 'lucide-react';
 
 export default function PortalSection({ formData, onChange, hook }) {
   const logoInputRef = useRef(null);
@@ -23,7 +24,7 @@ export default function PortalSection({ formData, onChange, hook }) {
   return (
     <>
       <div className="section-header">
-        <div className="section-icon">🔐</div>
+        <div className="section-icon"><Globe size={18} /></div>
         <h3>Client Portal Access</h3>
       </div>
 
@@ -136,7 +137,9 @@ export default function PortalSection({ formData, onChange, hook }) {
         <div className="form-group" style={{ marginTop: '1rem' }}>
           <label>Client Logo (for Payslip & Portal Branding)</label>
           <div className="doc-upload-zone" style={{ padding: '1.5rem', cursor: 'pointer' }} onClick={handleLogoClick}>
-            <div className="upload-icon" style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>🖼️</div>
+            <div className="upload-icon" style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.5rem' }}>
+              <Image size={28} color="var(--primary-blue)" />
+            </div>
             <p style={{ fontWeight: 600 }}>Click to upload logo</p>
             <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>PNG, JPG, SVG — Max 2MB</p>
             {formData.logoUrl && (

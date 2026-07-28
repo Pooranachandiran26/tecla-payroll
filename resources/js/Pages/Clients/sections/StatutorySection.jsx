@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { usePage } from '@inertiajs/react';
 import { PT_STATES, STATE_REG_OPTIONS } from '../constants/clientFormData';
+import { ShieldCheck, Shield, AlertTriangle, Zap, CheckCircle2, Scale, Lock } from 'lucide-react';
 
 const resolveStateName = (st, defaultState = 'Tamil Nadu') => {
   if (!st || st === 'auto') return defaultState;
@@ -148,14 +149,17 @@ export default function StatutorySection({ formData, onChange, hook }) {
   return (
     <>
       <div className="section-header">
-        <div className="section-icon">⚖️</div>
+        <div className="section-icon"><ShieldCheck size={18} /></div>
         <h3>Statutory Defaults for This Client</h3>
         <span className="section-badge">INHERITED BY CANDIDATES</span>
       </div>
 
-      <div className="warn-box" style={{ marginBottom: '1rem' }}>
-        ⚠️ These are <strong>default settings</strong> applied to ALL new candidates registered under this client.
-        Individual overrides can be done on each candidate's profile page.
+      <div className="warn-box" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+        <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
+        <div>
+          These are <strong>default settings</strong> applied to ALL new candidates registered under this client.
+          Individual overrides can be done on each candidate's profile page.
+        </div>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -168,7 +172,7 @@ export default function StatutorySection({ formData, onChange, hook }) {
           </div>
           <div className="stat-rate">
             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>Wage Ceiling Override (₹)</div>
-            <input type="number" className="stat-rate-input" placeholder="15000"
+            <input type="number" className="stat-rate-input" placeholder="15000" max="15000" min="0"
               value={formData.pfCeiling} onChange={e => hook.handlePFCeiling(e.target.value)} onWheel={e => e.target.blur()} {...lockProps} />
             <div className={`field-hint ${hook.getPFCeilingHint().type}`} style={{ fontSize: '0.65rem', marginTop: '0.2rem' }}>
               {hook.getPFCeilingHint().text}
@@ -200,7 +204,7 @@ export default function StatutorySection({ formData, onChange, hook }) {
             <span>0.5% on wages up to ₹15,000. Employer contribution only.</span>
             {Boolean(formData.edliExempted) ? (
               <small style={{ color: '#15803D', display: 'block', marginTop: '4px', fontWeight: '600' }}>
-                🛡️ EDLI Exempted Establishment: Approved group life insurance active. EDLI contribution set to ₹0.00 (Reduces total Employer PF contribution from ₹1,950 to ₹1,875). Employer EPF (12%) and Admin Charges (0.5%) remain active.
+                <Shield size={13} style={{ display: 'inline', marginRight: '4px', verticalAlign: '-1px' }} /> EDLI Exempted Establishment: Approved group life insurance active. EDLI contribution set to ₹0.00 (Reduces total Employer PF contribution from ₹1,950 to ₹1,875). Employer EPF (12%) and Admin Charges (0.5%) remain active.
               </small>
             ) : (
               <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '4px' }}>
@@ -283,7 +287,7 @@ export default function StatutorySection({ formData, onChange, hook }) {
                 fontSize: '0.72rem'
               }}>
                 <div style={{ fontWeight: '700', color: '#0369A1', marginBottom: '0.35rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>⚡ PT Deduction Slabs ({getPtPreview(formData.ptState, formData.regState).state}):</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Zap size={13} /> PT Deduction Slabs ({getPtPreview(formData.ptState, formData.regState).state}):</span>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', color: '#0F172A' }}>
                   {getPtPreview(formData.ptState, formData.regState).slabs.map((s, idx) => (
@@ -342,8 +346,8 @@ export default function StatutorySection({ formData, onChange, hook }) {
                   borderRadius: '6px',
                   fontSize: '0.72rem'
                 }}>
-                  <div style={{ fontWeight: '700', color: '#86198F', marginBottom: '0.35rem' }}>
-                    ⚡ LWF State Deductions ({activeState}):
+                  <div style={{ fontWeight: '700', color: '#86198F', marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <Zap size={13} /> LWF State Deductions ({activeState}):
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', color: '#0F172A' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem' }}>
@@ -361,18 +365,18 @@ export default function StatutorySection({ formData, onChange, hook }) {
 
                     {/* Statutory Rule Compliance Badge */}
                     {isStandardTnKa && (
-                      <div style={{ fontSize: '0.67rem', color: '#166534', background: '#DCFCE7', border: '1px solid #86EFAC', padding: '0.2rem 0.4rem', borderRadius: '4px', marginTop: '0.25rem' }}>
-                        ✅ Statutory Rule Compliant: {activeState} LWF Act mandates Annual deduction in December.
+                      <div style={{ fontSize: '0.67rem', color: '#166534', background: '#DCFCE7', border: '1px solid #86EFAC', padding: '0.2rem 0.4rem', borderRadius: '4px', marginTop: '0.25rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <CheckCircle2 size={12} /> Statutory Rule Compliant: {activeState} LWF Act mandates Annual deduction in December.
                       </div>
                     )}
                     {isTnOrKa && !isStandardTnKa && (
-                      <div style={{ fontSize: '0.67rem', color: '#991B1B', background: '#FEE2E2', border: '1px solid #FCA5A5', padding: '0.2rem 0.4rem', borderRadius: '4px', marginTop: '0.25rem' }}>
-                        ⚠️ Non-Standard Setting: {activeState} LWF Act mandates Annual deduction in December. (Bi-Annual is standard in Maharashtra).
+                      <div style={{ fontSize: '0.67rem', color: '#991B1B', background: '#FEE2E2', border: '1px solid #FCA5A5', padding: '0.2rem 0.4rem', borderRadius: '4px', marginTop: '0.25rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <AlertTriangle size={12} /> Non-Standard Setting: {activeState} LWF Act mandates Annual deduction in December. (Bi-Annual is standard in Maharashtra).
                       </div>
                     )}
                     {isStandardMh && (
-                      <div style={{ fontSize: '0.67rem', color: '#166534', background: '#DCFCE7', border: '1px solid #86EFAC', padding: '0.2rem 0.4rem', borderRadius: '4px', marginTop: '0.25rem' }}>
-                        ✅ Statutory Rule Compliant: Maharashtra LWF Act mandates Bi-Annual deduction in June & December.
+                      <div style={{ fontSize: '0.67rem', color: '#166534', background: '#DCFCE7', border: '1px solid #86EFAC', padding: '0.2rem 0.4rem', borderRadius: '4px', marginTop: '0.25rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <CheckCircle2 size={12} /> Statutory Rule Compliant: Maharashtra LWF Act mandates Bi-Annual deduction in June & December.
                       </div>
                     )}
                   </div>
@@ -389,20 +393,13 @@ export default function StatutorySection({ formData, onChange, hook }) {
           </div>
         </div>
 
-        {/* TDS */}
+        {/* TDS / Income Tax */}
         <div className="stat-row">
           <div className="stat-info">
-            <strong>TDS (Tax Deducted at Source) — Income Tax Act</strong>
-            <span>Deducted under Sec 192. New Regime is default since FY 2023-24. Employee can opt for Old Regime via declaration.</span>
+            <strong>TDS / Income Tax (Sec 192)</strong>
+            <span>TDS deduction based on candidate's regime choice (New regime default).</span>
           </div>
-          <div className="stat-rate">
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>Default Tax Regime</div>
-            <select className="stat-rate-input" value={formData.tdsRegime} onChange={e => onChange('tdsRegime', e.target.value)} {...lockProps}>
-              <option value="new">New Regime (Default)</option>
-              <option value="old">Old Regime</option>
-              <option value="employee_choice">Employee's Choice</option>
-            </select>
-          </div>
+          <div className="stat-rate"></div>
           <div className="stat-toggle">
             <label className="toggle-container" title={lockProps.title}>
               <input type="checkbox" className="toggle-input"
@@ -415,18 +412,18 @@ export default function StatutorySection({ formData, onChange, hook }) {
         {/* Gratuity */}
         <div className="stat-row" style={{ flexWrap: 'wrap' }}>
           <div className="stat-info">
-            <strong>Gratuity — Payment of Gratuity Act 1972</strong>
-            <span>15 days wages per year calculated on <strong>Basic + DA</strong> at exit settlement.</span>
+            <strong>Gratuity Provision — Payment of Gratuity Act 1972</strong>
+            <span>4.81% of Basic (15/26 days per completed year of service after 5 years).</span>
           </div>
           <div className="stat-rate" style={{ minWidth: '240px' }}>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>Gratuity Treatment</div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>Gratuity Mode</div>
             <select className="stat-rate-input" value={formData.gratuityMode} onChange={e => onChange('gratuityMode', e.target.value)} {...lockProps}>
-              <option value="ctc_included">Deduct from CTC (Accrued ~4.81%)</option>
-              <option value="over_above">Over & Above CTC (Client bears cost)</option>
-              <option value="none">Not Accrued (Paid out on event)</option>
+              <option value="ctc_included">Included in CTC (4.81% monthly accrual)</option>
+              <option value="payable_on_separation">Payable on Separation (Employer Liability)</option>
+              <option value="not_applicable">Not Applicable</option>
             </select>
 
-            {/* Live Gratuity Statutory Guidance Box */}
+            {/* Live Gratuity Rules Box */}
             {Boolean(formData.gratuityApplicable) && (
               <div style={{
                 marginTop: '0.5rem',
@@ -436,8 +433,8 @@ export default function StatutorySection({ formData, onChange, hook }) {
                 borderRadius: '6px',
                 fontSize: '0.72rem'
               }}>
-                <div style={{ fontWeight: '700', color: '#B45309', marginBottom: '0.35rem' }}>
-                  ⚖️ Gratuity Act Compliance (Sec 4(2)):
+                <div style={{ fontWeight: '700', color: '#B45309', marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <Scale size={13} /> Gratuity Act Compliance (Sec 4(2)):
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', color: '#0F172A' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem' }}>
@@ -490,8 +487,8 @@ export default function StatutorySection({ formData, onChange, hook }) {
                 borderRadius: '6px',
                 fontSize: '0.72rem'
               }}>
-                <div style={{ fontWeight: '700', color: '#047857', marginBottom: '0.35rem' }}>
-                  ⚡ Payment of Bonus Act Rules (1965/2015):
+                <div style={{ fontWeight: '700', color: '#047857', marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <Zap size={13} /> Payment of Bonus Act Rules (1965/2015):
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', color: '#0F172A' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem' }}>
@@ -603,7 +600,7 @@ export default function StatutorySection({ formData, onChange, hook }) {
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Denominator used for daily wage calculation (Basic / 30). Standard fixed monthly divisor base.</div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#F1F5F9', border: '1px solid #CBD5E1', padding: '0.4rem 0.85rem', borderRadius: '6px', fontWeight: 'bold', color: 'var(--primary-navy)', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
-              🔒 Strictly 30 Days
+              <Lock size={14} /> Strictly 30 Days
             </div>
           </div>
         </div>
