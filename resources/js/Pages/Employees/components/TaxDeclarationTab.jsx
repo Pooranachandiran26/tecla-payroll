@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { usePage, router } from '@inertiajs/react';
+import { Landmark, Check, Clock, X, FileText, Save } from 'lucide-react';
+import ConfirmDialog from '../../../Components/ui/ConfirmDialog';
 
 export default function TaxDeclarationTab({ employee, taxDeclaration: decProp, taxComparison: compProp }) {
     const { auth } = usePage().props;
@@ -7,6 +9,8 @@ export default function TaxDeclarationTab({ employee, taxDeclaration: decProp, t
 
     const declaration = decProp || {};
     const comparison = compProp || {};
+
+    const [verifyDialog, setVerifyDialog] = useState({ isOpen: false, status: null });
 
     const [form, setForm] = useState({
         regime: declaration.regime || employee.tds_regime || 'new',
@@ -79,18 +83,7 @@ export default function TaxDeclarationTab({ employee, taxDeclaration: decProp, t
     };
 
     const handleVerify = (status) => {
-        let reason = null;
-        if (status === 'rejected') {
-            reason = prompt('Reason for rejection:');
-            if (!reason) return;
-        }
-
-        if (confirm(`Are you sure you want to mark this declaration as ${status}?`)) {
-            router.post(route('employees.tax-declarations.verify', { id: employee.id, declarationId: declaration.id }), {
-                status: status,
-                rejection_reason: reason,
-            });
-        }
+        setVerifyDialog({ isOpen: true, status });
     };
 
     const newReg = comparison.new_regime || {};
@@ -103,7 +96,7 @@ export default function TaxDeclarationTab({ employee, taxDeclaration: decProp, t
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
                     <div>
                         <h3 style={{ fontSize: '1.15rem', color: 'var(--primary-navy)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <span>🏛️</span> Income Tax Declaration &amp; TDS Preview (FY {comparison.financial_year || '2026-2027'})
+                            <Landmark size={18} className="text-[#1F3864]" /> Income Tax Declaration &amp; TDS Preview (FY {comparison.financial_year || '2026-2027'})
                         </h3>
                         <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
                             Sec 192 TDS auto-calculation based on verified investment proofs &amp; statutory slabs.
@@ -111,22 +104,22 @@ export default function TaxDeclarationTab({ employee, taxDeclaration: decProp, t
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                         {declaration.status === 'verified' && (
-                            <span className="badge badge-success" style={{ fontSize: '0.85rem', padding: '0.35rem 0.75rem' }}>✓ Verified &amp; Active</span>
+                            <span className="badge badge-success" style={{ fontSize: '0.85rem', padding: '0.35rem 0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Check size={13} /> Verified &amp; Active</span>
                         )}
                         {declaration.status === 'submitted' && (
-                            <span className="badge badge-warning" style={{ fontSize: '0.85rem', padding: '0.35rem 0.75rem' }}>⏳ Pending Verification</span>
+                            <span className="badge badge-warning" style={{ fontSize: '0.85rem', padding: '0.35rem 0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Clock size={13} /> Pending Verification</span>
                         )}
                         {declaration.status === 'rejected' && (
-                            <span className="badge badge-danger" style={{ fontSize: '0.85rem', padding: '0.35rem 0.75rem' }}>✕ Rejected</span>
+                            <span className="badge badge-danger" style={{ fontSize: '0.85rem', padding: '0.35rem 0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><X size={13} /> Rejected</span>
                         )}
                         {(!declaration.status || declaration.status === 'draft') && (
-                            <span className="badge badge-neutral" style={{ fontSize: '0.85rem', padding: '0.35rem 0.75rem' }}>📝 Draft / Not Submitted</span>
+                            <span className="badge badge-neutral" style={{ fontSize: '0.85rem', padding: '0.35rem 0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><FileText size={13} /> Draft / Not Submitted</span>
                         )}
 
                         {isStaff && declaration.id && declaration.status === 'submitted' && (
                             <>
-                                <button className="btn btn-success btn-xs" onClick={() => handleVerify('verified')}>✓ Approve</button>
-                                <button className="btn btn-danger btn-xs" onClick={() => handleVerify('rejected')}>✕ Reject</button>
+                                <button className="btn btn-success btn-xs" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }} onClick={() => handleVerify('verified')}><Check size={13} /> Approve</button>
+                                <button className="btn btn-danger btn-xs" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }} onClick={() => handleVerify('rejected')}><X size={13} /> Reject</button>
                             </>
                         )}
                     </div>
@@ -292,11 +285,34 @@ export default function TaxDeclarationTab({ employee, taxDeclaration: decProp, t
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
-                    <button type="submit" className="btn btn-navy" disabled={processing}>
-                        {processing ? 'Saving...' : '💾 Submit Tax Declaration'}
+                    <button type="submit" className="btn btn-navy" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }} disabled={processing}>
+                        <Save size={15} /> {processing ? 'Saving...' : 'Submit Tax Declaration'}
                     </button>
                 </div>
             </form>
+
+            {/* Confirm Dialog for Verification */}
+            <ConfirmDialog
+                isOpen={verifyDialog.isOpen}
+                title={`${verifyDialog.status === 'verified' ? 'Approve' : 'Reject'} Tax Declaration`}
+                message={`Are you sure you want to mark this tax declaration as ${verifyDialog.status}?`}
+                confirmLabel={verifyDialog.status === 'verified' ? 'Approve Declaration' : 'Reject Declaration'}
+                variant={verifyDialog.status === 'rejected' ? 'danger' : 'primary'}
+                onClose={() => setVerifyDialog({ isOpen: false, status: null })}
+                onConfirm={() => {
+                    let reason = null;
+                    if (verifyDialog.status === 'rejected') {
+                        reason = prompt('Reason for rejection:');
+                        if (!reason) return;
+                    }
+                    router.post(route('employees.tax-declarations.verify', { id: employee.id, declarationId: declaration.id }), {
+                        status: verifyDialog.status,
+                        rejection_reason: reason,
+                    }, {
+                        onFinish: () => setVerifyDialog({ isOpen: false, status: null })
+                    });
+                }}
+            />
         </div>
     );
 }

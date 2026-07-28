@@ -3,11 +3,40 @@ import AuthenticatedLayout from '../../Layouts/AuthenticatedLayout';
 import { Head, Link, useForm, router, usePage } from '@inertiajs/react';
 import RoleGuard from '../../Components/RoleGuard.jsx';
 import axios from 'axios';
-import { ArrowLeft, History, CheckCircle2, XCircle, Clock, TrendingUp, Calendar, FileText, Sparkles } from 'lucide-react';
+import ConfirmDialog from '../../Components/ui/ConfirmDialog';
+import { ArrowLeft, History, CheckCircle2, XCircle, Clock, TrendingUp, Calendar, FileText, Sparkles, Award, Mail, Send, AlertTriangle } from 'lucide-react';
 
 export default function SalaryRevision({ employee, revisions }) {
     const { auth } = usePage().props;
     const emp = employee?.data || employee || {};
+
+    const probationEndDate = emp.probation_end_date || emp.probationEndDate;
+    const isUnderProbation = probationEndDate ? (new Date(probationEndDate) > new Date()) : false;
+
+    const [emailModal, setEmailModal] = useState({ isOpen: false, revisionId: null, revision: null, subject: '', customNote: '', recipientEmail: '' });
+    const [sendingEmail, setSendingEmail] = useState(false);
+
+    const openEmailModal = (rev) => {
+        const defaultSubject = rev.is_promotion 
+            ? `🎉 Promotion & Salary Revision Letter - ${emp.full_name || 'Staff'}` 
+            : `📈 Salary Revision Letter - ${emp.full_name || 'Staff'}`;
+        const defaultRecipient = emp.personal_email || emp.user?.email || '';
+        
+        setEmailModal({
+            isOpen: true,
+            revisionId: rev.id,
+            revision: rev,
+            subject: defaultSubject,
+            recipientEmail: defaultRecipient,
+            customNote: ''
+        });
+    };
+
+    const [rejectModal, setRejectModal] = useState({ isOpen: false, revisionId: null, reason: '' });
+    const [rejecting, setRejecting] = useState(false);
+
+    const [approveModal, setApproveModal] = useState({ isOpen: false, revisionId: null, revision: null });
+    const [approving, setApproving] = useState(false);
 
     const { data, setData, post, processing, errors } = useForm({
         new_basic_pay: emp.basic_pay || 0,
@@ -19,6 +48,8 @@ export default function SalaryRevision({ employee, revisions }) {
         new_other_additions: emp.other_additions || 0,
         effective_date: new Date().toISOString().split('T')[0],
         reason_for_revision: 'appraisal',
+        is_promotion: false,
+        new_designation: '',
     });
 
     const [preview, setPreview] = useState(null);
@@ -190,26 +221,35 @@ export default function SalaryRevision({ employee, revisions }) {
                                                         <div className="flex items-center justify-center gap-2">
                                                             <button 
                                                                 type="button"
-                                                                className="px-3.5 py-1.5 bg-[#1F3864] hover:bg-[#162746] text-white font-bold text-xs rounded-md shadow-sm transition-all"
-                                                                onClick={() => handleAction(rev.id, 'approve')}
+                                                                className="inline-flex items-center gap-1 px-3.5 py-1.5 bg-[#1F3864] hover:bg-[#162746] text-white font-bold text-xs rounded-md shadow-sm transition-all"
+                                                                onClick={() => setApproveModal({ isOpen: true, revisionId: rev.id, revision: rev })}
                                                             >
-                                                                Approve
+                                                                <CheckCircle2 className="w-3.5 h-3.5" /> Approve
                                                             </button>
                                                             <button 
                                                                 type="button"
-                                                                className="px-3.5 py-1.5 bg-white border border-rose-300 text-rose-600 hover:bg-rose-50 font-bold text-xs rounded-md shadow-sm transition-all"
-                                                                onClick={() => {
-                                                                    const reason = prompt("Enter rejection reason:");
-                                                                    if (reason) handleAction(rev.id, 'reject', reason);
-                                                                }}
+                                                                className="inline-flex items-center gap-1 px-3.5 py-1.5 bg-white border border-rose-300 text-rose-600 hover:bg-rose-50 font-bold text-xs rounded-md shadow-sm transition-all"
+                                                                onClick={() => setRejectModal({ isOpen: true, revisionId: rev.id, reason: '' })}
                                                             >
-                                                                Reject
+                                                                <XCircle className="w-3.5 h-3.5" /> Reject
                                                             </button>
                                                         </div>
                                                     ) : (
-                                                        <span className="text-xs text-slate-500 italic">
-                                                            {rev.status === 'rejected' ? `Reason: ${rev.rejection_reason || 'N/A'}` : (rev.approved_at ? `Resolved: ${new Date(rev.approved_at).toLocaleDateString('en-IN')}` : '—')}
-                                                        </span>
+                                                        <div className="flex items-center justify-center gap-2">
+                                                            <span className="text-xs text-slate-500 italic">
+                                                                {rev.status === 'rejected' ? `Reason: ${rev.rejection_reason || 'N/A'}` : (rev.approved_at ? `Resolved: ${new Date(rev.approved_at).toLocaleDateString('en-IN')}` : '—')}
+                                                            </span>
+                                                            {rev.status === 'approved' && (
+                                                                <button
+                                                                    type="button"
+                                                                    className="inline-flex items-center gap-1 px-3 py-1 bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 font-bold text-xs rounded-md shadow-sm transition-all"
+                                                                    onClick={() => openEmailModal(rev)}
+                                                                    title="Send / Resend Promotion & Salary Revision Letter Email"
+                                                                >
+                                                                    <Mail className="w-3.5 h-3.5" /> Send Letter Mail
+                                                                </button>
+                                                            )}
+                                                        </div>
                                                     )}
                                                 </td>
                                             </tr>
@@ -570,6 +610,80 @@ export default function SalaryRevision({ employee, revisions }) {
                                 </div>
                             )}
 
+                             {/* Optional Promotion Toggle Section */}
+                            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <label className="inline-flex items-center gap-2.5 cursor-pointer select-none">
+                                        <input 
+                                            type="checkbox" 
+                                            className="w-4 h-4 text-[#1F3864] border-slate-300 rounded focus:ring-[#1F3864]" 
+                                            checked={data.is_promotion} 
+                                            onChange={e => {
+                                                const checked = e.target.checked;
+                                                setData(prev => ({
+                                                    ...prev,
+                                                    is_promotion: checked,
+                                                    reason_for_revision: checked ? 'promotion' : prev.reason_for_revision,
+                                                    new_designation: checked ? prev.new_designation : ''
+                                                }));
+                                            }} 
+                                        />
+                                        <span className="text-sm font-bold text-slate-800">Is this a Promotion?</span>
+                                        {isUnderProbation && (
+                                            <span className="text-xs font-bold text-amber-800 bg-amber-100 px-2.5 py-0.5 rounded-full border border-amber-300 ml-2">
+                                                ⚠️ Under Probation until {new Date(probationEndDate).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' })}
+                                            </span>
+                                        )}
+                                    </label>
+                                    {data.is_promotion && (
+                                        <span className="inline-flex items-center gap-1.5 text-xs font-bold text-purple-700 bg-purple-50 px-2.5 py-1 rounded-md border border-purple-200">
+                                            <Award className="w-3.5 h-3.5 text-purple-700 shrink-0" /> Promotion Tagged
+                                        </span>
+                                    )}
+                                </div>
+
+                                {data.is_promotion && isUnderProbation && (
+                                    <div className="flex items-start gap-3 bg-amber-50 border border-amber-300 p-3.5 rounded-xl text-amber-900 text-xs">
+                                        <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                                        <div>
+                                            <div className="font-bold text-amber-950 text-xs uppercase tracking-wider">⚠️ Probation Period Warning</div>
+                                            <div className="mt-1 leading-relaxed text-amber-900">
+                                                This employee is currently under probation until <strong className="font-extrabold underline">{new Date(probationEndDate).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' })}</strong>. Promotion is restricted until the probation period ends.
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {data.is_promotion && (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-200">
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Current Designation</label>
+                                            <input 
+                                                type="text" 
+                                                className="w-full px-3.5 py-2 text-sm font-semibold rounded-lg border border-slate-200 bg-slate-100 text-slate-600 cursor-not-allowed" 
+                                                value={emp.designation || 'Staff'} 
+                                                readOnly 
+                                                disabled 
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                                                New Designation <span className="text-rose-500">*</span>
+                                            </label>
+                                            <input 
+                                                type="text" 
+                                                className={`w-full px-3.5 py-2 text-sm font-semibold rounded-lg border ${errors.new_designation ? 'border-rose-400 focus:ring-rose-200' : 'border-slate-300 focus:border-[#1F3864] focus:ring-[#1F3864]/20'} bg-white transition-all shadow-sm`} 
+                                                placeholder="e.g. Senior Software Engineer"
+                                                value={data.new_designation} 
+                                                onChange={e => setData('new_designation', e.target.value)} 
+                                                required={data.is_promotion}
+                                            />
+                                            {errors.new_designation && <div className="text-xs text-rose-500 mt-1 font-semibold">{errors.new_designation}</div>}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
                             {/* Revision Parameters Form Row */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4 border-t border-slate-200">
                                 <div>
@@ -618,7 +732,8 @@ export default function SalaryRevision({ employee, revisions }) {
                                     className="px-6 py-2.5 text-sm font-bold text-white bg-[#1F3864] hover:bg-[#162746] rounded-lg shadow transition-all flex items-center gap-2 disabled:opacity-50" 
                                     disabled={processing}
                                 >
-                                    {processing ? 'Submitting...' : '✅ Submit for Approval'}
+                                    <Sparkles className="w-4 h-4 text-amber-300" />
+                                    {processing ? 'Submitting...' : 'Submit for Approval'}
                                 </button>
                             </div>
 
@@ -626,6 +741,184 @@ export default function SalaryRevision({ employee, revisions }) {
                     </div>
 
                 </div>
+
+                {/* Send Email Letter Confirmation & Edit Modal */}
+                <ConfirmDialog
+                    isOpen={emailModal.isOpen}
+                    onClose={() => setEmailModal({ isOpen: false, revisionId: null, revision: null, subject: '', customNote: '', recipientEmail: '' })}
+                    onConfirm={() => {
+                        setSendingEmail(true);
+                        router.post(
+                            route('employees.salary-revision.send-email', { id: employee.id, revisionId: emailModal.revisionId }),
+                            {
+                                subject: emailModal.subject,
+                                custom_note: emailModal.customNote,
+                                recipient_email: emailModal.recipientEmail
+                            },
+                            {
+                                onFinish: () => {
+                                    setSendingEmail(false);
+                                    setEmailModal({ isOpen: false, revisionId: null, revision: null, subject: '', customNote: '', recipientEmail: '' });
+                                }
+                            }
+                        );
+                    }}
+                    title="Customize & Send Salary Revision Letter Email"
+                    message={`Customize email subject and personal message before sending to ${emp.full_name || 'Staff'}.`}
+                    confirmLabel="Send Email Letter"
+                    cancelLabel="Cancel"
+                    variant="primary"
+                    loading={sendingEmail}
+                >
+                    {emailModal.revision && (
+                        <div className="space-y-3 mt-3 text-xs">
+                            <div>
+                                <label className="block font-bold text-slate-700 mb-1">
+                                    Recipient Email Address
+                                </label>
+                                <input
+                                    type="email"
+                                    className="w-full text-xs p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-semibold text-slate-800"
+                                    value={emailModal.recipientEmail}
+                                    onChange={(e) => setEmailModal(prev => ({ ...prev, recipientEmail: e.target.value }))}
+                                    placeholder="e.g. employee@company.com"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block font-bold text-slate-700 mb-1">
+                                    Email Subject Line
+                                </label>
+                                <input
+                                    type="text"
+                                    className="w-full text-xs p-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-semibold text-slate-800"
+                                    value={emailModal.subject}
+                                    onChange={(e) => setEmailModal(prev => ({ ...prev, subject: e.target.value }))}
+                                    placeholder="Enter email subject line..."
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block font-bold text-slate-700 mb-1 flex items-center justify-between">
+                                    <span>Personal Message / Note from Management (Optional)</span>
+                                    <span className="text-[10px] text-slate-400 font-normal">Included in email body</span>
+                                </label>
+                                <textarea
+                                    className="w-full text-xs p-2.5 border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                    rows="3"
+                                    placeholder="Add a personalized message or note for the staff member (e.g., Thank you for your leadership and great contributions!)..."
+                                    value={emailModal.customNote}
+                                    onChange={(e) => setEmailModal(prev => ({ ...prev, customNote: e.target.value }))}
+                                ></textarea>
+                            </div>
+
+                            <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs space-y-1.5 text-slate-600">
+                                <div className="flex justify-between items-center">
+                                    <span className="font-semibold">Revision Category:</span>
+                                    <span className={`font-bold px-2 py-0.5 rounded text-[11px] ${emailModal.revision.is_promotion ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}`}>
+                                        {emailModal.revision.is_promotion ? '🎉 Promotion & Salary Revision' : '📈 Salary Revision'}
+                                    </span>
+                                </div>
+                                {emailModal.revision.is_promotion && (
+                                    <div className="flex justify-between items-center">
+                                        <span className="font-semibold">New Designation:</span>
+                                        <span className="font-bold text-purple-700">{emailModal.revision.new_designation || 'N/A'}</span>
+                                    </div>
+                                )}
+                                <div className="flex justify-between items-center">
+                                    <span className="font-semibold">Revised Monthly CTC:</span>
+                                    <span className="font-bold text-slate-900">{formatCurrency(emailModal.revision.new_ctc)}</span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </ConfirmDialog>
+
+                {/* Approve Confirmation Modal */}
+                <ConfirmDialog
+                    isOpen={approveModal.isOpen}
+                    onClose={() => setApproveModal({ isOpen: false, revisionId: null, revision: null })}
+                    onConfirm={() => {
+                        setApproving(true);
+                        router.post(
+                            route('employees.salary-revision.approve', { id: employee.id, revisionId: approveModal.revisionId }),
+                            { action: 'approve' },
+                            {
+                                onFinish: () => {
+                                    setApproving(false);
+                                    setApproveModal({ isOpen: false, revisionId: null, revision: null });
+                                }
+                            }
+                        );
+                    }}
+                    title="Approve Salary Revision"
+                    message={`Approve salary revision for ${emp.full_name || 'Staff'}? This will update their active compensation profile and automatically send the notification email.`}
+                    confirmLabel="Approve & Send Mail"
+                    cancelLabel="Cancel"
+                    variant="primary"
+                    loading={approving}
+                >
+                    {approveModal.revision && (
+                        <div className="bg-emerald-50/60 p-3 rounded-lg border border-emerald-200 text-xs space-y-1.5 text-slate-700 mt-2">
+                            <div className="flex justify-between">
+                                <span className="font-semibold text-slate-600">New Monthly CTC:</span>
+                                <span className="font-bold text-emerald-800">{formatCurrency(approveModal.revision.new_ctc)}</span>
+                            </div>
+                            {approveModal.revision.is_promotion && (
+                                <div className="flex justify-between">
+                                    <span className="font-semibold text-slate-600">Promoted Designation:</span>
+                                    <span className="font-bold text-purple-700">{approveModal.revision.new_designation}</span>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </ConfirmDialog>
+
+                {/* Reject Confirmation Modal */}
+                <ConfirmDialog
+                    isOpen={rejectModal.isOpen}
+                    onClose={() => setRejectModal({ isOpen: false, revisionId: null, reason: '' })}
+                    onConfirm={() => {
+                        if (!rejectModal.reason.trim()) {
+                            alert('Please specify a reason for rejection.');
+                            return;
+                        }
+                        setRejecting(true);
+                        router.post(
+                            route('employees.salary-revision.approve', { id: employee.id, revisionId: rejectModal.revisionId }),
+                            {
+                                action: 'reject',
+                                rejection_reason: rejectModal.reason
+                            },
+                            {
+                                onFinish: () => {
+                                    setRejecting(false);
+                                    setRejectModal({ isOpen: false, revisionId: null, reason: '' });
+                                }
+                            }
+                        );
+                    }}
+                    title="Reject Salary Revision"
+                    message={`Are you sure you want to reject the salary revision for ${emp.full_name || 'Staff'}?`}
+                    confirmLabel="Confirm Rejection"
+                    cancelLabel="Cancel"
+                    variant="danger"
+                    loading={rejecting}
+                >
+                    <div className="space-y-2 mt-2">
+                        <label className="block text-xs font-bold text-slate-700">
+                            Rejection Reason (Required)
+                        </label>
+                        <textarea
+                            className="w-full text-xs p-2.5 border border-slate-300 rounded-md focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
+                            rows="3"
+                            placeholder="Specify why this salary revision request is being rejected..."
+                            value={rejectModal.reason}
+                            onChange={(e) => setRejectModal(prev => ({ ...prev, reason: e.target.value }))}
+                        ></textarea>
+                    </div>
+                </ConfirmDialog>
+
             </AuthenticatedLayout>
         </RoleGuard>
     );

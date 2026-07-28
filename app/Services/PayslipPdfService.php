@@ -107,8 +107,8 @@ class PayslipPdfService
             'formattedMonth' => $formattedMonth,
         ];
 
-        if (class_exists('Barryvdh\DomPDF\Facade\Pdf')) {
-            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.payslip', $data);
+        if (class_exists(\Barryvdh\DomPDF\Facade\Pdf::class) || class_exists('Barryvdh\DomPDF\Facade\Pdf')) {
+            $pdf = Pdf::loadView('pdf.payslip', $data);
             $pdf->setPaper('A4', 'portrait');
             return $pdf->output();
         }

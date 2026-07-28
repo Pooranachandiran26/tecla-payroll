@@ -31,7 +31,19 @@ class AttendanceUploadValidationService
         $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
         $rawRows = [];
 
-        if (in_array($extension, ['xlsx', 'xls'])) {
+        $isXlsx = in_array($extension, ['xlsx', 'xls']);
+        if (!$isXlsx && file_exists($filePath)) {
+            $h = @fopen($filePath, 'rb');
+            if ($h) {
+                $bytes = fread($h, 4);
+                fclose($h);
+                if ($bytes === "PK\x03\x04") {
+                    $isXlsx = true;
+                }
+            }
+        }
+
+        if ($isXlsx) {
             $reader = new \OpenSpout\Reader\XLSX\Reader();
             $reader->open($filePath);
 

@@ -12,6 +12,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 
+use Illuminate\Support\Facades\Mail;
+use App\Mail\PromotionRevisionApprovedMail;
+
 class SalaryRevisionController extends Controller
 {
     public function create($employeeId)
@@ -55,6 +58,10 @@ class SalaryRevisionController extends Controller
         
         $calculations = $calculator->calculateStructuralSalary($calculationParams);
         
+        $isPromotion = (bool)($validated['is_promotion'] ?? false);
+        $oldDesignation = $isPromotion ? $employee->designation : null;
+        $newDesignation = $isPromotion ? ($validated['new_designation'] ?? null) : null;
+        
         SalaryRevision::create([
             'employee_id' => $employee->id,
             'old_basic_pay' => $employee->basic_pay,
@@ -79,6 +86,9 @@ class SalaryRevisionController extends Controller
             
             'effective_date' => $validated['effective_date'],
             'reason_for_revision' => $validated['reason_for_revision'],
+            'is_promotion' => $isPromotion,
+            'old_designation' => $oldDesignation,
+            'new_designation' => $newDesignation,
             'status' => 'pending_approval',
         ]);
 
@@ -106,7 +116,7 @@ class SalaryRevisionController extends Controller
                 
                 // Update employee
                 $employee = Employee::findOrFail($employeeId);
-                $employee->update([
+                $employeeData = [
                     'basic_pay' => $revision->new_basic_pay,
                     'hra' => $revision->new_hra,
                     'conveyance' => $revision->new_conveyance,
@@ -114,7 +124,13 @@ class SalaryRevisionController extends Controller
                     'medical_allowance' => $revision->new_medical_allowance,
                     'special_allowance' => $revision->new_special_allowance,
                     'other_additions' => $revision->new_other_additions,
-                ]);
+                ];
+
+                if ($revision->is_promotion && !empty($revision->new_designation)) {
+                    $employeeData['designation'] = $revision->new_designation;
+                }
+
+                $employee->update($employeeData);
                 
             } else {
                 $revision->update([
@@ -126,7 +142,41 @@ class SalaryRevisionController extends Controller
             }
         });
 
-        $message = $action === 'approve' ? 'Salary revision approved successfully.' : 'Salary revision rejected.';
+        if ($action === 'approve') {
+            $employee = Employee::with('client', 'user')->find($employeeId);
+            $recipientEmail = $employee->personal_email ?? optional($employee->user)->email;
+            if ($recipientEmail) {
+                try {
+                    Mail::to($recipientEmail)->send(new PromotionRevisionApprovedMail($employee, $revision));
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::error("Failed sending salary revision email to {$recipientEmail}: " . $e->getMessage());
+                }
+            }
+        }
+
+        $message = $action === 'approve' ? 'Salary revision approved successfully and notification email sent.' : 'Salary revision rejected.';
         return redirect()->back()->with('success', $message);
+    }
+
+    public function sendEmail(Request $request, $employeeId, $revisionId)
+    {
+        $employee = Employee::with('client', 'user')->findOrFail($employeeId);
+        $revision = SalaryRevision::where('employee_id', $employeeId)->findOrFail($revisionId);
+
+        $recipientEmail = trim($request->input('recipient_email')) ?: ($employee->personal_email ?? optional($employee->user)->email);
+        if (!$recipientEmail) {
+            return redirect()->back()->with('error', 'Employee does not have a valid email address configured.');
+        }
+
+        $customSubject = $request->input('subject');
+        $customNote = $request->input('custom_note');
+
+        try {
+            Mail::to($recipientEmail)->send(new PromotionRevisionApprovedMail($employee, $revision, $customSubject, $customNote));
+            return redirect()->back()->with('success', "Promotion & Salary Revision letter sent successfully to {$recipientEmail}.");
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error("Failed sending salary revision email: " . $e->getMessage());
+            return redirect()->back()->with('error', 'Failed to send email notification: ' . $e->getMessage());
+        }
     }
 }

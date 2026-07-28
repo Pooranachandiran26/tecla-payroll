@@ -2031,6 +2031,7 @@ export default function Settings() {
             label="Type 'CONFIRM' to proceed" 
             value={confirmModal.confirmText} 
             onChange={e => setConfirmModal(prev => ({ ...prev, confirmText: e.target.value }))}
+            onPaste={e => e.preventDefault()}
             placeholder="CONFIRM"
           />
           <div>
