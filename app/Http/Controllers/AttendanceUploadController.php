@@ -77,7 +77,6 @@ class AttendanceUploadController extends Controller
             $context = $this->validationService->calculateWorkingDaysContext((int) $clientId, $targetMonthStr);
             $sampleEmployees = \App\Models\Employee::where('client_id', $clientId)
                 ->where('status', 'active')
-                ->limit(5)
                 ->get();
         }
 

@@ -102,6 +102,7 @@ export default function AuthenticatedLayout({ children }) {
               <Link
                 key={link.key}
                 href={link.url}
+                prefetch
                 className={activeCategory === link.key ? 'active' : ''}
               >
                 {link.name}
@@ -156,7 +157,7 @@ export default function AuthenticatedLayout({ children }) {
                 }
                 return (
                   <li key={index}>
-                    <Link href={item.url} className={isActive ? 'active' : ''}>
+                    <Link href={item.url} prefetch className={isActive ? 'active' : ''}>
                       {item.name}
                     </Link>
                   </li>

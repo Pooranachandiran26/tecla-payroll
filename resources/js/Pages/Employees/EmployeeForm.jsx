@@ -149,6 +149,8 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
           other_additions: formData.otherSal || 0,
           pf_applicable: formData.pfToggle,
           esi_applicable: formData.esiToggle,
+          pt_applicable: formData.ptToggle,
+          lwf_applicable: formData.lwfToggle,
           pt_deduction_override: formData.ptDeduction,
           gender: formData.gender
         };
@@ -166,7 +168,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
     formData.basicSal, formData.hraSal, formData.conveyanceSal, 
     formData.daSal, formData.medicalSal, formData.specialSal, 
     formData.otherSal, formData.pfToggle, formData.esiToggle, 
-    formData.ptDeduction
+    formData.ptToggle, formData.lwfToggle, formData.ptDeduction
   ]);
 
   const [activeClientDefaults, setActiveClientDefaults] = useState(null);
@@ -1248,6 +1250,42 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                   </div>
 
                   <hr style={{ border: "0", borderTop: "1px solid var(--border-color)" }} />
+
+                  {/* PT Toggle */}
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                          <strong style={{ fontSize: "0.85rem" }}>Professional Tax (PT)</strong>
+                          <span className={`badge ${overrides.pt ? 'badge-gold' : 'badge-neutral'}`}>{overrides.pt ? 'Overridden' : 'Inherited'}</span>
+                        </div>
+                        <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>State-specific Professional Tax deduction. Toggle off for exempt employees.</span>
+                      </div>
+                      <label className="toggle-container">
+                        <input type="checkbox" className="toggle-input" checked={formData.ptToggle} onChange={e => { handleInputChange('ptToggle', e.target.checked); toggleOverride('pt'); }} />
+                        <span className="toggle-switch"></span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <hr style={{ border: "0", borderTop: "1px solid var(--border-color)" }} />
+
+                  {/* LWF Toggle */}
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                          <strong style={{ fontSize: "0.85rem" }}>Labour Welfare Fund (LWF)</strong>
+                          <span className={`badge ${overrides.lwf ? 'badge-gold' : 'badge-neutral'}`}>{overrides.lwf ? 'Overridden' : 'Inherited'}</span>
+                        </div>
+                        <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>State Labour Welfare Fund contribution. Toggle off for exempt employees.</span>
+                      </div>
+                      <label className="toggle-container">
+                        <input type="checkbox" className="toggle-input" checked={formData.lwfToggle} onChange={e => { handleInputChange('lwfToggle', e.target.checked); toggleOverride('lwf'); }} />
+                        <span className="toggle-switch"></span>
+                      </label>
+                    </div>
+                  </div>
 
                   {/* LOP Divisor Basis */}
                   <div>

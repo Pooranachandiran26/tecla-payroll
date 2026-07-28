@@ -527,6 +527,7 @@ class ClientController extends Controller
             'gratuityApplicable' => (bool)$client->gratuity_applicable,
             'statutoryBonusApplicable' => (bool)$client->statutory_bonus_applicable,
             'bonusRatePercentage' => $client->bonus_rate_percentage,
+            'ptApplicable' => !empty($client->pt_state),
             'ptState' => $client->pt_state,
             'lopBasisDays' => $client->lop_basis_days,
             'noticePeriodDays' => $client->default_notice_period_days,
