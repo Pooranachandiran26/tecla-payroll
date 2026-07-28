@@ -93,7 +93,7 @@ class PayslipPdfService
         $netPayWords = $this->numberToEnglishWords((int)round((float)$item->net_pay));
         $formattedMonth = Carbon::parse($run->payroll_month)->format('F Y');
 
-        $pdf = Pdf::loadView('pdf.payslip', [
+        $data = [
             'item' => $item,
             'employee' => $employee,
             'run' => $run,
@@ -105,11 +105,15 @@ class PayslipPdfService
             'midCycleNote' => $midCycleNote,
             'netPayWords' => $netPayWords,
             'formattedMonth' => $formattedMonth,
-        ]);
+        ];
 
-        $pdf->setPaper('A4', 'portrait');
+        if (class_exists('Barryvdh\DomPDF\Facade\Pdf')) {
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.payslip', $data);
+            $pdf->setPaper('A4', 'portrait');
+            return $pdf->output();
+        }
 
-        return $pdf->output();
+        return view('pdf.payslip', $data)->render();
     }
 
     private function numberToEnglishWords(int $num): string

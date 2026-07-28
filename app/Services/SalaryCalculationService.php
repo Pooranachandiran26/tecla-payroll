@@ -50,7 +50,11 @@ class SalaryCalculationService
         $employeePf = 0.00;
 
         if (data_get($employeeData, 'pf_applicable', true)) {
-            $pfBase = min($basic, self::PF_WAGE_CEILING);
+            $pfCeiling = (float) data_get($employeeData, 'pf_ceiling', $client->pf_ceiling ?? self::PF_WAGE_CEILING);
+            if ($pfCeiling <= 0) {
+                $pfCeiling = self::PF_WAGE_CEILING;
+            }
+            $pfBase = min($basic, $pfCeiling);
             $employeePf = $pfBase * 0.12;
 
             $isEdliExempt = $client ? (bool)$client->edli_exempted : (bool)data_get($employeeData, 'edli_exempted', false);
@@ -83,7 +87,8 @@ class SalaryCalculationService
         $gratuityMode = data_get($employeeData, 'gratuity_mode', $client->default_gratuity_mode ?? 'part_of_ctc');
         
         if ($gratuityApplicable && ($gratuityMode === 'part_of_ctc' || $gratuityMode === 'ctc_included')) {
-            $gratuityAccrual = $basic * (15 / 26 / 12);
+            $gratuityBase = $basic + $da;
+            $gratuityAccrual = $gratuityBase * (15 / 26 / 12);
         }
 
         // 6. Statutory Bonus Accrual (Payment of Bonus Act 1965 as amended in 2015)
