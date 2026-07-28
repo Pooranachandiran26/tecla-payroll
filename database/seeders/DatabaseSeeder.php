@@ -23,6 +23,7 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $this->call([
+            PtSlabSeeder::class,
             ClientSeeder::class,
             EmployeeSeeder::class,
             AuthSecuritySettingsSeeder::class,
