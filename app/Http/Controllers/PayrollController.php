@@ -1186,28 +1186,50 @@ class PayrollController extends Controller
     public function downloadCorrectionTemplate(Request $request)
     {
         $parentRunId = $request->query('parent_run_id');
-        $employees = [];
+        $rows = [];
         if ($parentRunId) {
             $parentRun = PayrollRun::find($parentRunId);
             if ($parentRun) {
-                $employees = \App\Models\Employee::where('client_id', $parentRun->client_id)
-                    ->where('status', 'active')
-                    ->limit(20)
+                $allRunIds = $parentRun->children()->pluck('id')->prepend($parentRun->id)->toArray();
+
+                $rawItems = \Illuminate\Support\Facades\DB::table('payroll_run_items')
+                    ->join('employees', 'payroll_run_items.employee_id', '=', 'employees.id')
+                    ->whereIn('payroll_run_id', $allRunIds)
+                    ->select('payroll_run_items.*', 'payroll_run_items.id as id', 'employees.full_name', 'employees.employee_code')
+                    ->orderBy('payroll_run_items.id', 'asc')
                     ->get();
+
+                $consolidatedItems = $this->consolidateItemsForDisplay($rawItems);
+
+                foreach ($consolidatedItems as $item) {
+                    if (!$item->is_excluded) {
+                        $rows[] = [
+                            'employee_code' => $item->employee_code,
+                            'days_present' => (float)$item->paid_days,
+                            'days_lop' => (float)$item->lop_days,
+                            'reason' => 'Correction reason example',
+                        ];
+                    }
+                }
             }
+        }
+
+        // Fallback if no run items found
+        if (empty($rows)) {
+            $rows[] = [
+                'employee_code' => 'TEC-101',
+                'days_present' => 30,
+                'days_lop' => 0,
+                'reason' => 'Correction reason example',
+            ];
         }
 
         $tempPath = storage_path('app/temp_corr_tmpl_' . \Illuminate\Support\Str::random(16) . '.xlsx');
         $writer = \Spatie\SimpleExcel\SimpleExcelWriter::create($tempPath, 'xlsx');
         $writer->nameCurrentSheet('Attendance Entry');
 
-        foreach ($employees as $emp) {
-            $writer->addRow([
-                'employee_code' => $emp->employee_code,
-                'days_present' => 30,
-                'days_lop' => 0,
-                'reason' => 'Correction reason example',
-            ]);
+        foreach ($rows as $row) {
+            $writer->addRow($row);
         }
 
         return response()->download($tempPath, 'Batch_Correction_Template.xlsx')->deleteFileAfterSend(true);
