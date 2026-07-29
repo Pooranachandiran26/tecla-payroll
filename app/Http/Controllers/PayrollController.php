@@ -363,6 +363,21 @@ class PayrollController extends Controller
         $client = \App\Models\Client::findOrFail($parent->client_id);
         $employees = \App\Models\Employee::whereIn('id', $targetEmployeeIds)->get();
 
+        $eligibilityService = app(\App\Services\PayrollEligibilityService::class);
+
+        // Pre-flight check: ensure at least 1 candidate is eligible before persisting PayrollRun
+        $eligibleCount = 0;
+        foreach ($employees as $employee) {
+            $elig = $eligibilityService->checkEmployee($employee, $client, $monthStart, $monthEnd);
+            if ($elig['is_eligible']) {
+                $eligibleCount++;
+            }
+        }
+
+        if ($eligibleCount === 0) {
+            return redirect()->back()->with('error', 'Cannot create supplementary run: None of the candidate employees have attendance or valid eligibility data. Please upload attendance first.');
+        }
+
         // 1. Create a draft supplementary run
         $supplementaryRun = PayrollRun::create([
             'client_id' => $parent->client_id,
@@ -378,7 +393,6 @@ class PayrollController extends Controller
             'total_employer_statutory_cost' => 0,
         ]);
 
-        $eligibilityService = app(\App\Services\PayrollEligibilityService::class);
         $attendanceService = app(\App\Services\AttendanceResolutionService::class);
         $calculator = app(\App\Services\MonthlyPayrollCalculator::class);
 
@@ -664,16 +678,43 @@ class PayrollController extends Controller
 
                 $items = $this->consolidateItemsForDisplay($rawItems);
 
-                $newHires = $run->getNewHireCandidates()->map(fn($emp) => [
-                    'id' => $emp->id,
-                    'full_name' => $emp->full_name,
-                    'employee_code' => $emp->employee_code,
-                    'date_of_joining' => $emp->date_of_joining,
-                ])->toArray();
+                $clientModel = \App\Models\Client::find($run->client_id);
+                $mStart = \Carbon\Carbon::parse($run->payroll_month)->startOfMonth()->toDateString();
+                $mEnd = \Carbon\Carbon::parse($run->payroll_month)->endOfMonth()->toDateString();
+                $eligibilityService = app(\App\Services\PayrollEligibilityService::class);
+
+                $newHires = $run->getNewHireCandidates()->map(function ($emp) use ($clientModel, $mStart, $mEnd, $eligibilityService) {
+                    $elig = $eligibilityService->checkEmployee($emp, $clientModel, $mStart, $mEnd);
+                    return [
+                        'id' => $emp->id,
+                        'full_name' => $emp->full_name,
+                        'employee_code' => $emp->employee_code,
+                        'date_of_joining' => $emp->date_of_joining,
+                        'is_eligible' => $elig['is_eligible'],
+                        'exclusions' => $elig['exclusions'],
+                    ];
+                })->toArray();
 
                 $pendingSupplementaryRuns = $run->children()
                     ->where('status', '!=', 'locked')
-                    ->get(['id', 'status', 'created_at', 'total_employees_processed', 'total_employees_excluded', 'total_gross_earnings', 'total_net_disbursement'])
+                    ->get()
+                    ->map(function ($sr) {
+                        $hasCorrection = \Illuminate\Support\Facades\DB::table('payroll_run_items')
+                            ->where('payroll_run_id', $sr->id)
+                            ->where('is_correction', true)
+                            ->exists();
+
+                        return [
+                            'id' => $sr->id,
+                            'status' => $sr->status,
+                            'created_at' => $sr->created_at,
+                            'total_employees_processed' => $sr->total_employees_processed,
+                            'total_employees_excluded' => $sr->total_employees_excluded,
+                            'total_gross_earnings' => $sr->total_gross_earnings,
+                            'total_net_disbursement' => $sr->total_net_disbursement,
+                            'run_type' => $hasCorrection ? 'correction' : 'new_hire',
+                        ];
+                    })
                     ->toArray();
 
                 foreach ($items as $item) {
@@ -803,16 +844,43 @@ class PayrollController extends Controller
 
                 $items = $this->consolidateItemsForDisplay($rawItems);
 
-                $newHires = $run->getNewHireCandidates()->map(fn($emp) => [
-                    'id' => $emp->id,
-                    'full_name' => $emp->full_name,
-                    'employee_code' => $emp->employee_code,
-                    'date_of_joining' => $emp->date_of_joining,
-                ])->toArray();
+                $clientModel = \App\Models\Client::find($run->client_id);
+                $mStart = \Carbon\Carbon::parse($run->payroll_month)->startOfMonth()->toDateString();
+                $mEnd = \Carbon\Carbon::parse($run->payroll_month)->endOfMonth()->toDateString();
+                $eligibilityService = app(\App\Services\PayrollEligibilityService::class);
+
+                $newHires = $run->getNewHireCandidates()->map(function ($emp) use ($clientModel, $mStart, $mEnd, $eligibilityService) {
+                    $elig = $eligibilityService->checkEmployee($emp, $clientModel, $mStart, $mEnd);
+                    return [
+                        'id' => $emp->id,
+                        'full_name' => $emp->full_name,
+                        'employee_code' => $emp->employee_code,
+                        'date_of_joining' => $emp->date_of_joining,
+                        'is_eligible' => $elig['is_eligible'],
+                        'exclusions' => $elig['exclusions'],
+                    ];
+                })->toArray();
 
                 $pendingSupplementaryRuns = $run->children()
                     ->where('status', '!=', 'locked')
-                    ->get(['id', 'status', 'created_at', 'total_employees_processed', 'total_employees_excluded', 'total_gross_earnings', 'total_net_disbursement'])
+                    ->get()
+                    ->map(function ($sr) {
+                        $hasCorrection = \Illuminate\Support\Facades\DB::table('payroll_run_items')
+                            ->where('payroll_run_id', $sr->id)
+                            ->where('is_correction', true)
+                            ->exists();
+
+                        return [
+                            'id' => $sr->id,
+                            'status' => $sr->status,
+                            'created_at' => $sr->created_at,
+                            'total_employees_processed' => $sr->total_employees_processed,
+                            'total_employees_excluded' => $sr->total_employees_excluded,
+                            'total_gross_earnings' => $sr->total_gross_earnings,
+                            'total_net_disbursement' => $sr->total_net_disbursement,
+                            'run_type' => $hasCorrection ? 'correction' : 'new_hire',
+                        ];
+                    })
                     ->toArray();
 
                 foreach ($items as $item) {

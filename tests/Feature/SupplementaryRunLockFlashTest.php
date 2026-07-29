@@ -165,6 +165,22 @@ class SupplementaryRunLockFlashTest extends TestCase
             'tds_regime' => 'new', 'gratuity_mode' => 'part_of_ctc', 'lop_basis_days' => '30', 'declarations_accepted' => 1,
         ]);
 
+        \App\Models\AttendanceRecord::create([
+            'employee_id' => $newHire->id,
+            'attendance_date' => '2026-06-20',
+            'status' => 'present',
+            'source' => 'live_punch',
+        ]);
+
+        foreach ($newHire->required_document_types as $docType) {
+            \App\Models\EmployeeDocument::create([
+                'employee_id' => $newHire->id,
+                'document_type' => $docType,
+                'file_path' => 'documents/test.pdf',
+                'status' => 'verified',
+            ]);
+        }
+
         // Create supplementary run
         $this->actingAs($this->admin)->post(route('payroll.run.supplementary', $this->parentRun->id));
 
