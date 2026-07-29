@@ -540,8 +540,12 @@ export default function SalaryRevision({ employee, revisions }) {
                                             <div className="text-xs font-bold text-blue-700 uppercase tracking-wider mb-2">New Employer Contributions</div>
                                             <div className="space-y-1.5 text-xs">
                                                 <div className="flex justify-between items-center text-slate-700 pl-2">
-                                                    <span>• Employer EPF (12%)</span>
+                                                    <span>• Employer EPF</span>
                                                     <span className="font-semibold">{previewLoading ? '...' : (preview ? formatCurrency(preview.employer_epf_monthly) : '—')}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center text-slate-700 pl-2">
+                                                    <span>• Employer EPS</span>
+                                                    <span className="font-semibold">{previewLoading ? '...' : (preview ? formatCurrency(preview.employer_eps_monthly) : '—')}</span>
                                                 </div>
                                                 <div className="flex justify-between items-center text-slate-700 pl-2">
                                                     <span>• EDLI (0.5%)</span>
