@@ -216,7 +216,7 @@ export default function Dashboard({
                 <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
                 <span>Enterprise Operations Hub</span>
               </div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 flex items-center gap-2 mt-1">
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-2 mt-1">
                 {selectedClient ? selectedClient.company_name : "Executive Operations Command Center"}
               </h1>
               <p className="text-xs sm:text-sm text-slate-600 font-medium max-w-2xl leading-relaxed">

@@ -46,7 +46,35 @@ class Client extends Model
         'statutory_bonus_applicable' => 'boolean',
         'gratuity_applicable' => 'boolean',
         'health_insurance_enabled' => 'boolean',
+        'payslip_visible_sections' => 'array',
     ];
+
+    public function getPayslipVisibleSectionsAttribute($value)
+    {
+        $defaults = [
+            'show_pf_details' => true,
+            'show_esi_details' => true,
+            'show_pt_details' => true,
+            'show_lwf_details' => true,
+            'show_bank_details' => true,
+            'show_attendance_summary' => true,
+            'show_organisation_address' => true,
+            'show_logo' => true,
+            'show_signature_details' => true,
+            'show_lop_deduction' => true,
+            'show_tds_deduction' => true,
+            'show_net_in_words' => true,
+            'font_family' => 'Helvetica Neue',
+            'font_size' => 'normal',
+        ];
+
+        if (!$value) {
+            return $defaults;
+        }
+
+        $decoded = is_string($value) ? json_decode($value, true) : $value;
+        return array_merge($defaults, is_array($decoded) ? $decoded : []);
+    }
 
     public function contacts()
     {

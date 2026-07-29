@@ -5,6 +5,17 @@ import Button from './ui/Button';
 import useToast from '../Hooks/useToast';
 import axios from 'axios';
 
+// SVG Icons
+const Icons = {
+    Zap: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>,
+    Calendar: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
+    Download: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
+    Upload: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>,
+    FileText: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>,
+    HelpCircle: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>,
+    Loader: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>,
+};
+
 export default function BatchPayrollCorrectionModal({ isOpen, onClose, parentRun, items = [] }) {
     const { showToast } = useToast();
     const fileInputRef = useRef(null);
@@ -25,7 +36,6 @@ export default function BatchPayrollCorrectionModal({ isOpen, onClose, parentRun
         }
     }, [isOpen, items]);
 
-    // Fetch batch preview & pattern analysis
     useEffect(() => {
         if (!isOpen || !parentRun) return;
 
@@ -73,17 +83,14 @@ export default function BatchPayrollCorrectionModal({ isOpen, onClose, parentRun
         const totalCalDays = workingDaysContext?.total_calendar_days || 31;
 
         setOverrides(prev => {
-            const currentPaid = prev[empId]?.paid_days ?? 30;
-            const currentLop = prev[empId]?.lop_days ?? 0;
-            
             const newPaid = field === 'paid_days' ? num : Math.max(0, totalCalDays - num);
             const newLop = field === 'lop_days' ? num : Math.max(0, totalCalDays - num);
 
             return {
                 ...prev,
                 [empId]: {
-                    paid_days: field === 'paid_days' ? newPaid : newPaid,
-                    lop_days: field === 'lop_days' ? newLop : newLop,
+                    paid_days: newPaid,
+                    lop_days: newLop,
                     reason: prev[empId]?.reason ?? '',
                 }
             };
@@ -191,11 +198,25 @@ export default function BatchPayrollCorrectionModal({ isOpen, onClose, parentRun
         </div>
     );
 
+    const inputStyle = {
+        padding: '0.45rem 0.65rem',
+        fontSize: '0.82rem',
+        borderRadius: '6px',
+        border: '1px solid #cbd5e1',
+        backgroundColor: '#ffffff',
+        outline: 'none',
+        transition: 'border-color 0.15s ease-in-out',
+    };
+
     return (
         <Modal
             isOpen={isOpen}
             onClose={onClose}
-            title="⚡ Batch Payroll Correction"
+            title={
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#1F3864' }}>
+                    <Icons.Zap /> Batch Payroll Correction
+                </span>
+            }
             size="xl"
             footer={modalFooter}
         >
@@ -203,12 +224,12 @@ export default function BatchPayrollCorrectionModal({ isOpen, onClose, parentRun
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', alignItems: 'center', marginBottom: '0.25rem' }}>
                     <a 
                         href={route('payroll.correction.template', { parent_run_id: parentRun.id })} 
-                        style={{ fontSize: '0.8rem', color: '#2563EB', textDecoration: 'underline', fontWeight: 500 }}
+                        style={{ fontSize: '0.8rem', color: '#2563EB', textDecoration: 'underline', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
                     >
-                        📥 Download Correction Template
+                        <Icons.Download /> Download Correction Template
                     </a>
-                    <label style={{ cursor: 'pointer', backgroundColor: '#059669', color: '#ffffff', fontSize: '0.8rem', padding: '0.4rem 0.75rem', borderRadius: '4px', fontWeight: 500 }}>
-                        {isUploading ? '⌛ Importing...' : '📁 Import Correction File (.xlsx/.csv)'}
+                    <label style={{ cursor: 'pointer', backgroundColor: '#059669', color: '#ffffff', fontSize: '0.8rem', padding: '0.4rem 0.75rem', borderRadius: '6px', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                        {isUploading ? <><Icons.Loader /> Importing...</> : <><Icons.Upload /> Import Correction File (.xlsx/.csv)</>}
                         <input 
                             type="file" 
                             ref={fileInputRef} 
@@ -220,12 +241,11 @@ export default function BatchPayrollCorrectionModal({ isOpen, onClose, parentRun
                     </label>
                 </div>
 
-                {/* Target Month & Working Days Context Box */}
                 {workingDaysContext && (
                     <div style={{ backgroundColor: '#F8FAFC', border: '1px solid #CBD5E1', borderRadius: '6px', padding: '0.85rem', fontSize: '0.8rem' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-                            <span style={{ fontWeight: 'bold', color: '#1F3864', fontSize: '0.85rem' }}>
-                                📅 {workingDaysContext.client_name} — Working Days Breakdown ({workingDaysContext.month_label})
+                            <span style={{ fontWeight: 'bold', color: '#1F3864', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                <Icons.Calendar /> {workingDaysContext.client_name} — Working Days Breakdown ({workingDaysContext.month_label})
                             </span>
                             <span style={{ backgroundColor: '#1F3864', color: '#FFFFFF', padding: '0.2rem 0.6rem', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 'bold' }}>
                                 {workingDaysContext.working_days_slots} Working Days Required
@@ -250,8 +270,8 @@ export default function BatchPayrollCorrectionModal({ isOpen, onClose, parentRun
                 )}
 
                 {patternContext && patternContext.pattern_type !== 'none' && (
-                    <div style={{ backgroundColor: '#FEF3C7', border: '1px solid #FDE68A', borderRadius: '6px', padding: '0.75rem', fontSize: '0.8rem', color: '#92400E', display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
-                        <span style={{ fontSize: '1rem' }}>💡</span>
+                    <div style={{ backgroundColor: '#FEF3C7', border: '1px solid #FDE68A', borderRadius: '6px', padding: '0.75rem', fontSize: '0.8rem', color: '#92400E', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                        <Icons.HelpCircle />
                         <div>
                             <strong>Systemic Pattern Context:</strong> {patternContext.summary}
                         </div>
@@ -260,14 +280,15 @@ export default function BatchPayrollCorrectionModal({ isOpen, onClose, parentRun
 
                 <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                     <div>
-                        <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '0.35rem', display: 'block' }}>Global Default Correction Reason <span style={{ color: '#DC2626' }}>*</span></label>
+                        <label style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#334155' }}>
+                            <Icons.FileText /> Global Default Correction Reason <span style={{ color: '#DC2626' }}>*</span>
+                        </label>
                         <input 
                             type="text" 
                             required 
                             value={defaultReason} 
                             onChange={e => setDefaultReason(e.target.value)}
-                            className="form-input"
-                            style={{ width: '100%', padding: '0.5rem', fontSize: '0.875rem' }}
+                            style={{ ...inputStyle, width: '100%' }}
                         />
                     </div>
 
@@ -314,8 +335,7 @@ export default function BatchPayrollCorrectionModal({ isOpen, onClose, parentRun
                                                     max="31"
                                                     value={override ? override.paid_days : (preview ? Math.max(0, preview.corrected.paid_days) : Math.max(0, emp.paid_days))}
                                                     onChange={e => handleDaysChange(emp.employee_id, 'paid_days', e.target.value)}
-                                                    className="form-input"
-                                                    style={{ width: '100%', padding: '0.2rem', textAlign: 'center', fontSize: '0.8rem' }}
+                                                    style={{ ...inputStyle, width: '100%', textAlign: 'center', padding: '0.2rem' }}
                                                     disabled={!isSelected}
                                                 />
                                             </td>
@@ -327,8 +347,7 @@ export default function BatchPayrollCorrectionModal({ isOpen, onClose, parentRun
                                                     max="31"
                                                     value={override ? override.lop_days : (preview ? Math.max(0, preview.corrected.lop_days) : Math.max(0, emp.lop_days))}
                                                     onChange={e => handleDaysChange(emp.employee_id, 'lop_days', e.target.value)}
-                                                    className="form-input"
-                                                    style={{ width: '100%', padding: '0.2rem', textAlign: 'center', fontSize: '0.8rem' }}
+                                                    style={{ ...inputStyle, width: '100%', textAlign: 'center', padding: '0.2rem' }}
                                                     disabled={!isSelected}
                                                 />
                                             </td>
@@ -345,8 +364,7 @@ export default function BatchPayrollCorrectionModal({ isOpen, onClose, parentRun
                                                     placeholder="Override reason..."
                                                     value={override?.reason || ''}
                                                     onChange={e => handleReasonChange(emp.employee_id, e.target.value)}
-                                                    className="form-input"
-                                                    style={{ width: '100%', padding: '0.2rem 0.4rem', fontSize: '0.75rem' }}
+                                                    style={{ ...inputStyle, width: '100%', fontSize: '0.75rem', padding: '0.2rem 0.4rem' }}
                                                     disabled={!isSelected}
                                                 />
                                             </td>
