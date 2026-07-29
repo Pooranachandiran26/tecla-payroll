@@ -20,6 +20,9 @@ export default function BulkUpload({ clients = [] }) {
   const [isUploading, setIsUploading] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [partialImportAcknowledged, setPartialImportAcknowledged] = useState(false);
+  const [autoProvisionUsers, setAutoProvisionUsers] = useState(true);
+  const [isAdvancedOptionsOpen, setIsAdvancedOptionsOpen] = useState(false);
   const fileInputRef = useRef(null);
 
   const columns = [

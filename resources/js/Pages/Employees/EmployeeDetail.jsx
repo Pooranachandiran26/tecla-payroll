@@ -566,7 +566,7 @@ const renderDocumentRows = () => {
                           <span className="badge badge-neutral">Not Applicable</span>
                         </div>
                         <div style={{"fontSize":"0.75rem","color":"var(--text-muted)","marginTop":"-0.5rem","textAlign":"right"}}>
-                          Exempt (Gross > ₹21,000 ESI Ceiling)
+                          Exempt (Gross &gt; ₹21,000 ESI Ceiling)
                         </div>
                       </>
                     )
