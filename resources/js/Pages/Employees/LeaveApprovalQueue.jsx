@@ -6,6 +6,7 @@ import Badge from '../../Components/ui/Badge';
 import Modal from '../../Components/ui/Modal';
 import useToast from '../../Hooks/useToast';
 import RoleGuard from '../../Components/RoleGuard.jsx';
+import { Clock, CheckCircle2, XCircle, Filter, RotateCcw, Check, X } from 'lucide-react';
 
 export default function LeaveApprovalQueue({ leaves = { data: [], links: [] }, clients = [], filters = {} }) {
   const { showToast } = useToast();
@@ -93,8 +94,8 @@ export default function LeaveApprovalQueue({ leaves = { data: [], links: [] }, c
               <p className="text-gray-500 text-sm font-medium mb-1">Page Pending Review</p>
               <h3 className="text-3xl font-bold text-amber-600">{pendingCount}</h3>
             </div>
-            <div className="h-12 w-12 bg-amber-50 rounded-full flex items-center justify-center text-amber-500 font-bold text-xl">
-              ⏳
+            <div className="h-12 w-12 bg-amber-50 rounded-full flex items-center justify-center text-amber-600">
+              <Clock size={24} />
             </div>
           </div>
           
@@ -103,8 +104,8 @@ export default function LeaveApprovalQueue({ leaves = { data: [], links: [] }, c
               <p className="text-gray-500 text-sm font-medium mb-1">Page Approved</p>
               <h3 className="text-3xl font-bold text-green-600">{approvedCount}</h3>
             </div>
-            <div className="h-12 w-12 bg-green-50 rounded-full flex items-center justify-center text-green-500 font-bold text-xl">
-              ✓
+            <div className="h-12 w-12 bg-green-50 rounded-full flex items-center justify-center text-green-600">
+              <CheckCircle2 size={24} />
             </div>
           </div>
           
@@ -113,8 +114,8 @@ export default function LeaveApprovalQueue({ leaves = { data: [], links: [] }, c
               <p className="text-gray-500 text-sm font-medium mb-1">Page Rejected</p>
               <h3 className="text-3xl font-bold text-red-600">{rejectedCount}</h3>
             </div>
-            <div className="h-12 w-12 bg-red-50 rounded-full flex items-center justify-center text-red-500 font-bold text-xl">
-              ✕
+            <div className="h-12 w-12 bg-red-50 rounded-full flex items-center justify-center text-red-600">
+              <XCircle size={24} />
             </div>
           </div>
         </div>
@@ -173,8 +174,12 @@ export default function LeaveApprovalQueue({ leaves = { data: [], links: [] }, c
             </select>
           </div>
           <div className="flex gap-2">
-            <Button variant="primary" size="sm" onClick={applyFilters}>Apply Filters</Button>
-            <Button variant="secondary" size="sm" onClick={resetFilters}>Reset</Button>
+            <Button variant="primary" size="sm" onClick={applyFilters} className="inline-flex items-center gap-1.5">
+              <Filter size={14} /> Apply Filters
+            </Button>
+            <Button variant="secondary" size="sm" onClick={resetFilters} className="inline-flex items-center gap-1.5">
+              <RotateCcw size={14} /> Reset
+            </Button>
           </div>
         </div>
         
@@ -219,8 +224,9 @@ export default function LeaveApprovalQueue({ leaves = { data: [], links: [] }, c
                                 size="xs" 
                                 variant="success" 
                                 onClick={() => handleApprove(leave.id)}
+                                className="inline-flex items-center gap-1"
                             >
-                                Approve
+                                <Check size={13} /> Approve
                             </Button>
                             <Button 
                                 size="xs" 
@@ -230,8 +236,9 @@ export default function LeaveApprovalQueue({ leaves = { data: [], links: [] }, c
                                     clearErrors();
                                     reset();
                                 }}
+                                className="inline-flex items-center gap-1"
                             >
-                                Reject
+                                <X size={13} /> Reject
                             </Button>
                           </div>
                         ) : leave.status === 'approved' ? (

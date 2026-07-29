@@ -283,6 +283,7 @@ export function getDefaultFormData() {
     tdsRegime: 'new', tdsApplicable: true,
     gratuityMode: 'ctc_included', gratuityApplicable: true,
     bonusPct: 8.33, bonusApplicable: false,
+    healthInsuranceEnabled: true,
     weeklyOffPattern: 'sat,sun',
     lopBasis: '30', // Strictly 30 days divisor
 

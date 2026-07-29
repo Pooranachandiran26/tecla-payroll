@@ -160,6 +160,9 @@ class BankChangeRequestController extends Controller
             ]);
 
             if ($req->employee) {
+                $oldBank = $req->employee->bank_name;
+                $oldIfsc = $req->employee->bank_ifsc;
+
                 $req->employee->update([
                     'bank_account_number' => $req->new_bank_account_number,
                     'bank_ifsc' => $req->new_bank_ifsc,
@@ -168,6 +171,15 @@ class BankChangeRequestController extends Controller
                     'account_holder_name' => $req->new_account_holder_name ?: $req->employee->account_holder_name,
                     'bank_account_hash' => $hash,
                 ]);
+
+                app(\App\Services\AuditService::class)->log(
+                    'bank_change.approved',
+                    auth()->user(),
+                    $req->employee,
+                    ['bank_name' => $oldBank, 'bank_ifsc' => $oldIfsc],
+                    ['bank_name' => $req->new_bank_name, 'bank_ifsc' => $req->new_bank_ifsc],
+                    ['request_id' => $req->id]
+                );
             }
         });
 

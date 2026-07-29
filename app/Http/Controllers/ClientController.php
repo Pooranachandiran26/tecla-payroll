@@ -533,6 +533,8 @@ class ClientController extends Controller
             'noticePeriodDays' => $client->default_notice_period_days,
             'weekly_off_pattern' => $client->weekly_off_pattern ?? 'sat,sun',
             'weeklyOffPattern' => $client->weekly_off_pattern ?? 'sat,sun',
+            'healthInsuranceEnabled' => $client->health_insurance_enabled !== null ? (bool)$client->health_insurance_enabled : true,
+            'health_insurance_enabled' => $client->health_insurance_enabled !== null ? (bool)$client->health_insurance_enabled : true,
         ]);
     }
 

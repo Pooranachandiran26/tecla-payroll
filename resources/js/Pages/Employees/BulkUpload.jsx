@@ -20,6 +20,9 @@ export default function BulkUpload({ clients = [] }) {
   const [isUploading, setIsUploading] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [partialImportAcknowledged, setPartialImportAcknowledged] = useState(false);
+  const [autoProvisionUsers, setAutoProvisionUsers] = useState(true);
+  const [isAdvancedOptionsOpen, setIsAdvancedOptionsOpen] = useState(false);
   const fileInputRef = useRef(null);
 
   const columns = [
@@ -112,7 +115,6 @@ export default function BulkUpload({ clients = [] }) {
       }
     }
   };
-  const [partialImportAcknowledged, setPartialImportAcknowledged] = useState(false);
 
   const handleExecute = async () => {
     if (!selectedFile) return;
@@ -120,6 +122,7 @@ export default function BulkUpload({ clients = [] }) {
     setIsExecuting(true);
     const formData = new FormData();
     formData.append('file', selectedFile);
+    formData.append('auto_provision_users', autoProvisionUsers ? '1' : '0');
     if (validationResults?.error_count > 0 && partialImportAcknowledged) {
         formData.append('partial_import', '1');
     }
@@ -202,14 +205,13 @@ export default function BulkUpload({ clients = [] }) {
               </option>
             ))}
           </select>
-          <a 
-            href={selectedClientId ? route('employees.bulk-upload.download-template', { client_id: selectedClientId }) : '#'} 
-            download 
-            className={`btn btn-outline flex items-center gap-2 text-sm font-semibold border-gray-300 shadow-sm ${!selectedClientId ? 'opacity-50 pointer-events-none cursor-not-allowed' : ''}`}
+          <Button 
+            disabled={!selectedClientId}
+            onClick={() => window.location.href = route('employees.bulk-upload.template', { client_id: selectedClientId })}
+            variant="outline"
           >
-            <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd"></path></svg>
-            Download Excel Template
-          </a>
+            Download Client Template (.XLSX)
+          </Button>
         </div>
       </div>
 

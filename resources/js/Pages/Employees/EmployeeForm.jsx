@@ -13,6 +13,7 @@ import {
   Scale, 
   AlertTriangle, 
   Save, 
+  Shield,
   X 
 } from 'lucide-react';
 import './EmployeeForm.css';
@@ -82,6 +83,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       otherSal: emp?.other_additions ?? '',
       ptDeduction: emp?.pt_deduction_override ?? '',
       pfToggle: emp ? Boolean(emp.pf_applicable) : true,
+      epsToggle: emp ? (emp.eps_applicable !== undefined ? Boolean(emp.eps_applicable) : true) : true,
       esiToggle: emp ? Boolean(emp.esi_applicable) : true,
       tdsToggle: emp ? Boolean(emp.tds_applicable) : true,
       ptToggle: emp ? Boolean(emp.pt_applicable) : true,
@@ -100,6 +102,9 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       reportingManagerId: emp?.reporting_manager_id || '',
       noticePeriodDays: emp?.notice_period_days ?? '',
       esiPeriodEnd: emp?.esi_contribution_period_end || '',
+      insuranceProvider: emp?.health_insurance_provider || '',
+      insurancePolicyNo: emp?.health_insurance_policy_no || '',
+      insuranceSumInsured: emp?.health_insurance_sum_insured ?? '',
     };
   });
 
@@ -545,6 +550,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       'previous_employer_uan': 'prevEmployerUAN', 'probation_end_date': 'probationEndDate',
       'reporting_manager_id': 'reportingManagerId', 'notice_period_days': 'noticePeriodDays',
       'esi_contribution_period_end': 'esiPeriodEnd', 'designation': 'designation', 'branch_id': 'branch_id',
+      'health_insurance_provider': 'insuranceProvider', 'health_insurance_policy_no': 'insurancePolicyNo', 'health_insurance_sum_insured': 'insuranceSumInsured',
     };
     
     const url = isAdd ? route('employees.store') : route('employees.update', empId);
@@ -1141,6 +1147,18 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                           </div>
                         )}
                       </div>
+                      <div style={{ marginTop: "0.75rem", paddingTop: "0.75rem", borderTop: "1px dashed var(--border-color)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <div>
+                          <strong style={{ fontSize: "0.85rem", color: "var(--primary-navy)" }}>EPS Contribution (Employees' Pension Scheme)</strong>
+                          <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "2px", maxWidth: "600px" }}>
+                            Splits 12% Employer PF into 8.33% EPS (capped ₹1,249.50) + 3.67% EPF (₹550.50). Uncheck ONLY if employee first joined EPF post-Sept 2014 with Basic Pay &gt; ₹15,000. (Note: Employees aged 58+ automatically cutoff to ₹0 EPS).
+                          </div>
+                        </div>
+                        <label className="toggle-container" style={{ flexShrink: 0, marginLeft: "1rem" }}>
+                          <input type="checkbox" className="toggle-input" checked={formData.epsToggle} onChange={e => handleInputChange('epsToggle', e.target.checked)} />
+                          <span className="toggle-switch"></span>
+                        </label>
+                      </div>
                     </div>
                   )}
                   <hr style={{ border: "0", borderTop: "1px solid var(--border-color)" }} />
@@ -1165,7 +1183,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                       </label>
                     </div>
                   </div>
-                  {formData.esiToggle && (
+                  {formData.esiToggle ? (
                     <div style={{ backgroundColor: "#FFFFFF", padding: "1rem", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", marginTop: "0.5rem" }}>
                       <div className="form-row">
                         <div className="form-group" style={{ marginBottom: "0.75rem" }}>
@@ -1201,6 +1219,36 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                         </div>
                       )}
                     </div>
+                  ) : (
+                    (Boolean(formData.insuranceProvider || formData.insurancePolicyNo || formData.insuranceSumInsured) || (activeClientDefaults?.healthInsuranceEnabled !== false && activeClientDefaults?.health_insurance_enabled !== false)) ? (
+                      <div style={{ backgroundColor: "#FFFFFF", padding: "1rem", borderRadius: "var(--radius-sm)", border: "1px solid #CBD5E1", marginTop: "0.5rem" }}>
+                        <div style={{ fontSize: "0.8rem", color: "#1E293B", fontWeight: "600", marginBottom: "0.75rem", display: "flex", alignItems: "center", gap: "6px" }}>
+                          <Shield size={16} className="text-blue-600" />
+                          <span>Group Medical Insurance (Non-ESI Employee Coverage)</span>
+                        </div>
+                        <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "0.75rem" }}>
+                          This employee is not covered under statutory ESI. Capture their commercial Group Medical Insurance policy details below (optional).
+                        </p>
+                        <div className="form-row">
+                          <div className="form-group" style={{ marginBottom: "0.5rem" }}>
+                            <label>Insurance Provider / TPA</label>
+                            <input type="text" className="form-control" placeholder="e.g. Star Health, HDFC ERGO, Niva Bupa" value={formData.insuranceProvider} onChange={e => handleInputChange('insuranceProvider', e.target.value)} />
+                          </div>
+                          <div className="form-group" style={{ marginBottom: "0.5rem" }}>
+                            <label>Policy / Card Number</label>
+                            <input type="text" className="form-control" placeholder="e.g. GMI-2026-98745" value={formData.insurancePolicyNo} onChange={e => handleInputChange('insurancePolicyNo', e.target.value)} />
+                          </div>
+                          <div className="form-group" style={{ marginBottom: "0.5rem" }}>
+                            <label>Sum Insured (₹)</label>
+                            <input type="number" className="form-control" placeholder="e.g. 500000" value={formData.insuranceSumInsured} onChange={e => handleInputChange('insuranceSumInsured', e.target.value)} min="0" />
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ backgroundColor: "#F8FAFC", padding: "0.75rem 1rem", borderRadius: "var(--radius-sm)", border: "1px solid #E2E8F0", marginTop: "0.5rem", fontSize: "0.75rem", color: "#64748B" }}>
+                        <strong>Establishment Policy:</strong> This client establishment does not provide commercial Group Medical Insurance for employees above the ESI ceiling (&gt; ₹21,000/mo).
+                      </div>
+                    )
                   )}
                   <hr style={{ border: "0", borderTop: "1px solid var(--border-color)" }} />
 
@@ -1503,11 +1551,66 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                 )}
 
                 {isAdd && (
-                  <div className="alert-banner info" style={{ marginTop: "1rem", backgroundColor: "#E0F2FE", border: "1px solid #BAE6FD", color: "#0369A1", padding: "1rem", borderRadius: "var(--radius-sm)", display: "flex", alignItems: "center", gap: "0.6rem" }}>
-                    <Info size={18} className="shrink-0 text-[#0369A1]" />
-                    <span>
-                      <strong>Note:</strong> New employees start in <strong>Onboarding</strong> status. Upload and get all required documents verified to activate them under their assigned client.
-                    </span>
+                  <div style={{
+                    marginTop: "1.5rem",
+                    marginBottom: "1rem",
+                    background: "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)",
+                    border: "1px solid #7dd3fc",
+                    borderLeft: "5px solid #0284c7",
+                    borderRadius: "10px",
+                    padding: "1.1rem 1.3rem",
+                    boxShadow: "0 4px 14px rgba(2, 132, 199, 0.09)",
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: "1rem"
+                  }}>
+                    <div style={{
+                      background: "linear-gradient(135deg, #0284c7 0%, #0369a1 100%)",
+                      color: "#ffffff",
+                      borderRadius: "8px",
+                      padding: "0.55rem",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                      boxShadow: "0 2px 8px rgba(2, 132, 199, 0.3)"
+                    }}>
+                      <Info size={22} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{
+                        fontSize: "0.93rem",
+                        fontWeight: "700",
+                        color: "#0369a1",
+                        marginBottom: "0.3rem",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.55rem"
+                      }}>
+                        Onboarding Status Notice
+                        <span style={{
+                          fontSize: "0.7rem",
+                          fontWeight: "700",
+                          backgroundColor: "#ffffff",
+                          color: "#0284c7",
+                          padding: "0.15rem 0.6rem",
+                          borderRadius: "12px",
+                          border: "1px solid #7dd3fc",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.5px"
+                        }}>
+                          Initial State
+                        </span>
+                      </div>
+                      <p style={{
+                        margin: 0,
+                        fontSize: "0.875rem",
+                        color: "#0c4a6e",
+                        lineHeight: "1.55"
+                      }}>
+                        <strong>Note:</strong> New employees automatically start in <span style={{ color: "#0284c7", fontWeight: "700", background: "#ffffff", padding: "0.1rem 0.45rem", borderRadius: "5px", border: "1px solid #7dd3fc" }}>Onboarding</span> status. Upload and get all required documents verified to activate them under their assigned client.
+                      </p>
+                    </div>
                   </div>
                 )}
 
@@ -1528,43 +1631,55 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
             
             {/* Right Side Notes Panel */}
             <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem", position: "sticky", top: "1.5rem", alignSelf: "start", maxHeight: "calc(100vh - 3rem)", overflowY: "auto", paddingRight: "0.25rem" }}>
-              <div className="card" style={{ padding: "1.25rem", background: "#f8faff", border: "1px solid #d0dfff" }}>
-                <h4 style={{ margin: "0 0 0.5rem 0", fontSize: "0.95rem", color: "var(--primary-color)", display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                  <User size={18} className="shrink-0 text-[#1F3864]" /> Personal &amp; Employment Profile
+              <div className="card" style={{ padding: "1.25rem", background: "linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)", border: "1px solid #cbd5e1", borderRadius: "10px", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
+                <h4 style={{ margin: "0 0 0.6rem 0", fontSize: "0.95rem", color: "#1e293b", fontWeight: "700", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <span style={{ padding: "0.35rem", borderRadius: "6px", background: "#e2e8f0", color: "#1e293b", display: "inline-flex" }}>
+                    <User size={16} />
+                  </span>
+                  Personal &amp; Employment Profile
                 </h4>
-                <p style={{ margin: 0, fontSize: "0.83rem", color: "var(--text-muted)", lineHeight: "1.5" }}>
+                <p style={{ margin: 0, fontSize: "0.83rem", color: "#475569", lineHeight: "1.6" }}>
                   • <strong>PAN Name Matching:</strong> Ensure Full Name matches PAN card exactly for statutory filing.<br/>
                   • <strong>Uniqueness Checks:</strong> Emails, Phone numbers, PAN, and Bank Accounts are checked for duplicate entries.<br/>
                   • <strong>Filing Entity:</strong> EOR uses Client code; Agency Contract uses Tecla Media code.
                 </p>
               </div>
               
-              <div className="card" style={{ padding: "1.25rem", background: "#f8faff", border: "1px solid #d0dfff" }}>
-                <h4 style={{ margin: "0 0 0.5rem 0", fontSize: "0.95rem", color: "var(--primary-color)", display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                  <Landmark size={18} className="shrink-0 text-[#1F3864]" /> Banking Security Info
+              <div className="card" style={{ padding: "1.25rem", background: "linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)", border: "1px solid #cbd5e1", borderRadius: "10px", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
+                <h4 style={{ margin: "0 0 0.6rem 0", fontSize: "0.95rem", color: "#1e293b", fontWeight: "700", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <span style={{ padding: "0.35rem", borderRadius: "6px", background: "#e2e8f0", color: "#1e293b", display: "inline-flex" }}>
+                    <Landmark size={16} />
+                  </span>
+                  Banking Security Info
                 </h4>
-                <p style={{ margin: 0, fontSize: "0.83rem", color: "var(--text-muted)", lineHeight: "1.5" }}>
+                <p style={{ margin: 0, fontSize: "0.83rem", color: "#475569", lineHeight: "1.6" }}>
                   • <strong>Live Razorpay Verification:</strong> Valid IFSC codes auto-fetch Bank Name and Branch.<br/>
                   • <strong>Data Encryption:</strong> Account numbers are encrypted in DB with SHA-256 hash duplication protection.<br/>
                   • <strong>Lock Rule:</strong> Bank info can only be set during onboarding; active employees must use Bank Change Requests.
                 </p>
               </div>
               
-              <div className="card" style={{ padding: "1.25rem", background: "#f8faff", border: "1px solid #d0dfff" }}>
-                <h4 style={{ margin: "0 0 0.5rem 0", fontSize: "0.95rem", color: "var(--primary-color)", display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                  <IndianRupee size={18} className="shrink-0 text-[#1F3864]" /> Salary &amp; Deductions Cap
+              <div className="card" style={{ padding: "1.25rem", background: "linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)", border: "1px solid #cbd5e1", borderRadius: "10px", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
+                <h4 style={{ margin: "0 0 0.6rem 0", fontSize: "0.95rem", color: "#1e293b", fontWeight: "700", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <span style={{ padding: "0.35rem", borderRadius: "6px", background: "#e2e8f0", color: "#1e293b", display: "inline-flex" }}>
+                    <IndianRupee size={16} />
+                  </span>
+                  Salary &amp; Deductions Cap
                 </h4>
-                <p style={{ margin: 0, fontSize: "0.83rem", color: "var(--text-muted)", lineHeight: "1.5" }}>
+                <p style={{ margin: 0, fontSize: "0.83rem", color: "#475569", lineHeight: "1.6" }}>
                   • <strong>Wage Code Rule:</strong> Basic Pay should be 50%+ of CTC.<br/>
                   • <strong>50% Deduction Cap:</strong> Total deductions (PF + ESI + PT + TDS + Loan EMI) are legally capped at 50% gross salary to protect employee take-home pay.
                 </p>
               </div>
               
-              <div className="card" style={{ padding: "1.25rem", background: "#f8faff", border: "1px solid #d0dfff" }}>
-                <h4 style={{ margin: "0 0 0.5rem 0", fontSize: "0.95rem", color: "var(--primary-color)", display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                  <Scale size={18} className="shrink-0 text-[#1F3864]" /> Statutory Modes (PF / ESI / TDS)
+              <div className="card" style={{ padding: "1.25rem", background: "linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)", border: "1px solid #cbd5e1", borderRadius: "10px", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
+                <h4 style={{ margin: "0 0 0.6rem 0", fontSize: "0.95rem", color: "#1e293b", fontWeight: "700", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <span style={{ padding: "0.35rem", borderRadius: "6px", background: "#e2e8f0", color: "#1e293b", display: "inline-flex" }}>
+                    <Scale size={16} />
+                  </span>
+                  Statutory Modes (PF / ESI / TDS)
                 </h4>
-                <p style={{ margin: 0, fontSize: "0.83rem", color: "var(--text-muted)", lineHeight: "1.5" }}>
+                <p style={{ margin: 0, fontSize: "0.83rem", color: "#475569", lineHeight: "1.6" }}>
                   • <strong>PF &amp; ESI Modes:</strong> Select <em>"Pending / New Registration"</em> for first-time workers (EPFO/ESIC portals auto-issue numbers upon upload).<br/>
                   • <strong>ESI Limit:</strong> Auto-disables if Gross exceeds ₹21,000.<br/>
                   • <strong>TDS Slabs:</strong> FY26-27 New Regime tax-free up to ₹12L net taxable income.

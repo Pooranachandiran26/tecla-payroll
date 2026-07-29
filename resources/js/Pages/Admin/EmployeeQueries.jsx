@@ -6,6 +6,7 @@ import Modal from '../../Components/ui/Modal';
 import Button from '../../Components/ui/Button';
 import Badge from '../../Components/ui/Badge';
 import useToast from '../../Hooks/useToast.jsx';
+import { ArrowLeft, MessageSquare, Clock, CheckCircle2, Filter, RotateCcw, Building2, Eye, Send } from 'lucide-react';
 
 export default function EmployeeQueries({ queries = [], stats = { total: 0, pending: 0, resolved: 0 }, pendingCount = 0, clients = [], filters = {} }) {
   const { showToast } = useToast();
@@ -82,8 +83,8 @@ export default function EmployeeQueries({ queries = [], stats = { total: 0, pend
         <Head title="Employee Queries Queue" />
 
         <div className="mb-6">
-          <Link href={route('employees.index')} className="text-[0.85rem] font-semibold text-[#1F3864] hover:underline">
-            ← Back to Employees Directory
+          <Link href={route('employees.index')} className="text-[0.85rem] font-semibold text-[#1F3864] hover:underline inline-flex items-center gap-1">
+            <ArrowLeft size={14} /> Back to Employees Directory
           </Link>
           <h2 className="text-2xl font-bold text-[#1F3864] mt-2 mb-1">Employee Queries &amp; Support Queue</h2>
           <p className="text-gray-500 text-sm">Review, respond to, and resolve support queries submitted by employees across client organizations.</p>
@@ -96,8 +97,8 @@ export default function EmployeeQueries({ queries = [], stats = { total: 0, pend
               <p className="text-gray-500 text-sm font-medium mb-1">Total Queries</p>
               <h3 className="text-3xl font-bold text-[#1F3864]">{totalQueriesCount}</h3>
             </div>
-            <div className="h-12 w-12 bg-blue-50 rounded-full flex items-center justify-center text-[#1F3864] font-bold text-xl">
-              💬
+            <div className="h-12 w-12 bg-blue-50 rounded-full flex items-center justify-center text-[#1F3864]">
+              <MessageSquare size={24} />
             </div>
           </div>
 
@@ -106,8 +107,8 @@ export default function EmployeeQueries({ queries = [], stats = { total: 0, pend
               <p className="text-gray-500 text-sm font-medium mb-1">Pending Response</p>
               <h3 className="text-3xl font-bold text-amber-600">{pendingQueriesCount}</h3>
             </div>
-            <div className="h-12 w-12 bg-amber-50 rounded-full flex items-center justify-center text-amber-500 font-bold text-xl">
-              ⏳
+            <div className="h-12 w-12 bg-amber-50 rounded-full flex items-center justify-center text-amber-600">
+              <Clock size={24} />
             </div>
           </div>
 
@@ -116,8 +117,8 @@ export default function EmployeeQueries({ queries = [], stats = { total: 0, pend
               <p className="text-gray-500 text-sm font-medium mb-1">Resolved Queries</p>
               <h3 className="text-3xl font-bold text-green-600">{resolvedQueriesCount}</h3>
             </div>
-            <div className="h-12 w-12 bg-green-50 rounded-full flex items-center justify-center text-green-500 font-bold text-xl">
-              ✓
+            <div className="h-12 w-12 bg-green-50 rounded-full flex items-center justify-center text-green-600">
+              <CheckCircle2 size={24} />
             </div>
           </div>
         </div>
@@ -176,8 +177,12 @@ export default function EmployeeQueries({ queries = [], stats = { total: 0, pend
             </select>
           </div>
           <div className="flex gap-2">
-            <Button variant="primary" size="sm" onClick={applyFilters}>Apply Filters</Button>
-            <Button variant="secondary" size="sm" onClick={resetFilters}>Reset</Button>
+            <Button variant="primary" size="sm" onClick={applyFilters} className="inline-flex items-center gap-1.5">
+              <Filter size={14} /> Apply Filters
+            </Button>
+            <Button variant="secondary" size="sm" onClick={resetFilters} className="inline-flex items-center gap-1.5">
+              <RotateCcw size={14} /> Reset
+            </Button>
           </div>
         </div>
 
@@ -214,8 +219,8 @@ export default function EmployeeQueries({ queries = [], stats = { total: 0, pend
                         </div>
                       </td>
                       <td>
-                        <span className="font-medium text-gray-800">
-                          🏢 {q.client ? q.client.company_name : '—'}
+                        <span className="font-medium text-gray-800 flex items-center gap-1.5">
+                          <Building2 size={15} className="text-gray-500 shrink-0" /> {q.client ? q.client.company_name : '—'}
                         </span>
                       </td>
                       <td>
@@ -241,12 +246,17 @@ export default function EmployeeQueries({ queries = [], stats = { total: 0, pend
                         <Button
                           size="sm"
                           variant={q.status === 'resolved' ? 'secondary' : 'primary'}
+                          className="inline-flex items-center gap-1.5"
                           onClick={() => {
                             setSelectedQuery(q);
                             setData('admin_response', q.admin_response || '');
                           }}
                         >
-                          {q.status === 'resolved' ? 'View Details' : 'Respond & Resolve'}
+                          {q.status === 'resolved' ? (
+                            <><Eye size={14} /> View Details</>
+                          ) : (
+                            <><MessageSquare size={14} /> Respond &amp; Resolve</>
+                          )}
                         </Button>
                       </td>
                     </tr>
@@ -306,8 +316,8 @@ export default function EmployeeQueries({ queries = [], stats = { total: 0, pend
                 <Button variant="secondary" onClick={() => setSelectedQuery(null)}>
                   Cancel
                 </Button>
-                <Button type="submit" variant="primary" loading={processing}>
-                  Submit Response &amp; Resolve
+                <Button type="submit" variant="primary" loading={processing} className="inline-flex items-center gap-1.5">
+                  <Send size={14} /> Submit Response &amp; Resolve
                 </Button>
               </div>
             </form>
