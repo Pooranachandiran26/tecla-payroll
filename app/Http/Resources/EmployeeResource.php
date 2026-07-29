@@ -61,6 +61,10 @@ class EmployeeResource extends JsonResource
             'gross_monthly_salary' => $calc['gross_monthly_salary'],
             'net_take_home_monthly' => $calc['net_take_home_monthly'],
             'employer_pf_monthly' => $calc['employer_pf_monthly'],
+            'employer_epf_monthly' => $calc['employer_epf_monthly'],
+            'employer_eps_monthly' => $calc['employer_eps_monthly'],
+            'edli_monthly' => $calc['edli_monthly'],
+            'epf_admin_monthly' => $calc['epf_admin_monthly'],
             'employer_esi_monthly' => $calc['employer_esi_monthly'],
             'ctc_monthly' => $calc['ctc_monthly'],
             'employee_pf_monthly' => $calc['employee_pf_monthly'],
@@ -69,13 +73,21 @@ class EmployeeResource extends JsonResource
             
             // Statutory settings
             'pf_applicable' => $this->pf_applicable !== null ? (bool)$this->pf_applicable : true,
+            'eps_applicable' => $this->eps_applicable !== null ? (bool)$this->eps_applicable : true,
             'esi_applicable' => $this->esi_applicable !== null ? (bool)$this->esi_applicable : true,
+            'is_esi_active' => ($calc['employee_esi_monthly'] > 0),
             'pt_applicable' => $ptApplicable,
             'lwf_applicable' => $this->lwf_applicable,
             'tds_regime' => $this->tds_regime,
             'gratuity_mode' => $this->gratuity_mode,
             'weekly_off_pattern' => $this->weekly_off_pattern,
             'weeklyOffPattern' => $this->weekly_off_pattern,
+            
+            // Health / Medical Insurance (For Non-ESI employees)
+            'health_insurance_provider' => $this->health_insurance_provider,
+            'health_insurance_policy_no' => $this->health_insurance_policy_no,
+            'health_insurance_sum_insured' => $this->health_insurance_sum_insured,
+            'client_health_insurance_enabled' => $this->relationLoaded('client') && $this->client ? (bool)$this->client->health_insurance_enabled : true,
             
             // Bank Info (Partially Masked & Raw)
             'account_holder_name' => $this->account_holder_name,

@@ -45,6 +45,7 @@ class Client extends Model
         'pf_applicable' => 'boolean',
         'statutory_bonus_applicable' => 'boolean',
         'gratuity_applicable' => 'boolean',
+        'health_insurance_enabled' => 'boolean',
     ];
 
     public function contacts()

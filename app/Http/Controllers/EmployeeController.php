@@ -284,6 +284,11 @@ class EmployeeController extends Controller
         if ($request->status === 'verified' && $employee->status === 'onboarding') {
             $employee->load('documents'); // reload to get latest status
             if ($employee->documents_verified_count >= $employee->documents_required_count) {
+                // Block activation if UAN number is missing
+                if (empty($employee->uan_number)) {
+                    return redirect()->back()->with('warning', 'All documents verified, but employee cannot be activated: UAN Number is missing. Please edit the employee profile and add the UAN Number before activation.');
+                }
+
                 $employee->update(['status' => 'active']);
                 
                 if ($employee->personal_email) {

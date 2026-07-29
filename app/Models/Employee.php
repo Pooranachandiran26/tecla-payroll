@@ -24,6 +24,9 @@ class Employee extends Model
         'bank_account_number' => 'encrypted',
         'pan_number' => 'encrypted',
         'aadhaar_number' => 'encrypted',
+        'eps_applicable' => 'boolean',
+        'pf_applicable' => 'boolean',
+        'health_insurance_sum_insured' => 'float',
     ];
 
     protected static function booted()

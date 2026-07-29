@@ -15,6 +15,16 @@ class SalaryCalculationService
     public const ESI_WAGE_CEILING = 21000;
 
     /**
+     * The statutory ceiling for EPS calculation.
+     */
+    public const EPS_WAGE_CEILING = 15000;
+
+    /**
+     * The statutory age cutoff for EPS eligibility.
+     */
+    public const EPS_AGE_CUTOFF = 58;
+
+    /**
      * Calculate structural/sanctioned salary components for an employee.
      * 
      * NOTE: These computed fields represent the employee's SANCTIONED/STRUCTURAL 
@@ -43,7 +53,9 @@ class SalaryCalculationService
         $client = $clientId ? \App\Models\Client::find($clientId) : null;
 
         // 2. Calculate PF & Employer Statutory Contributions
+        $employerEpfTotal = 0.00;
         $employerEpf = 0.00;
+        $employerEps = 0.00;
         $edli = 0.00;
         $epfAdmin = 0.00;
         $employerPf = 0.00;
@@ -59,10 +71,28 @@ class SalaryCalculationService
 
             $isEdliExempt = $client ? (bool)$client->edli_exempted : (bool)data_get($employeeData, 'edli_exempted', false);
 
-            $employerEpf = $pfBase * 0.12;
+            $employerEpfTotal = $pfBase * 0.12;
             $edli = $isEdliExempt ? 0.00 : ($pfBase * 0.005);
             $epfAdmin = $pfBase * 0.005;
-            $employerPf = $employerEpf + $edli + $epfAdmin;
+            $employerPf = $employerEpfTotal + $edli + $epfAdmin;
+
+            // Evaluate EPS Eligibility & Age 58 Cutoff
+            $dob = data_get($employeeData, 'date_of_birth');
+            $calcDate = data_get($employeeData, 'payroll_month') ? \Carbon\Carbon::parse(data_get($employeeData, 'payroll_month')) : now();
+            $age = $dob ? \Carbon\Carbon::parse($dob)->diffInYears($calcDate) : 0;
+            $isOver58 = $age >= 58;
+
+            $epsApplicable = (bool) data_get($employeeData, 'eps_applicable', true);
+            $isEpsEligible = $epsApplicable && !$isOver58;
+
+            if ($isEpsEligible) {
+                $epsBase = min($basic, self::EPS_WAGE_CEILING);
+                $employerEps = round($epsBase * (8.33 / 100), 2); // 1249.50 for 15k base
+                $employerEpf = round($employerEpfTotal - $employerEps, 2); // 550.50 for 15k base
+            } else {
+                $employerEps = 0.00;
+                $employerEpf = round($employerEpfTotal, 2); // 1800.00 for 15k base
+            }
         }
 
         // 3. Calculate ESI
@@ -153,6 +183,7 @@ class SalaryCalculationService
             'gross_monthly_salary' => round($gross, 2),
             'employer_pf_monthly' => round($employerPf, 2),
             'employer_epf_monthly' => round($employerEpf, 2),
+            'employer_eps_monthly' => round($employerEps, 2),
             'edli_monthly' => round($edli, 2),
             'epf_admin_monthly' => round($epfAdmin, 2),
             'employer_esi_monthly' => round($employerEsi, 2),

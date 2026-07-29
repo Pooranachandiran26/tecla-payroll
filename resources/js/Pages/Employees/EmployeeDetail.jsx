@@ -481,19 +481,19 @@ const renderDocumentRows = () => {
                 <div style={{"display":"grid","gridTemplateColumns":"repeat(4, 1fr)","gap":"1rem","backgroundColor":"#F8FAFC","padding":"1rem","borderRadius":"var(--radius-sm)","border":"1px solid var(--border-color)"}}>
                   <div>
                     <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>Basic Pay</div>
-                    <strong style={{"fontSize":"0.95rem","color":"var(--primary-navy)"}}>₹{(employee.basic_pay || 0).toLocaleString('en-IN')}</strong>
+                    <strong style={{"fontSize":"0.95rem","color":"var(--primary-navy)"}}>₹{Number(employee.basic_pay || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
                   </div>
                   <div>
                     <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>HRA</div>
-                    <strong style={{"fontSize":"0.95rem","color":"var(--primary-navy)"}}>₹{(employee.hra || 0).toLocaleString('en-IN')}</strong>
+                    <strong style={{"fontSize":"0.95rem","color":"var(--primary-navy)"}}>₹{Number(employee.hra || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
                   </div>
                   <div>
                     <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>Allowances</div>
-                    <strong style={{"fontSize":"0.95rem","color":"var(--primary-navy)"}}>₹{((employee.conveyance || 0) + (employee.da || 0) + (employee.medical_allowance || 0) + (employee.special_allowance || 0) + (employee.other_additions || 0)).toLocaleString('en-IN')}</strong>
+                    <strong style={{"fontSize":"0.95rem","color":"var(--primary-navy)"}}>₹{(Number(employee.conveyance || 0) + Number(employee.da || 0) + Number(employee.medical_allowance || 0) + Number(employee.special_allowance || 0) + Number(employee.other_additions || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
                   </div>
                   <div style={{"borderLeft":"2px solid var(--accent-gold)","paddingLeft":"0.75rem"}}>
                     <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>Total CTC / Month</div>
-                    <strong style={{"fontSize":"1.05rem","color":"var(--accent-gold)"}}>₹{(employee.ctc_monthly || 0).toLocaleString('en-IN')}</strong>
+                    <strong style={{"fontSize":"1.05rem","color":"var(--accent-gold)"}}>₹{Number(employee.ctc_monthly || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
                   </div>
                 </div>
                 <div style={{"marginTop":"0.5rem","fontSize":"0.75rem","color":"var(--text-muted)", display: 'flex', alignItems: 'center', gap: '4px'}}>
@@ -516,15 +516,61 @@ const renderDocumentRows = () => {
                     UAN: {employee.uan_number || 'N/A'}
                   </div>
 
+                  <div style={{"display":"flex","justifyContent":"space-between","alignItems":"center","marginTop":"0.25rem"}}>
+                    <span style={{"fontSize":"0.85rem","fontWeight":"500"}}>Pension Scheme (EPS):</span>
+                    {(() => {
+                      const dob = employee.date_of_birth;
+                      const age = dob ? Math.floor((new Date() - new Date(dob)) / (365.25 * 24 * 60 * 60 * 1000)) : 0;
+                      if (age >= 58) {
+                        return <span className="badge badge-warning" title="EPS contribution is ₹0.00 due to Age 58+ statutory cutoff">Age 58+ Cutoff (0% EPS / 12% EPF)</span>;
+                      }
+                      return (
+                        <span className={`badge badge-${employee.eps_applicable !== false ? 'success' : 'neutral'}`}>
+                          {employee.eps_applicable !== false ? 'EPS Active (8.33% EPS / 3.67% EPF)' : 'Exempt (0% EPS / 12% EPF)'}
+                        </span>
+                      );
+                    })()}
+                  </div>
+
                   <hr style={{"border":"0","borderTop":"1px solid var(--border-color)"}} />
 
-                  <div style={{"display":"flex","justifyContent":"space-between","alignItems":"center"}}>
-                    <span style={{"fontSize":"0.85rem","fontWeight":"500"}}>State Insurance (ESI):</span>
-                    <span className={`badge badge-${employee.esi_applicable ? 'success' : 'neutral'}`}>{employee.esi_applicable ? 'ESI Active' : 'Not Applicable'}</span>
-                  </div>
-                  <div style={{"fontSize":"0.75rem","color":"var(--text-muted)","marginTop":"-0.5rem","textAlign":"right"}}>
-                    IP No: {employee.esic_number || (employee.esi_mode === 'new' ? 'Pending Registration' : 'N/A')}
-                  </div>
+                  {employee.is_esi_active !== false && employee.esi_applicable ? (
+                    <>
+                      <div style={{"display":"flex","justifyContent":"space-between","alignItems":"center"}}>
+                        <span style={{"fontSize":"0.85rem","fontWeight":"500"}}>State Insurance (ESI):</span>
+                        <span className="badge badge-success">ESI Active</span>
+                      </div>
+                      <div style={{"fontSize":"0.75rem","color":"var(--text-muted)","marginTop":"-0.5rem","textAlign":"right"}}>
+                        IP No: {employee.esic_number || (employee.esi_mode === 'new' ? 'Pending Registration' : 'N/A')}
+                      </div>
+                    </>
+                  ) : (
+                    Boolean(employee.health_insurance_provider || employee.health_insurance_policy_no || Number(employee.health_insurance_sum_insured || 0) > 0) || employee.client_health_insurance_enabled !== false ? (
+                      <>
+                        <div style={{"display":"flex","justifyContent":"space-between","alignItems":"center"}}>
+                          <span style={{"fontSize":"0.85rem","fontWeight":"500"}}>Group Medical Insurance:</span>
+                          <span className="badge badge-info" style={{ background: '#E0F2FE', color: '#0369A1' }}>Non-ESI Member</span>
+                        </div>
+                        <div style={{"fontSize":"0.75rem","color":"var(--text-muted)","marginTop":"-0.25rem","display":"flex","flexDirection":"column","alignItems":"flex-end","gap":"2px"}}>
+                          <span>Provider: <strong>{employee.health_insurance_provider || 'Company Group Policy'}</strong></span>
+                          <span>Policy No: <strong>{employee.health_insurance_policy_no || 'N/A'}</strong></span>
+                          {Number(employee.health_insurance_sum_insured || 0) > 0 && (
+                            <span>Sum Insured: <strong>₹{Number(employee.health_insurance_sum_insured).toLocaleString('en-IN')}</strong></span>
+                          )}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div style={{"display":"flex","justifyContent":"space-between","alignItems":"center"}}>
+                          <span style={{"fontSize":"0.85rem","fontWeight":"500"}}>State Insurance (ESI):</span>
+                          <span className="badge badge-neutral">Not Applicable</span>
+                        </div>
+                        <div style={{"fontSize":"0.75rem","color":"var(--text-muted)","marginTop":"-0.5rem","textAlign":"right"}}>
+                          Exempt (Gross > ₹21,000 ESI Ceiling)
+                        </div>
+                      </>
+                    )
+                  )}
 
                   <hr style={{"border":"0","borderTop":"1px solid var(--border-color)"}} />
 
@@ -564,10 +610,10 @@ const renderDocumentRows = () => {
             <div style={{"backgroundColor":"var(--primary-navy)","color":"white","padding":"1.5rem","borderRadius":"var(--radius-md)","display":"flex","justifyContent":"space-between","alignItems":"center","boxShadow":"0 4px 12px rgba(0,0,0,0.1)"}}>
               <div>
                 <h3 style={{"fontSize":"1.25rem","margin":"0 0 0.25rem 0","color":"white"}}>Net Pay (Monthly)</h3>
-                <div style={{"fontSize":"0.85rem","color":"#CBD5E1"}}>Gross Total (₹{(employee.gross_monthly_salary || 0).toLocaleString('en-IN')}) − Total Deductions (₹{((employee.gross_monthly_salary || 0) - (employee.net_take_home_monthly || 0)).toLocaleString('en-IN')})</div>
+                <div style={{"fontSize":"0.85rem","color":"#CBD5E1"}}>Gross Total (₹{Number(employee.gross_monthly_salary || 0).toLocaleString('en-IN')}) − Total Deductions (₹{(Number(employee.gross_monthly_salary || 0) - Number(employee.net_take_home_monthly || 0)).toLocaleString('en-IN')})</div>
               </div>
               <div style={{"fontSize":"2.25rem","fontWeight":"bold","color":"var(--accent-gold)"}}>
-                ₹{(employee.net_take_home_monthly || 0).toLocaleString('en-IN')}
+                ₹{Number(employee.net_take_home_monthly || 0).toLocaleString('en-IN')}
               </div>
             </div>
 
@@ -590,44 +636,44 @@ const renderDocumentRows = () => {
                   <tr>
                     <td><strong>1. Basic Pay</strong></td>
                     <td>Earnings</td>
-                    <td>₹{(employee.basic_pay || 0).toLocaleString('en-IN')}</td>
-                    <td>₹{((employee.basic_pay || 0) * 12).toLocaleString('en-IN')}</td>
+                    <td>₹{Number(employee.basic_pay || 0).toLocaleString('en-IN')}</td>
+                    <td>₹{(Number(employee.basic_pay || 0) * 12).toLocaleString('en-IN')}</td>
                   </tr>
                   <tr>
                     <td><strong>2. HRA (House Rent Allowance)</strong></td>
                     <td>Earnings</td>
-                    <td>₹{(employee.hra || 0).toLocaleString('en-IN')}</td>
-                    <td>₹{((employee.hra || 0) * 12).toLocaleString('en-IN')}</td>
+                    <td>₹{Number(employee.hra || 0).toLocaleString('en-IN')}</td>
+                    <td>₹{(Number(employee.hra || 0) * 12).toLocaleString('en-IN')}</td>
                   </tr>
                   <tr>
                     <td><strong>3. Conveyance</strong></td>
                     <td>Earnings</td>
-                    <td>₹{(employee.conveyance || 0).toLocaleString('en-IN')}</td>
-                    <td>₹{((employee.conveyance || 0) * 12).toLocaleString('en-IN')}</td>
+                    <td>₹{Number(employee.conveyance || 0).toLocaleString('en-IN')}</td>
+                    <td>₹{(Number(employee.conveyance || 0) * 12).toLocaleString('en-IN')}</td>
                   </tr>
                   <tr>
                     <td><strong>4. DA (Dearness Allowance)</strong></td>
                     <td>Earnings</td>
-                    <td>₹{(employee.da || 0).toLocaleString('en-IN')}</td>
-                    <td>₹{((employee.da || 0) * 12).toLocaleString('en-IN')}</td>
+                    <td>₹{Number(employee.da || 0).toLocaleString('en-IN')}</td>
+                    <td>₹{(Number(employee.da || 0) * 12).toLocaleString('en-IN')}</td>
                   </tr>
                   <tr>
                     <td><strong>5. Medical Allowance</strong></td>
                     <td>Earnings</td>
-                    <td>₹{(employee.medical_allowance || 0).toLocaleString('en-IN')}</td>
-                    <td>₹{((employee.medical_allowance || 0) * 12).toLocaleString('en-IN')}</td>
+                    <td>₹{Number(employee.medical_allowance || 0).toLocaleString('en-IN')}</td>
+                    <td>₹{(Number(employee.medical_allowance || 0) * 12).toLocaleString('en-IN')}</td>
                   </tr>
                   <tr>
                     <td><strong>6. Special Allowance</strong></td>
                     <td>Earnings</td>
-                    <td>₹{(employee.special_allowance || 0).toLocaleString('en-IN')}</td>
-                    <td>₹{((employee.special_allowance || 0) * 12).toLocaleString('en-IN')}</td>
+                    <td>₹{Number(employee.special_allowance || 0).toLocaleString('en-IN')}</td>
+                    <td>₹{(Number(employee.special_allowance || 0) * 12).toLocaleString('en-IN')}</td>
                   </tr>
                   <tr>
                     <td><strong>7. Other Additions</strong></td>
                     <td>Earnings</td>
-                    <td>₹{(employee.other_additions || 0).toLocaleString('en-IN')}</td>
-                    <td>₹{((employee.other_additions || 0) * 12).toLocaleString('en-IN')}</td>
+                    <td>₹{Number(employee.other_additions || 0).toLocaleString('en-IN')}</td>
+                    <td>₹{(Number(employee.other_additions || 0) * 12).toLocaleString('en-IN')}</td>
                   </tr>
                   <tr>
                     <td><strong>8. Arrears Amount</strong></td>
@@ -638,8 +684,8 @@ const renderDocumentRows = () => {
                   <tr style={{"backgroundColor":"var(--primary-navy-hover)","color":"white","fontWeight":"bold"}}>
                     <td style={{"color":"white"}}>Gross Total</td>
                     <td style={{"color":"white"}}>Total Earnings</td>
-                    <td style={{"color":"var(--accent-gold)"}}>₹{(employee.gross_monthly_salary || 0).toLocaleString('en-IN')}</td>
-                    <td style={{"color":"var(--accent-gold)"}}>₹{((employee.gross_monthly_salary || 0) * 12).toLocaleString('en-IN')}</td>
+                    <td style={{"color":"var(--accent-gold)"}}>₹{Number(employee.gross_monthly_salary || 0).toLocaleString('en-IN')}</td>
+                    <td style={{"color":"var(--accent-gold)"}}>₹{(Number(employee.gross_monthly_salary || 0) * 12).toLocaleString('en-IN')}</td>
                   </tr>
                 </tbody>
               </table>
@@ -698,22 +744,33 @@ const renderDocumentRows = () => {
                     <td style={{"color":"var(--accent-gold)"}}>₹{(employee.net_take_home_monthly || 0).toLocaleString('en-IN')}</td>
                   </tr>
                   <tr style={{"backgroundColor":"#FFFDF0","color":"#64748B"}}>
-                    <td style={{ paddingLeft: '1.5rem' }}>• 1. Employer EPF (12%)</td>
-                    <td><span className="badge badge-neutral">Employer Statutory Cost</span></td>
-                    <td>₹{employee.pf_applicable ? Math.round(Math.min(employee.basic_pay || 0, 15000) * 0.12).toLocaleString('en-IN') : 0}</td>
+                    <td style={{ paddingLeft: '1.5rem' }}>
+                      • {Number(employee.employer_eps_monthly || 0) > 0 ? '1a. Employer EPF Contribution (3.67%)' : '1. Employer EPF Contribution (12%)'}
+                    </td>
+                    <td><span className="badge badge-neutral">Employer PF Fund</span></td>
+                    <td>₹{Number(employee.employer_epf_monthly || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                   </tr>
+                  {Number(employee.employer_eps_monthly || 0) > 0 && (
+                    <tr style={{"backgroundColor":"#FFFDF0","color":"#64748B"}}>
+                      <td style={{ paddingLeft: '1.5rem' }}>
+                        • 1b. Employer EPS Contribution (8.33% Pension)
+                      </td>
+                      <td><span className="badge badge-neutral">Employer Pension Fund</span></td>
+                      <td>₹{Number(employee.employer_eps_monthly || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    </tr>
+                  )}
                   <tr style={{"backgroundColor":"#FFFDF0","color":"#64748B"}}>
                     <td style={{ paddingLeft: '1.5rem' }}>
                       • 2. EDLI (0.5%)
                       {Boolean(employee.edli_exempted) && <span style={{ marginLeft: '6px', fontSize: '0.7rem', color: '#166534', fontWeight: 'bold' }}>[Exempted]</span>}
                     </td>
-                    <td><span className="badge badge-neutral">Employer Statutory Cost</span></td>
-                    <td>{employee.pf_applicable ? (employee.edli_exempted ? '₹0 (Exempted)' : `₹${Math.round(Math.min(employee.basic_pay || 0, 15000) * 0.005).toLocaleString('en-IN')}`) : 0}</td>
+                    <td><span className="badge badge-neutral">Insurance Fund</span></td>
+                    <td>{employee.edli_monthly > 0 ? `₹${Number(employee.edli_monthly).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '₹0 (Exempted)'}</td>
                   </tr>
                   <tr style={{"backgroundColor":"#FFFDF0","color":"#64748B"}}>
                     <td style={{ paddingLeft: '1.5rem' }}>• 3. EPF Admin Charges (0.5%)</td>
                     <td><span className="badge badge-neutral">Employer Admin Fee</span></td>
-                    <td>₹{employee.pf_applicable ? Math.round(Math.min(employee.basic_pay || 0, 15000) * 0.005).toLocaleString('en-IN') : 0}</td>
+                    <td>₹{Number(employee.epf_admin_monthly || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                   </tr>
                   <tr style={{"backgroundColor":"#FEF3C7","color":"#92400E","fontWeight":"bold","borderTop":"1px dashed #F59E0B","borderBottom":"1px dashed #F59E0B"}}>
                     <td><strong>Total Employer PF & EPFO Charges</strong></td>
@@ -1419,6 +1476,57 @@ const renderDocumentRows = () => {
                     {employee.prior_employment_flag ? "Yes" : "No"}
                   </div>
                 </div>
+              </div>
+            </div>
+
+            {/* UAN Number Status Block */}
+            <div className="card" style={{ border: !employee.uan_number ? '2px solid var(--status-danger)' : '1px solid var(--border-color)', background: !employee.uan_number ? '#FFF5F5' : '#F0FDF4', padding: '1.25rem 1.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  {!employee.uan_number ? (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', borderRadius: '50%', background: 'var(--status-danger)', flexShrink: 0 }}>
+                      <AlertTriangle size={18} color="white" />
+                    </span>
+                  ) : (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', borderRadius: '50%', background: 'var(--status-success)', flexShrink: 0 }}>
+                      <Check size={18} color="white" />
+                    </span>
+                  )}
+                  <div>
+                    <div style={{ fontWeight: '700', fontSize: '0.95rem', color: 'var(--primary-navy)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <Lock size={15} /> UAN Number (Universal Account Number — PF)
+                      <span style={{ fontSize: '0.75rem', fontWeight: '600', color: 'var(--status-danger)' }}>* Required for Onboarding</span>
+                    </div>
+                    {employee.uan_number ? (
+                      <div style={{ fontSize: '0.9rem', marginTop: '0.25rem', color: 'var(--status-success)', fontWeight: '600', letterSpacing: '0.08em', fontFamily: 'monospace' }}>
+                        {employee.uan_number}
+                        <span className="badge badge-success" style={{ marginLeft: '0.5rem', fontSize: '0.7rem' }}>Provided ✓</span>
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: '0.85rem', marginTop: '0.3rem', color: 'var(--status-danger)', fontWeight: '500' }}>
+                        ⚠ UAN Number is missing. Employee cannot be activated without a valid 12-digit UAN. Please edit the employee profile to add the UAN before completing onboarding.
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {!employee.uan_number && (
+                  <Link
+                    href={route('employees.edit', employee.id)}
+                    className="btn btn-danger"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', flexShrink: 0 }}
+                  >
+                    <Edit size={14} /> Add UAN Number
+                  </Link>
+                )}
+                {employee.uan_number && (
+                  <Link
+                    href={route('employees.edit', employee.id)}
+                    className="btn"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', flexShrink: 0, backgroundColor: 'white', border: '1px solid var(--border-color)', color: 'var(--primary-navy)' }}
+                  >
+                    <Edit size={14} /> Edit UAN
+                  </Link>
+                )}
               </div>
             </div>
 

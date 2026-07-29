@@ -164,7 +164,14 @@ class BulkUploadValidationService
             } else {
                 $pfApplicable = filter_var($pfApplicable, FILTER_VALIDATE_BOOLEAN);
             }
-            
+
+            $epsApplicable = $normalizedRow['eps_applicable'] ?? null;
+            if ($epsApplicable === null || $epsApplicable === '') {
+                $epsApplicable = true; // Default true matching single-employee form and legacy 39-column files
+            } else {
+                $epsApplicable = filter_var($epsApplicable, FILTER_VALIDATE_BOOLEAN);
+            }
+
             $esiApplicable = $normalizedRow['esi_applicable'] ?? null;
             if ($esiApplicable === null || $esiApplicable === '') {
                 $esiApplicable = $client ? $client->esi_applicable : false;
@@ -241,9 +248,23 @@ class BulkUploadValidationService
                 }
             }
 
+            // Attendance tracking start date defaults to Date of Joining if omitted
+            $doj = $normalizedRow['date_of_joining'] ?? null;
+            $attendanceTrackingStartDate = $normalizedRow['attendance_tracking_start_date'] ?? null;
+            if (empty($attendanceTrackingStartDate)) {
+                $attendanceTrackingStartDate = $doj;
+            }
+
+            $healthInsuranceProvider = !empty($normalizedRow['health_insurance_provider']) ? trim($normalizedRow['health_insurance_provider']) : null;
+            $healthInsurancePolicyNo = !empty($normalizedRow['health_insurance_policy_no']) ? trim($normalizedRow['health_insurance_policy_no']) : null;
+            $healthInsuranceSumInsured = (isset($normalizedRow['health_insurance_sum_insured']) && $normalizedRow['health_insurance_sum_insured'] !== '') 
+                ? (float)$normalizedRow['health_insurance_sum_insured'] 
+                : null;
+
             $validationData = array_merge($normalizedRow, [
                 'employment_model' => $employmentModel,
                 'pf_applicable' => $pfApplicable,
+                'eps_applicable' => $epsApplicable,
                 'esi_applicable' => $esiApplicable,
                 'pt_applicable' => $ptApplicable,
                 'lwf_applicable' => $lwfApplicable,
@@ -261,7 +282,11 @@ class BulkUploadValidationService
                 'emergency_contact_name' => $normalizedRow['emergency_contact_name'] ?? null,
                 'previous_employer_name' => $normalizedRow['previous_employer_name'] ?? null,
                 'previous_employer_uan' => $normalizedRow['previous_employer_uan'] ?? null,
-                'probation_end_date' => $normalizedRow['probation_end_date'] ?? null,
+                'probation_end_date' => !empty($normalizedRow['probation_end_date']) ? $normalizedRow['probation_end_date'] : null,
+                'attendance_tracking_start_date' => $attendanceTrackingStartDate,
+                'health_insurance_provider' => $healthInsuranceProvider,
+                'health_insurance_policy_no' => $healthInsurancePolicyNo,
+                'health_insurance_sum_insured' => $healthInsuranceSumInsured,
                 'esi_contribution_period_end' => $normalizedRow['esi_contribution_period_end'] ?? null,
             ]);
 
@@ -377,6 +402,31 @@ class BulkUploadValidationService
                 }
             }
 
+            // Probation end date validation (must be on or after Date of Joining)
+            if (!empty($validationData['probation_end_date']) && !empty($validationData['date_of_joining'])) {
+                try {
+                    $probationDate = new \DateTime($validationData['probation_end_date']);
+                    $doj = new \DateTime($validationData['date_of_joining']);
+                    if ($probationDate < $doj) {
+                        $errors[] = 'Probation end date cannot precede Date of Joining.';
+                    }
+                } catch (\Exception $e) {
+                    $errors[] = 'Invalid date format for probation_end_date.';
+                }
+            }
+
+            // Age 58+ preview warning
+            if (!empty($validationData['date_of_birth']) && $pfApplicable) {
+                try {
+                    $dobDate = new \DateTime($validationData['date_of_birth']);
+                    $calcRef = !empty($validationData['date_of_joining']) ? new \DateTime($validationData['date_of_joining']) : new \DateTime();
+                    $ageYears = $dobDate->diff($calcRef)->y;
+                    if ($ageYears >= 58) {
+                        $warnings[] = 'EPS auto-cut off to ₹0 (age 58+)';
+                    }
+                } catch (\Exception $e) {}
+            }
+
             // 7. Salary Calculation Preview
             $salaryPreview = null;
             if (is_numeric($validationData['basic_pay'] ?? null) && is_numeric($validationData['hra'] ?? null)) {
@@ -389,6 +439,17 @@ class BulkUploadValidationService
                     if ($ctc > 0 && $basic < ($ctc * 0.5)) {
                         $warnings[] = "Basic pay ($basic) is less than 50% of CTC ($ctc) (Wage Code Warning).";
                     }
+
+                    // 9. Non-ESI missing Group Medical Insurance warning
+                    $grossPay = $salaryPreview['gross_monthly_salary'] ?? 0;
+                    $isEsiActive = $esiApplicable && ($grossPay <= 21000);
+                    $clientInsuranceEnabled = $client ? ($client->health_insurance_enabled !== false) : true;
+
+                    if (!$isEsiActive && $clientInsuranceEnabled) {
+                        if (empty($healthInsuranceProvider) && empty($healthInsurancePolicyNo)) {
+                            $warnings[] = 'Non-ESI member without Group Medical Insurance details.';
+                        }
+                    }
                 } catch (\Exception $e) {
                     // Ignore salary calculation errors for the preview if inputs were weird
                 }
@@ -399,10 +460,11 @@ class BulkUploadValidationService
             if (!empty($errors)) {
                 $status = 'error';
                 $results['error_count']++;
-            } elseif (!empty($warnings)) {
-                $status = 'warning';
-                $results['warning_count']++;
             } else {
+                if (!empty($warnings)) {
+                    $status = 'warning';
+                    $results['warning_count']++;
+                }
                 $results['valid_count']++;
             }
 
