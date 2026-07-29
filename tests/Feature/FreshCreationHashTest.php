@@ -43,7 +43,7 @@ class FreshCreationHashTest extends TestCase
             'dob' => '1990-01-01',
             'doj' => '2023-01-01',
             'designation' => 'Dev',
-            'empType' => 'eor',
+            'empType' => 'agency_contract',
             'priorEmploymentFlag' => false,
             'address' => 'Address',
             'accountNo' => 'BANKPOST123',
