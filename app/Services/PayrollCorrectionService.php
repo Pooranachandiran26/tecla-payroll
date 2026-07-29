@@ -43,6 +43,11 @@ class PayrollCorrectionService
             throw new \Exception("Employee does not exist in the specified parent payroll run.");
         }
 
+        $clientModel = $employee->client ?? \App\Models\Client::find($employee->client_id);
+        if ($clientModel) {
+            app(PayrollCycleWarningService::class)->ensureCycleEnded($clientModel, $parentRun->payroll_month);
+        }
+
         $monthStart = Carbon::parse($parentRun->payroll_month)->startOfMonth();
         $monthEnd = Carbon::parse($parentRun->payroll_month)->endOfMonth();
         $calendarDays = $monthStart->diffInDays($monthEnd) + 1;
@@ -584,42 +589,44 @@ class PayrollCorrectionService
 
         return $rawItems->groupBy('employee_id')->map(function ($empItems) use ($numericFields) {
             if ($empItems->count() === 1) {
-                return clone $empItems->first();
-            }
+                $baseItem = clone $empItems->first();
+            } else {
+                $baseItems = $empItems->filter(fn($i) => !($i->is_correction ?? false));
+                $correctionItems = $empItems->filter(fn($i) => (bool)($i->is_correction ?? false));
 
-            $baseItems = $empItems->filter(fn($i) => !($i->is_correction ?? false));
-            $correctionItems = $empItems->filter(fn($i) => (bool)($i->is_correction ?? false));
+                $baseItem = clone ($baseItems->first() ?? $empItems->first());
 
-            $baseItem = clone ($baseItems->first() ?? $empItems->first());
+                foreach ($numericFields as $field) {
+                    $baseItem->$field = round((float)$baseItems->sum($field), 2);
+                }
 
-            foreach ($numericFields as $field) {
-                $baseItem->$field = round((float)$baseItems->sum($field), 2);
-            }
+                if ($correctionItems->isNotEmpty()) {
+                    $latestCorrections = $correctionItems->groupBy(function ($item) {
+                        return $item->original_payroll_run_item_id ?? ('emp_' . $item->employee_id);
+                    })->map(function ($group) {
+                        return $group->sortByDesc(fn($i) => ($i->created_at ?? '') . '_' . sprintf('%010d', $i->id))->first();
+                    });
 
-            if ($correctionItems->isNotEmpty()) {
-                $latestCorrections = $correctionItems->groupBy(function ($item) {
-                    return $item->original_payroll_run_item_id ?? ('emp_' . $item->employee_id);
-                })->map(function ($group) {
-                    return $group->sortByDesc(fn($i) => ($i->created_at ?? '') . '_' . sprintf('%010d', $i->id))->first();
-                });
-
-                foreach ($latestCorrections as $corr) {
-                    foreach ($numericFields as $field) {
-                        $baseItem->$field = round((float)$baseItem->$field + (float)($corr->$field ?? 0), 2);
+                    foreach ($latestCorrections as $corr) {
+                        foreach ($numericFields as $field) {
+                            $baseItem->$field = round((float)$baseItem->$field + (float)($corr->$field ?? 0), 2);
+                        }
                     }
+                }
+
+                $latestOverall = $empItems->sortByDesc(fn($i) => ($i->created_at ?? '') . '_' . sprintf('%010d', $i->id))->first();
+                if ($latestOverall) {
+                    $baseItem->warning_notes = $latestOverall->warning_notes ?? null;
+                    $baseItem->exclusion_reason = $latestOverall->exclusion_reason ?? null;
+                }
+
+                if ($empItems->pluck('is_excluded')->contains(0)) {
+                    $baseItem->is_excluded = 0;
+                    $baseItem->exclusion_reason = null;
                 }
             }
 
-            $latestOverall = $empItems->sortByDesc(fn($i) => ($i->created_at ?? '') . '_' . sprintf('%010d', $i->id))->first();
-            if ($latestOverall) {
-                $baseItem->warning_notes = $latestOverall->warning_notes ?? null;
-                $baseItem->exclusion_reason = $latestOverall->exclusion_reason ?? null;
-            }
-
-            if ($empItems->pluck('is_excluded')->contains(0)) {
-                $baseItem->is_excluded = 0;
-                $baseItem->exclusion_reason = null;
-            }
+            $baseItem->ctc_display = round((float)($baseItem->gross_total ?? 0) + (float)($baseItem->employer_pf ?? 0) + (float)($baseItem->employer_esi ?? 0) + (float)($baseItem->employer_lwf ?? 0), 2);
 
             return $baseItem;
         })->values();
@@ -740,6 +747,11 @@ class PayrollCorrectionService
      */
     public function applyBatchCorrection(PayrollRun $parentRun, array $itemsPayload, string $defaultReason): PayrollRun
     {
+        $clientModel = $parentRun->client ?? \App\Models\Client::find($parentRun->client_id);
+        if ($clientModel) {
+            app(PayrollCycleWarningService::class)->ensureCycleEnded($clientModel, $parentRun->payroll_month);
+        }
+
         return DB::transaction(function () use ($parentRun, $itemsPayload, $defaultReason) {
             $suppRun = PayrollRun::where('parent_run_id', $parentRun->id)
                 ->where('status', 'draft')

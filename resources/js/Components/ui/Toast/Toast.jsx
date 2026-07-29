@@ -32,7 +32,9 @@ export default function ToastContainer() {
           >
             <Icon size={20} style={{ flexShrink: 0, marginTop: '0.125rem' }} />
             <div style={{ flex: 1 }}>
-              {toast.title && <div style={{ fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.125rem' }}>{toast.title}</div>}
+              {toast.title && !['error', 'success', 'warning', 'info'].includes(toast.title.toLowerCase()) && (
+                <div style={{ fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.125rem' }}>{toast.title}</div>
+              )}
               {toast.message && <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{toast.message}</div>}
             </div>
             <button

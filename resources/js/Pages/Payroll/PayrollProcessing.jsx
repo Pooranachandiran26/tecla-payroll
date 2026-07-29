@@ -1,15 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import RoleGuard from '../../Components/RoleGuard.jsx';
 import './PayrollProcessing.css';
 
 export default function PayrollProcessing({ clients, selectedClientId, selectedMonth, run, items, preflight, cycleInfo, newHires = [], pendingSupplementaryRuns = [] }) {
+    const { flash } = usePage().props;
     const [clientId, setClientId] = useState(selectedClientId);
     const [month, setMonth] = useState(selectedMonth);
     const [earnVisible, setEarnVisible] = useState(true);
     const [deductVisible, setDeductVisible] = useState(true);
     const [showSourceBanner, setShowSourceBanner] = useState(true);
+    const [blockerModalMessage, setBlockerModalMessage] = useState(flash?.error || null);
+
+    useEffect(() => {
+        if (flash?.error) {
+            setBlockerModalMessage(flash.error);
+        }
+    }, [flash?.error]);
 
     const getMonthOptions = () => {
         const options = [];
@@ -39,6 +47,11 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
     };
 
     const handleProcess = () => {
+        const redBlocker = preflight && preflight.find(f => f.type === 'red');
+        if (redBlocker) {
+            setBlockerModalMessage(redBlocker.msg);
+            return;
+        }
         router.post(route('payroll.run.process'), {
             client_id: clientId,
             payroll_month: month
@@ -50,7 +63,7 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
         if (!items || items.length === 0) return null;
         let t = {
             basic: 0, hra: 0, conv: 0, da: 0, med: 0, special: 0, other: 0, gross: 0,
-            pf: 0, esi: 0, pt: 0, lop: 0, tds: 0, loan: 0, totalDeduct: 0, net: 0
+            pf: 0, esi: 0, pt: 0, lop: 0, tds: 0, loan: 0, totalDeduct: 0, net: 0, ctc: 0
         };
         items.forEach(item => {
             if (item.is_excluded) return;
@@ -70,6 +83,7 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
             t.loan += parseFloat(item.loan_emi_deduction || 0);
             t.totalDeduct += (parseFloat(item.employee_pf || 0) + parseFloat(item.employee_esi || 0) + parseFloat(item.professional_tax || 0) + parseFloat(item.tds_deduction || 0) + parseFloat(item.loan_emi_deduction || 0));
             t.net += parseFloat(item.net_pay || 0);
+            t.ctc += parseFloat(item.ctc_display ?? (parseFloat(item.gross_total || 0) + parseFloat(item.employer_pf || 0) + parseFloat(item.employer_esi || 0) + parseFloat(item.employer_lwf || 0)));
         });
         return t;
     }, [items]);
@@ -87,6 +101,97 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
                     <p style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>Review statutory deductions, check for onboarding blockers, and process payslip calculations.</p>
                 </div>
                 
+                {/* Hard Blocker Modal Dialog */}
+                {blockerModalMessage && (
+                    <div style={{
+                        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                        backgroundColor: 'rgba(15, 23, 42, 0.65)',
+                        backdropFilter: 'blur(4px)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        zIndex: 99999
+                    }}>
+                        <div style={{
+                            backgroundColor: '#FFFFFF',
+                            borderRadius: '0.75rem',
+                            maxWidth: '540px',
+                            width: '90%',
+                            padding: '1.75rem',
+                            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                            borderTop: '6px solid #DC2626'
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                                <div style={{
+                                    width: '44px', height: '44px', borderRadius: '50%',
+                                    backgroundColor: '#FEF2F2', border: '1px solid #FCA5A5',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    fontSize: '1.5rem', flexShrink: 0
+                                }}>
+                                    ⛔
+                                </div>
+                                <div>
+                                    <h3 style={{ margin: 0, color: '#991B1B', fontSize: '1.15rem', fontWeight: 700 }}>
+                                        Payroll Processing Blocked
+                                    </h3>
+                                    <span style={{ fontSize: '0.8rem', color: '#6B7280', fontWeight: 500 }}>
+                                        Strict Compliance Policy Enforcement
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div style={{
+                                backgroundColor: '#FFF5F5',
+                                border: '1px solid #FED7D7',
+                                borderRadius: '0.5rem',
+                                padding: '1rem',
+                                marginBottom: '1.25rem'
+                            }}>
+                                <p style={{ margin: 0, color: '#9B2C2C', fontSize: '0.925rem', fontWeight: 600, lineHeight: 1.5 }}>
+                                    {blockerModalMessage}
+                                </p>
+                            </div>
+
+                            <p style={{ fontSize: '0.85rem', color: '#4B5563', margin: '0 0 1.5rem 0', lineHeight: 1.5 }}>
+                                Payroll runs can only be created or processed after the payroll cycle has officially ended. If you need to make adjustments beforehand, update attendance or employee master records.
+                            </p>
+
+                            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                <button
+                                    className="btn btn-navy"
+                                    onClick={() => setBlockerModalMessage(null)}
+                                    style={{ backgroundColor: '#1E293B', borderColor: '#0F172A', padding: '0.5rem 1.25rem', fontWeight: 600 }}
+                                >
+                                    Understood & Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Persistent Flash Error Banner */}
+                {flash?.error && (
+                    <div style={{
+                        backgroundColor: "#FEF2F2",
+                        border: "2px solid #EF4444",
+                        borderLeft: "6px solid #DC2626",
+                        borderRadius: "0.5rem",
+                        padding: "1.25rem 1.5rem",
+                        marginBottom: "1.5rem",
+                        boxShadow: "0 4px 6px -1px rgba(220, 38, 38, 0.1)"
+                    }}>
+                        <div style={{ display: "flex", alignItems: "flex-start", gap: "1rem" }}>
+                            <div style={{ fontSize: "2rem", lineHeight: 1 }}>⛔</div>
+                            <div style={{ flex: 1 }}>
+                                <h4 style={{ margin: 0, color: "#991B1B", fontSize: "1.1rem", fontWeight: "700" }}>
+                                    PAYROLL PROCESSING HARD BLOCKED
+                                </h4>
+                                <p style={{ margin: "0.5rem 0 0 0", color: "#B91C1C", fontSize: "0.95rem", fontWeight: "600", lineHeight: "1.5" }}>
+                                    {flash.error}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {showSourceBanner && (
                     <div style={{ backgroundColor: "#F3F4F6", border: "1px solid #E5E7EB", borderLeft: "4px solid var(--primary-navy)", padding: "1rem 1.25rem", borderRadius: "var(--radius-md)", marginBottom: "1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
@@ -257,6 +362,7 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
                                     {deductVisible && <th colSpan="6" className="col-group-deduct">Deductions</th>}
                                     <th rowSpan="2" className="col-group-total">Total Deduct.</th>
                                     <th rowSpan="2" className="col-group-total" style={{ color: "var(--primary-navy)" }}>Net Pay</th>
+                                    <th rowSpan="2" className="col-group-total" style={{ color: "#047857", background: "#ECFDF5" }}>CTC (Er Cost)</th>
                                     <th rowSpan="2">Status</th>
                                 </tr>
                                 <tr>
@@ -291,7 +397,7 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
                                                 <tr key={`ex-${row.id}`} style={{ opacity: 0.6, background: "#F8FAFC" }}>
                                                     <td>{row.employee_code}</td>
                                                     <td><strong>{row.full_name}</strong></td>
-                                                    <td colSpan={earnVisible ? (deductVisible ? 19 : 12) : (deductVisible ? 11 : 4)} style={{ color: "var(--status-danger)", paddingLeft: "1.5rem" }}>
+                                                    <td colSpan={earnVisible ? (deductVisible ? 20 : 13) : (deductVisible ? 12 : 5)} style={{ color: "var(--status-danger)", paddingLeft: "1.5rem" }}>
                                                         Excluded: {row.exclusion_reason}
                                                     </td>
                                                     <td><span className="badge badge-danger">Excluded</span></td>
@@ -300,6 +406,7 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
                                         }
 
                                         const itemDeductions = (parseFloat(row.employee_pf) + parseFloat(row.employee_esi) + parseFloat(row.professional_tax) + parseFloat(row.lwf_deduction) + parseFloat(row.tds_deduction) + parseFloat(row.loan_emi_deduction));
+                                        const ctcVal = parseFloat(row.ctc_display ?? (parseFloat(row.gross_total || 0) + parseFloat(row.employer_pf || 0) + parseFloat(row.employer_esi || 0) + parseFloat(row.employer_lwf || 0)));
 
                                         return (
                                             <React.Fragment key={row.id}>
@@ -334,8 +441,11 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
                                                         </>
                                                     )}
 
-                                                    <td className="col-group-total">₹{itemDeductions.toLocaleString()}</td>
                                                     <td className="col-group-total" style={{ color: "var(--primary-navy)", fontSize: "1.1em" }}>₹{parseFloat(row.net_pay).toLocaleString()}</td>
+                                                    <td className="col-group-total" style={{ color: ctcVal < 0 ? "#DC2626" : "#047857", background: ctcVal < 0 ? "#FEF2F2" : "#ECFDF5", fontWeight: "bold" }}>
+                                                        {ctcVal < 0 ? `-₹${Math.abs(ctcVal).toLocaleString()}` : `₹${ctcVal.toLocaleString()}`}
+                                                        {ctcVal < 0 && <span style={{ fontSize: "0.7em", display: "block", color: "#DC2626", fontWeight: "normal" }}>(Delta Reduction)</span>}
+                                                    </td>
                                                     <td>
                                                         <span className="badge badge-success">Processed</span>
                                                         {row.salary_revision_applied && (
@@ -346,7 +456,7 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
                                                 {row.salary_revision_applied && (
                                                     <tr className="split-row">
                                                         <td colSpan="3"></td>
-                                                        <td colSpan={earnVisible ? (deductVisible ? 19 : 12) : (deductVisible ? 11 : 4)}>
+                                                        <td colSpan={earnVisible ? (deductVisible ? 20 : 13) : (deductVisible ? 12 : 5)}>
                                                             ↳ <em>{row.mid_cycle_note || row.warning_notes || 'Mid-Cycle Split Applied'}</em>
                                                         </td>
                                                     </tr>
@@ -355,7 +465,7 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
                                         );
                                     })
                                 ) : (
-                                    <tr><td colSpan="22" style={{ textAlign: "center", padding: "3rem", color: "var(--text-muted)" }}>No payroll calculations run yet for this month. Choose client and click "Calculate & Process".</td></tr>
+                                    <tr><td colSpan="23" style={{ textAlign: "center", padding: "3rem", color: "var(--text-muted)" }}>No payroll calculations run yet for this month. Choose client and click "Calculate & Process".</td></tr>
                                 )}
                             </tbody>
                             {totals && (
@@ -389,6 +499,7 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
                                         
                                         <td className="col-group-total">₹{totals.totalDeduct.toLocaleString()}</td>
                                         <td className="col-group-total" style={{ color: "var(--primary-navy)", fontSize: "1.1em" }}>₹{totals.net.toLocaleString()}</td>
+                                        <td className="col-group-total" style={{ color: "#047857", background: "#ECFDF5", fontSize: "1.1em" }}>₹{totals.ctc.toLocaleString()}</td>
                                         <td></td>
                                     </tr>
                                 </tfoot>
