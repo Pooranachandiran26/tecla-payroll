@@ -161,7 +161,10 @@ class MonthlyPayrollCalculator
         // Build structural array and invoke SalaryCalculationService
         $employeeData = array_merge($proRatedComponents, [
             'client_id' => $employee->client_id,
+            'date_of_birth' => $employee->date_of_birth,
+            'payroll_month' => $payrollRun->payroll_month,
             'pf_applicable' => (bool)$employee->pf_applicable,
+            'eps_applicable' => (bool)$employee->eps_applicable,
             'esi_applicable' => $isEsiActive,
             // If ESI is active but gross > 21000, bypass the limit check by setting a huge limit
             'esi_limit' => $grossTotal > 21000 ? 99999999.00 : 21000.00,

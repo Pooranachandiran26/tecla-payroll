@@ -85,11 +85,21 @@ class LeaveApprovalController extends Controller
         }
 
         DB::transaction(function () use ($leave) {
+            $oldStatus = $leave->status;
             $leave->update([
                 'status' => 'approved',
                 'approved_by' => auth()->id(),
                 'decided_at' => now(),
             ]);
+
+            app(\App\Services\AuditService::class)->log(
+                'leave.approved',
+                auth()->user(),
+                $leave,
+                ['status' => $oldStatus],
+                ['status' => 'approved', 'approved_by' => auth()->id()],
+                ['employee_id' => $leave->employee_id, 'leave_type' => $leave->leave_type, 'days_count' => $leave->days_count]
+            );
 
             $period = CarbonPeriod::create($leave->from_date, $leave->to_date);
 

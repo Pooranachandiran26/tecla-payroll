@@ -60,7 +60,46 @@ class BulkUploadClientTemplateAndPaginationTest extends TestCase
         // Find PF Default row in Sheet 2
         $pfRow = collect($rows)->firstWhere('Setting Field', 'PF Default');
         $this->assertNotNull($pfRow);
-        $this->assertStringContainsString('1', $pfRow['Value']);
+        $this->assertEquals('1 (YES)', $pfRow['Value']);
+    }
+
+    public function test_template_omits_health_insurance_columns_when_client_health_insurance_is_disabled()
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $client = Client::factory()->create([
+            'company_name' => 'No Insurance Corp',
+            'client_code' => 'NOINS1',
+            'health_insurance_enabled' => false,
+        ]);
+        ClientBranch::factory()->create(['client_id' => $client->id, 'branch_name' => 'HQ']);
+
+        $response = $this->actingAs($admin)->get(route('employees.bulk-upload.download-template', ['client_id' => $client->id]));
+
+        $response->assertStatus(200);
+        $tempPath = tempnam(sys_get_temp_dir(), 'test_noins_') . '.xlsx';
+        file_put_contents($tempPath, $response->streamedContent());
+
+        // Inspect Sheet 1 headers
+        $reader = SimpleExcelReader::create($tempPath);
+        $reader->fromSheetName('Employee Data');
+        $headers = array_keys($reader->getRows()->first());
+
+        // Inspect Sheet 2 setting value
+        $reader2 = SimpleExcelReader::create($tempPath);
+        $reader2->fromSheetName('Client Defaults (Read Only)');
+        $rows2 = $reader2->getRows()->toArray();
+
+        @unlink($tempPath);
+
+        // Assert insurance columns are omitted from Sheet 1
+        $this->assertNotContains('health_insurance_provider', $headers);
+        $this->assertNotContains('health_insurance_policy_no', $headers);
+        $this->assertNotContains('health_insurance_sum_insured', $headers);
+
+        // Assert Sheet 2 shows disabled status
+        $gmiRow = collect($rows2)->firstWhere('Setting Field', 'Group Medical Insurance (GMI)');
+        $this->assertNotNull($gmiRow);
+        $this->assertEquals('0 (Disabled for establishment)', $gmiRow['Value']);
     }
 
     public function test_employee_code_validation_enforces_global_and_intra_file_uniqueness()

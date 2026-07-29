@@ -20,11 +20,22 @@ class PayrollController extends Controller
         }
 
         try {
+            $oldStatus = $run->status;
             $run->update([
                 'status' => 'approved',
                 'approved_by' => Auth::id(),
                 'approved_at' => now(),
             ]);
+
+            app(\App\Services\AuditService::class)->log(
+                'payroll.approved',
+                Auth::user(),
+                $run,
+                ['status' => $oldStatus],
+                ['status' => 'approved', 'approved_by' => Auth::id()],
+                ['payroll_month' => $run->payroll_month, 'client_id' => $run->client_id]
+            );
+
             return redirect()->back()->with('success', 'Payroll run approved successfully.');
         } catch (\Exception $e) {
             return redirect()->back()->with('error', $e->getMessage());
@@ -48,10 +59,20 @@ class PayrollController extends Controller
 
         try {
             \Illuminate\Support\Facades\DB::transaction(function () use ($run) {
+                $oldStatus = $run->status;
                 $run->update([
                     'status' => 'locked',
                     'locked_at' => now(),
                 ]);
+
+                app(\App\Services\AuditService::class)->log(
+                    'payroll.locked',
+                    Auth::user(),
+                    $run,
+                    ['status' => $oldStatus],
+                    ['status' => 'locked', 'locked_at' => now()],
+                    ['payroll_month' => $run->payroll_month, 'client_id' => $run->client_id]
+                );
 
                 // Process loan repayments idempotently for items in this run
                 $items = \Illuminate\Support\Facades\DB::table('payroll_run_items')

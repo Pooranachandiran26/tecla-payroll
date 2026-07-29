@@ -75,6 +75,11 @@ class StoreClientRequest extends FormRequest
             })($this->gratuityMode),
             'gratuity_applicable' => $this->gratuityApplicable ? 1 : 0,
             'statutory_bonus_applicable' => $this->statutoryBonusApplicable ? 1 : 0,
+            'health_insurance_enabled' => $this->has('healthInsuranceEnabled')
+                ? ($this->boolean('healthInsuranceEnabled') ? 1 : 0)
+                : ($this->has('health_insurance_enabled')
+                    ? ($this->boolean('health_insurance_enabled') ? 1 : 0)
+                    : 1),
             'bonus_rate_percentage' => $this->bonusRate ?? 8.33,
             'pf_ceiling' => $this->pfCeiling ?? 15000,
             'pf_applicable' => $this->pfApplicable ? 1 : 0,
@@ -284,6 +289,7 @@ class StoreClientRequest extends FormRequest
             'default_gratuity_mode' => 'nullable|string',
             'gratuity_applicable' => 'nullable|boolean',
             'statutory_bonus_applicable' => 'nullable|boolean',
+            'health_insurance_enabled' => 'nullable|boolean',
             'bonus_rate_percentage' => 'nullable|numeric|min:0|max:100',
             'pf_ceiling' => 'nullable|numeric|min:0|max:15000',
             'pf_applicable' => 'nullable|boolean',

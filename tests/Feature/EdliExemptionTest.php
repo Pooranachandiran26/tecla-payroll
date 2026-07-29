@@ -45,7 +45,7 @@ class EdliExemptionTest extends TestCase
 
         $calc = $this->svc->calculateStructuralSalary($emp);
 
-        $this->assertEquals(1800.00, $calc['employer_epf_monthly']);
+        $this->assertEquals(1800.00, round($calc['employer_epf_monthly'] + $calc['employer_eps_monthly'], 2));
         $this->assertEquals(75.00, $calc['edli_monthly']);
         $this->assertEquals(75.00, $calc['epf_admin_monthly']);
         $this->assertEquals(1950.00, $calc['employer_pf_monthly']);
@@ -73,7 +73,7 @@ class EdliExemptionTest extends TestCase
 
         $calc = $this->svc->calculateStructuralSalary($emp);
 
-        $this->assertEquals(1800.00, $calc['employer_epf_monthly']);
+        $this->assertEquals(1800.00, round($calc['employer_epf_monthly'] + $calc['employer_eps_monthly'], 2));
         $this->assertEquals(0.00, $calc['edli_monthly']);
         $this->assertEquals(75.00, $calc['epf_admin_monthly']);
         $this->assertEquals(1875.00, $calc['employer_pf_monthly']);
@@ -99,7 +99,7 @@ class EdliExemptionTest extends TestCase
         ]);
 
         $calcStandard = $this->svc->calculateStructuralSalary($empStandard);
-        $sumStandard = $calcStandard['employer_epf_monthly'] + $calcStandard['edli_monthly'] + $calcStandard['epf_admin_monthly'];
+        $sumStandard = $calcStandard['employer_epf_monthly'] + $calcStandard['employer_eps_monthly'] + $calcStandard['edli_monthly'] + $calcStandard['epf_admin_monthly'];
         $this->assertEquals(1950.00, $sumStandard);
         $this->assertEquals($calcStandard['employer_pf_monthly'], $sumStandard);
 
@@ -116,7 +116,7 @@ class EdliExemptionTest extends TestCase
         ]);
 
         $calcExempt = $this->svc->calculateStructuralSalary($empExempt);
-        $sumExempt = $calcExempt['employer_epf_monthly'] + $calcExempt['edli_monthly'] + $calcExempt['epf_admin_monthly'];
+        $sumExempt = $calcExempt['employer_epf_monthly'] + $calcExempt['employer_eps_monthly'] + $calcExempt['edli_monthly'] + $calcExempt['epf_admin_monthly'];
         $this->assertEquals(1875.00, $sumExempt);
         $this->assertEquals($calcExempt['employer_pf_monthly'], $sumExempt);
     }
@@ -129,7 +129,7 @@ class EdliExemptionTest extends TestCase
     public function test_4_ui_pages_contain_three_way_split_labels()
     {
         $employeeDetail = file_get_contents(resource_path('js/Pages/Employees/EmployeeDetail.jsx'));
-        $this->assertStringContainsString('Employer EPF (12%)', $employeeDetail);
+        $this->assertStringContainsString('Employer EPF Contribution', $employeeDetail);
         $this->assertStringContainsString('EDLI (0.5%)', $employeeDetail);
         $this->assertStringContainsString('EPF Admin Charges (0.5%)', $employeeDetail);
 

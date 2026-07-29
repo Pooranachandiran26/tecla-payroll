@@ -520,6 +520,21 @@ export default function StatutorySection({ formData, onChange, hook }) {
           </div>
         </div>
 
+        {/* Group Health Insurance Default */}
+        <div className="stat-row">
+          <div className="stat-info">
+            <strong>Group Medical Insurance — Non-ESI Employee Coverage</strong>
+            <span>Prompt for Group Health / Mediclaim policy details for employees earning above ESI ceiling (&gt; ₹21,000/mo). Uncheck if establishment does not provide commercial insurance.</span>
+          </div>
+          <div className="stat-toggle">
+            <label className="toggle-container" title={lockProps.title}>
+              <input type="checkbox" className="toggle-input"
+                checked={formData.healthInsuranceEnabled !== false} onChange={e => onChange('healthInsuranceEnabled', e.target.checked)} {...lockProps} />
+              <span className="toggle-switch"></span>
+            </label>
+          </div>
+        </div>
+
         {/* Weekly Off Pattern */}
         <div className="stat-row">
           <div className="stat-info">

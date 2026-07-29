@@ -57,19 +57,32 @@ class BulkUploadController extends Controller
             ->setBackgroundColor('1F3864');
         $writer->setHeaderStyle($headerStyle);
 
-        $writer->nameCurrentSheet('Employee Data');
-        $writer->addHeader([
+        $healthInsuranceEnabled = $client->health_insurance_enabled !== false;
+
+        $headers = [
             'employee_code', 'full_name', 'client_code', 'branch_name', 'personal_email', 'phone_number',
             'date_of_birth', 'date_of_joining', 'designation', 'employment_model', 'prior_employment_flag',
             'residential_address', 'bank_account_number', 'bank_ifsc', 'bank_name', 'bank_branch',
             'account_holder_name', 'pan_number', 'basic_pay', 'hra', 'conveyance', 'da',
-            'medical_allowance', 'special_allowance', 'other_additions', 'pf_applicable',
+            'medical_allowance', 'special_allowance', 'other_additions', 'pf_applicable', 'eps_applicable',
             'esi_applicable', 'pt_applicable', 'lwf_applicable', 'tds_applicable', 'uan_mode',
             'uan_number', 'esi_mode', 'esic_number', 'tds_regime', 'gratuity_mode', 'lop_basis_days',
             'declarations_accepted', 'reporting_manager_code'
-        ]);
+        ];
 
-        $writer->addRow([
+        if ($healthInsuranceEnabled) {
+            $headers[] = 'health_insurance_provider';
+            $headers[] = 'health_insurance_policy_no';
+            $headers[] = 'health_insurance_sum_insured';
+        }
+
+        $headers[] = 'probation_end_date';
+        $headers[] = 'attendance_tracking_start_date';
+
+        $writer->nameCurrentSheet('Employee Data');
+        $writer->addHeader($headers);
+
+        $sampleRow = [
             'employee_code' => 'EMP101',
             'full_name' => 'Sample Employee',
             'client_code' => $client->client_code,
@@ -96,6 +109,7 @@ class BulkUploadController extends Controller
             'special_allowance' => '5000',
             'other_additions' => '0',
             'pf_applicable' => '1',
+            'eps_applicable' => '1',
             'esi_applicable' => '0',
             'pt_applicable' => '1',
             'lwf_applicable' => '0',
@@ -108,8 +122,19 @@ class BulkUploadController extends Controller
             'gratuity_mode' => 'part_of_ctc',
             'lop_basis_days' => '30',
             'declarations_accepted' => '1',
-            'reporting_manager_code' => ''
-        ]);
+            'reporting_manager_code' => '',
+        ];
+
+        if ($healthInsuranceEnabled) {
+            $sampleRow['health_insurance_provider'] = 'Star Health Insurance';
+            $sampleRow['health_insurance_policy_no'] = 'POL-2026-99';
+            $sampleRow['health_insurance_sum_insured'] = '500000';
+        }
+
+        $sampleRow['probation_end_date'] = '2023-07-01';
+        $sampleRow['attendance_tracking_start_date'] = '2023-01-01';
+
+        $writer->addRow($sampleRow);
 
         // Sheet 2: Client Defaults (Read Only)
         $writer->addNewSheetAndMakeItCurrent('Client Defaults (Read Only)');
@@ -139,9 +164,31 @@ class BulkUploadController extends Controller
             'Notes' => 'Inherited if pf_applicable is omitted in row'
         ]);
         $writer->addRow([
+            'Setting Field' => 'EPS Default & Age 58 Cutoff',
+            'Value' => '1 (YES) — Auto ₹0 cutoff at age 58+',
+            'Notes' => 'EPS 8.33% contribution capped at ₹1,249.50. Employees aged 58+ automatically cut off to ₹0 EPS with 100% employer PF allocated to EPF.'
+        ]);
+        $writer->addRow([
             'Setting Field' => 'ESI Default',
             'Value' => $client->esi_applicable ? '1 (YES)' : '0 (NO)',
             'Notes' => 'Inherited if esi_applicable is omitted in row'
+        ]);
+        $writer->addRow([
+            'Setting Field' => 'Group Medical Insurance (GMI)',
+            'Value' => $healthInsuranceEnabled ? '1 (Enabled for establishment)' : '0 (Disabled for establishment)',
+            'Notes' => $healthInsuranceEnabled 
+                ? 'Optional insurance fields (provider, policy no, sum insured) active for non-ESI employees.' 
+                : 'Group Medical Insurance is OFF for this client. Insurance columns are omitted from Sheet 1.'
+        ]);
+        $writer->addRow([
+            'Setting Field' => 'Attendance Start Date Default',
+            'Value' => 'Defaults to Date of Joining (date_of_joining)',
+            'Notes' => 'If attendance_tracking_start_date is omitted, system defaults to Date of Joining.'
+        ]);
+        $writer->addRow([
+            'Setting Field' => 'Probation End Date Rule',
+            'Value' => 'Optional (YYYY-MM-DD)',
+            'Notes' => 'If provided, probation_end_date must be on or after Date of Joining.'
         ]);
         $writer->addRow([
             'Setting Field' => 'PT Default',
@@ -213,11 +260,15 @@ class BulkUploadController extends Controller
 
         $request->validate([
             'file' => 'required|file|mimes:csv,txt,xlsx,xls|max:10240',
-            'partial_import' => 'boolean'
+            'partial_import' => 'nullable|boolean',
+            'auto_provision_users' => 'nullable|boolean',
         ]);
 
         $file = $request->file('file');
         $partialImport = $request->boolean('partial_import');
+        $autoProvisionUsers = $request->has('auto_provision_users') 
+            ? $request->boolean('auto_provision_users') 
+            : true; // Default true preserving current behavior
         
         $extension = $file->getClientOriginalExtension() ?: 'csv';
         $filename = \Illuminate\Support\Str::random(40) . '.' . $extension;
@@ -273,18 +324,26 @@ class BulkUploadController extends Controller
 
                 \Illuminate\Support\Facades\DB::commit();
 
-                // Log audit
+                $employeeIds = array_map(fn($emp) => $emp->id, $createdEmployees);
+
+                // Log audit with Option A metadata tracking
                 $auditService->log(
                     'employee.bulk_imported',
                     $request->user(),
                     null,
                     null,
-                    ['count' => $importedCount, 'client_ids' => array_keys($clientIds), 'file_name' => $file->getClientOriginalName()]
+                    null,
+                    [
+                        'count' => $importedCount,
+                        'client_ids' => array_keys($clientIds),
+                        'file_name' => $file->getClientOriginalName(),
+                        'auto_provision_users' => $autoProvisionUsers,
+                        'employee_ids' => $employeeIds,
+                    ]
                 );
 
-                // Provision users in the background for ALL successfully created employees
-                if ($importedCount > 0) {
-                    $employeeIds = array_map(fn($emp) => $emp->id, $createdEmployees);
+                // Provision users in the background ONLY if auto_provision_users toggle is true
+                if ($importedCount > 0 && $autoProvisionUsers) {
                     \App\Jobs\ProvisionBulkUploadUsersJob::dispatch($employeeIds, $request->user()->id);
                 }
 
@@ -306,13 +365,18 @@ class BulkUploadController extends Controller
 
             @unlink($fullPath);
 
+            $message = $autoProvisionUsers
+                ? "Successfully imported {$importedCount} employees. User accounts and invitations are being provisioned in the background."
+                : "Successfully imported {$importedCount} employees. Auto-provisioning was skipped per settings.";
+
             return response()->json([
                 'success' => true,
-                'message' => "Successfully imported {$importedCount} employees. User accounts and invitations are being provisioned in the background.",
+                'message' => $message,
                 'summary' => array_values($clientImpacts),
                 'results' => $results,
                 'imported_count' => $importedCount,
-                'ignored_errors_count' => $results['error_count']
+                'ignored_errors_count' => $results['error_count'],
+                'auto_provision_users' => $autoProvisionUsers,
             ]);
 
         } catch (\Exception $e) {
