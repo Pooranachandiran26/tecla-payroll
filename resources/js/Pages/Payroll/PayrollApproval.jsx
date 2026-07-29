@@ -14,19 +14,16 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
     const [month, setMonth] = useState(selectedMonth);
     const [showBreakdown, setShowBreakdown] = useState(false);
     const [showDisbursementModal, setShowDisbursementModal] = useState(false);
-    const [showSupplementaryModal, setShowSupplementaryModal] = useState(false);
-    const [showSingleCorrectionModal, setShowSingleCorrectionModal] = useState(false);
-    const [showBatchCorrectionModal, setShowBatchCorrectionModal] = useState(false);
-
-    useEffect(() => {
+    const [showSupplementaryModal, setShowSupplementaryModal] = useState(() => {
         if (typeof window !== 'undefined') {
             const params = new URLSearchParams(window.location.search);
             const val = params.get('open_supplementary_modal');
-            if (val === 'true' || val === '1') {
-                setShowSupplementaryModal(true);
-            }
+            return val === 'true' || val === '1';
         }
-    }, []);
+        return false;
+    });
+    const [showSingleCorrectionModal, setShowSingleCorrectionModal] = useState(false);
+    const [showBatchCorrectionModal, setShowBatchCorrectionModal] = useState(false);
 
     const getMonthOptions = () => {
         const options = [];

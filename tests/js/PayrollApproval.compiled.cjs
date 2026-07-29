@@ -45,18 +45,16 @@ function PayrollApproval({ clients, selectedClientId, selectedMonth, run, items,
   const [month, setMonth] = (0, import_react.useState)(selectedMonth);
   const [showBreakdown, setShowBreakdown] = (0, import_react.useState)(false);
   const [showDisbursementModal, setShowDisbursementModal] = (0, import_react.useState)(false);
-  const [showSupplementaryModal, setShowSupplementaryModal] = (0, import_react.useState)(false);
-  const [showSingleCorrectionModal, setShowSingleCorrectionModal] = (0, import_react.useState)(false);
-  const [showBatchCorrectionModal, setShowBatchCorrectionModal] = (0, import_react.useState)(false);
-  (0, import_react.useEffect)(() => {
+  const [showSupplementaryModal, setShowSupplementaryModal] = (0, import_react.useState)(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const val = params.get("open_supplementary_modal");
-      if (val === "true" || val === "1") {
-        setShowSupplementaryModal(true);
-      }
+      return val === "true" || val === "1";
     }
-  }, []);
+    return false;
+  });
+  const [showSingleCorrectionModal, setShowSingleCorrectionModal] = (0, import_react.useState)(false);
+  const [showBatchCorrectionModal, setShowBatchCorrectionModal] = (0, import_react.useState)(false);
   const getMonthOptions = () => {
     const options = [];
     const startDate = new Date(2026, 4, 1);
