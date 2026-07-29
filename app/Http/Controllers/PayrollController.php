@@ -383,6 +383,8 @@ class PayrollController extends Controller
         }
 
         $client = \App\Models\Client::findOrFail($parent->client_id);
+        app(\App\Services\PayrollCycleWarningService::class)->ensureCycleEnded($client, $parent->payroll_month);
+
         $employees = \App\Models\Employee::whereIn('id', $targetEmployeeIds)->get();
 
         $eligibilityService = app(\App\Services\PayrollEligibilityService::class);
@@ -527,8 +529,11 @@ class PayrollController extends Controller
 
         $clientId = $validated['client_id'];
         $payrollMonth = \Carbon\Carbon::parse($validated['payroll_month'])->startOfMonth()->toDateString();
+        $client = \App\Models\Client::findOrFail($clientId);
 
         try {
+            app(\App\Services\PayrollCycleWarningService::class)->ensureCycleEnded($client, $payrollMonth);
+
             $run = \Illuminate\Support\Facades\DB::transaction(function () use ($clientId, $payrollMonth) {
                 // Lock for concurrency
                 $existing = PayrollRun::where('client_id', $clientId)

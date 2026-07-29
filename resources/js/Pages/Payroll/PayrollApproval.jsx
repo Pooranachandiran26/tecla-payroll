@@ -293,27 +293,34 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
                                                             <th>PF</th>
                                                             <th>ESI</th>
                                                             <th>PT</th>
-                                                            <th>TDS</th>
-                                                            <th>Loan EMI</th>
+                                                                                                 <th>Loan EMI</th>
                                                             <th>Net Pay</th>
+                                                            <th style={{ color: "#047857", background: "#ECFDF5" }}>CTC (Er Cost)</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
-                                                        {activeItems.map(r => (
-                                                            <tr key={r.id}>
-                                                                <td>{r.employee_code}</td>
-                                                                <td><strong>{r.full_name}</strong></td>
-                                                                <td>{parseFloat(r.paid_days).toFixed(1)} days</td>
-                                                                <td>₹{parseFloat(r.gross_total).toLocaleString()}</td>
-                                                                <td style={{ background: "#F8FAFC" }}>₹{parseFloat(r.lop_deduction).toLocaleString()}</td>
-                                                                <td>₹{parseFloat(r.employee_pf).toLocaleString()}</td>
-                                                                <td>₹{parseFloat(r.employee_esi).toLocaleString()}</td>
-                                                                <td>₹{parseFloat(r.professional_tax).toLocaleString()}</td>
-                                                                <td>₹{parseFloat(r.tds_deduction).toLocaleString()}</td>
-                                                                <td>₹{parseFloat(r.loan_emi_deduction).toLocaleString()}</td>
-                                                                <td style={{ color: "var(--primary-navy)" }}><strong>₹{parseFloat(r.net_pay).toLocaleString()}</strong></td>
-                                                            </tr>
-                                                        ))}
+                                                        {activeItems.map(r => {
+                                                            const ctcVal = parseFloat(r.ctc_display ?? (parseFloat(r.gross_total || 0) + parseFloat(r.employer_pf || 0) + parseFloat(r.employer_esi || 0) + parseFloat(r.employer_lwf || 0)));
+                                                            return (
+                                                                <tr key={r.id}>
+                                                                    <td>{r.employee_code}</td>
+                                                                    <td><strong>{r.full_name}</strong></td>
+                                                                    <td>{parseFloat(r.paid_days).toFixed(1)} days</td>
+                                                                    <td>₹{parseFloat(r.gross_total).toLocaleString()}</td>
+                                                                    <td style={{ background: "#F8FAFC" }}>₹{parseFloat(r.lop_deduction).toLocaleString()}</td>
+                                                                    <td>₹{parseFloat(r.employee_pf).toLocaleString()}</td>
+                                                                    <td>₹{parseFloat(r.employee_esi).toLocaleString()}</td>
+                                                                    <td>₹{parseFloat(r.professional_tax).toLocaleString()}</td>
+                                                                    <td>₹{parseFloat(r.tds_deduction).toLocaleString()}</td>
+                                                                    <td>₹{parseFloat(r.loan_emi_deduction).toLocaleString()}</td>
+                                                                    <td style={{ color: "var(--primary-navy)" }}><strong>₹{parseFloat(r.net_pay).toLocaleString()}</strong></td>
+                                                                    <td style={{ color: ctcVal < 0 ? "#DC2626" : "#047857", background: ctcVal < 0 ? "#FEF2F2" : "#ECFDF5", fontWeight: "bold" }}>
+                                                                        {ctcVal < 0 ? `-₹${Math.abs(ctcVal).toLocaleString()}` : `₹${ctcVal.toLocaleString()}`}
+                                                                        {ctcVal < 0 && <span style={{ fontSize: "0.7em", display: "block", color: "#DC2626", fontWeight: "normal" }}>(Delta Reduction)</span>}
+                                                                    </td>
+                                                                </tr>
+                                                            );
+                                                        })}
                                                     </tbody>
                                                 </table>
                                             </div>
@@ -328,6 +335,10 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
                                         <div style={{ display: "flex", justifyContent: "space-between" }}>
                                             <span style={{ color: "var(--text-muted)" }}>Employer Statutory Costs (PF + ESI + LWF):</span>
                                             <span style={{ fontWeight: 600 }}>₹{parseFloat(run.total_employer_statutory_cost).toLocaleString()}</span>
+                                        </div>
+                                        <div style={{ display: "flex", justifyContent: "space-between" }}>
+                                            <span style={{ color: "#047857", fontWeight: 600 }}>Consolidated Run CTC (Gross + Employer Costs):</span>
+                                            <span style={{ color: "#047857", fontWeight: 700 }}>₹{(parseFloat(run.total_gross_earnings) + parseFloat(run.total_employer_statutory_cost)).toLocaleString()}</span>
                                         </div>
                                         <hr style={{ border: 0, borderTop: "1px solid var(--border-color)" }} />
                                         <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "bold", fontSize: "1rem" }}>

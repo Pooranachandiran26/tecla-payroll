@@ -183,9 +183,10 @@ class PayrollCycleWarningTest extends TestCase
             'payroll_month' => '2026-07-01',
         ]);
 
-        $response->assertStatus(302); // Redirect success
+        $response->assertSessionHas('error');
+        $this->assertStringContainsString('this cycle has not ended yet', session('error'));
         $run = PayrollRun::where('client_id', $client->id)->where('payroll_month', '2026-07-01')->first();
-        $this->assertNotNull($run);
+        $this->assertNull($run);
 
         Carbon::setTestNow();
     }

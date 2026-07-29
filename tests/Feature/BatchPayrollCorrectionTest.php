@@ -24,6 +24,7 @@ class BatchPayrollCorrectionTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        \Carbon\Carbon::setTestNow(\Carbon\Carbon::parse('2026-08-01'));
 
         $this->admin = User::factory()->create(['role' => 'admin']);
         $this->client = Client::factory()->create(['company_name' => 'Batch Client', 'weekly_off_pattern' => 'sat,sun']);

@@ -18,16 +18,16 @@ export default function AuthenticatedLayout({ children }) {
 
   const handleFlash = useCallback((flashObj) => {
     if (flashObj?.success) {
-      showToast({ type: 'success', title: 'Success', message: flashObj.success });
+      showToast({ type: 'success', message: flashObj.success });
     }
     if (flashObj?.error) {
-      showToast({ type: 'error', title: 'Error', message: flashObj.error });
+      showToast({ type: 'error', message: flashObj.error });
     }
     if (flashObj?.warning) {
-      showToast({ type: 'warning', title: 'Warning', message: flashObj.warning });
+      showToast({ type: 'warning', message: flashObj.warning });
     }
     if (flashObj?.info) {
-      showToast({ type: 'info', title: 'Info', message: flashObj.info });
+      showToast({ type: 'info', message: flashObj.info });
     }
   }, [showToast]);
 
