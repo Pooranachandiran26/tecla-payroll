@@ -94,12 +94,27 @@ class ActivityLogController extends Controller
             ]);
         }
 
+        // ── Compute Category Counts across DB ──────────────────────────────────
+        $categoryCounts = [
+            'all' => AuditLog::count(),
+        ];
+        foreach (self::CATEGORY_PATTERNS as $catKey => $patterns) {
+            $categoryCounts[$catKey] = AuditLog::where(function ($q) use ($patterns) {
+                foreach ($patterns as $i => $p) {
+                    $method = $i === 0 ? 'where' : 'orWhere';
+                    $q->$method('action', 'like', '%' . $p . '%');
+                }
+            })->count();
+        }
+
         // ── Paginate & return for Inertia ─────────────────────────────────────
-        $logs = $query->paginate(25)->withQueryString();
+        $logs = $query->paginate(10)->withQueryString();
 
         return Inertia::render('Admin/ActivityLog', [
-            'logs'    => $logs,
-            'filters' => $request->only(['search', 'date_from', 'date_to', 'category']),
+            'logs'           => $logs,
+            'categoryCounts' => $categoryCounts,
+            'filters'        => $request->only(['search', 'date_from', 'date_to', 'category']),
         ]);
     }
 }
+

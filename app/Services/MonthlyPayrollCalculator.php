@@ -176,6 +176,8 @@ class MonthlyPayrollCalculator
         $employeePf = (float)$calc['employee_pf_monthly'];
         $employeeEsi = (float)$calc['employee_esi_monthly'];
         $employerPf = (float)$calc['employer_pf_monthly'];
+        $employerEpf = (float)$calc['employer_epf_monthly'];
+        $employerEps = (float)$calc['employer_eps_monthly'];
         $employerEsi = (float)$calc['employer_esi_monthly'];
 
         // e. Add PT, LWF, and TDS
@@ -359,6 +361,8 @@ class MonthlyPayrollCalculator
             'deferred_loan_amount' => $deferredLoanAmount,
             'net_pay' => $netPay,
             'employer_pf' => $employerPf,
+            'employer_epf' => $employerEpf,
+            'employer_eps' => $employerEps,
             'employer_esi' => $employerEsi,
             'employer_lwf' => $employerLwf,
             'is_excluded' => false,

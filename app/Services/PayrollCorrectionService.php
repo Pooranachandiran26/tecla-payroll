@@ -114,7 +114,10 @@ class PayrollCorrectionService
         }
 
         $employeeData = array_merge($proRatedComponents, [
+            'client_id' => $employee->client_id,
             'pf_applicable' => (bool)$employee->pf_applicable,
+            'eps_applicable' => (bool)$employee->eps_applicable,
+            'date_of_birth' => $employee->date_of_birth,
             'esi_applicable' => $isEsiActive,
             'esi_limit' => $grossTotal > 21000 ? 99999999.00 : 21000.00,
             'pt_applicable' => false,
@@ -125,6 +128,8 @@ class PayrollCorrectionService
         $employeePf = (float)$calc['employee_pf_monthly'];
         $employeeEsi = (float)$calc['employee_esi_monthly'];
         $employerPf = (float)$calc['employer_pf_monthly'];
+        $employerEpf = (float)$calc['employer_epf_monthly'];
+        $employerEps = (float)$calc['employer_eps_monthly'];
         $employerEsi = (float)$calc['employer_esi_monthly'];
 
         // Professional Tax Calculation
@@ -236,6 +241,8 @@ class PayrollCorrectionService
             'loan_emi_deduction' => $actualLoanDeduction,
             'net_pay' => $netPay,
             'employer_pf' => $employerPf,
+            'employer_epf' => $employerEpf,
+            'employer_eps' => $employerEps,
             'employer_esi' => $employerEsi,
             'employer_lwf' => $employerLwf,
             'deferred_loan_amount' => $deferredLoanAmount,
@@ -688,6 +695,8 @@ class PayrollCorrectionService
                 'loan_emi_deduction' => $delta['loan_emi_deduction'],
                 'net_pay' => $delta['net_pay'],
                 'employer_pf' => $delta['employer_pf'],
+                'employer_epf' => $delta['employer_epf'] ?? 0.00,
+                'employer_eps' => $delta['employer_eps'] ?? 0.00,
                 'employer_esi' => $delta['employer_esi'],
                 'employer_lwf' => $delta['employer_lwf'] ?? 0.00,
                 'deferred_loan_amount' => $delta['deferred_loan_amount'] ?? 0.00,
@@ -800,6 +809,8 @@ class PayrollCorrectionService
                     'loan_emi_deduction' => $delta['loan_emi_deduction'],
                     'net_pay' => $delta['net_pay'],
                     'employer_pf' => $delta['employer_pf'],
+                    'employer_epf' => $delta['employer_epf'] ?? 0.00,
+                    'employer_eps' => $delta['employer_eps'] ?? 0.00,
                     'employer_esi' => $delta['employer_esi'],
                     'employer_lwf' => $delta['employer_lwf'] ?? 0.00,
                     'deferred_loan_amount' => $delta['deferred_loan_amount'] ?? 0.00,
