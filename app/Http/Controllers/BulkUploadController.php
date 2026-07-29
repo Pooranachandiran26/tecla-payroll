@@ -92,7 +92,7 @@ class BulkUploadController extends Controller
             'date_of_birth' => '1995-05-15',
             'date_of_joining' => '2023-01-01',
             'designation' => 'Software Engineer',
-            'employment_model' => 'eor',
+            'employment_model' => ($client->contract_type === 'agency') ? 'agency_contract' : 'eor',
             'prior_employment_flag' => '0',
             'residential_address' => '123 Tech Park, City',
             'bank_account_number' => '123456789012',

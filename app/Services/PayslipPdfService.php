@@ -30,7 +30,7 @@ class PayslipPdfService
         $accentColor = "#1F3864";
         $logoUrl = null;
 
-        if ($isEor && $client) {
+        if ($client) {
             $displayName = $client->display_name_override ?: $client->company_name;
             $cityState = array_filter([$client->registered_city, $client->registered_state]);
             $gstinText = $client->gstin ? "GST: {$client->gstin}" : '';
@@ -93,11 +93,15 @@ class PayslipPdfService
         $netPayWords = $this->numberToEnglishWords((int)round((float)$item->net_pay));
         $formattedMonth = Carbon::parse($run->payroll_month)->format('F Y');
 
+        $templateKey = $client ? ($client->payslip_template ?: 'standard') : 'standard';
+
         $data = [
             'item' => $item,
             'employee' => $employee,
             'run' => $run,
             'client' => $client,
+            'templateKey' => $templateKey,
+            'visibleSections' => $client ? $client->payslip_visible_sections : [],
             'displayName' => $displayName,
             'companyAddress' => $companyAddress,
             'accentColor' => $accentColor,
@@ -116,7 +120,7 @@ class PayslipPdfService
         return view('pdf.payslip', $data)->render();
     }
 
-    private function numberToEnglishWords(int $num): string
+    public function numberToEnglishWords(int $num): string
     {
         if ($num === 0) return 'Rupees Zero Only';
 

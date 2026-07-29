@@ -203,6 +203,9 @@ Route::middleware(['auth', 'active'])->group(function () {
             Route::get('/admin/users', [UserController::class, 'index'])->name('admin.users');
             Route::post('/admin/users', [UserController::class, 'store'])->name('admin.users.store');
             Route::put('/admin/users/{user}/managed-clients', [UserController::class, 'updateManagedClients'])->name('admin.users.update-managed-clients');
+            Route::get('/admin/payslip-templates', [\App\Http\Controllers\Admin\PayslipTemplateCustomizerController::class, 'index'])->name('admin.payslip-templates');
+            Route::get('/admin/payslip-templates/preview', [\App\Http\Controllers\Admin\PayslipTemplateCustomizerController::class, 'previewHtml'])->name('admin.payslip-templates.preview');
+            Route::post('/admin/payslip-templates/{client}', [\App\Http\Controllers\Admin\PayslipTemplateCustomizerController::class, 'update'])->name('admin.payslip-templates.update');
             Route::get('/admin/settings', fn() => Inertia::render('Admin/Settings'))->name('admin.settings');
             
             Route::apiResource('admin/watchers', \App\Http\Controllers\NotificationWatcherController::class)->except(['show']);
@@ -273,7 +276,8 @@ Route::middleware(['auth', 'active'])->group(function () {
             Route::get('/employee/leave', [\App\Http\Controllers\EmployeePortalController::class, 'leave'])->name('employee.leave');
             Route::post('/employee/leave-requests', [\App\Http\Controllers\EmployeePortalController::class, 'storeLeaveRequest'])->name('employee.leave.store');
             
-            Route::get('/employee/payslips', fn() => Inertia::render('EmployeePortal/EmployeePayslips'))->name('employee.payslips');
+            Route::get('/employee/payslips', [\App\Http\Controllers\EmployeePortalController::class, 'payslips'])->name('employee.payslips');
+            Route::get('/employee/payslips/{id}/download', [\App\Http\Controllers\EmployeePortalController::class, 'downloadPayslip'])->name('employee.payslips.download');
 
             Route::get('/employee/contact', [\App\Http\Controllers\EmployeeQueryController::class, 'employeeIndex'])->name('employee.contact');
             Route::post('/employee/contact', [\App\Http\Controllers\EmployeeQueryController::class, 'employeeStore'])->name('employee.contact.store');

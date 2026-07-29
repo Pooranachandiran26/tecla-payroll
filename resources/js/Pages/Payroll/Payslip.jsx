@@ -8,39 +8,26 @@ import Pagination from '../../Components/ui/Pagination';
 import useToast from '../../Hooks/useToast';
 import PayrollCorrectionModal from '../../Components/PayrollCorrectionModal';
 import BatchPayrollCorrectionModal from '../../Components/BatchPayrollCorrectionModal';
+import ConfirmDialog from '../../Components/ui/ConfirmDialog/ConfirmDialog';
 
-// Simple numbers-to-words helper in English
-function numberToEnglishWords(num) {
-    if (num === 0) return 'zero';
-    
-    const a = [
-        '', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
-        'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'
-    ];
-    const b = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
-
-    function g(n) {
-        if (n < 20) return a[n];
-        const digit = n % 10;
-        return b[Math.floor(n / 10)] + (digit ? '-' + a[digit] : '');
-    }
-
-    function h(n) {
-        if (n < 100) return g(n);
-        const rest = n % 100;
-        return a[Math.floor(n / 100)] + ' hundred' + (rest ? ' and ' + g(rest) : '');
-    }
-
-    function convert(n) {
-        if (n < 1000) return h(n);
-        const thousands = Math.floor(n / 1000);
-        const rest = n % 1000;
-        return h(thousands) + ' thousand' + (rest ? ' ' + h(rest) : '');
-    }
-
-    const words = convert(Math.floor(num));
-    return words.charAt(0).toUpperCase() + words.slice(1);
-}
+// SVG Icons
+const Icons = {
+    Filter: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>,
+    Building: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M12 6h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/><path d="M16 10h.01"/><path d="M16 14h.01"/><path d="M8 10h.01"/><path d="M8 14h.01"/></svg>,
+    Calendar: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
+    User: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
+    Users: () => <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+    Wrench: () => <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>,
+    Zap: () => <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>,
+    Send: () => <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>,
+    Printer: () => <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>,
+    Download: () => <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
+    Check: () => <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
+    Loader: () => <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>,
+    FileText: () => <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>,
+    Search: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
+    IndianRupee: () => <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 3h12"/><path d="M6 8h12"/><path d="M6 13l8.5 8"/><path d="M6 13h3c3.5 0 6-2.5 6-5H6"/></svg>,
+};
 
 export default function Payslip({ items, clients = [], selectedClientId, selectedMonth, clientBranding, lockedRun }) {
     const { showToast } = useToast();
@@ -50,31 +37,33 @@ export default function Payslip({ items, clients = [], selectedClientId, selecte
     const [clientId, setClientId] = useState(selectedClientId || '');
     const [month, setMonth] = useState(selectedMonth || '2026-07-01');
     const [selectedItem, setSelectedItem] = useState(null);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [showConfirmResend, setShowConfirmResend] = useState(false);
+
+    const handleExecuteRelease = () => {
+        setIsReleasing(true);
+        setShowConfirmResend(false);
+        router.post(route('payroll.run.release-payslips', lockedRun.id), {}, {
+            onFinish: () => setIsReleasing(false),
+            onSuccess: () => showToast({ type: 'success', title: 'Success', message: 'Official PDF payslips released & emailed to employees.' }),
+            onError: (errs) => showToast({ type: 'error', title: 'Error', message: errs.error || 'Failed to release payslips.' })
+        });
+    };
+
+    const handleReleaseClick = () => {
+        if (lockedRun?.payslip_released_at) {
+            setShowConfirmResend(true);
+        } else {
+            handleExecuteRelease();
+        }
+    };
 
     const { branding } = usePage().props;
 
-    // Resolve per-employee branding based on their employment_model
-    const isEor = selectedItem?.employment_model === 'eor';
-
-    let logoUrl = null;
-    let displayName = "TECLA AGENCY PRIVATE LIMITED";
-    let companyAddress = "Mumbai, Maharashtra | GST: 27AABCM1234N1ZQ";
-    let accentColor = "#1F3864"; // Default Tecla accent color
-
-    if (isEor && clientBranding) {
-        logoUrl = clientBranding.logo_path || null;
-        displayName = clientBranding.display_name_override || clientBranding.company_name;
-
-        // Resolve address & GSTIN
-        const cityState = [clientBranding.registered_city, clientBranding.registered_state].filter(Boolean).join(', ');
-        const gstinText = clientBranding.gstin ? `GST: ${clientBranding.gstin}` : '';
-        companyAddress = [cityState, gstinText].filter(Boolean).join(' | ');
-
-        if (clientBranding.accent_color) {
-            accentColor = clientBranding.accent_color;
-        }
-    } else {
-        logoUrl = branding?.logo_url || null;
+    // Resolve accent color
+    let accentColor = "#1F3864";
+    if (selectedItem?.employment_model === 'eor' && clientBranding?.accent_color) {
+        accentColor = clientBranding.accent_color;
     }
 
     useEffect(() => {
@@ -97,10 +86,9 @@ export default function Payslip({ items, clients = [], selectedClientId, selecte
 
     const getMonthOptions = () => {
         const options = [];
-        const startDate = new Date(2026, 4, 1); // May 2026 (index 4)
+        const startDate = new Date(2026, 4, 1);
         const endDate = new Date();
-        endDate.setMonth(endDate.getMonth() + 2); // Current date + 2 months
-
+        endDate.setMonth(endDate.getMonth() + 2);
         const currentDate = new Date(startDate);
         while (currentDate <= endDate) {
             const year = currentDate.getFullYear();
@@ -112,14 +100,11 @@ export default function Payslip({ items, clients = [], selectedClientId, selecte
         return options.reverse();
     };
 
-    const getWords = (net) => {
-        try {
-            const amount = Math.round(parseFloat(net || 0));
-            return "Rupees " + numberToEnglishWords(amount) + " Only";
-        } catch (e) {
-            return `Rupees ${net} Only`;
-        }
-    };
+    // Filter employees by search
+    const filteredEmployees = items?.data?.filter(emp =>
+        emp.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        emp.employee_code.toLowerCase().includes(searchQuery.toLowerCase())
+    ) || [];
 
     return (
         <RoleGuard allowedRoles={['admin', 'manager']}>
@@ -127,303 +112,355 @@ export default function Payslip({ items, clients = [], selectedClientId, selecte
                 <Head title="Payslips" />
                 
                 <style>{`
-                    .payslip-container {
-                        background-color: white;
-                        border: 1px solid #CBD5E1;
-                        padding: 2.5rem;
-                        border-radius: var(--radius-sm);
-                        margin-bottom: 2rem;
+                    .payslip-split-layout {
+                        display: grid;
+                        grid-template-columns: 1fr 1fr;
+                        gap: 1.25rem;
+                        height: calc(100vh - 160px);
+                        min-height: 600px;
                     }
-                    .payslip-header {
+                    .payslip-left-panel {
                         display: flex;
-                        justify-content: space-between;
-                        border-bottom: 2px solid ${accentColor};
-                        padding-bottom: 1rem;
-                        margin-bottom: 1.5rem;
+                        flex-direction: column;
+                        gap: 0.75rem;
+                        overflow: hidden;
                     }
-                    .payslip-title {
-                        font-size: 1.5rem;
+                    .payslip-right-panel {
+                        display: flex;
+                        flex-direction: column;
+                        overflow: hidden;
+                        background: #ffffff;
+                        border: 1px solid #e2e8f0;
+                        border-radius: 10px;
+                        box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+                    }
+                    .payslip-right-panel iframe {
+                        flex: 1;
+                        width: 100%;
+                        border: none;
+                        background: #ffffff;
+                    }
+                    .filter-card {
+                        background: #ffffff;
+                        border: 1px solid #e2e8f0;
+                        border-radius: 10px;
+                        padding: 1rem;
+                        box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+                    }
+                    .emp-list-card {
+                        background: #ffffff;
+                        border: 1px solid #e2e8f0;
+                        border-radius: 10px;
+                        box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+                        display: flex;
+                        flex-direction: column;
+                        flex: 1;
+                        min-height: 0;
+                        overflow: hidden;
+                    }
+                    .emp-list-header {
+                        padding: 0.85rem 1rem 0.65rem;
+                        border-bottom: 1px solid #f1f5f9;
+                        flex-shrink: 0;
+                    }
+                    .emp-list-search {
+                        padding: 0 0.75rem 0.65rem;
+                        flex-shrink: 0;
+                    }
+                    .emp-list-scroll {
+                        flex: 1;
+                        overflow-y: auto;
+                        padding: 0 0.5rem 0.5rem;
+                        display: grid;
+                        grid-template-columns: 1fr 1fr;
+                        gap: 0.35rem;
+                        align-content: start;
+                    }
+                    .emp-list-scroll::-webkit-scrollbar { width: 5px; }
+                    .emp-list-scroll::-webkit-scrollbar-track { background: transparent; }
+                    .emp-list-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+                    .emp-list-footer {
+                        padding: 0.65rem 0.75rem;
+                        border-top: 1px solid #f1f5f9;
+                        flex-shrink: 0;
+                    }
+                    .emp-item {
+                        display: flex;
+                        align-items: center;
+                        gap: 0.5rem;
+                        padding: 0.5rem 0.55rem;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        transition: all 0.15s ease;
+                        border: 1.5px solid transparent;
+                    }
+                    .emp-item:hover {
+                        background: #f8fafc;
+                        border-color: #e2e8f0;
+                    }
+                    .emp-item.active {
+                        background: #eff6ff;
+                        border-color: #93c5fd;
+                    }
+                    .emp-avatar {
+                        width: 34px;
+                        height: 34px;
+                        border-radius: 50%;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
                         font-weight: 700;
-                        color: ${accentColor};
+                        font-size: 0.75rem;
+                        color: #ffffff;
+                        flex-shrink: 0;
                         text-transform: uppercase;
                     }
-                    .payslip-meta-label {
-                        color: var(--text-muted);
-                        font-weight: 500;
+                    .actions-card {
+                        background: #ffffff;
+                        border: 1px solid #e2e8f0;
+                        border-radius: 10px;
+                        padding: 0.75rem;
+                        box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+                        flex-shrink: 0;
                     }
-                    .payslip-meta-val {
+                    .action-btn {
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        gap: 0.4rem;
+                        padding: 0.5rem 0.75rem;
+                        border-radius: 7px;
+                        font-size: 0.75rem;
                         font-weight: 600;
-                        color: var(--text-main);
+                        border: 1px solid #e2e8f0;
+                        cursor: pointer;
+                        transition: all 0.15s ease;
+                        background: #ffffff;
+                        color: #374151;
+                        white-space: nowrap;
+                    }
+                    .action-btn:hover { background: #f1f5f9; }
+                    .action-btn.primary {
+                        background: #059669;
+                        color: #ffffff;
+                        border-color: #059669;
+                    }
+                    .action-btn.primary:hover { background: #047857; }
+                    .action-btn.blue {
+                        background: #3B82F6;
+                        color: #ffffff;
+                        border-color: #3B82F6;
+                    }
+                    .action-btn.blue:hover { background: #2563eb; }
+                    .search-input-wrap {
+                        position: relative;
+                    }
+                    .search-input-wrap svg {
+                        position: absolute;
+                        left: 10px;
+                        top: 50%;
+                        transform: translateY(-50%);
+                        color: #94a3b8;
+                    }
+                    .search-input-wrap input {
+                        width: 100%;
+                        padding: 0.45rem 0.65rem 0.45rem 2rem;
+                        border: 1px solid #e2e8f0;
+                        border-radius: 7px;
+                        font-size: 0.8rem;
+                        color: #334155;
+                        background: #f8fafc;
+                        outline: none;
+                        transition: border-color 0.15s;
+                    }
+                    .search-input-wrap input:focus {
+                        border-color: #93c5fd;
+                        background: #ffffff;
+                    }
+                    .empty-state {
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        justify-content: center;
+                        height: 100%;
+                        padding: 3rem;
+                        text-align: center;
+                    }
+                    @media (max-width: 900px) {
+                        .payslip-split-layout {
+                            grid-template-columns: 1fr;
+                            height: auto;
+                        }
+                        .payslip-right-panel {
+                            min-height: 700px;
+                        }
                     }
                 `}</style>
 
-                <div className="flex justify-between items-end mb-6">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem', flexWrap: 'wrap', gap: '0.75rem' }}>
                     <div>
-                        <h2 className="text-2xl font-bold text-[#1F3864] mb-1">Employee Payslips Center</h2>
-                        <p className="text-gray-500 text-sm">Review, print, or download finalized payslips from locked runs.</p>
+                        <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#1F3864', marginBottom: '0.15rem' }}>Employee Payslips Center</h2>
+                        <p style={{ color: '#64748b', fontSize: '0.85rem', margin: 0 }}>Review, print, or download finalized payslips from locked runs.</p>
                     </div>
+                    {lockedRun && items?.data?.length > 0 && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                            <button className="action-btn" onClick={() => setShowSingleCorrectionModal(true)}>
+                                <Icons.Wrench /> Correct Single
+                            </button>
+                            <button className="action-btn blue" onClick={() => setShowBatchCorrectionModal(true)}>
+                                <Icons.Zap /> Batch Correct
+                            </button>
+                            <button 
+                                className="action-btn primary"
+                                disabled={isReleasing}
+                                onClick={handleReleaseClick}
+                            >
+                                {isReleasing ? <><Icons.Loader /> Releasing...</> : <><Icons.Send /> {lockedRun.payslip_released_at ? `Re-send${lockedRun.resend_count ? ` (${lockedRun.resend_count})` : ''}` : 'Release'}</>}
+                            </button>
+                        </div>
+                    )}
                 </div>
 
-                {/* Client and Payout Month selection */}
-                <div className="card" style={{ padding: "1rem", marginBottom: "1.5rem" }}>
-                    <div style={{ display: "flex", gap: "1.5rem", alignItems: "center", flexWrap: "wrap" }}>
-                        <div className="form-group" style={{ marginBottom: 0, flex: 1, minWidth: "250px" }}>
-                            <label style={{ marginBottom: "0.25rem", display: "block", fontSize: "0.85rem", fontWeight: "bold" }}>Target Client Contract</label>
-                            <select className="form-control" value={clientId} onChange={e => handleClientChange(e.target.value)}>
-                                {clients.map(c => (
-                                    <option key={c.id} value={c.id}>{c.company_name}</option>
-                                ))}
-                            </select>
+                <div className="payslip-split-layout">
+                    {/* ===== LEFT PANEL ===== */}
+                    <div className="payslip-left-panel">
+                        {/* Filters */}
+                        <div className="filter-card">
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.65rem', fontSize: '0.75rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                <Icons.Filter /> Filters
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
+                                <div>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.72rem', fontWeight: 600, color: '#64748b', marginBottom: '0.2rem' }}>
+                                        <Icons.Building /> Client Contract
+                                    </label>
+                                    <select className="form-control" value={clientId} onChange={e => handleClientChange(e.target.value)} style={{ fontSize: '0.82rem', padding: '0.4rem 0.6rem' }}>
+                                        {clients.map(c => (
+                                            <option key={c.id} value={c.id}>{c.company_name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.72rem', fontWeight: 600, color: '#64748b', marginBottom: '0.2rem' }}>
+                                        <Icons.Calendar /> Payout Month
+                                    </label>
+                                    <select className="form-control" value={month} onChange={e => handleMonthChange(e.target.value)} style={{ fontSize: '0.82rem', padding: '0.4rem 0.6rem' }}>
+                                        {getMonthOptions().map(opt => (
+                                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
                         </div>
-                        <div className="form-group" style={{ marginBottom: 0, flex: 1, minWidth: "200px" }}>
-                            <label style={{ marginBottom: "0.25rem", display: "block", fontSize: "0.85rem", fontWeight: "bold" }}>Select Payout Month</label>
-                            <select className="form-control" value={month} onChange={e => handleMonthChange(e.target.value)}>
-                                {getMonthOptions().map(opt => (
-                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-                </div>
 
-                {items && items.data && items.data.length > 0 && selectedItem ? (
-                    <div className="grid grid-cols-[1fr_300px] gap-6 items-start">
-                        {/* Payslip Print Preview */}
-                        <div>
-                            <div className="payslip-container">
-                                <div className="payslip-header">
-                                    <div className="flex gap-4 items-center">
-                                        {logoUrl && (
-                                            <img src={logoUrl} alt="Logo" style={{ maxHeight: '48px', maxWidth: '180px', objectFit: 'contain' }} />
-                                        )}
-                                        <div>
-                                            <div className="font-bold text-[1.2rem]" style={{ color: accentColor }}>{displayName}</div>
-                                            <div className="text-[0.75rem] text-gray-500">{companyAddress}</div>
-                                        </div>
-                                    </div>
-                                    <div className="text-right">
-                                        <div className="payslip-title">Salary Payslip</div>
+                        {/* Employee List */}
+                        {items && items.data && items.data.length > 0 ? (
+                            <div className="emp-list-card">
+                                <div className="emp-list-header">
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', fontWeight: 700, color: '#1e293b' }}>
+                                            <Icons.Users /> Employees
+                                        </span>
+                                        <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 500 }}>
+                                            {filteredEmployees.length} of {items.total}
+                                        </span>
                                     </div>
                                 </div>
 
-                                {/* Employee Info */}
-                                <div className="flex gap-8 bg-[#F8FAFC] p-6 rounded-md mb-6 border border-gray-200">
-                                    <div className="flex-1 flex flex-col gap-3 text-[0.85rem]">
-                                        <div className="flex justify-between"><span className="payslip-meta-label">Employee Code</span><span className="payslip-meta-val">{selectedItem.employee_code}</span></div>
-                                        <div className="flex justify-between"><span className="payslip-meta-label">Designation</span><span className="payslip-meta-val">{selectedItem.designation || 'Staff'}</span></div>
-                                        <div className="flex justify-between"><span className="payslip-meta-label">Bank Name</span><span className="payslip-meta-val">{selectedItem.bank_name || '—'}</span></div>
-                                    </div>
-                                    <div className="flex-1 flex flex-col gap-3 text-[0.85rem]">
-                                        <div className="flex justify-between"><span className="payslip-meta-label">Employee Name</span><span className="payslip-meta-val">{selectedItem.full_name}</span></div>
-                                        <div className="flex justify-between"><span className="payslip-meta-label">Account No</span><span className="payslip-meta-val truncate max-w-[200px]" title={selectedItem.bank_account_number}>{selectedItem.bank_account_number || '—'}</span></div>
-                                        <div className="flex justify-between"><span className="payslip-meta-label">Actual Working Days</span><span className="payslip-meta-val">{parseFloat(selectedItem.paid_days).toFixed(1)}</span></div>
+                                <div className="emp-list-search">
+                                    <div className="search-input-wrap">
+                                        <Icons.Search />
+                                        <input
+                                            type="text"
+                                            placeholder="Search by name or code..."
+                                            value={searchQuery}
+                                            onChange={e => setSearchQuery(e.target.value)}
+                                        />
                                     </div>
                                 </div>
 
-                                {/* Earnings vs Deductions */}
-                                <div className="flex gap-8 mb-8">
-                                    <div className="flex-1">
-                                        <table className="w-full text-left border-collapse text-sm">
-                                            <thead>
-                                                <tr>
-                                                    <th style={{ backgroundColor: accentColor, borderColor: accentColor }} className="text-white p-2 border">Components</th>
-                                                    <th style={{ backgroundColor: accentColor, borderColor: accentColor }} className="text-white p-2 text-right border">Earned Value</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <tr><td className="p-2 border border-gray-200">1. Basic Pay</td><td className="p-2 border border-gray-200 text-right font-semibold">₹{parseFloat(selectedItem.basic_pay).toLocaleString()}</td></tr>
-                                                <tr><td className="p-2 border border-gray-200">2. HRA</td><td className="p-2 border border-gray-200 text-right font-semibold">₹{parseFloat(selectedItem.hra).toLocaleString()}</td></tr>
-                                                <tr><td className="p-2 border border-gray-200">3. Conveyance</td><td className="p-2 border border-gray-200 text-right font-semibold">₹{parseFloat(selectedItem.conveyance).toLocaleString()}</td></tr>
-                                                <tr><td className="p-2 border border-gray-200">4. DA</td><td className="p-2 border border-gray-200 text-right font-semibold">₹{parseFloat(selectedItem.da).toLocaleString()}</td></tr>
-                                                <tr><td className="p-2 border border-gray-200">5. Medical Allowance</td><td className="p-2 border border-gray-200 text-right font-semibold">₹{parseFloat(selectedItem.medical_allowance).toLocaleString()}</td></tr>
-                                                <tr><td className="p-2 border border-gray-200">6. Special Allowance</td><td className="p-2 border border-gray-200 text-right font-semibold">₹{parseFloat(selectedItem.special_allowance).toLocaleString()}</td></tr>
-                                                <tr><td className="p-2 border border-gray-200">7. Arrears / Other Additions</td><td className="p-2 border border-gray-200 text-right font-semibold">₹{parseFloat(selectedItem.other_additions).toLocaleString()}</td></tr>
-                                                <tr className="bg-[#F1F5F9] font-bold" style={{ borderTop: `2px solid ${accentColor}` }}>
-                                                    <td className="p-2 border border-gray-200">Gross Total</td>
-                                                    <td className="p-2 border border-gray-200 text-right font-bold" style={{ color: accentColor }}>₹{parseFloat(selectedItem.gross_total).toLocaleString()}</td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
-
-                                    <div className="flex-1">
-                                        <table className="w-full text-left border-collapse text-sm">
-                                            <thead>
-                                                <tr>
-                                                    <th style={{ backgroundColor: accentColor, borderColor: accentColor }} className="text-white p-2 border">Deductions</th>
-                                                    <th style={{ backgroundColor: accentColor, borderColor: accentColor }} className="text-white p-2 text-right border">Amount</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <tr><td className="p-2 border border-gray-200">1. Employee PF</td><td className="p-2 border border-gray-200 text-right font-semibold">₹{parseFloat(selectedItem.employee_pf).toLocaleString()}</td></tr>
-                                                <tr><td className="p-2 border border-gray-200">2. Employee ESIC</td><td className="p-2 border border-gray-200 text-right font-semibold">₹{parseFloat(selectedItem.employee_esi).toLocaleString()}</td></tr>
-                                                <tr><td className="p-2 border border-gray-200">3. Professional Tax</td><td className="p-2 border border-gray-200 text-right font-semibold">₹{parseFloat(selectedItem.professional_tax).toLocaleString()}</td></tr>
-                                                <tr><td className="p-2 border border-gray-200">4. Welfare Fund (LWF)</td><td className="p-2 border border-gray-200 text-right font-semibold">₹{parseFloat(selectedItem.lwf_deduction).toLocaleString()}</td></tr>
-                                                <tr><td className="p-2 border border-gray-200">5. TDS</td><td className="p-2 border border-gray-200 text-right font-semibold">₹{parseFloat(selectedItem.tds_deduction).toLocaleString()}</td></tr>
-                                                <tr><td className="p-2 border border-gray-200">6. Loan EMI</td><td className="p-2 border border-gray-200 text-right font-semibold">₹{parseFloat(selectedItem.loan_emi_deduction).toLocaleString()}</td></tr>
-                                                <tr><td className="p-2 border border-gray-200 text-gray-500">7. LOP Deduction <span className="text-[0.7rem] italic">(Informational)</span></td><td className="p-2 border border-gray-200 text-right font-semibold text-gray-500">₹{parseFloat(selectedItem.lop_deduction).toLocaleString()}</td></tr>
-                                                <tr className="bg-[#FFF5F5] font-bold border-t-2 border-t-red-600">
-                                                    <td className="p-2 border border-gray-200">Total Deductions</td>
-                                                    <td className="p-2 border border-gray-200 text-right text-red-600">
-                                                        ₹{(
-                                                            parseFloat(selectedItem.employee_pf) + 
-                                                            parseFloat(selectedItem.employee_esi) + 
-                                                            parseFloat(selectedItem.professional_tax) + 
-                                                            parseFloat(selectedItem.lwf_deduction) + 
-                                                            parseFloat(selectedItem.tds_deduction) + 
-                                                            parseFloat(selectedItem.loan_emi_deduction)
-                                                        ).toLocaleString()}
-                                                    </td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-
-                                {/* Net Statement */}
-                                <div className="text-white p-5 px-8 rounded-md flex justify-between items-center shadow-lg" style={{ backgroundColor: accentColor }}>
-                                    <div className="text-[1.4rem] font-bold text-[#B8860B]">
-                                        Net Pay Rs.{Math.round(parseFloat(selectedItem.net_pay)).toLocaleString('en-IN')}/-
-                                    </div>
-                                    <div className="text-[0.95rem] italic font-medium">
-                                        ({getWords(selectedItem.net_pay)})
-                                    </div>
-                                </div>
-
-                                {/* Employer Contributions & CTC */}
-                                <div className="mt-8">
-                                    <h4 className="text-[1.1rem] mb-3 border-b border-gray-200 pb-2 font-bold uppercase" style={{ color: accentColor }}>Employer Contributions</h4>
-                                    <div className="flex gap-8">
-                                        <div className="flex-1 bg-white border border-gray-200 rounded-md p-5 shadow-sm">
-                                            <div className="flex flex-col gap-2 text-[0.85rem]">
-                                                <div className="flex justify-between pl-2"><span className="payslip-meta-label">• Employer EPF (12%)</span><span className="payslip-meta-val">₹{Math.round(Math.min(selectedItem.basic_pay || 0, 15000) * 0.12).toLocaleString()}</span></div>
-                                                <div className="flex justify-between pl-2">
-                                                    <span className="payslip-meta-label">• EDLI (0.5%)</span>
-                                                    <span className="payslip-meta-val">{selectedItem.edli_exempted ? 'Exempted (₹0)' : `₹${Math.round(Math.min(selectedItem.basic_pay || 0, 15000) * 0.005).toLocaleString()}`}</span>
-                                                </div>
-                                                <div className="flex justify-between pl-2"><span className="payslip-meta-label">• EPF Admin Charges (0.5%)</span><span className="payslip-meta-val">₹{Math.round(Math.min(selectedItem.basic_pay || 0, 15000) * 0.005).toLocaleString()}</span></div>
-                                                <div className="flex justify-between font-bold text-[#1F3864] pt-1 border-t border-dashed border-gray-200">
-                                                    <span>Total Employer PF & EPFO Charges</span>
-                                                    <span>₹{parseFloat(selectedItem.employer_pf).toLocaleString()}</span>
-                                                </div>
-                                                <div className="flex justify-between pt-1"><span className="payslip-meta-label">Employer ESI Contribution</span><span className="payslip-meta-val">₹{parseFloat(selectedItem.employer_esi).toLocaleString()}</span></div>
-                                                <div className="flex justify-between"><span className="payslip-meta-label">Employer LWF Contribution</span><span className="payslip-meta-val">₹{parseFloat(selectedItem.employer_lwf).toLocaleString()}</span></div>
-                                                <hr className="border-t border-gray-200 my-1" />
-                                                <div className="flex justify-between font-bold">
-                                                    <span style={{ color: accentColor }}>Total Employer Cost</span>
-                                                    <span>
-                                                        ₹{(
-                                                            parseFloat(selectedItem.employer_pf) + 
-                                                            parseFloat(selectedItem.employer_esi) + 
-                                                            parseFloat(selectedItem.employer_lwf)
-                                                        ).toLocaleString()}
+                                <div className="emp-list-scroll">
+                                    {filteredEmployees.map((emp) => {
+                                        const isActive = selectedItem && selectedItem.id === emp.id;
+                                        return (
+                                            <div
+                                                key={emp.id}
+                                                className={`emp-item ${isActive ? 'active' : ''}`}
+                                                onClick={() => setSelectedItem(emp)}
+                                                style={{ flexDirection: 'column', alignItems: 'stretch', gap: '0.15rem', position: 'relative', paddingLeft: isActive ? '0.75rem' : '0.55rem' }}
+                                            >
+                                                {isActive && <div style={{ position: 'absolute', left: 0, top: '20%', bottom: '20%', width: '3px', borderRadius: '2px', background: '#3b82f6' }} />}
+                                                <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{emp.full_name}</div>
+                                                <div style={{ fontSize: '0.68rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                                    <span>{emp.employee_code}</span>
+                                                    <span style={{ opacity: 0.35 }}>|</span>
+                                                    <span style={{ color: '#10b981', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.1rem' }}>
+                                                        <Icons.IndianRupee />
+                                                        {Math.round(parseFloat(emp.net_pay)).toLocaleString('en-IN')}
                                                     </span>
                                                 </div>
                                             </div>
-                                        </div>
-                                        <div className="flex-1 bg-[#F8FAFC] border-2 border-dashed border-[#CBD5E1] rounded-md p-5 flex flex-col justify-center items-center">
-                                            <div className="text-[0.9rem] font-bold text-gray-500 uppercase tracking-wider mb-1">Cost to Company (CTC)</div>
-                                            <div className="text-[1.5rem] font-bold" style={{ color: accentColor }}>
-                                                ₹{(
-                                                    parseFloat(selectedItem.gross_total) + 
-                                                    parseFloat(selectedItem.employer_pf) + 
-                                                    parseFloat(selectedItem.employer_esi) + 
-                                                    parseFloat(selectedItem.employer_lwf)
-                                                ).toLocaleString()}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="text-center text-[0.85rem] font-medium text-gray-500 mt-10 border-t border-gray-200 pt-6">
-                                    This is a computer generated Payslip. Hence, Signature is not required.
-                                </div>
-                            </div>
-
-                            <div className="flex justify-end gap-3 items-center flex-wrap">
-                                {lockedRun && (
-                                    <>
-                                        <Button 
-                                            variant="secondary"
-                                            onClick={() => setShowSingleCorrectionModal(true)}
-                                        >
-                                            🔧 Correct Single Employee
-                                        </Button>
-                                        <Button 
-                                            variant="secondary"
-                                            onClick={() => setShowBatchCorrectionModal(true)}
-                                            style={{ backgroundColor: '#3B82F6', color: '#ffffff', borderColor: '#3B82F6' }}
-                                        >
-                                            ⚡ Batch Correction
-                                        </Button>
-                                        <Button 
-                                            variant="primary" 
-                                            disabled={isReleasing}
-                                            onClick={() => {
-                                                setIsReleasing(true);
-                                                router.post(route('payroll.run.release-payslips', lockedRun.id), {}, {
-                                                    onFinish: () => setIsReleasing(false),
-                                                    onSuccess: () => showToast({ type: 'success', title: 'Success', message: 'Official PDF payslips released & emailed to employees.' }),
-                                                    onError: (errs) => showToast({ type: 'error', title: 'Error', message: errs.error || 'Failed to release payslips.' })
-                                                });
-                                            }}
-                                            style={{ backgroundColor: '#059669', borderColor: '#059669', color: '#ffffff' }}
-                                        >
-                                            {isReleasing ? '⌛ Releasing...' : lockedRun.payslip_released_at ? '📄 Re-send Official Payslips' : '📄 Release & Email Official Payslips'}
-                                        </Button>
-                                    </>
-                                )}
-                                <Button variant="secondary" onClick={() => window.print()}>🖨 Print Payslip</Button>
-                            </div>
-                        </div>
-
-                        {/* Sidebar Navigation */}
-                        <div className="flex flex-col gap-6">
-                            <div className="card">
-                                <h3 className="text-lg font-bold text-[#1F3864] mb-4">Locked Payslips</h3>
-                                
-                                <div className="flex flex-col gap-2 max-h-[450px] overflow-y-auto pr-1">
-                                    {items.data.map((emp) => {
-                                        const isActive = selectedItem && selectedItem.id === emp.id;
-                                        return (
-                                            <div 
-                                                key={emp.id}
-                                                className={`p-2 rounded-md border cursor-pointer transition-colors ${isActive ? 'bg-[#ECFDF5] border-[#A7F3D0]' : 'border-gray-200 hover:bg-gray-50'}`}
-                                                onClick={() => setSelectedItem(emp)}
-                                            >
-                                                <div className="text-[0.85rem] font-bold text-gray-900">{emp.full_name}</div>
-                                                <div className="text-[0.75rem] text-gray-500">Net: ₹{Math.round(parseFloat(emp.net_pay)).toLocaleString('en-IN')} ({emp.employee_code})</div>
-                                            </div>
                                         );
                                     })}
-                                </div>
-                                
-                                {items && items.total > 0 && (
-                                    <div className="mt-4 pt-4 border-t border-gray-100 flex flex-col gap-2">
-                                        <div className="text-xs text-gray-500 text-center">
-                                            Showing {items.from || 0} to {items.to || 0} of {items.total}
+                                    {filteredEmployees.length === 0 && (
+                                        <div style={{ padding: '1.5rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.8rem', gridColumn: '1 / -1' }}>
+                                            No employees match your search.
                                         </div>
-                                        <Pagination
-                                            currentPage={items.current_page}
-                                            totalPages={items.last_page}
-                                            totalItems={items.total}
-                                            itemsPerPage={items.per_page}
-                                            onPageChange={(page) => {
-                                                const params = new URLSearchParams(window.location.search);
-                                                params.set('page', page);
-                                                window.location.search = params.toString();
-                                            }}
-                                        />
+                                    )}
+                                </div>
+
+                                <div className="emp-list-footer">
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                        <span style={{ fontSize: '0.68rem', color: '#94a3b8' }}>
+                                            Showing {items.from || 0}–{items.to || 0} of {items.total}
+                                        </span>
+                                        {items.last_page > 1 && (
+                                            <Pagination
+                                                currentPage={items.current_page}
+                                                totalPages={items.last_page}
+                                                totalItems={items.total}
+                                                itemsPerPage={items.per_page}
+                                                onPageChange={(page) => {
+                                                    const params = new URLSearchParams(window.location.search);
+                                                    params.set('page', page);
+                                                    window.location.search = params.toString();
+                                                }}
+                                            />
+                                        )}
                                     </div>
-                                )}
+                                </div>
                             </div>
-                        </div>
+                        ) : (
+                            <div className="emp-list-card">
+                                <div className="empty-state">
+                                    <Icons.FileText />
+                                    <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#334155', marginTop: '0.75rem', marginBottom: '0.25rem' }}>No Locked Payslips</h3>
+                                    <p style={{ fontSize: '0.78rem', color: '#94a3b8', maxWidth: '220px' }}>Select a client and month with a locked payroll run to view payslips.</p>
+                                </div>
+                            </div>
+                        )}
+
+
                     </div>
-                ) : (
-                    <div className="card" style={{ padding: "4rem", textAlign: "center", color: "var(--text-muted)" }}>
-                        No finalized payslips available for the selected client and month.
+
+                    {/* ===== RIGHT PANEL — PAYSLIP PREVIEW ===== */}
+                    <div className="payslip-right-panel">
+                        {selectedItem ? (
+                            <iframe
+                                src={`/admin/payslip-templates/preview?client_id=${clientId}&item_id=${selectedItem.id}&template=${clientBranding?.payslip_template || 'standard'}&accent_color=${encodeURIComponent(accentColor)}&t=${Date.now()}`}
+                                title="Employee Payslip Preview"
+                            />
+                        ) : (
+                            <div className="empty-state">
+                                <Icons.FileText />
+                                <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#334155', marginTop: '0.75rem', marginBottom: '0.25rem' }}>No Payslip Selected</h3>
+                                <p style={{ fontSize: '0.82rem', color: '#94a3b8', maxWidth: '280px' }}>
+                                    Select an employee from the list to preview their payslip here.
+                                </p>
+                            </div>
+                        )}
                     </div>
-                )}
+                </div>
 
                 <PayrollCorrectionModal 
                     isOpen={showSingleCorrectionModal} 
@@ -437,6 +474,18 @@ export default function Payslip({ items, clients = [], selectedClientId, selecte
                     onClose={() => setShowBatchCorrectionModal(false)} 
                     parentRun={lockedRun} 
                     items={items?.data || []} 
+                />
+
+                <ConfirmDialog
+                    isOpen={showConfirmResend}
+                    onClose={() => setShowConfirmResend(false)}
+                    onConfirm={handleExecuteRelease}
+                    title="Confirm Re-send Payslips"
+                    message={`Payslips for this month have already been emailed to employees${lockedRun?.resend_count ? ` ${lockedRun.resend_count} time(s)` : ''}. Are you sure you want to RE-SEND official PDF payslips to all employees again?`}
+                    confirmLabel="Yes, Re-send Payslips"
+                    cancelLabel="Cancel"
+                    variant="warning"
+                    loading={isReleasing}
                 />
             </AuthenticatedLayout>
         </RoleGuard>

@@ -5,11 +5,207 @@ import Button from '../../Components/ui/Button';
 import DataTable from '../../Components/ui/DataTable';
 import Pagination from '../../Components/ui/Pagination';
 import Badge from '../../Components/ui/Badge';
-import { UploadCloud, Loader2 } from 'lucide-react';
+import { UploadCloud, Loader2, Eye, X, User, Building2, Landmark, IndianRupee, ShieldCheck, HeartPulse, CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 import axios from 'axios';
 import RoleGuard from '../../Components/RoleGuard.jsx';
 import useToast from '../../Hooks/useToast';
 import { downloadErrorRowsXlsx } from '../../Utils/excelExport';
+
+/* ────────────────────────────────────────────
+   Employee Detail Modal (Slide-over Panel)
+   ──────────────────────────────────────────── */
+function EmployeeDetailModal({ row, onClose, allRows, onNavigate }) {
+  if (!row) return null;
+  const raw = row.raw_data || {};
+
+  const currentIndex = allRows.findIndex(r => r.rowNo === row.rowNo);
+  const hasPrev = currentIndex > 0;
+  const hasNext = currentIndex < allRows.length - 1;
+
+  const field = (label, value) => {
+    const display = value === undefined || value === null || value === '' ? '—' : String(value);
+    return (
+      <div className="flex justify-between items-start py-2 px-1 border-b border-gray-50 last:border-0">
+        <span className="text-xs text-gray-500 font-medium w-2/5 shrink-0">{label}</span>
+        <span className={`text-sm font-semibold text-right ${display === '—' ? 'text-gray-300' : 'text-gray-800'}`}>{display}</span>
+      </div>
+    );
+  };
+
+  const boolField = (label, value) => {
+    const isTrue = value === '1' || value === 1 || value === true || value === 'yes' || value === 'true';
+    const isFalse = value === '0' || value === 0 || value === false || value === 'no' || value === 'false';
+    return (
+      <div className="flex justify-between items-center py-2 px-1 border-b border-gray-50 last:border-0">
+        <span className="text-xs text-gray-500 font-medium w-2/5 shrink-0">{label}</span>
+        {isTrue ? (
+          <span className="text-xs font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded-full">✓ Yes</span>
+        ) : isFalse ? (
+          <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full">✗ No</span>
+        ) : (
+          <span className="text-sm text-gray-300">—</span>
+        )}
+      </div>
+    );
+  };
+
+  const Section = ({ icon: Icon, title, color, children }) => (
+    <div className="mb-4">
+      <div className={`flex items-center gap-2 mb-2 pb-2 border-b-2 ${color}`}>
+        <Icon className="w-4 h-4" />
+        <h4 className="text-sm font-bold uppercase tracking-wide">{title}</h4>
+      </div>
+      <div className="space-y-0">{children}</div>
+    </div>
+  );
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex justify-end" onClick={onClose}>
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity" />
+
+      {/* Panel */}
+      <div
+        className="relative w-full max-w-2xl bg-white shadow-2xl overflow-y-auto animate-slide-in-right"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="sticky top-0 z-10 bg-gradient-to-r from-[#1F3864] to-[#2E5090] text-white p-5">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-full bg-white/20 flex items-center justify-center text-lg font-bold">
+                {(raw.full_name || 'E')[0].toUpperCase()}
+              </div>
+              <div>
+                <h3 className="text-lg font-bold leading-tight text-white">{raw.full_name || '—'}</h3>
+                <p className="text-blue-200 text-xs mt-0.5">{raw.employee_code || '—'} · Row {row.rowNo}</p>
+              </div>
+            </div>
+            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/20 transition-colors">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Status banner */}
+          <div className={`text-xs font-semibold px-3 py-1.5 rounded-md inline-block ${
+            row.status === 'ready' ? 'bg-green-500/20 text-green-100' :
+            row.status === 'warning' ? 'bg-yellow-500/20 text-yellow-100' :
+            'bg-red-500/20 text-red-100'
+          }`}>
+            {row.status === 'ready' ? '✅' : row.status === 'warning' ? '⚠️' : '❌'} {row.message}
+          </div>
+
+          {/* Navigation arrows */}
+          <div className="flex items-center gap-2 mt-3">
+            <button
+              disabled={!hasPrev}
+              onClick={() => onNavigate(allRows[currentIndex - 1])}
+              className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-md bg-white/10 hover:bg-white/20 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" /> Previous
+            </button>
+            <span className="text-xs text-blue-200">{currentIndex + 1} of {allRows.length}</span>
+            <button
+              disabled={!hasNext}
+              onClick={() => onNavigate(allRows[currentIndex + 1])}
+              className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-md bg-white/10 hover:bg-white/20 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              Next <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="p-5 space-y-2">
+          <Section icon={User} title="Personal Information" color="border-blue-500 text-blue-700">
+            {field('Full Name', raw.full_name)}
+            {field('Employee Code', raw.employee_code)}
+            {field('Personal Email', raw.personal_email)}
+            {field('Phone Number', raw.phone_number)}
+            {field('Date of Birth', raw.date_of_birth)}
+            {field('Gender', raw.gender)}
+            {field('Aadhaar Number', raw.aadhaar_number)}
+            {field('PAN Number', raw.pan_number)}
+            {field('Residential Address', raw.residential_address)}
+            {field('Emergency Contact', raw.emergency_contact_name)}
+          </Section>
+
+          <Section icon={Building2} title="Employment Details" color="border-indigo-500 text-indigo-700">
+            {field('Client Code', raw.client_code)}
+            {field('Branch', raw.branch_name || raw.branch_code)}
+            {field('Designation', raw.designation)}
+            {field('Employment Model', raw.employment_model)}
+            {field('Date of Joining', raw.date_of_joining)}
+            {field('Reporting Manager Code', raw.reporting_manager_code)}
+            {boolField('Prior Employment', raw.prior_employment_flag)}
+            {field('Previous Employer', raw.previous_employer_name)}
+            {field('Previous UAN', raw.previous_employer_uan)}
+            {boolField('Declarations Accepted', raw.declarations_accepted)}
+            {field('LOP Basis Days', raw.lop_basis_days)}
+          </Section>
+
+          <Section icon={Landmark} title="Bank Details" color="border-emerald-500 text-emerald-700">
+            {field('Account Holder Name', raw.account_holder_name)}
+            {field('Bank Account Number', raw.bank_account_number)}
+            {field('IFSC Code', raw.bank_ifsc)}
+            {field('Bank Name', raw.bank_name)}
+            {field('Bank Branch', raw.bank_branch)}
+          </Section>
+
+          <Section icon={IndianRupee} title="Salary Components" color="border-amber-500 text-amber-700">
+            {field('Gross CTC (Monthly)', row.ctc ? `₹${Number(row.ctc).toLocaleString('en-IN')}` : null)}
+            {field('Basic Pay', raw.basic_pay ? `₹${Number(raw.basic_pay).toLocaleString('en-IN')}` : null)}
+            {field('HRA', raw.hra ? `₹${Number(raw.hra).toLocaleString('en-IN')}` : null)}
+            {field('Conveyance', raw.conveyance ? `₹${Number(raw.conveyance).toLocaleString('en-IN')}` : null)}
+            {field('DA', raw.da ? `₹${Number(raw.da).toLocaleString('en-IN')}` : null)}
+            {field('Medical Allowance', raw.medical_allowance ? `₹${Number(raw.medical_allowance).toLocaleString('en-IN')}` : null)}
+            {field('Special Allowance', raw.special_allowance ? `₹${Number(raw.special_allowance).toLocaleString('en-IN')}` : null)}
+            {field('Other Additions', raw.other_additions ? `₹${Number(raw.other_additions).toLocaleString('en-IN')}` : null)}
+            {field('Gratuity Mode', raw.gratuity_mode)}
+          </Section>
+
+          <Section icon={ShieldCheck} title="Statutory Compliance" color="border-purple-500 text-purple-700">
+            {boolField('PF Applicable', raw.pf_applicable)}
+            {boolField('EPS Applicable', raw.eps_applicable)}
+            {field('UAN Mode', raw.uan_mode)}
+            {field('UAN Number', raw.uan_number)}
+            {boolField('ESI Applicable', raw.esi_applicable)}
+            {field('ESI Mode', raw.esi_mode)}
+            {field('ESIC Number', raw.esic_number)}
+            {field('ESI Contribution Period End', raw.esi_contribution_period_end)}
+            {boolField('PT Applicable', raw.pt_applicable)}
+            {boolField('LWF Applicable', raw.lwf_applicable)}
+            {boolField('TDS Applicable', raw.tds_applicable)}
+            {field('TDS Regime', raw.tds_regime)}
+          </Section>
+
+          {(raw.health_insurance_provider || raw.health_insurance_policy_no || raw.health_insurance_sum_insured) && (
+            <Section icon={HeartPulse} title="Health Insurance" color="border-rose-500 text-rose-700">
+              {field('Provider', raw.health_insurance_provider)}
+              {field('Policy No', raw.health_insurance_policy_no)}
+              {field('Sum Insured', raw.health_insurance_sum_insured ? `₹${Number(raw.health_insurance_sum_insured).toLocaleString('en-IN')}` : null)}
+            </Section>
+          )}
+
+          <Section icon={CalendarDays} title="Additional Dates" color="border-teal-500 text-teal-700">
+            {field('Probation End Date', raw.probation_end_date)}
+            {field('Attendance Tracking Start', raw.attendance_tracking_start_date)}
+          </Section>
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes slideInRight {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        .animate-slide-in-right {
+          animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+      `}</style>
+    </div>
+  );
+}
 
 export default function BulkUpload({ clients = [] }) {
   const { showToast } = useToast();
@@ -23,6 +219,7 @@ export default function BulkUpload({ clients = [] }) {
   const [partialImportAcknowledged, setPartialImportAcknowledged] = useState(false);
   const [autoProvisionUsers, setAutoProvisionUsers] = useState(true);
   const [isAdvancedOptionsOpen, setIsAdvancedOptionsOpen] = useState(false);
+  const [selectedDetailRow, setSelectedDetailRow] = useState(null);
   const fileInputRef = useRef(null);
 
   const columns = [
@@ -84,6 +281,20 @@ export default function BulkUpload({ clients = [] }) {
         if (row.status === 'error') return <Badge status="rejected" label="Error" />;
         return null;
       }
+    },
+    {
+      label: 'Actions',
+      key: 'actions',
+      render: (val, row) => (
+        <button
+          onClick={(e) => { e.stopPropagation(); setSelectedDetailRow(row); }}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-[#1F3864] bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-all hover:shadow-sm"
+          title="View full employee details"
+        >
+          <Eye className="w-3.5 h-3.5" />
+          Show
+        </button>
+      )
     }
   ];
 
@@ -281,6 +492,16 @@ export default function BulkUpload({ clients = [] }) {
           </p>
 
           <DataTable columns={columns} data={paginatedRows} />
+
+          {/* Employee Detail Slide-over Modal */}
+          {selectedDetailRow && (
+            <EmployeeDetailModal
+              row={selectedDetailRow}
+              allRows={validationRows}
+              onClose={() => setSelectedDetailRow(null)}
+              onNavigate={(newRow) => setSelectedDetailRow(newRow)}
+            />
+          )}
 
           {totalRows > 0 && (
             <div className="px-6 py-4 border-t border-gray-100">

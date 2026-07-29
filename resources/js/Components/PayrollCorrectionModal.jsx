@@ -5,6 +5,16 @@ import Button from './ui/Button';
 import useToast from '../Hooks/useToast';
 import axios from 'axios';
 
+// SVG Icons
+const Icons = {
+    Wrench: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>,
+    Calendar: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
+    User: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
+    Info: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>,
+    HelpCircle: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>,
+    FileText: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>,
+};
+
 export default function PayrollCorrectionModal({ isOpen, onClose, parentRun, items = [] }) {
     const { showToast } = useToast();
     const [selectedEmpId, setSelectedEmpId] = useState('');
@@ -33,7 +43,6 @@ export default function PayrollCorrectionModal({ isOpen, onClose, parentRun, ite
             setCorrectedPaidDays(Math.max(0, rawPaid));
             setCorrectedLopDays(Math.max(0, rawLop));
 
-            // Fetch open queries for selected employee
             axios.get(route('admin.employee-queries.index'), {
                 params: { employee_id: selectedItem.employee_id, status: 'pending' },
                 headers: { 'Accept': 'application/json' }
@@ -46,7 +55,6 @@ export default function PayrollCorrectionModal({ isOpen, onClose, parentRun, ite
         }
     }, [selectedEmpId]);
 
-    // Live preview fetch
     useEffect(() => {
         if (!isOpen || !parentRun || !selectedEmpId) return;
 
@@ -63,7 +71,6 @@ export default function PayrollCorrectionModal({ isOpen, onClose, parentRun, ite
             })
             .then(res => {
                 setPreviewData(res.data);
-                // If item had 0 paid days and 0 LOP days originally, auto-initialize from month working days slots
                 if (selectedItem && parseFloat(selectedItem.paid_days || 0) === 0 && parseFloat(selectedItem.lop_days || 0) === 0) {
                     if (res.data?.working_days_context?.working_days_slots) {
                         const slots = res.data.working_days_context.working_days_slots;
@@ -136,22 +143,37 @@ export default function PayrollCorrectionModal({ isOpen, onClose, parentRun, ite
 
     const context = previewData?.working_days_context;
 
+    const inputStyle = {
+        width: '100%',
+        padding: '0.55rem 0.75rem',
+        fontSize: '0.875rem',
+        borderRadius: '6px',
+        border: '1px solid #cbd5e1',
+        backgroundColor: '#ffffff',
+        outline: 'none',
+        transition: 'border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out',
+    };
+
     return (
         <Modal
             isOpen={isOpen}
             onClose={onClose}
-            title="🔧 Correct Employee Payroll"
+            title={
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#1F3864' }}>
+                    <Icons.Wrench /> Correct Employee Payroll
+                </span>
+            }
             size="lg"
             footer={modalFooter}
         >
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                 
-                {/* Target Month & Working Days Context Box AT TOP */}
+                {/* Context Box */}
                 {context && (
                     <div style={{ backgroundColor: '#F8FAFC', border: '1px solid #CBD5E1', borderRadius: '6px', padding: '0.85rem', fontSize: '0.8rem' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-                            <span style={{ fontWeight: 'bold', color: '#1F3864', fontSize: '0.85rem' }}>
-                                📅 {context.client_name} — Working Days Breakdown ({context.month_label})
+                            <span style={{ fontWeight: 'bold', color: '#1F3864', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                <Icons.Calendar /> {context.client_name} — Working Days Breakdown ({context.month_label})
                             </span>
                             <span style={{ backgroundColor: '#1F3864', color: '#FFFFFF', padding: '0.2rem 0.6rem', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 'bold' }}>
                                 {context.working_days_slots} Working Days Required
@@ -180,12 +202,13 @@ export default function PayrollCorrectionModal({ isOpen, onClose, parentRun, ite
                 )}
 
                 <div>
-                    <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '0.35rem', display: 'block' }}>Select Employee</label>
+                    <label style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#334155' }}>
+                        <Icons.User /> Select Employee
+                    </label>
                     <select 
                         value={selectedEmpId} 
                         onChange={e => setSelectedEmpId(e.target.value)}
-                        className="form-select"
-                        style={{ width: '100%', padding: '0.5rem', fontSize: '0.875rem' }}
+                        style={inputStyle}
                     >
                         {items.map(item => (
                             <option key={item.employee_id} value={item.employee_id}>
@@ -205,7 +228,7 @@ export default function PayrollCorrectionModal({ isOpen, onClose, parentRun, ite
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div>
-                        <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '0.35rem', display: 'block' }}>Corrected Paid Days</label>
+                        <label style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '0.35rem', display: 'block', color: '#334155' }}>Corrected Paid Days</label>
                         <input 
                             type="number" 
                             step="0.5" 
@@ -213,12 +236,11 @@ export default function PayrollCorrectionModal({ isOpen, onClose, parentRun, ite
                             max="31" 
                             value={correctedPaidDays} 
                             onChange={e => handlePaidChange(e.target.value)}
-                            className="form-input"
-                            style={{ width: '100%', padding: '0.5rem', fontSize: '0.875rem' }}
+                            style={inputStyle}
                         />
                     </div>
                     <div>
-                        <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '0.35rem', display: 'block' }}>Corrected LOP Days</label>
+                        <label style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '0.35rem', display: 'block', color: '#334155' }}>Corrected LOP Days</label>
                         <input 
                             type="number" 
                             step="0.5" 
@@ -226,25 +248,28 @@ export default function PayrollCorrectionModal({ isOpen, onClose, parentRun, ite
                             max="31" 
                             value={correctedLopDays} 
                             onChange={e => handleLopChange(e.target.value)}
-                            className="form-input"
-                            style={{ width: '100%', padding: '0.5rem', fontSize: '0.875rem' }}
+                            style={inputStyle}
                         />
                     </div>
                 </div>
 
                 {context && (
-                    <div style={{ fontSize: '0.75rem', color: '#475569', backgroundColor: '#FFFBEB', border: '1px solid #FEF3C7', padding: '0.5rem 0.75rem', borderRadius: '4px' }}>
-                        💡 <strong>Helpful Guide:</strong> Target month <strong>{context.month_label}</strong> has <strong>{context.total_calendar_days} Total Calendar Days</strong> ({context.working_days_slots} Working Days Required). Editing LOP or Paid days auto-computes the complementary value.
+                    <div style={{ fontSize: '0.75rem', color: '#475569', backgroundColor: '#FFFBEB', border: '1px solid #FEF3C7', padding: '0.5rem 0.75rem', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <Icons.HelpCircle />
+                        <span>
+                            <strong>Helpful Guide:</strong> Target month <strong>{context.month_label}</strong> has <strong>{context.total_calendar_days} Total Calendar Days</strong> ({context.working_days_slots} Working Days Required). Editing LOP or Paid days auto-computes the complementary value.
+                        </span>
                     </div>
                 )}
 
                 <div>
-                    <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '0.35rem', display: 'block' }}>Resolves Employee Query (Optional)</label>
+                    <label style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#334155' }}>
+                        <Icons.HelpCircle /> Resolves Employee Query (Optional)
+                    </label>
                     <select 
                         value={queryId} 
                         onChange={e => setQueryId(e.target.value)}
-                        className="form-select"
-                        style={{ width: '100%', padding: '0.5rem', fontSize: '0.875rem' }}
+                        style={inputStyle}
                     >
                         <option value="">-- No query linked --</option>
                         {openQueries.map(q => (
@@ -256,15 +281,16 @@ export default function PayrollCorrectionModal({ isOpen, onClose, parentRun, ite
                 </div>
 
                 <div>
-                    <label className="form-label" style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '0.35rem', display: 'block' }}>Correction Reason <span style={{ color: '#DC2626' }}>*</span></label>
+                    <label style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#334155' }}>
+                        <Icons.FileText /> Correction Reason <span style={{ color: '#DC2626' }}>*</span>
+                    </label>
                     <textarea 
                         rows="2" 
                         required 
                         placeholder="Reason for attendance/payroll correction..."
                         value={reason} 
                         onChange={e => setReason(e.target.value)}
-                        className="form-textarea"
-                        style={{ width: '100%', padding: '0.5rem', fontSize: '0.875rem', borderRadius: '4px', border: '1px solid #D1D5DB' }}
+                        style={{ ...inputStyle, resize: 'vertical' }}
                     ></textarea>
                 </div>
 
