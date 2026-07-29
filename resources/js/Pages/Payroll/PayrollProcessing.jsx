@@ -449,12 +449,12 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
                                                     </td>
                                                     <td>
                                                         <span className="badge badge-success">Processed</span>
-                                                        {row.salary_revision_applied && (
+                                                        {Boolean(row.salary_revision_applied) && (
                                                             <span className="badge badge-warning" style={{ marginLeft: "0.25rem" }}>Split</span>
                                                         )}
                                                     </td>
                                                 </tr>
-                                                {row.salary_revision_applied && (
+                                                {Boolean(row.salary_revision_applied) && (
                                                     <tr className="split-row">
                                                         <td colSpan="3"></td>
                                                         <td colSpan={earnVisible ? (deductVisible ? 20 : 13) : (deductVisible ? 12 : 5)}>
