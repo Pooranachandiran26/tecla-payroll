@@ -175,25 +175,54 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
                     )}
                 </div>
 
-                {newHires && newHires.length > 0 && (
-                    <div className="card" style={{ border: '2px solid #F59E0B', backgroundColor: '#FFFBEB', marginBottom: '1.5rem', padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                            <strong style={{ color: '#92400E', fontSize: '0.95rem' }}>
-                                ⚠️ {newHires.length} new employee{newHires.length > 1 ? 's' : ''} need a Supplementary Run
-                            </strong>
-                            <span style={{ display: 'block', fontSize: '0.8rem', color: '#B45309', marginTop: '0.25rem' }}>
-                                Joined post-lock: {newHires.map(n => `${n.full_name} (${n.employee_code})`).join(', ')}
-                            </span>
-                        </div>
-                        <Link
-                            href={route('payroll.approval', { client_id: clientId, payroll_month: month, open_supplementary_modal: true })}
-                            className="btn btn-warning btn-sm"
-                            style={{ backgroundColor: '#F59E0B', borderColor: '#D97706', color: '#FFFFFF', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap' }}
-                        >
-                            Go to Approval to Process →
-                        </Link>
-                    </div>
-                )}
+                {(() => {
+                    const pendingDraft = pendingSupplementaryRuns && pendingSupplementaryRuns.find(r => r.status === 'draft');
+                    if (pendingDraft) {
+                        return (
+                            <div className="card" style={{ border: '2px solid #F59E0B', backgroundColor: '#FFFBEB', marginBottom: '1.5rem', padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div>
+                                    <strong style={{ color: '#92400E', fontSize: '0.95rem' }}>
+                                        ⚠️ Supplementary Run #{pendingDraft.id} is Pending Approval
+                                    </strong>
+                                    <span style={{ display: 'block', fontSize: '0.8rem', color: '#B45309', marginTop: '0.25rem' }}>
+                                        {pendingDraft.total_employees_processed} employee(s) calculated in draft Supplementary Run #{pendingDraft.id}. Approve & lock to finalize.
+                                    </span>
+                                </div>
+                                <Link
+                                    href={route('payroll.approval', { client_id: clientId, payroll_month: month, scroll_to_pending: true })}
+                                    className="btn btn-warning btn-sm"
+                                    style={{ backgroundColor: '#F59E0B', borderColor: '#D97706', color: '#FFFFFF', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap' }}
+                                >
+                                    Go to Approval to Approve & Lock →
+                                </Link>
+                            </div>
+                        );
+                    }
+
+                    if (newHires && newHires.length > 0) {
+                        return (
+                            <div className="card" style={{ border: '2px solid #F59E0B', backgroundColor: '#FFFBEB', marginBottom: '1.5rem', padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div>
+                                    <strong style={{ color: '#92400E', fontSize: '0.95rem' }}>
+                                        ⚠️ {newHires.length} new employee{newHires.length > 1 ? 's' : ''} need a Supplementary Run
+                                    </strong>
+                                    <span style={{ display: 'block', fontSize: '0.8rem', color: '#B45309', marginTop: '0.25rem' }}>
+                                        Joined post-lock: {newHires.map(n => `${n.full_name} (${n.employee_code})`).join(', ')}
+                                    </span>
+                                </div>
+                                <Link
+                                    href={route('payroll.approval', { client_id: clientId, payroll_month: month, open_supplementary_modal: true })}
+                                    className="btn btn-warning btn-sm"
+                                    style={{ backgroundColor: '#F59E0B', borderColor: '#D97706', color: '#FFFFFF', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap' }}
+                                >
+                                    Go to Approval to Process →
+                                </Link>
+                            </div>
+                        );
+                    }
+
+                    return null;
+                })()}
 
                 <div className="card">
                     <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>

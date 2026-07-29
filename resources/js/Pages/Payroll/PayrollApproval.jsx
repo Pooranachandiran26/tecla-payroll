@@ -12,18 +12,33 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
     const { showToast } = useToast();
     const [clientId, setClientId] = useState(selectedClientId);
     const [month, setMonth] = useState(selectedMonth);
-    const [showBreakdown, setShowBreakdown] = useState(false);
-    const [showDisbursementModal, setShowDisbursementModal] = useState(false);
+    const existingDraftRun = pendingSupplementaryRuns && pendingSupplementaryRuns.find(r => r.status === 'draft');
+
     const [showSupplementaryModal, setShowSupplementaryModal] = useState(() => {
         if (typeof window !== 'undefined') {
             const params = new URLSearchParams(window.location.search);
             const val = params.get('open_supplementary_modal');
+            const hasDraft = pendingSupplementaryRuns && pendingSupplementaryRuns.some(r => r.status === 'draft');
+            if (hasDraft) return false;
             return val === 'true' || val === '1';
         }
         return false;
     });
-    const [showSingleCorrectionModal, setShowSingleCorrectionModal] = useState(false);
-    const [showBatchCorrectionModal, setShowBatchCorrectionModal] = useState(false);
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            const shouldScroll = params.get('scroll_to_pending') === 'true' || params.get('scroll_to_pending') === '1' || (existingDraftRun && (params.get('open_supplementary_modal') === 'true' || params.get('open_supplementary_modal') === '1'));
+            if (shouldScroll) {
+                setTimeout(() => {
+                    const el = document.getElementById('pending-supplementary-card');
+                    if (el) {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }, 300);
+            }
+        }
+    }, []);
 
     const getMonthOptions = () => {
         const options = [];
@@ -340,7 +355,7 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
                                         </button>
 
                                         {pendingSupplementaryRuns.length > 0 && (
-                                            <div style={{ border: '2px solid #F59E0B', backgroundColor: '#FFFBEB', borderRadius: 'var(--radius-sm)', padding: '0.85rem', marginTop: '1rem' }}>
+                                            <div id="pending-supplementary-card" style={{ border: '2px solid #F59E0B', backgroundColor: '#FFFBEB', borderRadius: 'var(--radius-sm)', padding: '0.85rem', marginTop: '1rem' }}>
                                                 <h4 style={{ fontSize: '0.9rem', color: '#92400E', marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                                                     ⚠️ {pendingSupplementaryRuns.length} Supplementary Run{pendingSupplementaryRuns.length > 1 ? 's' : ''} Pending
                                                 </h4>
@@ -542,51 +557,78 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
                                 </div>
 
                                 {/* Explicit Action Summary Box */}
-                                {totalCandidateCount > 0 && (
-                                    <div style={{
-                                        backgroundColor: eligibleCount === 0 ? '#FEF2F2' : (ineligibleCandidates.length > 0 ? '#FFFBEB' : '#F0FDF4'),
-                                        border: `1px solid ${eligibleCount === 0 ? '#FCA5A5' : (ineligibleCandidates.length > 0 ? '#FCD34D' : '#86EFAC')}`,
-                                        borderRadius: 'var(--radius-sm)',
-                                        padding: '0.85rem 1rem',
-                                        marginBottom: '1.25rem'
-                                    }}>
-                                        <div style={{
-                                            fontSize: '0.85rem',
-                                            fontWeight: 600,
-                                            color: eligibleCount === 0 ? '#991B1B' : (ineligibleCandidates.length > 0 ? '#92400E' : '#166534'),
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '0.5rem'
-                                        }}>
-                                            {eligibleCount === 0 ? '🛑 Cannot Start Supplementary Run' : (ineligibleCandidates.length > 0 ? '⚠️ Supplementary Run Summary' : '🟢 Ready to Process')}
+                                {existingDraftRun ? (
+                                    <div style={{ backgroundColor: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: 'var(--radius-sm)', padding: '0.85rem 1rem', marginBottom: '1.25rem' }}>
+                                        <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#92400E', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                            ⚠️ Supplementary Run #{existingDraftRun.id} Already Exists in Draft
                                         </div>
-                                        <p style={{
-                                            fontSize: '0.8rem',
-                                            color: eligibleCount === 0 ? '#7F1D1D' : (ineligibleCandidates.length > 0 ? '#B45309' : '#15803D'),
-                                            margin: '0.35rem 0 0 0',
-                                            lineHeight: 1.45
-                                        }}>
-                                            {eligibleCount === 0 ? (
-                                                <>Blocked: 0 of {totalCandidateCount} candidates can be processed. <strong>{ineligibleCandidates.map(c => c.full_name).join(', ')}</strong> will be SKIPPED due to missing attendance data. Upload attendance before creating a supplementary run.</>
-                                            ) : ineligibleCandidates.length > 0 ? (
-                                                <>Summary: <strong>{eligibleCount} of {totalCandidateCount} candidate(s)</strong> will be processed. <strong>{ineligibleCandidates.map(c => c.full_name).join(', ')}</strong> will be SKIPPED due to missing attendance or incomplete data.</>
-                                            ) : (
-                                                <>Ready: All {eligibleCount} candidate(s) have valid attendance and will be processed in this supplementary run.</>
-                                            )}
+                                        <p style={{ fontSize: '0.8rem', color: '#B45309', margin: '0.35rem 0 0 0', lineHeight: 1.45 }}>
+                                            A draft supplementary run (Run #{existingDraftRun.id}) is currently pending approval. Please approve & lock or delete Supplementary Run #{existingDraftRun.id} before creating another one.
                                         </p>
                                     </div>
+                                ) : (
+                                    totalCandidateCount > 0 && (
+                                        <div style={{
+                                            backgroundColor: eligibleCount === 0 ? '#FEF2F2' : (ineligibleCandidates.length > 0 ? '#FFFBEB' : '#F0FDF4'),
+                                            border: `1px solid ${eligibleCount === 0 ? '#FCA5A5' : (ineligibleCandidates.length > 0 ? '#FCD34D' : '#86EFAC')}`,
+                                            borderRadius: 'var(--radius-sm)',
+                                            padding: '0.85rem 1rem',
+                                            marginBottom: '1.25rem'
+                                        }}>
+                                            <div style={{
+                                                fontSize: '0.85rem',
+                                                fontWeight: 600,
+                                                color: eligibleCount === 0 ? '#991B1B' : (ineligibleCandidates.length > 0 ? '#92400E' : '#166534'),
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.5rem'
+                                            }}>
+                                                {eligibleCount === 0 ? '🛑 Cannot Start Supplementary Run' : (ineligibleCandidates.length > 0 ? '⚠️ Supplementary Run Summary' : '🟢 Ready to Process')}
+                                            </div>
+                                            <p style={{
+                                                fontSize: '0.8rem',
+                                                color: eligibleCount === 0 ? '#7F1D1D' : (ineligibleCandidates.length > 0 ? '#B45309' : '#15803D'),
+                                                margin: '0.35rem 0 0 0',
+                                                lineHeight: 1.45
+                                            }}>
+                                                {eligibleCount === 0 ? (
+                                                    <>Blocked: 0 of {totalCandidateCount} candidates can be processed. <strong>{ineligibleCandidates.map(c => c.full_name).join(', ')}</strong> will be SKIPPED due to missing attendance data. Upload attendance before creating a supplementary run.</>
+                                                ) : ineligibleCandidates.length > 0 ? (
+                                                    <>Summary: <strong>{eligibleCount} of {totalCandidateCount} candidate(s)</strong> will be processed. <strong>{ineligibleCandidates.map(c => c.full_name).join(', ')}</strong> will be SKIPPED due to missing attendance or incomplete data.</>
+                                                ) : (
+                                                    <>Ready: All {eligibleCount} candidate(s) have valid attendance and will be processed in this supplementary run.</>
+                                                )}
+                                            </p>
+                                        </div>
+                                    )
                                 )}
                                 
                                 <div className="modal-footer" style={{ marginTop: 0 }}>
                                     <button type="button" className="btn btn-secondary" onClick={() => setShowSupplementaryModal(false)}>Cancel</button>
-                                    <button 
-                                        type="button" 
-                                        className="btn btn-primary" 
-                                        onClick={handleCreateSupplementary}
-                                        disabled={eligibleCount === 0}
-                                    >
-                                        Confirm & Start Supplementary Run
-                                    </button>
+                                    {existingDraftRun ? (
+                                        <button 
+                                            type="button" 
+                                            className="btn btn-warning"
+                                            onClick={() => {
+                                                setShowSupplementaryModal(false);
+                                                setTimeout(() => {
+                                                    const el = document.getElementById('pending-supplementary-card');
+                                                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                                }, 150);
+                                            }}
+                                        >
+                                            Go to Pending Run #{existingDraftRun.id}
+                                        </button>
+                                    ) : (
+                                        <button 
+                                            type="button" 
+                                            className="btn btn-primary" 
+                                            onClick={handleCreateSupplementary}
+                                            disabled={eligibleCount === 0}
+                                        >
+                                            Confirm & Start Supplementary Run
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         </div>
