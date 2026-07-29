@@ -7,6 +7,7 @@ use App\Models\Employee;
 use App\Models\AttendanceRecord;
 use App\Models\Holiday;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 use Spatie\SimpleExcel\SimpleExcelReader;
 
 class AttendanceUploadValidationService
@@ -232,6 +233,21 @@ class AttendanceUploadValidationService
 
             // 2. Validate row parameters if employee matched
             if ($employee) {
+                // 2a. Check if employee already has a LOCKED payroll_run_item for this month
+                $hasLockedItem = DB::table('payroll_run_items')
+                    ->join('payroll_runs', 'payroll_run_items.payroll_run_id', '=', 'payroll_runs.id')
+                    ->where('payroll_run_items.employee_id', $employee->id)
+                    ->where('payroll_runs.client_id', $clientId)
+                    ->where('payroll_runs.payroll_month', $monthStart->toDateString())
+                    ->where('payroll_runs.status', 'locked')
+                    ->exists();
+
+                if ($hasLockedItem) {
+                    $monthLabel = $monthStart->format('F Y');
+                    $status = 'blocked_locked';
+                    $notes = "⚠️ Payroll for {$monthLabel} is already locked for {$employee->employee_code}. Use Payroll Correction instead of re-uploading attendance.";
+                    $errorCount++;
+                } else
                 // Parse days as non-negative integers
                 if (!is_numeric($rawDaysPresent) || (int) $rawDaysPresent < 0) {
                     $notes = "Invalid days_present: '{$rawDaysPresent}'. Must be a non-negative integer.";
