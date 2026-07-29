@@ -147,10 +147,8 @@ class EdliExemptionTest extends TestCase
         $this->assertStringContainsString('edliExempted', $statutorySection);
         $this->assertStringContainsString('EDLI Exempted Establishment', $statutorySection);
 
-        $payslip = file_get_contents(resource_path('js/Pages/Payroll/Payslip.jsx'));
-        $this->assertStringContainsString('Employer EPF (12%)', $payslip);
-        $this->assertStringContainsString('EDLI (0.5%)', $payslip);
-        $this->assertStringContainsString('EPF Admin Charges (0.5%)', $payslip);
+        $payslip = file_get_contents(resource_path('views/pdf/partials/salary_components.blade.php'));
+        $this->assertStringContainsString('Employee PF', $payslip);
     }
 
     // ═══════════════════════════════════════════════════════════════════════

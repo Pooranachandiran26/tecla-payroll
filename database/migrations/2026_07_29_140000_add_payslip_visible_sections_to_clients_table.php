@@ -15,6 +15,9 @@ return new class extends Migration
             if (!Schema::hasColumn('clients', 'payslip_visible_sections')) {
                 $table->json('payslip_visible_sections')->nullable()->after('health_insurance_enabled');
             }
+            if (!Schema::hasColumn('clients', 'payslip_template')) {
+                $table->string('payslip_template')->default('standard')->after('health_insurance_enabled');
+            }
         });
     }
 
