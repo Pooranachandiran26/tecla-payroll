@@ -115,6 +115,10 @@ class PayrollController extends Controller
             // Resolve linked employee queries and dispatch adjustment emails
             $this->dispatchLinkedQueryResolutionEmails($run);
 
+            if ($run->is_supplementary_run || !empty($run->parent_run_id)) {
+                return redirect()->back()->with('success', 'Supplementary run locked and invoices merged successfully.');
+            }
+
             return redirect()->back()->with('success', 'Payroll run locked, invoices generated, and salary summary emails dispatched successfully.');
         } catch (\Exception $e) {
             return redirect()->back()->with('error', $e->getMessage());

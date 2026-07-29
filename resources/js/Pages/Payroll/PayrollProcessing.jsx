@@ -186,7 +186,7 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
                             </span>
                         </div>
                         <Link
-                            href={route('payroll.approval', { client_id: clientId, payroll_month: month })}
+                            href={route('payroll.approval', { client_id: clientId, payroll_month: month, open_supplementary_modal: true })}
                             className="btn btn-warning btn-sm"
                             style={{ backgroundColor: '#F59E0B', borderColor: '#D97706', color: '#FFFFFF', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap' }}
                         >

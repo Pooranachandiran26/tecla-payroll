@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import RoleGuard from '../../Components/RoleGuard.jsx';
@@ -17,6 +17,15 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
     const [showSupplementaryModal, setShowSupplementaryModal] = useState(false);
     const [showSingleCorrectionModal, setShowSingleCorrectionModal] = useState(false);
     const [showBatchCorrectionModal, setShowBatchCorrectionModal] = useState(false);
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('open_supplementary_modal') === 'true') {
+                setShowSupplementaryModal(true);
+            }
+        }
+    }, []);
 
     const getMonthOptions = () => {
         const options = [];
@@ -105,8 +114,6 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
         const doLock = () => {
             router.post(route('payroll.run.lock', supplementaryRunId), {}, {
                 onSuccess: () => {
-                    showToast({ type: 'success', title: 'Supplementary Run Locked',
-                        message: 'Supplementary run locked and invoices merged successfully.' });
                     router.reload();
                 },
                 onError: (errors) => {

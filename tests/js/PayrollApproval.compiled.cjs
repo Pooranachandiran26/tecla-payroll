@@ -48,6 +48,14 @@ function PayrollApproval({ clients, selectedClientId, selectedMonth, run, items,
   const [showSupplementaryModal, setShowSupplementaryModal] = (0, import_react.useState)(false);
   const [showSingleCorrectionModal, setShowSingleCorrectionModal] = (0, import_react.useState)(false);
   const [showBatchCorrectionModal, setShowBatchCorrectionModal] = (0, import_react.useState)(false);
+  (0, import_react.useEffect)(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("open_supplementary_modal") === "true") {
+        setShowSupplementaryModal(true);
+      }
+    }
+  }, []);
   const getMonthOptions = () => {
     const options = [];
     const startDate = new Date(2026, 4, 1);
@@ -121,11 +129,6 @@ function PayrollApproval({ clients, selectedClientId, selectedMonth, run, items,
     const doLock = () => {
       import_react2.router.post(route("payroll.run.lock", supplementaryRunId), {}, {
         onSuccess: () => {
-          showToast({
-            type: "success",
-            title: "Supplementary Run Locked",
-            message: "Supplementary run locked and invoices merged successfully."
-          });
           import_react2.router.reload();
         },
         onError: (errors) => {

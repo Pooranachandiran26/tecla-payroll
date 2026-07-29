@@ -21,6 +21,12 @@ global.React = {
       stateStore[currentIndex] = typeof val === 'function' ? val(stateStore[currentIndex]) : val;
     };
     return [stateStore[currentIndex], setState];
+  },
+  useEffect: (effect, deps) => {
+    // Node environment mock for useEffect: run effect callback once
+    if (typeof effect === 'function') {
+      try { effect(); } catch (e) {}
+    }
   }
 };
 
