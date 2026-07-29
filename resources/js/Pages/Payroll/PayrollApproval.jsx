@@ -21,7 +21,8 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
     useEffect(() => {
         if (typeof window !== 'undefined') {
             const params = new URLSearchParams(window.location.search);
-            if (params.get('open_supplementary_modal') === 'true') {
+            const val = params.get('open_supplementary_modal');
+            if (val === 'true' || val === '1') {
                 setShowSupplementaryModal(true);
             }
         }
