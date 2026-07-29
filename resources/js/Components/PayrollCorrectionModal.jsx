@@ -89,18 +89,23 @@ export default function PayrollCorrectionModal({ isOpen, onClose, parentRun, ite
         return () => clearTimeout(timer);
     }, [isOpen, parentRun, selectedEmpId, correctedPaidDays, correctedLopDays]);
 
+    const getEmpPeriodDays = () => {
+        const empDays = selectedItem ? (parseFloat(selectedItem.paid_days || 0) + parseFloat(selectedItem.lop_days || 0)) : 0;
+        return empDays > 0 ? empDays : (previewData?.working_days_context?.total_calendar_days || 30);
+    };
+
     const handleLopChange = (val) => {
         const numLop = Math.max(0, parseFloat(val) || 0);
         setCorrectedLopDays(numLop);
-        const totalCalDays = previewData?.working_days_context?.total_calendar_days || 30;
-        setCorrectedPaidDays(Math.max(0, totalCalDays - numLop));
+        const safeTotal = getEmpPeriodDays();
+        setCorrectedPaidDays(Math.max(0, safeTotal - numLop));
     };
 
     const handlePaidChange = (val) => {
         const numPaid = Math.max(0, parseFloat(val) || 0);
         setCorrectedPaidDays(numPaid);
-        const totalCalDays = previewData?.working_days_context?.total_calendar_days || 30;
-        setCorrectedLopDays(Math.max(0, totalCalDays - numPaid));
+        const safeTotal = getEmpPeriodDays();
+        setCorrectedLopDays(Math.max(0, safeTotal - numPaid));
     };
 
     const handleSubmit = (e) => {
