@@ -51,4 +51,45 @@ class Invoice extends Model
     {
         return $this->hasMany(InvoiceLineItem::class);
     }
+
+    public function additionalFees()
+    {
+        return $this->hasMany(InvoiceAdditionalFee::class);
+    }
+
+    /**
+     * Recalculates stored total tax breakdown and grand total using state-wise gst_type branching.
+     */
+    public function recalculateTotals(): void
+    {
+        $passthrough = (float) $this->gross_salary_passthrough;
+        $agencyFee = (float) $this->agency_service_fee;
+        $additionalFeesTotal = (float) $this->additionalFees()->sum('amount');
+        
+        $taxableServiceFees = round($agencyFee + $additionalFeesTotal, 2);
+
+        if ($this->gst_type === 'cgst_sgst') {
+            // Intrastate: 9% CGST + 9% SGST
+            $cgst = round($taxableServiceFees * 0.09, 2);
+            $sgst = round($taxableServiceFees * 0.09, 2);
+            $igst = 0.00;
+            $gstAmount = round($cgst + $sgst, 2);
+        } else {
+            // Interstate: 18% IGST
+            $cgst = 0.00;
+            $sgst = 0.00;
+            $igst = round($taxableServiceFees * 0.18, 2);
+            $gstAmount = $igst;
+        }
+
+        $grandTotal = round($passthrough + $taxableServiceFees + $gstAmount, 2);
+
+        $this->update([
+            'cgst_amount' => $cgst,
+            'sgst_amount' => $sgst,
+            'igst_amount' => $igst,
+            'gst_amount'  => $gstAmount,
+            'grand_total' => $grandTotal,
+        ]);
+    }
 }
