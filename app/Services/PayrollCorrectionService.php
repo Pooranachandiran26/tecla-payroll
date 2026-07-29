@@ -412,6 +412,8 @@ class PayrollCorrectionService
                     if ($idxEmpCode === false) $idxEmpCode = array_search('emp_code', $cells);
                     $idxDaysPresent = array_search('days_present', $cells);
                     $idxDaysLOP = array_search('days_lop', $cells);
+                    $idxTargetMonth = array_search('target_month', $cells);
+                    if ($idxTargetMonth === false) $idxTargetMonth = array_search('month', $cells);
 
                     if ($idxEmpCode !== false && $idxDaysPresent !== false && $idxDaysLOP !== false) {
                         $targetSheet = $sheet;
@@ -421,6 +423,7 @@ class PayrollCorrectionService
                             'days_present' => $idxDaysPresent,
                             'days_lop' => $idxDaysLOP,
                             'reason' => array_search('reason', $cells),
+                            'target_month' => $idxTargetMonth,
                         ];
                         break 2;
                     }
@@ -446,6 +449,7 @@ class PayrollCorrectionService
                 $daysPresent = isset($cellValues[$headerMap['days_present']]) ? trim($cellValues[$headerMap['days_present']]) : '';
                 $daysLOP = isset($cellValues[$headerMap['days_lop']]) ? trim($cellValues[$headerMap['days_lop']]) : '';
                 $reason = ($headerMap['reason'] !== false && isset($cellValues[$headerMap['reason']])) ? trim($cellValues[$headerMap['reason']]) : '';
+                $targetMonth = ($headerMap['target_month'] !== false && isset($cellValues[$headerMap['target_month']])) ? trim($cellValues[$headerMap['target_month']]) : '';
 
                 if (empty($empCode)) continue;
 
@@ -454,6 +458,7 @@ class PayrollCorrectionService
                     'days_present' => $daysPresent,
                     'days_lop' => $daysLOP,
                     'reason' => $reason,
+                    'target_month' => $targetMonth,
                 ];
             }
             $reader->close();
@@ -476,6 +481,8 @@ class PayrollCorrectionService
             $idxDaysPresent = array_search('days_present', $headers);
             $idxDaysLOP = array_search('days_lop', $headers);
             $idxReason = array_search('reason', $headers);
+            $idxTargetMonth = array_search('target_month', $headers);
+            if ($idxTargetMonth === false) $idxTargetMonth = array_search('month', $headers);
 
             if ($idxEmpCode === false || $idxDaysPresent === false || $idxDaysLOP === false) {
                 if (is_resource($handle)) { @fclose($handle); }
@@ -489,6 +496,7 @@ class PayrollCorrectionService
                     'days_present' => isset($data[$idxDaysPresent]) ? trim($data[$idxDaysPresent]) : '',
                     'days_lop' => isset($data[$idxDaysLOP]) ? trim($data[$idxDaysLOP]) : '',
                     'reason' => ($idxReason !== false && isset($data[$idxReason])) ? trim($data[$idxReason]) : '',
+                    'target_month' => ($idxTargetMonth !== false && isset($data[$idxTargetMonth])) ? trim($data[$idxTargetMonth]) : '',
                 ];
             }
             if (is_resource($handle)) { @fclose($handle); }
@@ -497,6 +505,14 @@ class PayrollCorrectionService
         $parsedRows = [];
         foreach ($rawRows as $row) {
             if (empty($row['employee_code'])) continue;
+
+            if (!empty($row['target_month'])) {
+                $rowMonthShort = substr($row['target_month'], 0, 7);
+                $parentMonthShort = substr($parentRun->payroll_month, 0, 7);
+                if ($rowMonthShort !== $parentMonthShort) {
+                    throw new \Exception("Target month mismatch for employee {$row['employee_code']}: file specifies '{$row['target_month']}', but parent run target month is '{$parentRun->payroll_month}'.");
+                }
+            }
 
             $employee = Employee::where('client_id', $parentRun->client_id)
                 ->where('employee_code', $row['employee_code'])

@@ -293,7 +293,8 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
                                                             <th>PF</th>
                                                             <th>ESI</th>
                                                             <th>PT</th>
-                                                                                                 <th>Loan EMI</th>
+                                                            <th>TDS</th>
+                                                            <th>Loan EMI</th>
                                                             <th>Net Pay</th>
                                                             <th style={{ color: "#047857", background: "#ECFDF5" }}>CTC (Er Cost)</th>
                                                         </tr>
