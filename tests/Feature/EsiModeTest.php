@@ -23,7 +23,7 @@ class EsiModeTest extends TestCase
         parent::setUp();
 
         $this->admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
-        $this->client = Client::factory()->create(['status' => 'active']);
+        $this->client = Client::factory()->create(['status' => 'active', 'contract_type' => 'agency']);
         $this->branch = ClientBranch::factory()->create(['client_id' => $this->client->id]);
     }
 

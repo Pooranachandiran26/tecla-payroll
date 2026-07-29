@@ -20,7 +20,7 @@ class EmployeeProvisioningTest extends TestCase
     {
         parent::setUp();
         
-        $this->client = Client::factory()->create(['status' => 'active']);
+        $this->client = Client::factory()->create(['status' => 'active', 'contract_type' => 'agency']);
         $this->branch = ClientBranch::create(['client_id' => $this->client->id, 'branch_name' => 'HQ']);
         
         $this->admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);

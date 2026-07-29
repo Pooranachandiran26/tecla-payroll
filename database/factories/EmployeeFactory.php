@@ -28,7 +28,7 @@ class EmployeeFactory extends Factory
             'date_of_joining' => '2023-01-01',
             'designation' => 'Developer',
             'gender' => 'female',
-            'employment_model' => 'agency_contract',
+            'employment_model' => 'eor',
             'prior_employment_flag' => 0,
             'residential_address' => 'Test Address',
             'bank_account_number' => '1234567890',

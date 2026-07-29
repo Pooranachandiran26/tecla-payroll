@@ -28,7 +28,7 @@ class AttendanceTrackingStartDateTest extends TestCase
 
     private function createClientWithBranch(): Client
     {
-        $client = Client::factory()->create();
+        $client = Client::factory()->create(['contract_type' => 'agency']);
         ClientBranch::factory()->create(['client_id' => $client->id]);
         return $client;
     }

@@ -15,6 +15,7 @@ return new class extends Migration
             $table->timestamp('review_email_sent_at')->nullable()->after('locked_at');
             $table->timestamp('payslip_released_at')->nullable()->after('review_email_sent_at');
             $table->foreignId('payslip_released_by')->nullable()->after('payslip_released_at')->constrained('users')->onDelete('set null');
+            $table->integer('resend_count')->default(0)->after('payslip_released_by');
         });
     }
 

@@ -21,7 +21,7 @@ class PayrollRun extends Model
             $dirtyFields = array_keys($run->getDirty());
 
             // Allowed metadata changes on a locked run
-            $metadataFields = ['review_email_sent_at', 'payslip_released_at', 'payslip_released_by', 'updated_at'];
+            $metadataFields = ['review_email_sent_at', 'payslip_released_at', 'payslip_released_by', 'resend_count', 'updated_at'];
 
             // 1. If already locked, allow ONLY metadata fields
             if ($originalStatus === 'locked') {

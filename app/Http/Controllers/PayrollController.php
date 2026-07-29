@@ -327,6 +327,7 @@ class PayrollController extends Controller
         $run->update([
             'payslip_released_at' => now(),
             'payslip_released_by' => Auth::id(),
+            'resend_count' => ($run->resend_count ?? 0) + 1,
         ]);
 
         if ($request->wantsJson()) {
@@ -1133,6 +1134,8 @@ class PayrollController extends Controller
                 'registered_city' => $selectedClient->registered_city,
                 'registered_state' => $selectedClient->registered_state,
                 'gstin' => $selectedClient->gstin,
+                'payslip_template' => $selectedClient->payslip_template ?: 'standard',
+                'payslip_visible_sections' => $selectedClient->payslip_visible_sections ?: [],
             ];
         }
 
@@ -1146,6 +1149,7 @@ class PayrollController extends Controller
                 'id' => $lockedRun->id,
                 'status' => $lockedRun->status,
                 'payslip_released_at' => $lockedRun->payslip_released_at,
+                'resend_count' => $lockedRun->resend_count ?? 0,
                 'released_by_user_name' => $lockedRun->payslip_released_by ? optional(\App\Models\User::find($lockedRun->payslip_released_by))->name : null,
             ] : null,
         ]);

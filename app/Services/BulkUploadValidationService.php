@@ -241,10 +241,30 @@ class BulkUploadValidationService
                 }
             }
 
-            $employmentModel = $normalizedRow['employment_model'] ?? null;
-            if (empty($employmentModel)) {
+            $rawEmpModel = strtolower(trim((string)($normalizedRow['employment_model'] ?? '')));
+            if (empty($rawEmpModel)) {
                 if ($client) {
                     $employmentModel = ($client->contract_type === 'agency') ? 'agency_contract' : 'eor';
+                } else {
+                    $employmentModel = 'eor';
+                }
+            } else {
+                if (in_array($rawEmpModel, ['agency', 'agency_contract', 'agency payroll', 'staffing', 'agency_payroll'], true)) {
+                    $employmentModel = 'agency_contract';
+                } elseif (in_array($rawEmpModel, ['eor', 'pass_through', 'pass-through', 'pass through'], true)) {
+                    $employmentModel = 'eor';
+                } else {
+                    $employmentModel = $rawEmpModel;
+                }
+            }
+
+            // Client Contract Type Mismatch Enforcement
+            if ($client) {
+                $clientContractType = $client->contract_type ?? 'eor';
+                if ($clientContractType === 'agency' && $employmentModel === 'eor') {
+                    $errors[] = "Employment model 'eor' is invalid for client '{$client->company_name}' which is configured under Agency Payroll (agency). Must be 'agency_contract'.";
+                } elseif ($clientContractType === 'eor' && $employmentModel === 'agency_contract') {
+                    $errors[] = "Employment model 'agency_contract' is invalid for client '{$client->company_name}' which is configured under Pass-through EOR (eor). Must be 'eor'.";
                 }
             }
 
