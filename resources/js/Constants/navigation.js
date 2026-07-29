@@ -71,6 +71,7 @@ export const subNavs = {
     { name: 'Activity Log', url: safeRoute('admin.activity-log', '/admin/activity-log') },
     { name: 'User Management', url: safeRoute('admin.users', '/admin/users') },
     { name: 'Active Sessions', url: safeRoute('admin.sessions', '/admin/sessions') },
+    { name: 'Payslip Templates', url: safeRoute('admin.payslip-templates', '/admin/payslip-templates') },
     { name: 'Settings', url: safeRoute('admin.settings', '/admin/settings') },
   ],
 };
@@ -140,7 +141,7 @@ export function getActiveCategory(currentPath, role) {
   }
   if (currentPathname.includes('compliance')) return 'compliance';
   if (currentPathname.includes('report')) return 'reports';
-  if (currentPathname.includes('activity') || currentPathname.includes('user') || currentPathname.includes('setting') || currentPathname.includes('session')) return 'admin';
+  if (currentPathname.includes('activity') || currentPathname.includes('user') || currentPathname.includes('setting') || currentPathname.includes('session') || currentPathname.includes('payslip-template')) return 'admin';
   if (currentPathname.includes('quick-access')) return 'quick-access';
 
   return 'dashboard';

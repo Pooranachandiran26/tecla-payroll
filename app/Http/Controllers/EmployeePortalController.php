@@ -440,4 +440,67 @@ class EmployeePortalController extends Controller
 
         return redirect()->back()->with('success', 'Leave request submitted successfully.');
     }
+
+    public function payslips(Request $request)
+    {
+        $employee = $this->getEmployee();
+
+        $rawItems = \Illuminate\Support\Facades\DB::table('payroll_run_items')
+            ->join('payroll_runs', 'payroll_run_items.payroll_run_id', '=', 'payroll_runs.id')
+            ->where('payroll_run_items.employee_id', $employee->id)
+            ->where('payroll_runs.status', 'locked')
+            ->whereNotNull('payroll_runs.payslip_released_at')
+            ->where('payroll_run_items.is_excluded', false)
+            ->select('payroll_run_items.*', 'payroll_runs.payroll_month', 'payroll_runs.client_id', 'payroll_runs.payslip_released_at')
+            ->orderBy('payroll_runs.payroll_month', 'desc')
+            ->get();
+
+        $client = $employee->client;
+        $clientBranding = null;
+        if ($client) {
+            $clientBranding = [
+                'company_name' => $client->company_name,
+                'display_name_override' => $client->display_name_override,
+                'logo_path' => $client->logo_path,
+                'accent_color' => $client->accent_color ?: '#1F3864',
+                'registered_city' => $client->registered_city,
+                'registered_state' => $client->registered_state,
+                'gstin' => $client->gstin,
+                'payslip_template' => $client->payslip_template ?: 'standard',
+                'payslip_visible_sections' => $client->payslip_visible_sections ?: [],
+            ];
+        }
+
+        return Inertia::render('EmployeePortal/EmployeePayslips', [
+            'employee' => $employee,
+            'payslips' => $rawItems,
+            'clientBranding' => $clientBranding,
+        ]);
+    }
+
+    public function downloadPayslip(Request $request, $id)
+    {
+        $employee = $this->getEmployee();
+
+        $item = \App\Models\PayrollRunItem::where('id', $id)
+            ->where('employee_id', $employee->id)
+            ->where('is_excluded', false)
+            ->firstOrFail();
+
+        $run = $item->payrollRun;
+        if (!$run || $run->status !== 'locked' || !$run->payslip_released_at) {
+            abort(403, 'This payslip has not been released yet.');
+        }
+
+        $pdfService = app(\App\Services\PayslipPdfService::class);
+        $pdfBytes = $pdfService->generatePdfBinary($item);
+
+        $monthStr = \Carbon\Carbon::parse($run->payroll_month)->format('M_Y');
+        $fileName = "Payslip_{$employee->employee_code}_{$monthStr}.pdf";
+
+        return response($pdfBytes, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
+        ]);
+    }
 }

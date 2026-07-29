@@ -20,7 +20,7 @@ class BulkUploadTest extends TestCase
         parent::setUp();
         // create admin
         $this->admin = User::factory()->create(['role' => 'admin']);
-        $this->client = Client::factory()->create(['client_code' => 'SYNSTAR', 'company_name' => 'Synstar Staffing']);
+        $this->client = Client::factory()->create(['client_code' => 'SYNSTAR', 'company_name' => 'Synstar Staffing', 'contract_type' => 'agency']);
         $this->branch = ClientBranch::factory()->create(['client_id' => $this->client->id, 'branch_code' => 'MB-01']);
     }
 

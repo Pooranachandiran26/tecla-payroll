@@ -130,7 +130,22 @@ class StoreEmployeeRequest extends FormRequest
             'gender' => 'nullable|in:male,female,other',
             'blood_group' => 'nullable|string|max:10',
             'marital_status' => 'nullable|in:single,married,other',
-            'employment_model' => 'required|in:eor,agency_contract',
+            'employment_model' => [
+                'required',
+                'in:eor,agency_contract',
+                function ($attribute, $value, $fail) {
+                    if ($this->client_id) {
+                        $client = \App\Models\Client::find($this->client_id);
+                        if ($client) {
+                            if ($client->contract_type === 'agency' && $value === 'eor') {
+                                $fail("Employment model 'eor' is not permitted for client '{$client->company_name}' configured under Agency Payroll (agency). Must be 'agency_contract'.");
+                            } elseif ($client->contract_type === 'eor' && $value === 'agency_contract') {
+                                $fail("Employment model 'agency_contract' is not permitted for client '{$client->company_name}' configured under Pass-through EOR (eor). Must be 'eor'.");
+                            }
+                        }
+                    }
+                }
+            ],
             'prior_employment_flag' => 'required|boolean',
             'residential_address' => 'required|string',
             
