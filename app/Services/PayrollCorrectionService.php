@@ -100,9 +100,24 @@ class PayrollCorrectionService
                 $proRatedComponents[$key] = round($oldComponentProrated + $newComponentProrated, 2);
             }
         } else {
+            $effectiveStart = Carbon::parse($employee->date_of_joining)->startOfDay();
+            $isMidMonthHire = $effectiveStart->gt($monthStart);
+
             foreach ($components as $key => $column) {
                 $currentVal = (float)($employee->$column ?? 0);
-                $proRatedComponents[$key] = round($currentVal * ($correctedPaidDays / $lopBasisDays), 2);
+
+                if ($correctedLopDays == 0) {
+                    $proRatedComponents[$key] = $isMidMonthHire
+                        ? round($currentVal * min(1.0, $correctedPaidDays / $calendarDays), 2)
+                        : round($currentVal, 2);
+                } else {
+                    if ($isMidMonthHire) {
+                        $proRatedComponents[$key] = round($currentVal * ($correctedPaidDays / $lopBasisDays), 2);
+                    } else {
+                        $componentLopDeduction = round($currentVal * ($correctedLopDays / $lopBasisDays), 2);
+                        $proRatedComponents[$key] = max(0.00, round($currentVal - $componentLopDeduction, 2));
+                    }
+                }
             }
         }
 
