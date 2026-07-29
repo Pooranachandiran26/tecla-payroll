@@ -336,10 +336,52 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
                                         >
                                             {run.status === 'locked' 
                                                 ? (pendingSupplementaryRuns.length > 0 
-                                                    ? `✓ Parent Locked — ${pendingSupplementaryRuns.length} supplementary pending below` 
+                                                    ? `✓ Parent Locked — ${pendingSupplementaryRuns.length} Supplementary Pending` 
                                                     : '✓ Locked and Finalized') 
                                                 : '✓ Approve & Lock Batch'}
                                         </button>
+
+                                        {pendingSupplementaryRuns.length > 0 && (
+                                            <div style={{ border: '2px solid #F59E0B', backgroundColor: '#FFFBEB', borderRadius: 'var(--radius-sm)', padding: '0.85rem', marginTop: '1rem' }}>
+                                                <h4 style={{ fontSize: '0.9rem', color: '#92400E', marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                                    ⚠️ {pendingSupplementaryRuns.length} Supplementary Run{pendingSupplementaryRuns.length > 1 ? 's' : ''} Pending
+                                                </h4>
+                                                <p style={{ fontSize: '0.75rem', color: '#92400E', marginBottom: '0.75rem' }}>
+                                                    Approve & lock before finalizing payslips.
+                                                </p>
+                                                {pendingSupplementaryRuns.map(sr => (
+                                                    <div key={sr.id} style={{ borderTop: '1px solid #FEF3C7', paddingTop: '0.65rem', marginTop: '0.65rem' }}>
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', flexWrap: 'wrap' }}>
+                                                                <strong style={{ fontSize: '0.85rem' }}>Run #{sr.id}</strong>
+                                                                <span className="badge" style={{ backgroundColor: sr.run_type === 'correction' ? '#8B5CF6' : '#2563EB', color: '#FFFFFF', fontSize: '0.68rem', padding: '0.15rem 0.35rem' }}>
+                                                                    {sr.run_type === 'correction' ? 'Payroll Correction' : 'New Hire Supplementary'}
+                                                                </span>
+                                                                <span className={`badge ${sr.status === 'draft' ? 'badge-warning' : 'badge-info'}`} style={{ fontSize: '0.68rem' }}>
+                                                                    {sr.status}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        <div style={{ fontSize: '0.75rem', color: '#78350F', marginBottom: '0.5rem' }}>
+                                                            {sr.total_employees_processed} employee{sr.total_employees_processed !== 1 ? 's' : ''} · ₹{parseFloat(sr.total_net_disbursement || 0).toLocaleString()} net
+                                                        </div>
+                                                        {sr.total_employees_processed === 0 && (
+                                                            <div style={{ fontSize: '0.75rem', color: '#B45309', marginBottom: '0.5rem', fontStyle: 'italic' }}>
+                                                                ⚠️ 0 Employees Processed (All candidates skipped due to missing data)
+                                                            </div>
+                                                        )}
+                                                        <button
+                                                            className="btn btn-primary btn-sm"
+                                                            style={{ width: '100%', padding: '0.5rem', fontWeight: 600 }}
+                                                            onClick={() => handleApproveSupplementary(sr.id, sr.status)}
+                                                            disabled={role !== 'admin'}
+                                                        >
+                                                            {sr.status === 'approved' ? '🔒 Lock Supplementary Run' : '✓ Approve & Lock Supplementary Run'} #{sr.id}
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
 
                                         {run.status === 'locked' && (
                                             <div style={{ marginTop: "1rem", paddingTop: "1rem", borderTop: "1px solid var(--border-color)" }}>
@@ -407,48 +449,6 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
                                         </div>
                                     )}
                                 </div>
-
-                                {pendingSupplementaryRuns.length > 0 && (
-                                    <div className="card" style={{ border: '2px solid #F59E0B', backgroundColor: '#FFFBEB', marginTop: '1.5rem' }}>
-                                        <h3 className="card-title" style={{ marginBottom: '0.5rem', color: '#92400E' }}>
-                                            ⚠️ {pendingSupplementaryRuns.length} Supplementary Run{pendingSupplementaryRuns.length > 1 ? 's' : ''} Pending Approval
-                                        </h3>
-                                        <p style={{ fontSize: '0.8rem', color: '#92400E', marginBottom: '1rem' }}>
-                                            These supplementary runs must be approved and locked before all employees' payslips are finalized.
-                                        </p>
-                                        {pendingSupplementaryRuns.map(sr => (
-                                            <div key={sr.id} style={{ borderTop: '1px solid #FEF3C7', paddingTop: '0.75rem', marginTop: '0.75rem' }}>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-                                                        <strong>Run #{sr.id}</strong>
-                                                        <span className="badge" style={{ backgroundColor: sr.run_type === 'correction' ? '#8B5CF6' : '#2563EB', color: '#FFFFFF', fontSize: '0.7rem', padding: '0.15rem 0.4rem' }}>
-                                                            {sr.run_type === 'correction' ? 'Payroll Correction' : 'New Hire Supplementary'}
-                                                        </span>
-                                                        <span className={`badge ${sr.status === 'draft' ? 'badge-warning' : 'badge-info'}`} style={{ fontSize: '0.7rem' }}>
-                                                            {sr.status}
-                                                        </span>
-                                                    </div>
-                                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                                                        {sr.total_employees_processed} employee{sr.total_employees_processed !== 1 ? 's' : ''} · ₹{parseFloat(sr.total_net_disbursement || 0).toLocaleString()} net
-                                                    </span>
-                                                </div>
-                                                {sr.total_employees_processed === 0 && (
-                                                    <div style={{ fontSize: '0.75rem', color: '#B45309', marginBottom: '0.5rem', fontStyle: 'italic' }}>
-                                                        ⚠️ 0 Employees Processed (All candidates skipped due to missing data)
-                                                    </div>
-                                                )}
-                                                <button
-                                                    className="btn btn-primary btn-sm"
-                                                    style={{ width: '100%' }}
-                                                    onClick={() => handleApproveSupplementary(sr.id, sr.status)}
-                                                    disabled={role !== 'admin'}
-                                                >
-                                                    {sr.status === 'approved' ? '🔒 Lock Supplementary Run' : '✓ Approve & Lock Supplementary Run'} #{sr.id}
-                                                </button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
                             </div>
                         </div>
                     </>
