@@ -1456,5 +1456,131 @@ class SupplementaryPayrollRunTest extends TestCase
             ->where('run.total_net_disbursement', 22000)
         );
     }
+
+    /**
+     * Confirm indexProcessing() returns the EXACT SAME newHires and pendingSupplementaryRuns
+     * data as indexApproval() for the same parent run (zero drift between pages).
+     */
+    public function test_index_processing_returns_identical_new_hires_and_pending_supplementary_runs_as_index_approval()
+    {
+        $monthStart = '2026-06-01';
+
+        // 1. Create a locked parent run
+        $parentRun = PayrollRun::create([
+            'client_id' => $this->client->id,
+            'payroll_month' => $monthStart,
+            'status' => 'locked',
+            'total_employees_processed' => 1,
+            'total_employees_excluded' => 0,
+            'total_gross_earnings' => 10000,
+            'total_net_disbursement' => 9000,
+            'total_employer_statutory_cost' => 1950,
+        ]);
+
+        DB::table('payroll_run_items')->insert($this->makePayrollRunItemData([
+            'payroll_run_id' => $parentRun->id,
+            'employee_id' => $this->employeeA->id,
+        ]));
+
+        // 2. Create a new hire joining AFTER lock date
+        $newHire = Employee::create([
+            'client_id' => $this->client->id,
+            'branch_id' => $this->branch->id,
+            'full_name' => 'Zero Drift',
+            'first_name' => 'Zero',
+            'last_name' => 'Drift',
+            'personal_email' => 'zerodrift@example.com',
+            'phone_number' => '9988776699',
+            'date_of_birth' => '1995-01-01',
+            'date_of_joining' => '2026-06-15',
+            'designation' => 'Developer',
+            'employment_model' => 'eor',
+            'prior_employment_flag' => 0,
+            'residential_address' => '789 St',
+            'bank_account_number' => '9999999999',
+            'bank_ifsc' => 'SBIN0001234',
+            'bank_name' => 'SBI',
+            'bank_branch' => 'Main',
+            'account_holder_name' => 'Zero Drift',
+            'pan_number' => 'ABCDE9999Z',
+            'employee_code' => 'NH-ZERO-DRIFT-01',
+            'uan_mode' => 'new',
+            'status' => 'active',
+            'basic_pay' => 15000,
+            'hra' => 5000,
+            'conveyance' => 0,
+            'da' => 0,
+            'medical_allowance' => 0,
+            'special_allowance' => 0,
+            'other_additions' => 0,
+            'tds_regime' => 'new',
+            'gratuity_mode' => 'part_of_ctc',
+            'lop_basis_days' => '30',
+            'declarations_accepted' => 1,
+            'pf_applicable' => true,
+            'esi_applicable' => false,
+            'pt_applicable' => true,
+            'lwf_applicable' => false,
+        ]);
+
+        // 3. Create a pending draft supplementary run
+        $pendingSuppRun = PayrollRun::create([
+            'client_id' => $this->client->id,
+            'payroll_month' => $monthStart,
+            'status' => 'draft',
+            'is_supplementary_run' => true,
+            'parent_run_id' => $parentRun->id,
+            'processed_by' => $this->admin->id,
+            'total_employees_processed' => 1,
+            'total_employees_excluded' => 0,
+            'total_gross_earnings' => 5000,
+            'total_net_disbursement' => 4500,
+            'total_employer_statutory_cost' => 0,
+        ]);
+
+        // 4. Fetch indexProcessing payload
+        $processingResponse = $this->actingAs($this->admin)->get(route('payroll.processing', [
+            'client_id' => $this->client->id,
+            'payroll_month' => $monthStart,
+        ]));
+
+        $processingResponse->assertStatus(200);
+
+        $processingNewHires = null;
+        $processingPendingSupp = null;
+
+        $processingResponse->assertInertia(function (Assert $page) use (&$processingNewHires, &$processingPendingSupp) {
+            $page->component('Payroll/PayrollProcessing')
+                ->has('newHires', 3)
+                ->has('pendingSupplementaryRuns', 1);
+
+            $processingNewHires = $page->toArray()['props']['newHires'];
+            $processingPendingSupp = $page->toArray()['props']['pendingSupplementaryRuns'];
+        });
+
+        // 5. Fetch indexApproval payload
+        $approvalResponse = $this->actingAs($this->admin)->get(route('payroll.approval', [
+            'client_id' => $this->client->id,
+            'payroll_month' => $monthStart,
+        ]));
+
+        $approvalResponse->assertStatus(200);
+
+        $approvalNewHires = null;
+        $approvalPendingSupp = null;
+
+        $approvalResponse->assertInertia(function (Assert $page) use (&$approvalNewHires, &$approvalPendingSupp) {
+            $page->component('Payroll/PayrollApproval')
+                ->has('newHires', 3)
+                ->has('pendingSupplementaryRuns', 1);
+
+            $approvalNewHires = $page->toArray()['props']['newHires'];
+            $approvalPendingSupp = $page->toArray()['props']['pendingSupplementaryRuns'];
+        });
+
+        // 6. Assert ZERO DRIFT between Processing and Approval payload props
+        $this->assertEquals($approvalNewHires, $processingNewHires, 'Processing and Approval newHires props must be identical.');
+        $this->assertEquals($approvalPendingSupp, $processingPendingSupp, 'Processing and Approval pendingSupplementaryRuns props must be identical.');
+    }
 }
 

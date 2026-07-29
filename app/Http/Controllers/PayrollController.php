@@ -115,6 +115,10 @@ class PayrollController extends Controller
             // Resolve linked employee queries and dispatch adjustment emails
             $this->dispatchLinkedQueryResolutionEmails($run);
 
+            if ($run->is_supplementary_run || !empty($run->parent_run_id)) {
+                return redirect()->back()->with('success', 'Supplementary run locked and invoices merged successfully.');
+            }
+
             return redirect()->back()->with('success', 'Payroll run locked, invoices generated, and salary summary emails dispatched successfully.');
         } catch (\Exception $e) {
             return redirect()->back()->with('error', $e->getMessage());
@@ -359,6 +363,21 @@ class PayrollController extends Controller
         $client = \App\Models\Client::findOrFail($parent->client_id);
         $employees = \App\Models\Employee::whereIn('id', $targetEmployeeIds)->get();
 
+        $eligibilityService = app(\App\Services\PayrollEligibilityService::class);
+
+        // Pre-flight check: ensure at least 1 candidate is eligible before persisting PayrollRun
+        $eligibleCount = 0;
+        foreach ($employees as $employee) {
+            $elig = $eligibilityService->checkEmployee($employee, $client, $monthStart, $monthEnd);
+            if ($elig['is_eligible']) {
+                $eligibleCount++;
+            }
+        }
+
+        if ($eligibleCount === 0) {
+            return redirect()->back()->with('error', 'Cannot create supplementary run: None of the candidate employees have attendance or valid eligibility data. Please upload attendance first.');
+        }
+
         // 1. Create a draft supplementary run
         $supplementaryRun = PayrollRun::create([
             'client_id' => $parent->client_id,
@@ -374,7 +393,6 @@ class PayrollController extends Controller
             'total_employer_statutory_cost' => 0,
         ]);
 
-        $eligibilityService = app(\App\Services\PayrollEligibilityService::class);
         $attendanceService = app(\App\Services\AttendanceResolutionService::class);
         $calculator = app(\App\Services\MonthlyPayrollCalculator::class);
 
@@ -633,6 +651,7 @@ class PayrollController extends Controller
         $items = [];
         $preflight = [];
         $client = null;
+        $newHires = [];
 
         if ($selectedClientId) {
             $client = \App\Models\Client::find($selectedClientId);
@@ -658,6 +677,45 @@ class PayrollController extends Controller
                     ->get();
 
                 $items = $this->consolidateItemsForDisplay($rawItems);
+
+                $clientModel = \App\Models\Client::find($run->client_id);
+                $mStart = \Carbon\Carbon::parse($run->payroll_month)->startOfMonth()->toDateString();
+                $mEnd = \Carbon\Carbon::parse($run->payroll_month)->endOfMonth()->toDateString();
+                $eligibilityService = app(\App\Services\PayrollEligibilityService::class);
+
+                $newHires = $run->getNewHireCandidates()->map(function ($emp) use ($clientModel, $mStart, $mEnd, $eligibilityService) {
+                    $elig = $eligibilityService->checkEmployee($emp, $clientModel, $mStart, $mEnd);
+                    return [
+                        'id' => $emp->id,
+                        'full_name' => $emp->full_name,
+                        'employee_code' => $emp->employee_code,
+                        'date_of_joining' => $emp->date_of_joining,
+                        'is_eligible' => $elig['is_eligible'],
+                        'exclusions' => $elig['exclusions'],
+                    ];
+                })->toArray();
+
+                $pendingSupplementaryRuns = $run->children()
+                    ->where('status', '!=', 'locked')
+                    ->get()
+                    ->map(function ($sr) {
+                        $hasCorrection = \Illuminate\Support\Facades\DB::table('payroll_run_items')
+                            ->where('payroll_run_id', $sr->id)
+                            ->where('is_correction', true)
+                            ->exists();
+
+                        return [
+                            'id' => $sr->id,
+                            'status' => $sr->status,
+                            'created_at' => $sr->created_at,
+                            'total_employees_processed' => $sr->total_employees_processed,
+                            'total_employees_excluded' => $sr->total_employees_excluded,
+                            'total_gross_earnings' => $sr->total_gross_earnings,
+                            'total_net_disbursement' => $sr->total_net_disbursement,
+                            'run_type' => $hasCorrection ? 'correction' : 'new_hire',
+                        ];
+                    })
+                    ->toArray();
 
                 foreach ($items as $item) {
                     if ($item->is_excluded) {
@@ -728,6 +786,8 @@ class PayrollController extends Controller
             'run' => $run ? array_merge($run->load('client')->toArray(), $run->getCombinedStats()) : null,
             'items' => $items,
             'preflight' => $preflight,
+            'newHires' => $newHires,
+            'pendingSupplementaryRuns' => $pendingSupplementaryRuns ?? [],
             'cycleInfo' => $client ? [
                 'payroll_lock_day' => $client->payroll_lock_day,
                 'salary_credit_day' => $client->salary_credit_day,
@@ -784,16 +844,43 @@ class PayrollController extends Controller
 
                 $items = $this->consolidateItemsForDisplay($rawItems);
 
-                $newHires = $run->getNewHireCandidates()->map(fn($emp) => [
-                    'id' => $emp->id,
-                    'full_name' => $emp->full_name,
-                    'employee_code' => $emp->employee_code,
-                    'date_of_joining' => $emp->date_of_joining,
-                ])->toArray();
+                $clientModel = \App\Models\Client::find($run->client_id);
+                $mStart = \Carbon\Carbon::parse($run->payroll_month)->startOfMonth()->toDateString();
+                $mEnd = \Carbon\Carbon::parse($run->payroll_month)->endOfMonth()->toDateString();
+                $eligibilityService = app(\App\Services\PayrollEligibilityService::class);
+
+                $newHires = $run->getNewHireCandidates()->map(function ($emp) use ($clientModel, $mStart, $mEnd, $eligibilityService) {
+                    $elig = $eligibilityService->checkEmployee($emp, $clientModel, $mStart, $mEnd);
+                    return [
+                        'id' => $emp->id,
+                        'full_name' => $emp->full_name,
+                        'employee_code' => $emp->employee_code,
+                        'date_of_joining' => $emp->date_of_joining,
+                        'is_eligible' => $elig['is_eligible'],
+                        'exclusions' => $elig['exclusions'],
+                    ];
+                })->toArray();
 
                 $pendingSupplementaryRuns = $run->children()
                     ->where('status', '!=', 'locked')
-                    ->get(['id', 'status', 'created_at', 'total_employees_processed', 'total_employees_excluded', 'total_gross_earnings', 'total_net_disbursement'])
+                    ->get()
+                    ->map(function ($sr) {
+                        $hasCorrection = \Illuminate\Support\Facades\DB::table('payroll_run_items')
+                            ->where('payroll_run_id', $sr->id)
+                            ->where('is_correction', true)
+                            ->exists();
+
+                        return [
+                            'id' => $sr->id,
+                            'status' => $sr->status,
+                            'created_at' => $sr->created_at,
+                            'total_employees_processed' => $sr->total_employees_processed,
+                            'total_employees_excluded' => $sr->total_employees_excluded,
+                            'total_gross_earnings' => $sr->total_gross_earnings,
+                            'total_net_disbursement' => $sr->total_net_disbursement,
+                            'run_type' => $hasCorrection ? 'correction' : 'new_hire',
+                        ];
+                    })
                     ->toArray();
 
                 foreach ($items as $item) {
@@ -1306,7 +1393,7 @@ class PayrollController extends Controller
                     $writer->addRow(['Section' => '--- EMPLOYEES WITH CUSTOM OFF-DAY PATTERNS ---', 'Details' => ''], $headerStyle);
                     $writer->addRow([
                         'Section' => 'Special Rule Note',
-                        'Details' => 'These employees have a DIFFERENT weekly off pattern than the client default above. Their required working days differ from the number shown above — check each one individually below.',
+                        'Details' => 'Custom weekly off pattern. Required working days differ from client default.',
                     ]);
 
                     foreach ($overrideEmployees as $empOverride) {
@@ -1318,14 +1405,97 @@ class PayrollController extends Controller
                     }
                     $writer->addRow(['Section' => '', 'Details' => '']);
                 }
+
+                // Section 4B: Mid-Month Joiners & Partial-Month Tracking Employees
+                $monthStartCorr = \Carbon\Carbon::parse($parentRun->payroll_month)->startOfMonth();
+                $monthEndCorr = $monthStartCorr->copy()->endOfMonth();
+                $allClientEmps = \App\Models\Employee::where('client_id', $parentRun->client_id)->where('status', 'active')->get();
+                $midMonthCorrList = [];
+
+                foreach ($allClientEmps as $sampleEmp) {
+                    $empStart = \Carbon\Carbon::parse($sampleEmp->date_of_joining)->startOfDay();
+                    if (!empty($sampleEmp->attendance_tracking_start_date)) {
+                        $atsd = \Carbon\Carbon::parse($sampleEmp->attendance_tracking_start_date)->startOfDay();
+                        if ($atsd->gt($empStart)) {
+                            $empStart = $atsd->copy();
+                        }
+                    }
+                    if ($empStart->gt($monthStartCorr) && $empStart->lte($monthEndCorr)) {
+                        $empCtx = app(\App\Services\AttendanceUploadValidationService::class)->calculateWorkingDaysContext($parentRun->client_id, $parentRun->payroll_month, $sampleEmp);
+                        $midMonthCorrList[] = [
+                            'emp' => $sampleEmp,
+                            'start_date' => $empStart->format('M d, Y'),
+                            'total_slots' => $empCtx['working_days_slots'],
+                            'punches' => $empCtx['existing_punches_count'],
+                            'slots' => $empCtx['net_available_slots'],
+                        ];
+                    }
+                }
+
+                if (!empty($midMonthCorrList)) {
+                    $writer->addRow(['Section' => '--- MID-MONTH JOINERS & PARTIAL-MONTH TRACKING EMPLOYEES ---', 'Details' => ''], $headerStyle);
+                    $writer->addRow([
+                        'Section' => 'Special Joining Note',
+                        'Details' => 'Joined mid-month. Max available working days are lower than full month slots.',
+                    ]);
+
+                    foreach ($midMonthCorrList as $mm) {
+                        $punchNote = $mm['punches'] > 0 ? " ({$mm['total_slots']} Total - {$mm['punches']} Live Punches)" : '';
+                        $writer->addRow([
+                            'Section' => $mm['emp']->employee_code . ' (' . $mm['emp']->full_name . ')',
+                            'Details' => 'Joined: ' . $mm['start_date'] . ' | Max Working Days: ' . $mm['slots'] . $punchNote,
+                        ]);
+                    }
+                    $writer->addRow(['Section' => '', 'Details' => '']);
+                }
+
+                // Section 4C: Full-Month Employees with Existing Live Punches
+                $punchedFullMonthCorr = [];
+                foreach ($allClientEmps as $sampleEmp) {
+                    $empStart = \Carbon\Carbon::parse($sampleEmp->date_of_joining)->startOfDay();
+                    if (!empty($sampleEmp->attendance_tracking_start_date)) {
+                        $atsd = \Carbon\Carbon::parse($sampleEmp->attendance_tracking_start_date)->startOfDay();
+                        if ($atsd->gt($empStart)) {
+                            $empStart = $atsd->copy();
+                        }
+                    }
+                    $isMidMonth = $empStart->gt($monthStartCorr) && $empStart->lte($monthEndCorr);
+                    if (!$isMidMonth) {
+                        $empCtx = app(\App\Services\AttendanceUploadValidationService::class)->calculateWorkingDaysContext($parentRun->client_id, $parentRun->payroll_month, $sampleEmp);
+                        if ($empCtx['existing_punches_count'] > 0) {
+                            $punchedFullMonthCorr[] = [
+                                'emp' => $sampleEmp,
+                                'total_slots' => $empCtx['working_days_slots'],
+                                'punches' => $empCtx['existing_punches_count'],
+                                'slots' => $empCtx['net_available_slots'],
+                            ];
+                        }
+                    }
+                }
+
+                if (!empty($punchedFullMonthCorr)) {
+                    $writer->addRow(['Section' => '--- EMPLOYEES WITH EXISTING LIVE PUNCHES ---', 'Details' => ''], $headerStyle);
+                    $writer->addRow([
+                        'Section' => 'Live Punch Note',
+                        'Details' => 'These employees have existing live punches logged. Remaining available days are adjusted below.',
+                    ]);
+
+                    foreach ($punchedFullMonthCorr as $pfm) {
+                        $writer->addRow([
+                            'Section' => $pfm['emp']->employee_code . ' (' . $pfm['emp']->full_name . ')',
+                            'Details' => 'Max Working Days: ' . $pfm['slots'] . ' (' . $pfm['total_slots'] . ' Total - ' . $pfm['punches'] . ' Live Punches)',
+                        ]);
+                    }
+                    $writer->addRow(['Section' => '', 'Details' => '']);
+                }
             }
 
             // Section 5: Instruction Rule
             $writer->addRow(['Section' => '--- HOW TO FILL THIS SHEET ---', 'Details' => ''], $headerStyle);
-            $writer->addRow(['Section' => 'Data Entry Instructions', 'Details' => 'Switch to Sheet 2 ("Attendance Entry") to enter attendance data. Enter ONLY real working days worked + LOP. For each employee, days_present + days_lop must equal ' . $reqSlots . '.']);
+            $writer->addRow(['Section' => 'Data Entry Instructions', 'Details' => 'In Sheet 2, enter working days + LOP. Total (present + LOP) must match required days for each employee.']);
         } else {
             $writer->addRow(['Section' => '--- HOW TO FILL THIS SHEET ---', 'Details' => ''], $headerStyle);
-            $writer->addRow(['Section' => 'Data Entry Instructions', 'Details' => 'Switch to Sheet 2 ("Attendance Entry") to enter attendance data. Enter ONLY real working days worked + LOP.']);
+            $writer->addRow(['Section' => 'Data Entry Instructions', 'Details' => 'In Sheet 2, enter working days + LOP.']);
         }
 
         // --- SHEET 2: "Attendance Entry" (SECOND TAB) ---
