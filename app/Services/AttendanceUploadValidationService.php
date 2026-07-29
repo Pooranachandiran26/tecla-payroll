@@ -7,6 +7,7 @@ use App\Models\Employee;
 use App\Models\AttendanceRecord;
 use App\Models\Holiday;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 use Spatie\SimpleExcel\SimpleExcelReader;
 
 class AttendanceUploadValidationService
@@ -232,6 +233,21 @@ class AttendanceUploadValidationService
 
             // 2. Validate row parameters if employee matched
             if ($employee) {
+                // 2a. Check if employee already has a LOCKED payroll_run_item for this month
+                $hasLockedItem = DB::table('payroll_run_items')
+                    ->join('payroll_runs', 'payroll_run_items.payroll_run_id', '=', 'payroll_runs.id')
+                    ->where('payroll_run_items.employee_id', $employee->id)
+                    ->where('payroll_runs.client_id', $clientId)
+                    ->where('payroll_runs.payroll_month', $monthStart->toDateString())
+                    ->where('payroll_runs.status', 'locked')
+                    ->exists();
+
+                if ($hasLockedItem) {
+                    $monthLabel = $monthStart->format('F Y');
+                    $status = 'blocked_locked';
+                    $notes = "⚠️ Payroll for {$monthLabel} is already locked for {$employee->employee_code}. Use Payroll Correction instead of re-uploading attendance.";
+                    $errorCount++;
+                } else
                 // Parse days as non-negative integers
                 if (!is_numeric($rawDaysPresent) || (int) $rawDaysPresent < 0) {
                     $notes = "Invalid days_present: '{$rawDaysPresent}'. Must be a non-negative integer.";
@@ -255,14 +271,7 @@ class AttendanceUploadValidationService
                     $empOffDays = $this->resolveOffDays($employee, $clientModel);
                     $context = $this->calculateWorkingDaysContext($clientId, $targetMonth, $employee);
                     $employeeWorkingDays = $context['working_days_slots'];
-
-                    // Count existing live_punch/override records for this employee in the target month
-                    $existingPunchCount = AttendanceRecord::where('employee_id', $employee->id)
-                        ->whereBetween('attendance_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
-                        ->whereIn('source', ['live_punch', 'override'])
-                        ->count();
-
-                    $availableSlots = $employeeWorkingDays - $existingPunchCount;
+                    $availableSlots = $context['net_available_slots'];
                     $uploadedTotal = $daysPresent + $daysLOP;
 
                     $isNotYetEmployed = $employeeStart->gt($monthEnd);
@@ -556,6 +565,15 @@ class AttendanceUploadValidationService
         $targetLockDateFormatted = $clientModel ? ($clientModel->getTargetLockDate($monthStart->toDateString()) ?? 'N/A') : 'N/A';
         $targetSalaryCreditFormatted = $clientModel ? ($clientModel->getTargetSalaryCreditDate($monthStart->toDateString()) ?? 'N/A') : 'N/A';
 
+        $existingPunches = 0;
+        if ($employee) {
+            $existingPunches = AttendanceRecord::where('employee_id', $employee->id)
+                ->whereBetween('attendance_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
+                ->whereIn('source', ['live_punch', 'override'])
+                ->count();
+        }
+        $netAvailableSlots = max(0, $workingDaysSlots - $existingPunches);
+
         return [
             'client_id' => $clientId,
             'client_name' => $clientName,
@@ -569,6 +587,8 @@ class AttendanceUploadValidationService
             'workday_holiday_count' => $workDayHolidays->count(),
             'holidays' => $formattedHolidays,
             'working_days_slots' => $workingDaysSlots,
+            'existing_punches_count' => $existingPunches,
+            'net_available_slots' => $netAvailableSlots,
             'cycle_ends_formatted' => $cycleEndsFormatted,
             'target_lock_date_formatted' => $targetLockDateFormatted,
             'target_salary_credit_formatted' => $targetSalaryCreditFormatted,

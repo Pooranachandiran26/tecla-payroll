@@ -4,7 +4,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import RoleGuard from '../../Components/RoleGuard.jsx';
 import './PayrollProcessing.css';
 
-export default function PayrollProcessing({ clients, selectedClientId, selectedMonth, run, items, preflight, cycleInfo }) {
+export default function PayrollProcessing({ clients, selectedClientId, selectedMonth, run, items, preflight, cycleInfo, newHires = [], pendingSupplementaryRuns = [] }) {
     const [clientId, setClientId] = useState(selectedClientId);
     const [month, setMonth] = useState(selectedMonth);
     const [earnVisible, setEarnVisible] = useState(true);
@@ -174,6 +174,26 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
                         </div>
                     )}
                 </div>
+
+                {newHires && newHires.length > 0 && (
+                    <div className="card" style={{ border: '2px solid #F59E0B', backgroundColor: '#FFFBEB', marginBottom: '1.5rem', padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                            <strong style={{ color: '#92400E', fontSize: '0.95rem' }}>
+                                ⚠️ {newHires.length} new employee{newHires.length > 1 ? 's' : ''} need a Supplementary Run
+                            </strong>
+                            <span style={{ display: 'block', fontSize: '0.8rem', color: '#B45309', marginTop: '0.25rem' }}>
+                                Joined post-lock: {newHires.map(n => `${n.full_name} (${n.employee_code})`).join(', ')}
+                            </span>
+                        </div>
+                        <Link
+                            href={route('payroll.approval', { client_id: clientId, payroll_month: month, open_supplementary_modal: true })}
+                            className="btn btn-warning btn-sm"
+                            style={{ backgroundColor: '#F59E0B', borderColor: '#D97706', color: '#FFFFFF', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap' }}
+                        >
+                            Go to Approval to Process →
+                        </Link>
+                    </div>
+                )}
 
                 <div className="card">
                     <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>

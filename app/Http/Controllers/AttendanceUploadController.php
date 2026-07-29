@@ -130,6 +130,9 @@ class AttendanceUploadController extends Controller
         }
 
         // Section 4: Employees with Custom Off-Day Patterns (Only if overrides exist)
+        $monthStart = \Carbon\Carbon::parse($targetMonthVal . '-01');
+        $monthEnd = $monthStart->copy()->endOfMonth();
+
         if (!empty($clientId)) {
             $clientModel = Client::find((int) $clientId);
             $clientDefaultPattern = strtolower($clientModel?->weekly_off_pattern ?? 'sat,sun');
@@ -145,7 +148,7 @@ class AttendanceUploadController extends Controller
                 $writer->addRow(['Section' => '--- EMPLOYEES WITH CUSTOM OFF-DAY PATTERNS ---', 'Details' => ''], $headerStyle);
                 $writer->addRow([
                     'Section' => 'Special Rule Note',
-                    'Details' => 'These employees have a DIFFERENT weekly off pattern than the client default above. Their required working days differ from the number shown above — check each one individually below.',
+                    'Details' => 'Custom weekly off pattern. Required working days differ from client default.',
                 ]);
 
                 foreach ($overrideEmployees as $empOverride) {
@@ -157,20 +160,105 @@ class AttendanceUploadController extends Controller
                 }
                 $writer->addRow(['Section' => '', 'Details' => '']);
             }
+
+            // Section 4B: Mid-Month Joiners & Partial-Month Tracking Employees
+            $midMonthList = [];
+            foreach ($sampleEmployees as $sampleEmp) {
+                $empStart = \Carbon\Carbon::parse($sampleEmp->date_of_joining)->startOfDay();
+                if (!empty($sampleEmp->attendance_tracking_start_date)) {
+                    $atsd = \Carbon\Carbon::parse($sampleEmp->attendance_tracking_start_date)->startOfDay();
+                    if ($atsd->gt($empStart)) {
+                        $empStart = $atsd->copy();
+                    }
+                }
+                if ($empStart->gt($monthStart) && $empStart->lte($monthEnd)) {
+                    $empCtx = $this->validationService->calculateWorkingDaysContext((int) $clientId, $targetMonthStr, $sampleEmp);
+                    $existingPunches = $empCtx['existing_punches_count'];
+                    $netSlots = $empCtx['net_available_slots'];
+
+                    $midMonthList[] = [
+                        'emp' => $sampleEmp,
+                        'start_date' => $empStart->format('M d, Y'),
+                        'total_slots' => $empCtx['working_days_slots'],
+                        'punches' => $existingPunches,
+                        'slots' => $netSlots,
+                    ];
+                }
+            }
+
+            if (!empty($midMonthList)) {
+                $writer->addRow(['Section' => '--- MID-MONTH JOINERS & PARTIAL-MONTH TRACKING EMPLOYEES ---', 'Details' => ''], $headerStyle);
+                $writer->addRow([
+                    'Section' => 'Special Joining Note',
+                    'Details' => 'Joined mid-month. Max available working days are lower than full month slots.',
+                ]);
+
+                foreach ($midMonthList as $mm) {
+                    $punchNote = $mm['punches'] > 0 ? " ({$mm['total_slots']} Total - {$mm['punches']} Live Punches)" : '';
+                    $writer->addRow([
+                        'Section' => $mm['emp']->employee_code . ' (' . $mm['emp']->full_name . ')',
+                        'Details' => 'Joined: ' . $mm['start_date'] . ' | Max Working Days: ' . $mm['slots'] . $punchNote,
+                    ]);
+                }
+                $writer->addRow(['Section' => '', 'Details' => '']);
+            }
+
+            // Section 4C: Full-Month Employees with Existing Live Punches
+            $punchedFullMonth = [];
+            foreach ($sampleEmployees as $sampleEmp) {
+                $empStart = \Carbon\Carbon::parse($sampleEmp->date_of_joining)->startOfDay();
+                if (!empty($sampleEmp->attendance_tracking_start_date)) {
+                    $atsd = \Carbon\Carbon::parse($sampleEmp->attendance_tracking_start_date)->startOfDay();
+                    if ($atsd->gt($empStart)) {
+                        $empStart = $atsd->copy();
+                    }
+                }
+                $isMidMonth = $empStart->gt($monthStart) && $empStart->lte($monthEnd);
+                if (!$isMidMonth) {
+                    $empCtx = $this->validationService->calculateWorkingDaysContext((int) $clientId, $targetMonthStr, $sampleEmp);
+                    if ($empCtx['existing_punches_count'] > 0) {
+                        $punchedFullMonth[] = [
+                            'emp' => $sampleEmp,
+                            'total_slots' => $empCtx['working_days_slots'],
+                            'punches' => $empCtx['existing_punches_count'],
+                            'slots' => $empCtx['net_available_slots'],
+                        ];
+                    }
+                }
+            }
+
+            if (!empty($punchedFullMonth)) {
+                $writer->addRow(['Section' => '--- EMPLOYEES WITH EXISTING LIVE PUNCHES ---', 'Details' => ''], $headerStyle);
+                $writer->addRow([
+                    'Section' => 'Live Punch Note',
+                    'Details' => 'These employees have existing live punches logged. Remaining available days are adjusted below.',
+                ]);
+
+                foreach ($punchedFullMonth as $pfm) {
+                    $writer->addRow([
+                        'Section' => $pfm['emp']->employee_code . ' (' . $pfm['emp']->full_name . ')',
+                        'Details' => 'Max Working Days: ' . $pfm['slots'] . ' (' . $pfm['total_slots'] . ' Total - ' . $pfm['punches'] . ' Live Punches)',
+                    ]);
+                }
+                $writer->addRow(['Section' => '', 'Details' => '']);
+            }
         }
 
         // Section 5: Instruction Rule
         $writer->addRow(['Section' => '--- HOW TO FILL THIS SHEET ---', 'Details' => ''], $headerStyle);
-        $writer->addRow(['Section' => 'Data Entry Instructions', 'Details' => 'Switch to Sheet 2 ("Attendance Entry") to enter attendance data. Enter ONLY real working days worked + LOP. For each employee, days_present + days_lop must equal ' . $workingDaysSlots . '.']);
+        $writer->addRow(['Section' => 'Data Entry Instructions', 'Details' => 'In Sheet 2, enter working days + LOP. Total (present + LOP) must match required days for each employee.']);
 
         // --- SHEET 2: "Attendance Entry" (SECOND TAB — DATA ENTRY SHEET) ---
         $writer->addNewSheetAndMakeItCurrent('Attendance Entry');
         if (!empty($sampleEmployees) && count($sampleEmployees) > 0) {
             foreach ($sampleEmployees as $emp) {
+                $empCtx = $this->validationService->calculateWorkingDaysContext((int) $clientId, $targetMonthStr, $emp);
+                $empWorkingDays = $empCtx['net_available_slots'];
+
                 $writer->addRow([
                     'target_month' => $targetMonthVal,
                     'employee_code' => $emp->employee_code,
-                    'days_present' => (string) $workingDaysSlots,
+                    'days_present' => (string) $empWorkingDays,
                     'days_lop' => '0',
                 ]);
             }
