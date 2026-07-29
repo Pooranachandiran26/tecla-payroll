@@ -362,9 +362,30 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
                                                                 </span>
                                                             </div>
                                                         </div>
-                                                        <div style={{ fontSize: '0.75rem', color: '#78350F', marginBottom: '0.5rem' }}>
-                                                            {sr.total_employees_processed} employee{sr.total_employees_processed !== 1 ? 's' : ''} · ₹{parseFloat(sr.total_net_disbursement || 0).toLocaleString()} net
+                                                        <div style={{ fontSize: '0.75rem', color: '#78350F', marginBottom: '0.4rem', fontWeight: 600 }}>
+                                                            {sr.total_employees_processed} employee{sr.total_employees_processed !== 1 ? 's' : ''} · ₹{parseFloat(sr.total_net_disbursement || 0).toLocaleString()} total net
                                                         </div>
+
+                                                        {sr.processed_employees && sr.processed_employees.length > 0 && (
+                                                            <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #FCD34D', borderRadius: 'var(--radius-sm)', padding: '0.45rem 0.6rem', marginTop: '0.35rem', marginBottom: '0.65rem' }}>
+                                                                <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#92400E', textTransform: 'uppercase', marginBottom: '0.3rem', letterSpacing: '0.02em' }}>
+                                                                    Included Employee{sr.processed_employees.length > 1 ? 's' : ''} ({sr.processed_employees.length})
+                                                                </div>
+                                                                {sr.processed_employees.map((emp, idx) => (
+                                                                    <div key={emp.id || idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.76rem', borderBottom: idx < sr.processed_employees.length - 1 ? '1px dashed #F3F4F6' : 'none', paddingBottom: '0.2rem', marginBottom: '0.2rem' }}>
+                                                                        <div>
+                                                                            <span style={{ fontWeight: 600, color: '#1F2937' }}>{emp.full_name}</span>
+                                                                            <span style={{ color: '#6B7280', marginLeft: '0.25rem', fontSize: '0.7rem' }}>({emp.employee_code})</span>
+                                                                            {emp.designation && <span style={{ color: '#9CA3AF', marginLeft: '0.25rem', fontSize: '0.68rem' }}>· {emp.designation}</span>}
+                                                                        </div>
+                                                                        <div style={{ fontWeight: 600, color: '#059669', fontSize: '0.75rem' }}>
+                                                                            ₹{parseFloat(emp.net_pay || 0).toLocaleString()}
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+
                                                         {sr.total_employees_processed === 0 && (
                                                             <div style={{ fontSize: '0.75rem', color: '#B45309', marginBottom: '0.5rem', fontStyle: 'italic' }}>
                                                                 ⚠️ 0 Employees Processed (All candidates skipped due to missing data)

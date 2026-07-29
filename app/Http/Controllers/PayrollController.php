@@ -704,6 +704,26 @@ class PayrollController extends Controller
                             ->where('is_correction', true)
                             ->exists();
 
+                        $srItems = \App\Models\PayrollRunItem::where('payroll_run_id', $sr->id)
+                            ->where('is_excluded', false)
+                            ->get();
+
+                        $empIds = $srItems->pluck('employee_id')->filter()->unique()->toArray();
+                        $employees = \App\Models\Employee::whereIn('id', $empIds)->get()->keyBy('id');
+
+                        $processedEmployees = $srItems->map(function ($i) use ($employees) {
+                            $emp = $employees->get($i->employee_id);
+                            return [
+                                'id' => $i->employee_id,
+                                'full_name' => $emp ? $emp->full_name : '—',
+                                'employee_code' => $emp ? $emp->employee_code : '—',
+                                'designation' => $emp ? $emp->designation : '—',
+                                'net_pay' => (float)$i->net_pay,
+                                'gross_total' => (float)$i->gross_total,
+                                'correction_reason' => $i->correction_reason,
+                            ];
+                        })->values()->toArray();
+
                         return [
                             'id' => $sr->id,
                             'status' => $sr->status,
@@ -713,6 +733,7 @@ class PayrollController extends Controller
                             'total_gross_earnings' => $sr->total_gross_earnings,
                             'total_net_disbursement' => $sr->total_net_disbursement,
                             'run_type' => $hasCorrection ? 'correction' : 'new_hire',
+                            'processed_employees' => $processedEmployees,
                         ];
                     })
                     ->toArray();
@@ -870,6 +891,26 @@ class PayrollController extends Controller
                             ->where('is_correction', true)
                             ->exists();
 
+                        $srItems = \App\Models\PayrollRunItem::where('payroll_run_id', $sr->id)
+                            ->where('is_excluded', false)
+                            ->get();
+
+                        $empIds = $srItems->pluck('employee_id')->filter()->unique()->toArray();
+                        $employees = \App\Models\Employee::whereIn('id', $empIds)->get()->keyBy('id');
+
+                        $processedEmployees = $srItems->map(function ($i) use ($employees) {
+                            $emp = $employees->get($i->employee_id);
+                            return [
+                                'id' => $i->employee_id,
+                                'full_name' => $emp ? $emp->full_name : '—',
+                                'employee_code' => $emp ? $emp->employee_code : '—',
+                                'designation' => $emp ? $emp->designation : '—',
+                                'net_pay' => (float)$i->net_pay,
+                                'gross_total' => (float)$i->gross_total,
+                                'correction_reason' => $i->correction_reason,
+                            ];
+                        })->values()->toArray();
+
                         return [
                             'id' => $sr->id,
                             'status' => $sr->status,
@@ -879,6 +920,7 @@ class PayrollController extends Controller
                             'total_gross_earnings' => $sr->total_gross_earnings,
                             'total_net_disbursement' => $sr->total_net_disbursement,
                             'run_type' => $hasCorrection ? 'correction' : 'new_hire',
+                            'processed_employees' => $processedEmployees,
                         ];
                     })
                     ->toArray();
