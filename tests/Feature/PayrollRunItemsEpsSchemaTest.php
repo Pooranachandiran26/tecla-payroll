@@ -114,15 +114,42 @@ class PayrollRunItemsEpsSchemaTest extends TestCase
         $calculator = app(MonthlyPayrollCalculator::class);
         $calculator->calculateForEmployee($employee, $parentRun);
 
+        $parentItem = DB::table('payroll_run_items')
+            ->where('payroll_run_id', $parentRun->id)
+            ->where('employee_id', $employee->id)
+            ->first();
+
+        // 1. Original Parent Item values for 30 paid days (31 calendar days in May)
+        $this->assertEquals(550.50, (float)$parentItem->employer_epf);
+        $this->assertEquals(1249.50, (float)$parentItem->employer_eps);
+        $this->assertEquals(1950.00, (float)$parentItem->employer_pf);
+
+        // 2. Perform Attendance Correction for 28 paid days (2 LOP days)
         $correctionService = app(PayrollCorrectionService::class);
         $preview = $correctionService->calculateCorrectionPreview($employee, $parentRun, 28, 2);
         $corrItem = $correctionService->applyCorrection($employee, $parentRun, $preview, 'Attendance correction');
 
-        $this->assertNotNull($corrItem->employer_epf);
-        $this->assertNotNull($corrItem->employer_eps);
-        // EPF and EPS deltas match preview delta calculations exactly
-        $this->assertEquals((float)$preview['delta']['employer_epf'], (float)$corrItem->employer_epf);
-        $this->assertEquals((float)$preview['delta']['employer_eps'], (float)$corrItem->employer_eps);
+        // 3. Corrected Absolute values calculated by SalaryCalculationService for 28 paid days
+        // Basic LOP deduction = 15000 * (2/26) = 1153.85 -> Prorated Basic = 13846.15
+        $correctedEpf = (float)$preview['corrected']['employer_epf']; // 508.16
+        $correctedEps = (float)$preview['corrected']['employer_eps']; // 1153.38
+        $this->assertEquals(508.16, $correctedEpf);
+        $this->assertEquals(1153.38, $correctedEps);
+
+        // 4. Independent Expected Deltas (Corrected - Original)
+        $expectedEpfDelta = round($correctedEpf - 550.50, 2); // 508.16 - 550.50 = -42.34
+        $expectedEpsDelta = round($correctedEps - 1249.50, 2); // 1153.38 - 1249.50 = -96.12
+
+        $this->assertEquals(-42.34, $expectedEpfDelta);
+        $this->assertEquals(-96.12, $expectedEpsDelta);
+
+        // 5. Verify Stored Correction Item Deltas match independent calculations
+        $this->assertEquals(-42.34, (float)$corrItem->employer_epf);
+        $this->assertEquals(-96.12, (float)$corrItem->employer_eps);
+
+        // 6. Confirm stored deltas are NOT equal to absolute values (+508.16 != -42.34 and +1153.38 != -96.12)
+        $this->assertNotEquals($correctedEpf, (float)$corrItem->employer_epf);
+        $this->assertNotEquals($correctedEps, (float)$corrItem->employer_eps);
     }
 
     /** @test */
