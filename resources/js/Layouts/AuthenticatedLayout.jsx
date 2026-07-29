@@ -10,8 +10,9 @@ export default function AuthenticatedLayout({ children }) {
   const { url } = usePage();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
-  // Use auth, branding, and flash from usePage().props
-  const { auth, branding, flash } = usePage().props;
+  // Use auth, branding, flash, and pendingQueryCount from usePage().props
+  const { auth, branding, flash, pendingQueryCount } = usePage().props;
+  const unreadCount = Number(pendingQueryCount || 0);
   const { showToast } = useToast();
   const role = auth?.user?.role || 'guest';
   const userName = auth?.user?.name || 'User';
@@ -111,9 +112,9 @@ export default function AuthenticatedLayout({ children }) {
           </nav>
 
           <div className="user-actions">
-            <button className="notif-bell">
+            <button className="notif-bell" title={unreadCount > 0 ? `${unreadCount} Pending Queries` : 'Notifications'}>
               <Bell size={20} />
-              <span className="notif-badge">3</span>
+              {unreadCount > 0 && <span className="notif-badge">{unreadCount}</span>}
             </button>
             
             <div className="user-profile-menu" style={{ position: 'relative', cursor: 'pointer' }} onClick={() => setDropdownOpen(!dropdownOpen)}>

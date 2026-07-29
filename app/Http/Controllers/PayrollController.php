@@ -1382,6 +1382,7 @@ class PayrollController extends Controller
                 foreach ($consolidatedItems as $item) {
                     if (!$item->is_excluded) {
                         $rows[] = [
+                            'target_month' => $parentRun ? $parentRun->payroll_month : '2026-07-01',
                             'employee_code' => $item->employee_code,
                             'days_present' => (float)$item->paid_days,
                             'days_lop' => (float)$item->lop_days,
@@ -1394,6 +1395,7 @@ class PayrollController extends Controller
 
         if (empty($rows)) {
             $rows[] = [
+                'target_month' => '2026-07-01',
                 'employee_code' => 'TEC-101',
                 'days_present' => 30,
                 'days_lop' => 0,
