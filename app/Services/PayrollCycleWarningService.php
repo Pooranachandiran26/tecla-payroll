@@ -50,4 +50,24 @@ class PayrollCycleWarningService
             'msg' => "CYCLE TIMING: Very early processing — cycle just started, {$daysRemaining} days remaining until cycle end ({$formattedDate}). Attendance data is highly incomplete."
         ];
     }
+
+    /**
+     * Enforce a hard block if today is before the cycle end date for a given client and month.
+     *
+     * @param Client $client
+     * @param string $payrollMonth  e.g. "2026-07-01"
+     * @param Carbon|null $today
+     * @throws \Exception
+     */
+    public function ensureCycleEnded(Client $client, string $payrollMonth, ?Carbon $today = null): void
+    {
+        $todayDate = $today ? $today->copy()->startOfDay() : Carbon::today()->startOfDay();
+        $cycleEnd = $client->getCycleEndDate($payrollMonth)->startOfDay();
+
+        if ($todayDate->lt($cycleEnd)) {
+            $monthLabel = Carbon::parse($payrollMonth)->format('F Y');
+            $formattedEnd = $cycleEnd->format('M j, Y');
+            throw new \Exception("Cannot process payroll for {$monthLabel} — this cycle has not ended yet (ends {$formattedEnd}). Payroll can only be run after the cycle completes.");
+        }
+    }
 }

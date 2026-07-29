@@ -696,7 +696,7 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
     }
 
     if (stepNum === 2) {
-      if (!checkAllBranchesGSTIN()) {
+      if (formData.workLocationsCount > 1 && !checkAllBranchesGSTIN()) {
         isValid = false;
         missingLabels.push('Valid Branch GSTINs');
       }

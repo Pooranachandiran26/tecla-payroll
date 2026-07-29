@@ -245,6 +245,7 @@ export default function ClientsList({ clients, stats = {} }) {
                 <thead>
                   <tr>
                     <th>Client Details</th>
+                    <th>GSTIN</th>
                     <th>Contract & Billing</th>
                     <th>Onboarding</th>
                     <th>Client Since</th>
@@ -258,7 +259,7 @@ export default function ClientsList({ clients, stats = {} }) {
                 <tbody>
                   {dataList.length === 0 ? (
                     <tr>
-                      <td colSpan="9" style={{ textAlign: "center", padding: "3rem", color: "var(--text-muted)" }}>
+                      <td colSpan="10" style={{ textAlign: "center", padding: "3rem", color: "var(--text-muted)" }}>
                         No clients match your filters. <button onClick={clearFilters} style={{ background: 'none', border: 'none', color: 'var(--primary-blue)', cursor: 'pointer', textDecoration: 'underline' }}>Clear Filters</button>
                       </td>
                     </tr>
@@ -272,10 +273,14 @@ export default function ClientsList({ clients, stats = {} }) {
                               <Link href={route('clients.show', c.id)} prefetch className="client-name">{c.company_name}</Link>
                               <div className="client-meta">
                                 <span>{c.client_code}</span>
-                                {c.gstin && <span> • GST: {c.gstin}</span>}
                               </div>
                             </div>
                           </div>
+                        </td>
+                        <td>
+                          <code style={{ fontSize: '0.78rem', backgroundColor: '#f1f5f9', color: '#334155', padding: '0.25rem 0.5rem', borderRadius: '4px', border: '1px solid #cbd5e1', fontWeight: 600 }}>
+                            {c.decrypted_gstin || c.gstin || '—'}
+                          </code>
                         </td>
                         <td>
                           <div style={{ fontSize: "0.85rem", fontWeight: "600" }}>

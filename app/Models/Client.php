@@ -76,6 +76,27 @@ class Client extends Model
         return array_merge($defaults, is_array($decoded) ? $decoded : []);
     }
 
+    public function getDecryptedGstinAttribute(): ?string
+    {
+        try {
+            return $this->gstin;
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    public function getFormattedRegisteredAddressAttribute(): string
+    {
+        $parts = array_filter([
+            $this->registered_address_line_1,
+            $this->registered_address_line_2,
+            $this->registered_city,
+            $this->registered_state,
+            $this->registered_pin ? "PIN: {$this->registered_pin}" : null,
+        ]);
+        return implode(', ', $parts);
+    }
+
     public function contacts()
     {
         return $this->hasMany(ClientContact::class);

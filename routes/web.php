@@ -171,8 +171,10 @@ Route::middleware(['auth', 'active'])->group(function () {
             Route::get('/payroll/processing', [\App\Http\Controllers\PayrollController::class, 'indexProcessing'])->name('payroll.processing');
             Route::get('/payroll/approval', [\App\Http\Controllers\PayrollController::class, 'indexApproval'])->name('payroll.approval');
             Route::get('/payroll/payslips', [\App\Http\Controllers\PayrollController::class, 'indexPayslips'])->name('payroll.payslips');
-            Route::get('/payroll/reconciliation', fn() => Inertia::render('Payroll/PayrollReconciliation'))->name('payroll.reconciliation');
-            Route::get('/invoices', [\App\Http\Controllers\PayrollController::class, 'indexInvoices'])->name('invoices.index');
+            Route::get('/invoices', [\App\Http\Controllers\InvoiceController::class, 'index'])->name('invoices.index');
+            Route::get('/invoices/{id}/download', [\App\Http\Controllers\InvoiceController::class, 'downloadPdf'])->name('invoices.download');
+            Route::post('/invoices/{id}/fees', [\App\Http\Controllers\InvoiceController::class, 'storeFee'])->name('invoices.fees.store');
+            Route::delete('/invoices/{id}/fees/{feeId}', [\App\Http\Controllers\InvoiceController::class, 'destroyFee'])->name('invoices.fees.destroy');
             Route::get('/invoices/generate', fn() => Inertia::render('Invoicing/InvoiceGenerate'))->name('invoices.generate');
             Route::get('/compliance', [\App\Http\Controllers\ComplianceController::class, 'index'])->name('compliance.index');
             Route::get('/reports', fn() => Inertia::render('Reports/ReportsAnalytics'))->name('reports.index');

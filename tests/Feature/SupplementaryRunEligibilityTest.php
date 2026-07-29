@@ -23,6 +23,7 @@ class SupplementaryRunEligibilityTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        \Carbon\Carbon::setTestNow(\Carbon\Carbon::parse('2026-09-01'));
 
         $this->admin = User::factory()->create(['role' => 'admin']);
         
