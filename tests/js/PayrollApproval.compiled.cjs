@@ -44,6 +44,10 @@ function PayrollApproval({ clients, selectedClientId, selectedMonth, run, items,
   const [clientId, setClientId] = (0, import_react.useState)(selectedClientId);
   const [month, setMonth] = (0, import_react.useState)(selectedMonth);
   const existingDraftRun = pendingSupplementaryRuns && pendingSupplementaryRuns.find((r) => r.status === "draft");
+  const [showBreakdown, setShowBreakdown] = (0, import_react.useState)(false);
+  const [showDisbursementModal, setShowDisbursementModal] = (0, import_react.useState)(false);
+  const [showSingleCorrectionModal, setShowSingleCorrectionModal] = (0, import_react.useState)(false);
+  const [showBatchCorrectionModal, setShowBatchCorrectionModal] = (0, import_react.useState)(false);
   const [showSupplementaryModal, setShowSupplementaryModal] = (0, import_react.useState)(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);

@@ -14,6 +14,11 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
     const [month, setMonth] = useState(selectedMonth);
     const existingDraftRun = pendingSupplementaryRuns && pendingSupplementaryRuns.find(r => r.status === 'draft');
 
+    const [showBreakdown, setShowBreakdown] = useState(false);
+    const [showDisbursementModal, setShowDisbursementModal] = useState(false);
+    const [showSingleCorrectionModal, setShowSingleCorrectionModal] = useState(false);
+    const [showBatchCorrectionModal, setShowBatchCorrectionModal] = useState(false);
+
     const [showSupplementaryModal, setShowSupplementaryModal] = useState(() => {
         if (typeof window !== 'undefined') {
             const params = new URLSearchParams(window.location.search);
