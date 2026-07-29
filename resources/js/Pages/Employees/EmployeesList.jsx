@@ -43,10 +43,10 @@ export default function EmployeesList({ employees = { data: [], links: [] }, cli
             <Head title="Employees List" />
             <div className="legacy-react-wrapper">
                 
-      <div className="flex-row-between">
+      <div className="mb-6 flex justify-between items-end flex-wrap gap-4">
         <div>
-          <h2>Employees Directory</h2>
-          <p style={{"color":"var(--text-muted)","fontSize":"0.9rem"}}>Manage agency personnel, statutory rules, salary revisions, and leave balances.</p>
+          <h2 className="text-2xl font-bold text-[#1F3864] mb-1">Employees Directory</h2>
+          <p className="text-gray-500 text-[0.9rem]">Manage agency personnel, statutory rules, salary revisions, and leave balances.</p>
         </div>
         <div style={{"display":"flex","gap":"0.75rem"}}>
           <Link href={route('employees.bulk-upload')} className="btn btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>

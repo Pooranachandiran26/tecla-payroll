@@ -12,7 +12,12 @@ import Checkbox from '../../Components/ui/Checkbox';
 import ConfirmDialog from '../../Components/ui/ConfirmDialog';
 import useToast from '../../Hooks/useToast';
 import RoleGuard from '../../Components/RoleGuard.jsx';
-import { Plus, Trash2, Save, Info, Percent, Receipt, CheckCircle2 } from 'lucide-react';
+import { 
+  Plus, Trash2, Save, Info, Percent, Receipt, CheckCircle2,
+  Building2, Globe, FileText, Palette, Mail, Bell, UserCheck,
+  IndianRupee, ShieldCheck, Lock, Image as ImageIcon, Star,
+  Sun, Moon, Monitor
+} from 'lucide-react';
 
 export default function Settings() {
   const { showToast } = useToast();
@@ -20,17 +25,17 @@ export default function Settings() {
   const [docVerify, setDocVerify] = useState(true);
 
   const tabs = [
-    { key: 'company', label: 'Company Profile' },
-    { key: 'localization', label: 'Localization' },
-    { key: 'file_upload_policy', label: 'File Upload Policy' },
-    { key: 'branding', label: 'Branding' },
-    { key: 'email', label: 'Email Delivery' },
-    { key: 'slabs', label: 'Statutory Slab Configurations' },
-    { key: 'notif', label: 'Notification Setup' },
-    { key: 'onboarding', label: 'Onboarding Policy' },
-    { key: 'payroll', label: 'Payroll Configuration' },
-    { key: 'gst', label: 'GST Settings' },
-    { key: 'auth_security', label: 'Authentication & Security' }
+    { key: 'company', label: 'Company Profile', icon: Building2 },
+    { key: 'localization', label: 'Localization', icon: Globe },
+    { key: 'file_upload_policy', label: 'File Upload Policy', icon: FileText },
+    { key: 'branding', label: 'Branding', icon: Palette },
+    { key: 'email', label: 'Email Delivery', icon: Mail },
+    { key: 'slabs', label: 'Statutory Slab Configurations', icon: Percent },
+    { key: 'notif', label: 'Notification Setup', icon: Bell },
+    { key: 'onboarding', label: 'Onboarding Policy', icon: UserCheck },
+    { key: 'payroll', label: 'Payroll Configuration', icon: IndianRupee },
+    { key: 'gst', label: 'GST Settings', icon: Receipt },
+    { key: 'auth_security', label: 'Authentication & Security', icon: ShieldCheck }
   ];
 
   const [ptSlabs, setPtSlabs] = useState([]);
@@ -622,24 +627,28 @@ export default function Settings() {
             <h3 className="font-semibold text-gray-800">Settings Menu</h3>
           </div>
           <ul className="flex flex-col py-2">
-            {tabs.map(tab => (
-              <li key={tab.key}>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab(tab.key)}
-                  className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
-                    activeTab === tab.key 
-                      ? 'bg-blue-50/50 text-blue-700 border-l-4 border-blue-600 font-medium' 
-                      : 'text-gray-600 hover:bg-gray-50 border-l-4 border-transparent hover:border-gray-200'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    {tab.icon && <tab.icon size={16} />}
-                    {tab.label}
-                  </div>
-                </button>
-              </li>
-            ))}
+            {tabs.map(tab => {
+              const IconComp = tab.icon;
+              const isActive = activeTab === tab.key;
+              return (
+                <li key={tab.key}>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab(tab.key)}
+                    className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
+                      isActive 
+                        ? 'bg-blue-50/70 text-[#1F3864] border-l-4 border-[#1F3864] font-semibold' 
+                        : 'text-gray-600 hover:bg-gray-50 border-l-4 border-transparent hover:border-gray-200'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      {IconComp && <IconComp className={`w-4 h-4 shrink-0 ${isActive ? 'text-[#1F3864]' : 'text-gray-400'}`} />}
+                      <span>{tab.label}</span>
+                    </div>
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         </Card>
 
@@ -1228,7 +1237,7 @@ export default function Settings() {
                           </div>
                         ) : (
                           <div>
-                            <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🖼️</div>
+                            <ImageIcon className="w-10 h-10 text-indigo-600/70 mx-auto mb-2" />
                             <p className="text-sm font-medium text-gray-600">Click to upload logo</p>
                             <p className="text-xs text-gray-400">JPG, PNG, SVG, WebP — max 2MB</p>
                           </div>
@@ -1260,7 +1269,7 @@ export default function Settings() {
                           </div>
                         ) : (
                           <div>
-                            <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>⭐</div>
+                            <Star className="w-10 h-10 text-amber-500/80 mx-auto mb-2" />
                             <p className="text-sm font-medium text-gray-600">Click to upload favicon</p>
                             <p className="text-xs text-gray-400">JPG, PNG, SVG, WebP — max 2MB</p>
                           </div>
@@ -1310,9 +1319,9 @@ export default function Settings() {
                       <p className="text-xs text-gray-500 mb-4">Default appearance across the agency portal.</p>
                       <div className="flex gap-2">
                         {[
-                          { value: 'light', label: '☀️ Light', desc: 'Always light' },
-                          { value: 'dark', label: '🌙 Dark', desc: 'Always dark' },
-                          { value: 'system', label: '💻 System', desc: 'Match OS' },
+                          { value: 'light', label: 'Light', desc: 'Always light', Icon: Sun, color: 'text-amber-500' },
+                          { value: 'dark', label: 'Dark', desc: 'Always dark', Icon: Moon, color: 'text-indigo-500' },
+                          { value: 'system', label: 'System', desc: 'Match OS', Icon: Monitor, color: 'text-slate-500' },
                         ].map(opt => (
                           <button
                             key={opt.value}
@@ -1325,8 +1334,8 @@ export default function Settings() {
                             }`}
                             style={{ cursor: 'pointer' }}
                           >
-                            <div className="text-lg">{opt.label.split(' ')[0]}</div>
-                            <div className="text-xs font-semibold mt-1">{opt.label.split(' ').slice(1).join(' ')}</div>
+                            <opt.Icon className={`w-5 h-5 mx-auto mb-1 ${opt.color}`} />
+                            <div className="text-xs font-semibold mt-1">{opt.label}</div>
                             <div className="text-xs text-gray-400">{opt.desc}</div>
                           </button>
                         ))}
@@ -1337,7 +1346,7 @@ export default function Settings() {
                   {/* Save Button */}
                   <div className="flex justify-end">
                     <Button onClick={saveBrandingSettings} disabled={brandingSaving}>
-                      {brandingSaving ? 'Saving...' : '💾 Save Branding Settings'}
+                      {brandingSaving ? 'Saving...' : 'Save Branding Settings'}
                     </Button>
                   </div>
                 </div>

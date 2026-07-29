@@ -64,7 +64,7 @@ function SearchableClientDropdown({ allClientsList, selectedClientId, selectedCl
       >
         <Filter className="w-4 h-4 text-indigo-600 shrink-0" />
         <span className="truncate max-w-[200px]">
-          {selectedClient ? `${selectedClient.company_name} (${selectedClient.client_code})` : `🏢 All Client Partners (${allClientsList.length})`}
+          {selectedClient ? `${selectedClient.company_name} (${selectedClient.client_code})` : `All Client Partners (${allClientsList.length})`}
         </span>
         <ChevronDown className={`w-4 h-4 text-indigo-600 shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
@@ -211,18 +211,18 @@ export default function Dashboard({
           </div>
 
           <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-            <div className="space-y-1.5">
-              <div className="inline-flex items-center gap-2 text-xs font-bold tracking-wide text-indigo-700 uppercase bg-indigo-100/70 border border-indigo-200 px-2.5 py-0.5 rounded-full">
-                <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-                <span>Enterprise Operations Hub</span>
+            <div className="space-y-1">
+              <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200/80 px-2.5 py-0.5 rounded-full">
+                <Sparkles className="w-3 h-3 text-indigo-600" />
+                <span>Operations Overview</span>
               </div>
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-2 mt-1">
-                {selectedClient ? selectedClient.company_name : "Executive Operations Command Center"}
+              <h1 className="text-xl sm:text-2xl font-semibold text-[#1F3864] tracking-tight flex items-center gap-2 mt-1">
+                {selectedClient ? selectedClient.company_name : "Payroll & Operations Overview"}
               </h1>
-              <p className="text-xs sm:text-sm text-slate-600 font-medium max-w-2xl leading-relaxed">
+              <p className="text-xs sm:text-sm text-gray-500 font-normal max-w-2xl leading-relaxed">
                 {selectedClient 
-                  ? `Filtered real-time workforce metrics, shift attendance, and monthly payroll expenditure for ${selectedClient.company_name}.`
-                  : "Consolidated real-time intelligence across multi-client workforce, payroll disbursements, statutory compliance, and approval queues."}
+                  ? `Real-time workforce metrics, shift attendance, and monthly payroll totals for ${selectedClient.company_name}.`
+                  : "Overview of workforce attendance, payroll disbursements, statutory compliance, and pending approval queues."}
               </p>
             </div>
 
@@ -279,16 +279,16 @@ export default function Dashboard({
                 </div>
                 <div className="text-xs text-amber-900 font-medium mt-1 flex flex-wrap gap-x-4 gap-y-1">
                   {metrics.pendingSalaryRevisions > 0 && (
-                    <span>• 📈 <strong>{metrics.pendingSalaryRevisions}</strong> Salary Revision Requests</span>
+                    <span className="flex items-center gap-1"><TrendingUp className="w-3.5 h-3.5 text-amber-700 inline" /> <strong>{metrics.pendingSalaryRevisions}</strong> Salary Revision Requests</span>
                   )}
                   {metrics.pendingBankRequests > 0 && (
-                    <span>• 🏦 <strong>{metrics.pendingBankRequests}</strong> Bank Change Requests</span>
+                    <span className="flex items-center gap-1"><Building2 className="w-3.5 h-3.5 text-amber-700 inline" /> <strong>{metrics.pendingBankRequests}</strong> Bank Change Requests</span>
                   )}
                   {metrics.pendingDaySwaps > 0 && (
-                    <span>• 🔄 <strong>{metrics.pendingDaySwaps}</strong> Day Swap Requests</span>
+                    <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5 text-amber-700 inline" /> <strong>{metrics.pendingDaySwaps}</strong> Day Swap Requests</span>
                   )}
                   {metrics.pendingLeaves > 0 && (
-                    <span>• 📅 <strong>{metrics.pendingLeaves}</strong> Leave Requests</span>
+                    <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5 text-amber-700 inline" /> <strong>{metrics.pendingLeaves}</strong> Leave Requests</span>
                   )}
                 </div>
               </div>
@@ -759,9 +759,9 @@ export default function Dashboard({
                           <div className="font-bold text-slate-900">{rev.employee?.full_name || 'Staff'}</div>
                           <div className="text-[11px] text-slate-500 mt-0.5">
                             {rev.is_promotion ? (
-                              <span className="font-semibold text-purple-700 bg-purple-100 px-2 py-0.5 rounded">🎉 {rev.new_designation}</span>
+                              <span className="font-semibold text-purple-700 bg-purple-100 px-2 py-0.5 rounded inline-flex items-center gap-1"><Sparkles className="w-3 h-3 text-purple-600" /> {rev.new_designation}</span>
                             ) : (
-                              <span className="font-semibold text-blue-700 bg-blue-100 px-2 py-0.5 rounded">📈 Revision</span>
+                              <span className="font-semibold text-blue-700 bg-blue-100 px-2 py-0.5 rounded inline-flex items-center gap-1"><TrendingUp className="w-3 h-3 text-blue-600" /> Revision</span>
                             )}
                           </div>
                         </div>

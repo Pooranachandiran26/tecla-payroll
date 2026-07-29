@@ -107,10 +107,10 @@ export default function LiveAttendanceMonitor({ clients = [], punches = {}, sele
         <div className="legacy-react-wrapper">
 
           {/* Header Row */}
-          <div className="flex-row-between">
+          <div className="mb-6 flex justify-between items-end flex-wrap gap-4">
             <div>
-              <h2>Live Attendance Monitor</h2>
-              <p style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>
+              <h2 className="text-2xl font-bold text-[#1F3864] mb-1">Live Attendance Monitor</h2>
+              <p className="text-gray-500 text-[0.9rem]">
                 {isToday
                   ? "Today's live punch feed — showing real-time clock-in status. Monthly totals for payroll are computed in Attendance Review."
                   : `Punch feed for ${new Date(date + 'T00:00:00').toLocaleDateString('en-IN', { month: 'long', day: 'numeric', year: 'numeric' })}. Monthly totals are computed in Attendance Review.`}

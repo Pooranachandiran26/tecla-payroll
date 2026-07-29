@@ -84,8 +84,11 @@ export default function LeaveApprovalQueue({ leaves = { data: [], links: [] }, c
         <Head title="Leave Approval Queue" />
         
         <div className="mb-6">
-          <h2 className="text-2xl font-semibold mb-2">Leave Approval Queue</h2>
-          <p className="text-gray-500">Review and process employee leave applications.</p>
+          <Link href={route('employees.index')} className="text-[0.85rem] font-semibold text-[#1F3864] hover:underline">
+            ← Back to Employees Directory
+          </Link>
+          <h2 className="text-2xl font-bold text-[#1F3864] mt-2 mb-1">Leave Approval Queue</h2>
+          <p className="text-gray-500 text-sm">Review and process employee leave applications. Approved leaves update attendance and payroll resolution automatically.</p>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">

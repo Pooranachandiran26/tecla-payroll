@@ -139,11 +139,11 @@ export default function ClientsList({ clients, stats = {} }) {
       <AuthenticatedLayout>
         <Head title="Clients List" />
         <div className="legacy-react-wrapper">
-          <div className="flex-row-between">
+          <div className="mb-6 flex justify-between items-end flex-wrap gap-4">
             <div>
-              <h2>Clients Directory</h2>
-              <p style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>
-                Manage all client profiles, contracts, and view high-level payroll metrics.
+              <h2 className="text-2xl font-bold text-[#1F3864] mb-1">Clients Directory</h2>
+              <p className="text-gray-500 text-[0.9rem]">
+                Manage all client organization profiles, contract terms, branch locations, and statutory settings.
               </p>
             </div>
             <Link href={route('clients.create')} prefetch className="btn btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
@@ -267,13 +267,10 @@ export default function ClientsList({ clients, stats = {} }) {
                     dataList.map(c => (
                       <tr key={c.id} style={c.status === 'suspended' ? { borderLeft: '3px solid var(--status-warning)', opacity: 0.85 } : {}}>
                         <td>
-                          <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-                            <div className="client-avatar">{c.company_name?.charAt(0) || 'C'}</div>
-                            <div>
-                              <Link href={route('clients.show', c.id)} prefetch className="client-name">{c.company_name}</Link>
-                              <div className="client-meta">
-                                <span>{c.client_code}</span>
-                              </div>
+                          <div>
+                            <Link href={route('clients.show', c.id)} prefetch className="client-name">{c.company_name}</Link>
+                            <div className="client-meta">
+                              <span>{c.client_code}</span>
                             </div>
                           </div>
                         </td>

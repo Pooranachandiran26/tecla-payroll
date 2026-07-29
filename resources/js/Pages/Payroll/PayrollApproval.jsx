@@ -161,10 +161,10 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
             <AuthenticatedLayout>
                 <Head title="Payroll Approval" />
 
-                <div style={{ marginBottom: "1.5rem", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+                <div className="mb-6 flex justify-between items-end flex-wrap gap-4">
                     <div>
-                        <h2 style={{ marginTop: "0.5rem" }}>Approve & Lock Payroll Batch</h2>
-                        <p style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>
+                        <h2 className="text-2xl font-bold text-[#1F3864] mb-1">Approve &amp; Lock Payroll Batch</h2>
+                        <p className="text-gray-500 text-[0.9rem]">
                             Review consolidated totals and authorize bank file disbursements.
                         </p>
                     </div>

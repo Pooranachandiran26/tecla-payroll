@@ -176,7 +176,7 @@ const renderDocumentRows = () => {
             )}
           </div>
           <div style={{"display":"flex","gap":"0.75rem"}}>
-            {employee.personal_email && (
+            {employee.personal_email && !employee.has_logged_in && (
                 <button 
                     onClick={() => setResendInviteDialogOpen(true)} 
                     className="btn" 
@@ -290,9 +290,33 @@ const renderDocumentRows = () => {
         onConfirm={() => {
           setActionLoading(true);
           router.post(route('employees.resend-invitation', employee.id), {}, {
+            preserveScroll: true,
             onFinish: () => {
               setActionLoading(false);
               setResendInviteDialogOpen(false);
+            },
+            onSuccess: (page) => {
+              const flash = page.props.flash;
+              if (flash?.error) {
+                showToast({
+                  type: 'error',
+                  title: 'Invitation Error',
+                  message: flash.error
+                });
+              } else {
+                showToast({
+                  type: 'success',
+                  title: 'Invitation Sent',
+                  message: flash?.success || `Invitation email sent successfully to ${employee.personal_email}`
+                });
+              }
+            },
+            onError: (errs) => {
+              showToast({
+                type: 'error',
+                title: 'Send Failed',
+                message: errs?.message || 'Failed to send invitation email.'
+              });
             }
           });
         }}

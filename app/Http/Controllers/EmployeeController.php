@@ -126,22 +126,46 @@ class EmployeeController extends Controller
     public function resendInvitation($id)
     {
         $employee = \App\Models\Employee::findOrFail($id);
-        $user = \App\Models\User::where('employee_id', $employee->id)->first();
+        $user = \App\Models\User::where('employee_id', $employee->id)
+            ->orWhere(function ($q) use ($employee) {
+                if (!empty($employee->personal_email)) {
+                    $q->where('email', $employee->personal_email);
+                }
+            })
+            ->first();
 
-        if (!$user) {
-            return redirect()->back()->with('error', 'No user account found for this employee.');
-        }
-
-        if ($user->status !== 'invited') {
+        if ($user && ($user->status === 'active' || !empty($user->last_login_at) || !empty($user->invitation_accepted_at))) {
             abort(403, 'Cannot resend invitation to an active user.');
         }
 
         try {
             $invitationService = app(\App\Services\InvitationService::class);
-            $invitationService->resendInvitation($user);
-            return redirect()->back()->with('success', 'Invitation resent successfully.');
+            if ($user) {
+                $userUpdates = [];
+                if (empty($user->employee_id)) {
+                    $userUpdates['employee_id'] = $employee->id;
+                }
+                if (!empty($employee->personal_email) && $user->email !== $employee->personal_email) {
+                    $userUpdates['email'] = $employee->personal_email;
+                }
+                if (!empty($userUpdates)) {
+                    $user->update($userUpdates);
+                }
+                $invitationService->resendInvitation($user);
+            } else {
+                if (empty($employee->personal_email)) {
+                    return redirect()->back()->with('error', 'Employee has no email address configured.');
+                }
+                $user = $invitationService->createInvitation([
+                    'name' => $employee->full_name,
+                    'email' => $employee->personal_email,
+                    'role' => 'employee',
+                    'employee_id' => $employee->id,
+                ]);
+            }
+            return redirect()->back()->with('success', "Invitation email resent successfully to {$employee->personal_email}.");
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Failed to resend invitation: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Failed to send invitation: ' . $e->getMessage());
         }
     }
 
@@ -157,7 +181,7 @@ class EmployeeController extends Controller
 
     public function show(\Illuminate\Http\Request $request, $id)
     {
-        $employee = \App\Models\Employee::with(['salaryRevisions.approver', 'client', 'exitRequest', 'documents'])->findOrFail($id);
+        $employee = \App\Models\Employee::with(['salaryRevisions.approver', 'client', 'exitRequest', 'documents', 'user'])->findOrFail($id);
         
         $targetDate = $request->query('month') ? \Carbon\Carbon::parse($request->query('month').'-01') : now();
         $monthStart = $targetDate->copy()->startOfMonth()->toDateString();

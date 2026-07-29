@@ -585,15 +585,15 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
         <Head title={isAdd ? "Add New Employee" : `Edit Employee (${isActive ? 'Active' : 'Onboarding'})`} />
         
         <div className="legacy-react-wrapper">
-          <div style={{ marginBottom: "1.5rem" }}>
-            <Link href={route('employees.index')} style={{ fontSize: "0.85rem", fontWeight: "600", display: "inline-flex", alignItems: "center", gap: "5px" }}>
-              <ArrowLeft size={14} /> Back to Employees Directory
+          <div className="mb-6">
+            <Link href={route('employees.index')} className="text-[0.85rem] font-semibold text-[#1F3864] hover:underline inline-flex items-center gap-1">
+              ← Back to Employees Directory
             </Link>
-            <h2 id="form-page-title" style={{ marginTop: "0.5rem" }}>
+            <h2 id="form-page-title" className="text-2xl font-bold text-[#1F3864] mt-2 mb-1">
               {isAdd ? 'Add New Employee' : `Edit Employee — ${isActive ? 'Active' : 'Onboarding'}`}
             </h2>
-            <p id="form-page-subtitle" style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>
-              {isActive ? 'Salary, bank details and Date of Joining are locked. Use the dedicated flows to change those.' : 'Configure personal profile, sensitive banking, custom salary breakdown, and statutory overrides.'}
+            <p id="form-page-subtitle" className="text-gray-500 text-sm">
+              {isActive ? 'Salary, bank details and Date of Joining are locked. Use dedicated flows to change those.' : 'Configure personal profile, sensitive banking, custom salary breakdown, and statutory overrides.'}
             </p>
           </div>
 
