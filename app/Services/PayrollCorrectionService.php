@@ -114,7 +114,10 @@ class PayrollCorrectionService
         }
 
         $employeeData = array_merge($proRatedComponents, [
+            'client_id' => $employee->client_id,
             'pf_applicable' => (bool)$employee->pf_applicable,
+            'eps_applicable' => (bool)$employee->eps_applicable,
+            'date_of_birth' => $employee->date_of_birth,
             'esi_applicable' => $isEsiActive,
             'esi_limit' => $grossTotal > 21000 ? 99999999.00 : 21000.00,
             'pt_applicable' => false,

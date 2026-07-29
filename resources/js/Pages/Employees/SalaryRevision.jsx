@@ -343,16 +343,20 @@ export default function SalaryRevision({ employee, revisions }) {
                                             <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Employer Contributions</div>
                                             <div className="space-y-1.5 text-xs">
                                                 <div className="flex justify-between items-center text-slate-600 pl-2">
-                                                    <span>• Employer EPF (12%)</span>
-                                                    <span className="font-semibold">{formatCurrency(emp.pf_applicable ? Math.round(Math.min(emp.basic_pay || 0, 15000) * 0.12) : 0)}</span>
+                                                    <span>• Employer EPF</span>
+                                                    <span className="font-semibold">{formatCurrency(emp.pf_applicable ? (emp.employer_epf_monthly ?? 0) : 0)}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center text-slate-600 pl-2">
+                                                    <span>• Employer EPS</span>
+                                                    <span className="font-semibold">{formatCurrency(emp.pf_applicable ? (emp.employer_eps_monthly ?? 0) : 0)}</span>
                                                 </div>
                                                 <div className="flex justify-between items-center text-slate-600 pl-2">
                                                     <span>• EDLI (0.5%)</span>
-                                                    <span className="font-semibold">{emp.pf_applicable ? (emp.edli_exempted ? 'Exempted (₹0)' : formatCurrency(Math.round(Math.min(emp.basic_pay || 0, 15000) * 0.005))) : formatCurrency(0)}</span>
+                                                    <span className="font-semibold">{emp.pf_applicable ? (emp.edli_exempted ? 'Exempted (₹0)' : formatCurrency(emp.edli_monthly ?? 0)) : formatCurrency(0)}</span>
                                                 </div>
                                                 <div className="flex justify-between items-center text-slate-600 pl-2">
                                                     <span>• EPF Admin Charges (0.5%)</span>
-                                                    <span className="font-semibold">{formatCurrency(emp.pf_applicable ? Math.round(Math.min(emp.basic_pay || 0, 15000) * 0.005) : 0)}</span>
+                                                    <span className="font-semibold">{formatCurrency(emp.pf_applicable ? (emp.epf_admin_monthly ?? 0) : 0)}</span>
                                                 </div>
                                                 <div className="flex justify-between items-center text-slate-800 font-bold pt-1 border-t border-dashed border-slate-200">
                                                     <span>Total Employer PF & EPFO Charges</span>

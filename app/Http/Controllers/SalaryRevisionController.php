@@ -41,6 +41,9 @@ class SalaryRevisionController extends Controller
         $calculationParams = [
             'client_id' => $employee->client_id,
             'pf_applicable' => $employee->pf_applicable,
+            'eps_applicable' => $employee->eps_applicable,
+            'date_of_birth' => $employee->date_of_birth,
+            'gender' => $employee->gender,
             'esi_applicable' => $employee->esi_applicable,
             'lwf_applicable' => $employee->lwf_applicable,
             'pt_applicable' => $employee->pt_applicable,

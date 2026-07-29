@@ -532,6 +532,26 @@ const renderDocumentRows = () => {
                     })()}
                   </div>
 
+                  <div style={{"display":"flex","justifyContent":"space-between","alignItems":"center","marginTop":"0.25rem"}}>
+                    <span style={{"fontSize":"0.85rem","fontWeight":"500"}}>Employer EPF:</span>
+                    <strong style={{"fontSize":"0.85rem","color":"var(--primary-navy)"}}>₹{Number(employee.employer_epf_monthly || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                  </div>
+
+                  <div style={{"display":"flex","justifyContent":"space-between","alignItems":"center","marginTop":"0.25rem"}}>
+                    <span style={{"fontSize":"0.85rem","fontWeight":"500"}}>Employer EPS:</span>
+                    {(() => {
+                      const dob = employee.date_of_birth;
+                      const age = dob ? Math.floor((new Date() - new Date(dob)) / (365.25 * 24 * 60 * 60 * 1000)) : 0;
+                      if (age >= 58) {
+                        return <span style={{"fontSize":"0.8rem","color":"#D97706","fontWeight":"600"}}>₹0.00 <span className="text-amber-600 font-semibold">(Excluded — Age 58+ Cutoff)</span></span>;
+                      }
+                      if (employee.eps_applicable === false) {
+                        return <span style={{"fontSize":"0.8rem","color":"#64748B","fontWeight":"600"}}>₹0.00 <span className="text-slate-500 font-semibold">(Excluded — EPS Disabled)</span></span>;
+                      }
+                      return <strong style={{"fontSize":"0.85rem","color":"var(--primary-navy)"}}>₹{Number(employee.employer_eps_monthly || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>;
+                    })()}
+                  </div>
+
                   <hr style={{"border":"0","borderTop":"1px solid var(--border-color)"}} />
 
                   {employee.is_esi_active !== false && employee.esi_applicable ? (
