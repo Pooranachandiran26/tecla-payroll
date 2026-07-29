@@ -394,9 +394,9 @@ class AttendanceUploadController extends Controller
                 DB::commit();
                 @unlink($fullPath);
 
-                return redirect()->route('payroll.live-monitor', [
+                return redirect()->route('payroll.attendance-review', [
                     'client_id' => $clientId,
-                    'date' => Carbon::now()->toDateString()
+                    'month' => $targetMonthStr
                 ])->with('success', 'Attendance timesheet uploaded and processed successfully.');
 
             } catch (\Exception $e) {

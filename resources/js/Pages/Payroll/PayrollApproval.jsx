@@ -12,17 +12,35 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
     const { showToast } = useToast();
     const [clientId, setClientId] = useState(selectedClientId);
     const [month, setMonth] = useState(selectedMonth);
+    const existingDraftRun = pendingSupplementaryRuns && pendingSupplementaryRuns.find(r => r.status === 'draft');
+
     const [showBreakdown, setShowBreakdown] = useState(false);
     const [showDisbursementModal, setShowDisbursementModal] = useState(false);
-    const [showSupplementaryModal, setShowSupplementaryModal] = useState(false);
     const [showSingleCorrectionModal, setShowSingleCorrectionModal] = useState(false);
     const [showBatchCorrectionModal, setShowBatchCorrectionModal] = useState(false);
+
+    const [showSupplementaryModal, setShowSupplementaryModal] = useState(() => {
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            const val = params.get('open_supplementary_modal');
+            const hasDraft = pendingSupplementaryRuns && pendingSupplementaryRuns.some(r => r.status === 'draft');
+            if (hasDraft) return false;
+            return val === 'true' || val === '1';
+        }
+        return false;
+    });
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
             const params = new URLSearchParams(window.location.search);
-            if (params.get('open_supplementary_modal') === 'true') {
-                setShowSupplementaryModal(true);
+            const shouldScroll = params.get('scroll_to_pending') === 'true' || params.get('scroll_to_pending') === '1' || (existingDraftRun && (params.get('open_supplementary_modal') === 'true' || params.get('open_supplementary_modal') === '1'));
+            if (shouldScroll) {
+                setTimeout(() => {
+                    const el = document.getElementById('pending-supplementary-card');
+                    if (el) {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }, 300);
             }
         }
     }, []);
@@ -336,10 +354,73 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
                                         >
                                             {run.status === 'locked' 
                                                 ? (pendingSupplementaryRuns.length > 0 
-                                                    ? `✓ Parent Locked — ${pendingSupplementaryRuns.length} supplementary pending below` 
+                                                    ? `✓ Parent Locked — ${pendingSupplementaryRuns.length} Supplementary Pending` 
                                                     : '✓ Locked and Finalized') 
                                                 : '✓ Approve & Lock Batch'}
                                         </button>
+
+                                        {pendingSupplementaryRuns.length > 0 && (
+                                            <div id="pending-supplementary-card" style={{ border: '2px solid #F59E0B', backgroundColor: '#FFFBEB', borderRadius: 'var(--radius-sm)', padding: '0.85rem', marginTop: '1rem' }}>
+                                                <h4 style={{ fontSize: '0.9rem', color: '#92400E', marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                                    ⚠️ {pendingSupplementaryRuns.length} Supplementary Run{pendingSupplementaryRuns.length > 1 ? 's' : ''} Pending
+                                                </h4>
+                                                <p style={{ fontSize: '0.75rem', color: '#92400E', marginBottom: '0.75rem' }}>
+                                                    Approve & lock before finalizing payslips.
+                                                </p>
+                                                {pendingSupplementaryRuns.map(sr => (
+                                                    <div key={sr.id} style={{ borderTop: '1px solid #FEF3C7', paddingTop: '0.65rem', marginTop: '0.65rem' }}>
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', flexWrap: 'wrap' }}>
+                                                                <strong style={{ fontSize: '0.85rem' }}>Run #{sr.id}</strong>
+                                                                <span className="badge" style={{ backgroundColor: sr.run_type === 'correction' ? '#8B5CF6' : '#2563EB', color: '#FFFFFF', fontSize: '0.68rem', padding: '0.15rem 0.35rem' }}>
+                                                                    {sr.run_type === 'correction' ? 'Payroll Correction' : 'New Hire Supplementary'}
+                                                                </span>
+                                                                <span className={`badge ${sr.status === 'draft' ? 'badge-warning' : 'badge-info'}`} style={{ fontSize: '0.68rem' }}>
+                                                                    {sr.status}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        <div style={{ fontSize: '0.75rem', color: '#78350F', marginBottom: '0.4rem', fontWeight: 600 }}>
+                                                            {sr.total_employees_processed} employee{sr.total_employees_processed !== 1 ? 's' : ''} · ₹{parseFloat(sr.total_net_disbursement || 0).toLocaleString()} total net
+                                                        </div>
+
+                                                        {sr.processed_employees && sr.processed_employees.length > 0 && (
+                                                            <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #FCD34D', borderRadius: 'var(--radius-sm)', padding: '0.45rem 0.6rem', marginTop: '0.35rem', marginBottom: '0.65rem' }}>
+                                                                <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#92400E', textTransform: 'uppercase', marginBottom: '0.3rem', letterSpacing: '0.02em' }}>
+                                                                    Included Employee{sr.processed_employees.length > 1 ? 's' : ''} ({sr.processed_employees.length})
+                                                                </div>
+                                                                {sr.processed_employees.map((emp, idx) => (
+                                                                    <div key={emp.id || idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.76rem', borderBottom: idx < sr.processed_employees.length - 1 ? '1px dashed #F3F4F6' : 'none', paddingBottom: '0.2rem', marginBottom: '0.2rem' }}>
+                                                                        <div>
+                                                                            <span style={{ fontWeight: 600, color: '#1F2937' }}>{emp.full_name}</span>
+                                                                            <span style={{ color: '#6B7280', marginLeft: '0.25rem', fontSize: '0.7rem' }}>({emp.employee_code})</span>
+                                                                            {emp.designation && <span style={{ color: '#9CA3AF', marginLeft: '0.25rem', fontSize: '0.68rem' }}>· {emp.designation}</span>}
+                                                                        </div>
+                                                                        <div style={{ fontWeight: 600, color: '#059669', fontSize: '0.75rem' }}>
+                                                                            ₹{parseFloat(emp.net_pay || 0).toLocaleString()}
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+
+                                                        {sr.total_employees_processed === 0 && (
+                                                            <div style={{ fontSize: '0.75rem', color: '#B45309', marginBottom: '0.5rem', fontStyle: 'italic' }}>
+                                                                ⚠️ 0 Employees Processed (All candidates skipped due to missing data)
+                                                            </div>
+                                                        )}
+                                                        <button
+                                                            className="btn btn-primary btn-sm"
+                                                            style={{ width: '100%', padding: '0.5rem', fontWeight: 600 }}
+                                                            onClick={() => handleApproveSupplementary(sr.id, sr.status)}
+                                                            disabled={role !== 'admin'}
+                                                        >
+                                                            {sr.status === 'approved' ? '🔒 Lock Supplementary Run' : '✓ Approve & Lock Supplementary Run'} #{sr.id}
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
 
                                         {run.status === 'locked' && (
                                             <div style={{ marginTop: "1rem", paddingTop: "1rem", borderTop: "1px solid var(--border-color)" }}>
@@ -407,48 +488,6 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
                                         </div>
                                     )}
                                 </div>
-
-                                {pendingSupplementaryRuns.length > 0 && (
-                                    <div className="card" style={{ border: '2px solid #F59E0B', backgroundColor: '#FFFBEB', marginTop: '1.5rem' }}>
-                                        <h3 className="card-title" style={{ marginBottom: '0.5rem', color: '#92400E' }}>
-                                            ⚠️ {pendingSupplementaryRuns.length} Supplementary Run{pendingSupplementaryRuns.length > 1 ? 's' : ''} Pending Approval
-                                        </h3>
-                                        <p style={{ fontSize: '0.8rem', color: '#92400E', marginBottom: '1rem' }}>
-                                            These supplementary runs must be approved and locked before all employees' payslips are finalized.
-                                        </p>
-                                        {pendingSupplementaryRuns.map(sr => (
-                                            <div key={sr.id} style={{ borderTop: '1px solid #FEF3C7', paddingTop: '0.75rem', marginTop: '0.75rem' }}>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-                                                        <strong>Run #{sr.id}</strong>
-                                                        <span className="badge" style={{ backgroundColor: sr.run_type === 'correction' ? '#8B5CF6' : '#2563EB', color: '#FFFFFF', fontSize: '0.7rem', padding: '0.15rem 0.4rem' }}>
-                                                            {sr.run_type === 'correction' ? 'Payroll Correction' : 'New Hire Supplementary'}
-                                                        </span>
-                                                        <span className={`badge ${sr.status === 'draft' ? 'badge-warning' : 'badge-info'}`} style={{ fontSize: '0.7rem' }}>
-                                                            {sr.status}
-                                                        </span>
-                                                    </div>
-                                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                                                        {sr.total_employees_processed} employee{sr.total_employees_processed !== 1 ? 's' : ''} · ₹{parseFloat(sr.total_net_disbursement || 0).toLocaleString()} net
-                                                    </span>
-                                                </div>
-                                                {sr.total_employees_processed === 0 && (
-                                                    <div style={{ fontSize: '0.75rem', color: '#B45309', marginBottom: '0.5rem', fontStyle: 'italic' }}>
-                                                        ⚠️ 0 Employees Processed (All candidates skipped due to missing data)
-                                                    </div>
-                                                )}
-                                                <button
-                                                    className="btn btn-primary btn-sm"
-                                                    style={{ width: '100%' }}
-                                                    onClick={() => handleApproveSupplementary(sr.id, sr.status)}
-                                                    disabled={role !== 'admin'}
-                                                >
-                                                    {sr.status === 'approved' ? '🔒 Lock Supplementary Run' : '✓ Approve & Lock Supplementary Run'} #{sr.id}
-                                                </button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
                             </div>
                         </div>
                     </>
@@ -523,51 +562,78 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
                                 </div>
 
                                 {/* Explicit Action Summary Box */}
-                                {totalCandidateCount > 0 && (
-                                    <div style={{
-                                        backgroundColor: eligibleCount === 0 ? '#FEF2F2' : (ineligibleCandidates.length > 0 ? '#FFFBEB' : '#F0FDF4'),
-                                        border: `1px solid ${eligibleCount === 0 ? '#FCA5A5' : (ineligibleCandidates.length > 0 ? '#FCD34D' : '#86EFAC')}`,
-                                        borderRadius: 'var(--radius-sm)',
-                                        padding: '0.85rem 1rem',
-                                        marginBottom: '1.25rem'
-                                    }}>
-                                        <div style={{
-                                            fontSize: '0.85rem',
-                                            fontWeight: 600,
-                                            color: eligibleCount === 0 ? '#991B1B' : (ineligibleCandidates.length > 0 ? '#92400E' : '#166534'),
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '0.5rem'
-                                        }}>
-                                            {eligibleCount === 0 ? '🛑 Cannot Start Supplementary Run' : (ineligibleCandidates.length > 0 ? '⚠️ Supplementary Run Summary' : '🟢 Ready to Process')}
+                                {existingDraftRun ? (
+                                    <div style={{ backgroundColor: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: 'var(--radius-sm)', padding: '0.85rem 1rem', marginBottom: '1.25rem' }}>
+                                        <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#92400E', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                            ⚠️ Supplementary Run #{existingDraftRun.id} Already Exists in Draft
                                         </div>
-                                        <p style={{
-                                            fontSize: '0.8rem',
-                                            color: eligibleCount === 0 ? '#7F1D1D' : (ineligibleCandidates.length > 0 ? '#B45309' : '#15803D'),
-                                            margin: '0.35rem 0 0 0',
-                                            lineHeight: 1.45
-                                        }}>
-                                            {eligibleCount === 0 ? (
-                                                <>Blocked: 0 of {totalCandidateCount} candidates can be processed. <strong>{ineligibleCandidates.map(c => c.full_name).join(', ')}</strong> will be SKIPPED due to missing attendance data. Upload attendance before creating a supplementary run.</>
-                                            ) : ineligibleCandidates.length > 0 ? (
-                                                <>Summary: <strong>{eligibleCount} of {totalCandidateCount} candidate(s)</strong> will be processed. <strong>{ineligibleCandidates.map(c => c.full_name).join(', ')}</strong> will be SKIPPED due to missing attendance or incomplete data.</>
-                                            ) : (
-                                                <>Ready: All {eligibleCount} candidate(s) have valid attendance and will be processed in this supplementary run.</>
-                                            )}
+                                        <p style={{ fontSize: '0.8rem', color: '#B45309', margin: '0.35rem 0 0 0', lineHeight: 1.45 }}>
+                                            A draft supplementary run (Run #{existingDraftRun.id}) is currently pending approval. Please approve & lock or delete Supplementary Run #{existingDraftRun.id} before creating another one.
                                         </p>
                                     </div>
+                                ) : (
+                                    totalCandidateCount > 0 && (
+                                        <div style={{
+                                            backgroundColor: eligibleCount === 0 ? '#FEF2F2' : (ineligibleCandidates.length > 0 ? '#FFFBEB' : '#F0FDF4'),
+                                            border: `1px solid ${eligibleCount === 0 ? '#FCA5A5' : (ineligibleCandidates.length > 0 ? '#FCD34D' : '#86EFAC')}`,
+                                            borderRadius: 'var(--radius-sm)',
+                                            padding: '0.85rem 1rem',
+                                            marginBottom: '1.25rem'
+                                        }}>
+                                            <div style={{
+                                                fontSize: '0.85rem',
+                                                fontWeight: 600,
+                                                color: eligibleCount === 0 ? '#991B1B' : (ineligibleCandidates.length > 0 ? '#92400E' : '#166534'),
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.5rem'
+                                            }}>
+                                                {eligibleCount === 0 ? '🛑 Cannot Start Supplementary Run' : (ineligibleCandidates.length > 0 ? '⚠️ Supplementary Run Summary' : '🟢 Ready to Process')}
+                                            </div>
+                                            <p style={{
+                                                fontSize: '0.8rem',
+                                                color: eligibleCount === 0 ? '#7F1D1D' : (ineligibleCandidates.length > 0 ? '#B45309' : '#15803D'),
+                                                margin: '0.35rem 0 0 0',
+                                                lineHeight: 1.45
+                                            }}>
+                                                {eligibleCount === 0 ? (
+                                                    <>Blocked: 0 of {totalCandidateCount} candidates can be processed. <strong>{ineligibleCandidates.map(c => c.full_name).join(', ')}</strong> will be SKIPPED due to missing attendance data. Upload attendance before creating a supplementary run.</>
+                                                ) : ineligibleCandidates.length > 0 ? (
+                                                    <>Summary: <strong>{eligibleCount} of {totalCandidateCount} candidate(s)</strong> will be processed. <strong>{ineligibleCandidates.map(c => c.full_name).join(', ')}</strong> will be SKIPPED due to missing attendance or incomplete data.</>
+                                                ) : (
+                                                    <>Ready: All {eligibleCount} candidate(s) have valid attendance and will be processed in this supplementary run.</>
+                                                )}
+                                            </p>
+                                        </div>
+                                    )
                                 )}
                                 
                                 <div className="modal-footer" style={{ marginTop: 0 }}>
                                     <button type="button" className="btn btn-secondary" onClick={() => setShowSupplementaryModal(false)}>Cancel</button>
-                                    <button 
-                                        type="button" 
-                                        className="btn btn-primary" 
-                                        onClick={handleCreateSupplementary}
-                                        disabled={eligibleCount === 0}
-                                    >
-                                        Confirm & Start Supplementary Run
-                                    </button>
+                                    {existingDraftRun ? (
+                                        <button 
+                                            type="button" 
+                                            className="btn btn-warning"
+                                            onClick={() => {
+                                                setShowSupplementaryModal(false);
+                                                setTimeout(() => {
+                                                    const el = document.getElementById('pending-supplementary-card');
+                                                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                                }, 150);
+                                            }}
+                                        >
+                                            Go to Pending Run #{existingDraftRun.id}
+                                        </button>
+                                    ) : (
+                                        <button 
+                                            type="button" 
+                                            className="btn btn-primary" 
+                                            onClick={handleCreateSupplementary}
+                                            disabled={eligibleCount === 0}
+                                        >
+                                            Confirm & Start Supplementary Run
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         </div>
