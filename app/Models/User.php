@@ -24,6 +24,7 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'module_permissions',
         'employee_id',
         'client_id',
         'status',
@@ -65,7 +66,21 @@ class User extends Authenticatable
             'last_login_at' => 'datetime',
             'invitation_expires_at' => 'datetime',
             'must_change_password' => 'boolean',
+            'module_permissions' => 'array',
         ];
+    }
+
+    public function hasModulePermission(string $moduleKey): bool
+    {
+        if ($this->role === 'admin') {
+            return true;
+        }
+
+        if (empty($this->module_permissions)) {
+            return true;
+        }
+
+        return in_array($moduleKey, $this->module_permissions);
     }
 
     // Relationships

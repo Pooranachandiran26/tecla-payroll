@@ -113,4 +113,22 @@ class UserController extends Controller
 
         return back()->with('message', 'Assigned clients updated successfully.');
     }
+
+    public function updateModulePermissions(Request $request, User $user)
+    {
+        $request->validate([
+            'module_permissions' => 'nullable|array',
+            'module_permissions.*' => 'string|in:dashboard,quick-access,clients,candidates,payroll,compliance,reports,admin',
+        ]);
+
+        if ($user->role !== 'manager') {
+            return back()->withErrors(['message' => 'Module permission customization is only applicable for manager role.']);
+        }
+
+        $user->update([
+            'module_permissions' => $request->input('module_permissions', null),
+        ]);
+
+        return back()->with('message', 'Customized module permissions updated successfully.');
+    }
 }

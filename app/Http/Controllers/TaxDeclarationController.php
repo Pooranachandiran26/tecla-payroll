@@ -119,6 +119,18 @@ class TaxDeclarationController extends Controller
             $employee->update(['tds_regime' => $validated['regime']]);
         }
 
+        // Auto-recalculate any active draft payroll runs for this employee's client so processing page stays 100% in sync
+        $draftRuns = \App\Models\PayrollRun::where('client_id', $employee->client_id)->where('status', 'draft')->get();
+        if ($draftRuns->isNotEmpty()) {
+            $monthlyCalc = app(\App\Services\MonthlyPayrollCalculator::class);
+            $activeEmployees = \App\Models\Employee::where('client_id', $employee->client_id)->where('status', 'active')->get();
+            foreach ($draftRuns as $run) {
+                foreach ($activeEmployees as $empItem) {
+                    $monthlyCalc->calculateForEmployee($empItem, $run);
+                }
+            }
+        }
+
         return redirect()->back()->with('success', 'Tax declaration submitted successfully.');
     }
 
@@ -143,6 +155,18 @@ class TaxDeclarationController extends Controller
             'verified_by' => Auth::id(),
             'verified_at' => now(),
         ]);
+
+        // Auto-recalculate any active draft payroll runs for this employee's client so processing page stays 100% in sync
+        $draftRuns = \App\Models\PayrollRun::where('client_id', $employee->client_id)->where('status', 'draft')->get();
+        if ($draftRuns->isNotEmpty()) {
+            $monthlyCalc = app(\App\Services\MonthlyPayrollCalculator::class);
+            $activeEmployees = \App\Models\Employee::where('client_id', $employee->client_id)->where('status', 'active')->get();
+            foreach ($draftRuns as $run) {
+                foreach ($activeEmployees as $empItem) {
+                    $monthlyCalc->calculateForEmployee($empItem, $run);
+                }
+            }
+        }
 
         $statusMsg = $validated['status'] === 'verified' ? 'verified' : 'rejected';
         return redirect()->back()->with('success', "Tax declaration {$statusMsg} successfully.");

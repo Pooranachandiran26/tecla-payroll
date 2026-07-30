@@ -157,7 +157,7 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
     };
 
     return (
-        <RoleGuard allowedRoles={['admin', 'manager']}>
+        <RoleGuard allowedRoles={['admin', 'manager']} moduleKey="payroll">
             <AuthenticatedLayout>
                 <Head title="Payroll Approval" />
 

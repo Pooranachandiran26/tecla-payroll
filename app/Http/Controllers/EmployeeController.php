@@ -183,9 +183,21 @@ class EmployeeController extends Controller
         }
     }
 
+    private function authorizeEmployeeAccess($user, $employee)
+    {
+        if ($user && $user->role === 'manager') {
+            $managedClientIds = $user->getManagedClientIds();
+            if (!in_array((int)$employee->client_id, array_map('intval', $managedClientIds))) {
+                abort(403, 'Unauthorized access to this employee record.');
+            }
+        }
+    }
+
     public function edit($id)
     {
         $employee = \App\Models\Employee::findOrFail($id);
+        $this->authorizeEmployeeAccess(request()->user(), $employee);
+
         $clients = \App\Models\Client::where('status', 'active')->select('id', 'company_name', 'weekly_off_pattern', 'employee_pf_wage_basis', 'employer_pf_wage_basis')->get();
         return \Inertia\Inertia::render('Employees/EmployeeForm', [
             'clients' => $clients,
@@ -196,6 +208,7 @@ class EmployeeController extends Controller
     public function show(\Illuminate\Http\Request $request, $id)
     {
         $employee = \App\Models\Employee::with(['salaryRevisions.approver', 'client', 'exitRequest', 'documents', 'user'])->findOrFail($id);
+        $this->authorizeEmployeeAccess($request->user(), $employee);
         
         $targetDate = $request->query('month') ? \Carbon\Carbon::parse($request->query('month').'-01') : now();
         $monthStart = $targetDate->copy()->startOfMonth()->toDateString();
@@ -260,8 +273,21 @@ class EmployeeController extends Controller
     public function update(\App\Http\Requests\UpdateEmployeeRequest $request, $id)
     {
         $employee = \App\Models\Employee::findOrFail($id);
+        $this->authorizeEmployeeAccess($request->user(), $employee);
         
         $employee->update($request->validated());
+
+        // Auto-recalculate any active draft payroll runs for this employee's client
+        $draftRuns = \App\Models\PayrollRun::where('client_id', $employee->client_id)->where('status', 'draft')->get();
+        if ($draftRuns->isNotEmpty()) {
+            $monthlyCalc = app(\App\Services\MonthlyPayrollCalculator::class);
+            $activeEmployees = \App\Models\Employee::where('client_id', $employee->client_id)->where('status', 'active')->get();
+            foreach ($draftRuns as $run) {
+                foreach ($activeEmployees as $emp) {
+                    $monthlyCalc->calculateForEmployee($emp, $run);
+                }
+            }
+        }
 
         return redirect()->route('employees.index')->with('success', 'Employee updated successfully.');
     }

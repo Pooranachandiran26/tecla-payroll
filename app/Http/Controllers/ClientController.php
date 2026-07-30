@@ -92,11 +92,19 @@ class ClientController extends Controller
 
         $clients = $query->latest()->paginate(20)->withQueryString();
 
+        $statsBaseQuery = Client::query();
+        $employeesBaseQuery = \App\Models\Employee::where('status', 'active');
+        if ($user && $user->role === 'manager') {
+            $managedClientIds = $user->getManagedClientIds();
+            $statsBaseQuery->whereIn('id', $managedClientIds);
+            $employeesBaseQuery->whereIn('client_id', $managedClientIds);
+        }
+
         $stats = [
-            'total' => Client::count(),
-            'active' => Client::where('status', 'active')->count(),
-            'onboarding' => Client::where('status', 'onboarding')->count(),
-            'total_deployed' => \App\Models\Employee::where('status', 'active')->count(),
+            'total' => (clone $statsBaseQuery)->count(),
+            'active' => (clone $statsBaseQuery)->where('status', 'active')->count(),
+            'onboarding' => (clone $statsBaseQuery)->where('status', 'onboarding')->count(),
+            'total_deployed' => $employeesBaseQuery->count(),
         ];
 
         return Inertia::render('Clients/ClientsList', [
@@ -490,6 +498,18 @@ class ClientController extends Controller
 
             $this->audit->log('updated', auth()->user(), $client, $oldValues, $client->fresh()->toArray());
         });
+
+        // Auto-recalculate any active draft payroll runs for this client so processing page stays 100% in sync
+        $draftRuns = \App\Models\PayrollRun::where('client_id', $client->id)->where('status', 'draft')->get();
+        if ($draftRuns->isNotEmpty()) {
+            $monthlyCalc = app(\App\Services\MonthlyPayrollCalculator::class);
+            $activeEmployees = \App\Models\Employee::where('client_id', $client->id)->where('status', 'active')->get();
+            foreach ($draftRuns as $run) {
+                foreach ($activeEmployees as $emp) {
+                    $monthlyCalc->calculateForEmployee($emp, $run);
+                }
+            }
+        }
 
         // Dispatch notification events AFTER transaction commits
         if ($client->wasChanged('status')) {

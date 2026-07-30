@@ -584,7 +584,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
   };
 
   return (
-    <RoleGuard allowedRoles={['admin', 'manager']}>
+    <RoleGuard allowedRoles={['admin', 'manager']} moduleKey="candidates">
       <AuthenticatedLayout>
         <Head title={isAdd ? "Add New Employee" : `Edit Employee (${isActive ? 'Active' : 'Onboarding'})`} />
         

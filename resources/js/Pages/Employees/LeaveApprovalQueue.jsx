@@ -79,7 +79,7 @@ export default function LeaveApprovalQueue({ leaves = { data: [], links: [] }, c
   };
 
   return (
-    <RoleGuard allowedRoles={['admin', 'manager']}>
+    <RoleGuard allowedRoles={['admin', 'manager']} moduleKey="candidates">
       <AuthenticatedLayout>
         <Head title="Leave Approval Queue" />
         

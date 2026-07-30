@@ -208,7 +208,7 @@ export default function ActivityLog({ logs, categoryCounts = {}, filters: sf }) 
     });
 
     return (
-        <RoleGuard allowedRoles={['admin']}>
+        <RoleGuard allowedRoles={['admin', 'manager']} moduleKey="admin">
             <AuthenticatedLayout>
                 <Head title="Activity Log" />
                 <div className="legacy-react-wrapper">

@@ -14,6 +14,8 @@ use Carbon\Carbon;
 
 use Illuminate\Support\Facades\Mail;
 use App\Mail\PromotionRevisionApprovedMail;
+use App\Services\NotificationService;
+
 
 class SalaryRevisionController extends Controller
 {
@@ -95,6 +97,15 @@ class SalaryRevisionController extends Controller
             'status' => 'pending_approval',
         ]);
 
+        // Notify all admins in-app (isolated: failure here never breaks the revision submission)
+        NotificationService::sendToAdmins(
+            type: 'salary_revision',
+            title: 'Salary Revision Pending Approval',
+            body: "{$employee->full_name} ({$employee->employee_code}) has submitted a salary revision request.",
+            url: route('employees.salary-revision.create', $employee->id),
+            data: ['employee_id' => $employee->id]
+        );
+
         return redirect()->back()->with('success', 'Salary revision submitted and is pending approval.');
     }
 
@@ -135,6 +146,17 @@ class SalaryRevisionController extends Controller
 
                 $employee->update($employeeData);
                 
+                // Auto-recalculate any active draft payroll runs for this employee's client so processing page stays 100% in sync
+                $draftRuns = \App\Models\PayrollRun::where('client_id', $employee->client_id)->where('status', 'draft')->get();
+                if ($draftRuns->isNotEmpty()) {
+                    $monthlyCalc = app(\App\Services\MonthlyPayrollCalculator::class);
+                    $activeEmployees = \App\Models\Employee::where('client_id', $employee->client_id)->where('status', 'active')->get();
+                    foreach ($draftRuns as $run) {
+                        foreach ($activeEmployees as $empItem) {
+                            $monthlyCalc->calculateForEmployee($empItem, $run);
+                        }
+                    }
+                }
             } else {
                 $revision->update([
                     'status' => 'rejected',

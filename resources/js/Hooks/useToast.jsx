@@ -13,10 +13,10 @@ export function ToastProvider({ children }) {
 
   const dismissToast = useCallback((id) => {
     // Mark as exiting for animation
-    setToasts(prev => prev.map(t => t.id === id ? { ...t, exiting: true } : t));
+    setToasts(prev => (Array.isArray(prev) ? prev : []).map(t => t.id === id ? { ...t, exiting: true } : t));
     // Remove after animation
     setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.id !== id));
+      setToasts(prev => (Array.isArray(prev) ? prev : []).filter(t => t.id !== id));
     }, 300);
   }, []);
 
@@ -27,12 +27,13 @@ export function ToastProvider({ children }) {
     const id = ++toastIdCounter;
 
     setToasts(prev => {
+      const safePrev = Array.isArray(prev) ? prev : [];
       // Prevent adding duplicate active toasts with the exact same message and type
-      if (prev.some(t => !t.exiting && t.message === message && t.type === type)) {
-        return prev;
+      if (safePrev.some(t => !t.exiting && t.message === message && t.type === type)) {
+        return safePrev;
       }
       const toast = { id, type, title, message, duration: effectiveDuration, exiting: false };
-      return [...prev, toast];
+      return [...safePrev, toast];
     });
 
     setTimeout(() => {

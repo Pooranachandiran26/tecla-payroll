@@ -48,6 +48,12 @@ export default function EmployeeDetail({ employee: empProp }) {
 
     const pendingDocsCount = employee.documents ? employee.documents.filter(d => d.status === 'pending').length : 0;
 
+    const revisionsList = employee.salary_revisions || salaryRevisions || [];
+    const latestApproved = revisionsList.find(r => r.status === 'approved');
+    const effectiveFromDisplay = latestApproved?.effective_date
+      ? new Date(latestApproved.effective_date).toLocaleDateString('en-US', { month: 'long', day: '2-digit', year: 'numeric' })
+      : (employee.date_of_joining ? new Date(employee.date_of_joining).toLocaleDateString('en-US', { month: 'long', day: '2-digit', year: 'numeric' }) : 'April 01, 2026');
+
     useEffect(() => {
         // Load the legacy logic dynamically so it runs on client side after render
         import('./EmployeeDetailLogic.js').then(module => {
@@ -698,7 +704,7 @@ const renderDocumentRows = () => {
             <div>
               <div className="flex-row-between" style={{"marginBottom":"1rem"}}>
                 <h3 style={{"fontSize":"1.1rem","margin":"0"}}>Active Compensation Breakdown (Earnings)</h3>
-                <span className="badge badge-success" style={{"fontSize":"0.85rem","padding":"0.35rem 0.75rem"}}>Effective From: April 01, 2026</span>
+                <span className="badge badge-success" style={{"fontSize":"0.85rem","padding":"0.35rem 0.75rem"}}>Effective From: {effectiveFromDisplay}</span>
               </div>
               <table className="data-table">
                 <thead>
@@ -894,433 +900,46 @@ const renderDocumentRows = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    <tr>
-                      <td colSpan="7" style={{"textAlign":"center","padding":"3rem 1rem","color":"var(--text-muted)","fontStyle":"italic"}}>
-                        Audit log will come soon (Dependent on Payroll Module)
-                      </td>
-                    </tr>
-                    {/*
-                    <tr>
-                      <td>₹45,000</td>
-                      <td><strong>₹54,500</strong></td>
-                      <td><span className="badge badge-success">+21.1%</span></td>
-                      <td>April 01, 2026</td>
-                      <td>Annual Increment &amp; Performance Adjustment</td>
-                      <td><strong>Rajesh - Agency Admin</strong></td>
-                      <td style={{"textAlign":"right"}}>
-                        <button className="btn btn-link btn-xs" onClick={(event) => { window.toggleBreakup('breakup-2026-04') }}>View Breakup ▼</button>
-                      </td>
-                    </tr>
-                    <tr id="breakup-2026-04" style={{"display":"none","backgroundColor":"#F8FAFC"}}>
-                      <td colSpan="7" style={{"padding":"1.5rem"}}>
-                        <div style={{"background":"white","border":"1px solid var(--border-color)","borderRadius":"var(--radius-sm)","padding":"1.25rem","boxShadow":"0 1px 3px rgba(0,0,0,0.05)"}}>
-                          <h4 style={{"fontSize":"0.95rem","color":"var(--primary-navy)","marginBottom":"1rem","borderBottom":"1px solid var(--border-color)","paddingBottom":"0.5rem"}}>
-                            Compensation Breakup Snapshot (Effective April 01, 2026)
-                          </h4>
-                          <div style={{"marginBottom":"1rem","fontSize":"0.85rem","fontWeight":"bold","color":"var(--primary-navy)"}}>EARNINGS (Gross: ₹54,500)</div>
-                          <div style={{"display":"grid","gridTemplateColumns":"repeat(auto-fit, minmax(140px, 1fr))","gap":"1rem","marginBottom":"1.5rem"}}>
-                            <div style={{"background":"#F1F5F9","padding":"0.75rem","borderRadius":"var(--radius-sm)"}}>
-                              <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>1. Basic Pay</div>
-                              <div style={{"fontWeight":"600","color":"var(--text-main)","fontSize":"0.95rem"}}>₹35,000</div>
-                            </div>
-                            <div style={{"background":"#F1F5F9","padding":"0.75rem","borderRadius":"var(--radius-sm)"}}>
-                              <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>2. HRA</div>
-                              <div style={{"fontWeight":"600","color":"var(--text-main)","fontSize":"0.95rem"}}>₹14,000</div>
-                            </div>
-                            <div style={{"background":"#F1F5F9","padding":"0.75rem","borderRadius":"var(--radius-sm)"}}>
-                              <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>3. Conveyance</div>
-                              <div style={{"fontWeight":"600","color":"var(--text-main)","fontSize":"0.95rem"}}>₹1,600</div>
-                            </div>
-                            <div style={{"background":"#F1F5F9","padding":"0.75rem","borderRadius":"var(--radius-sm)"}}>
-                              <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>4. DA</div>
-                              <div style={{"fontWeight":"600","color":"var(--text-main)","fontSize":"0.95rem"}}>₹0</div>
-                            </div>
-                            <div style={{"background":"#F1F5F9","padding":"0.75rem","borderRadius":"var(--radius-sm)"}}>
-                              <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>5. Medical Allowance</div>
-                              <div style={{"fontWeight":"600","color":"var(--text-main)","fontSize":"0.95rem"}}>₹0</div>
-                            </div>
-                            <div style={{"background":"#F1F5F9","padding":"0.75rem","borderRadius":"var(--radius-sm)"}}>
-                              <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>6. Special Allowance</div>
-                              <div style={{"fontWeight":"600","color":"var(--text-main)","fontSize":"0.95rem"}}>₹3,900</div>
-                            </div>
-                            <div style={{"background":"#F1F5F9","padding":"0.75rem","borderRadius":"var(--radius-sm)"}}>
-                              <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>7. Other Additions</div>
-                              <div style={{"fontWeight":"600","color":"var(--text-main)","fontSize":"0.95rem"}}>₹0</div>
-                            </div>
-                            <div style={{"background":"#F1F5F9","padding":"0.75rem","borderRadius":"var(--radius-sm)"}}>
-                              <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>8. Arrears Amount</div>
-                              <div style={{"fontWeight":"600","color":"var(--text-main)","fontSize":"0.95rem"}}>₹0</div>
-                            </div>
-                          </div>
+                    {(!revisionsList || revisionsList.length === 0) ? (
+                      <tr>
+                        <td colSpan="7" style={{ textAlign: 'center', padding: '2rem 1rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                          No salary revision history recorded yet.
+                        </td>
+                      </tr>
+                    ) : (
+                      revisionsList.map((rev) => {
+                        const oldCtc = Number(rev.old_ctc || 0);
+                        const newCtc = Number(rev.new_ctc || 0);
+                        const pctChange = oldCtc > 0 ? (((newCtc - oldCtc) / oldCtc) * 100).toFixed(1) : '0.0';
+                        const effDateStr = rev.effective_date 
+                          ? new Date(rev.effective_date).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
+                          : 'N/A';
 
-                          <div style={{"marginBottom":"1rem","fontSize":"0.85rem","fontWeight":"bold","color":"var(--status-danger)"}}>DEDUCTIONS (Total: ₹8,900)</div>
-                          <div style={{"display":"grid","gridTemplateColumns":"repeat(auto-fit, minmax(140px, 1fr))","gap":"1rem"}}>
-                            <div style={{"background":"#FFF5F5","padding":"0.75rem","borderRadius":"var(--radius-sm)","border":"1px solid #FEB2B2"}}>
-                              <div style={{"fontSize":"0.75rem","color":"#991B1B"}}>1. Employee PF</div>
-                              <div style={{"fontWeight":"600","color":"#991B1B","fontSize":"0.95rem"}}>₹4,200</div>
-                            </div>
-                            <div style={{"background":"#FFF5F5","padding":"0.75rem","borderRadius":"var(--radius-sm)","border":"1px solid #FEB2B2"}}>
-                              <div style={{"fontSize":"0.75rem","color":"#991B1B"}}>2. Employee ESIC</div>
-                              <div style={{"fontWeight":"600","color":"#991B1B","fontSize":"0.95rem"}}>₹0</div>
-                            </div>
-                            <div style={{"background":"#FFF5F5","padding":"0.75rem","borderRadius":"var(--radius-sm)","border":"1px solid #FEB2B2"}}>
-                              <div style={{"fontSize":"0.75rem","color":"#991B1B"}}>3. Professional Tax</div>
-                              <div style={{"fontWeight":"600","color":"#991B1B","fontSize":"0.95rem"}}>₹200</div>
-                            </div>
-                            <div style={{"background":"#FFF5F5","padding":"0.75rem","borderRadius":"var(--radius-sm)","border":"1px solid #FEB2B2"}}>
-                              <div style={{"fontSize":"0.75rem","color":"#991B1B"}}>4. Welfare Fund</div>
-                              <div style={{"fontWeight":"600","color":"#991B1B","fontSize":"0.95rem"}}>₹0</div>
-                            </div>
-                            <div style={{"background":"#FFF5F5","padding":"0.75rem","borderRadius":"var(--radius-sm)","border":"1px solid #FEB2B2"}}>
-                              <div style={{"fontSize":"0.75rem","color":"#991B1B"}}>5. LOP Deduction</div>
-                              <div style={{"fontWeight":"600","color":"#991B1B","fontSize":"0.95rem"}}>₹0</div>
-                            </div>
-                            <div style={{"background":"#FFF5F5","padding":"0.75rem","borderRadius":"var(--radius-sm)","border":"1px solid #FEB2B2"}}>
-                              <div style={{"fontSize":"0.75rem","color":"#991B1B"}}>6. TDS</div>
-                              <div style={{"fontWeight":"600","color":"#991B1B","fontSize":"0.95rem"}}>₹4,500</div>
-                            </div>
-                          </div>
-
-                          <div style={{"marginTop":"1.5rem","padding":"1rem","background":"var(--primary-navy)","color":"white","borderRadius":"var(--radius-sm)","display":"flex","justifyContent":"space-between","fontWeight":"bold","fontSize":"1.1rem"}}>
-                            <span>NET TAKE HOME</span>
-                            <span style={{"color":"var(--accent-gold)"}}>₹45,600</span>
-                          </div>
-
-                          <div style={{"marginTop":"1.5rem","marginBottom":"1rem","fontSize":"0.85rem","fontWeight":"bold","color":"#64748B"}}>EMPLOYER CONTRIBUTIONS (Total: ₹4,200)</div>
-                          <div style={{"display":"grid","gridTemplateColumns":"repeat(auto-fit, minmax(140px, 1fr))","gap":"1rem"}}>
-                            <div style={{"background":"#FFFDF0","padding":"0.75rem","borderRadius":"var(--radius-sm)","border":"1px solid #FEF08A"}}>
-                              <div style={{"fontSize":"0.75rem","color":"#854D0E"}}>1. Employer PF</div>
-                              <div style={{"fontWeight":"600","color":"#854D0E","fontSize":"0.95rem"}}>₹4,200</div>
-                            </div>
-                            <div style={{"background":"#FFFDF0","padding":"0.75rem","borderRadius":"var(--radius-sm)","border":"1px solid #FEF08A"}}>
-                              <div style={{"fontSize":"0.75rem","color":"#854D0E"}}>2. Employer ESIC</div>
-                              <div style={{"fontWeight":"600","color":"#854D0E","fontSize":"0.95rem"}}>₹0</div>
-                            </div>
-                          </div>
-
-                          <div style={{"marginTop":"1.5rem","padding":"1rem","background":"#F1F5F9","border":"2px dashed var(--border-color)","borderRadius":"var(--radius-sm)","display":"flex","justifyContent":"space-between","fontWeight":"bold","fontSize":"1.1rem","color":"var(--primary-navy)"}}>
-                            <span>COST TO COMPANY (CTC)</span>
-                            <span>₹58,700</span>
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>₹38,000</td>
-                      <td><strong>₹45,000</strong></td>
-                      <td><span className="badge badge-success">+18.4%</span></td>
-                      <td>Oct 01, 2025</td>
-                      <td>Promotion (Mid-year Review)</td>
-                      <td><strong>Rajesh - Agency Admin</strong></td>
-                      <td style={{"textAlign":"right"}}>
-                        <button className="btn btn-link btn-xs" onClick={(event) => { window.toggleBreakup('breakup-2025-10') }}>View Breakup ▼</button>
-                      </td>
-                    </tr>
-                    <tr id="breakup-2025-10" style={{"display":"none","backgroundColor":"#F8FAFC"}}>
-                      <td colSpan="7" style={{"padding":"1.5rem"}}>
-                        <div style={{"background":"white","border":"1px solid var(--border-color)","borderRadius":"var(--radius-sm)","padding":"1.25rem","boxShadow":"0 1px 3px rgba(0,0,0,0.05)"}}>
-                          <h4 style={{"fontSize":"0.95rem","color":"var(--primary-navy)","marginBottom":"1rem","borderBottom":"1px solid var(--border-color)","paddingBottom":"0.5rem"}}>
-                            Compensation Breakup Snapshot (Effective Oct 01, 2025)
-                          </h4>
-                          <div style={{"marginBottom":"1rem","fontSize":"0.85rem","fontWeight":"bold","color":"var(--primary-navy)"}}>EARNINGS (Gross: ₹45,000)</div>
-                          <div style={{"display":"grid","gridTemplateColumns":"repeat(auto-fit, minmax(140px, 1fr))","gap":"1rem","marginBottom":"1.5rem"}}>
-                            <div style={{"background":"#F1F5F9","padding":"0.75rem","borderRadius":"var(--radius-sm)"}}>
-                              <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>1. Basic Pay</div>
-                              <div style={{"fontWeight":"600","color":"var(--text-main)","fontSize":"0.95rem"}}>₹22,000</div>
-                            </div>
-                            <div style={{"background":"#F1F5F9","padding":"0.75rem","borderRadius":"var(--radius-sm)"}}>
-                              <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>2. HRA</div>
-                              <div style={{"fontWeight":"600","color":"var(--text-main)","fontSize":"0.95rem"}}>₹11,000</div>
-                            </div>
-                            <div style={{"background":"#F1F5F9","padding":"0.75rem","borderRadius":"var(--radius-sm)"}}>
-                              <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>3. Conveyance</div>
-                              <div style={{"fontWeight":"600","color":"var(--text-main)","fontSize":"0.95rem"}}>₹1,600</div>
-                            </div>
-                            <div style={{"background":"#F1F5F9","padding":"0.75rem","borderRadius":"var(--radius-sm)"}}>
-                              <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>4. DA</div>
-                              <div style={{"fontWeight":"600","color":"var(--text-main)","fontSize":"0.95rem"}}>₹0</div>
-                            </div>
-                            <div style={{"background":"#F1F5F9","padding":"0.75rem","borderRadius":"var(--radius-sm)"}}>
-                              <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>5. Medical Allowance</div>
-                              <div style={{"fontWeight":"600","color":"var(--text-main)","fontSize":"0.95rem"}}>₹0</div>
-                            </div>
-                            <div style={{"background":"#F1F5F9","padding":"0.75rem","borderRadius":"var(--radius-sm)"}}>
-                              <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>6. Special Allowance</div>
-                              <div style={{"fontWeight":"600","color":"var(--text-main)","fontSize":"0.95rem"}}>₹10,400</div>
-                            </div>
-                            <div style={{"background":"#F1F5F9","padding":"0.75rem","borderRadius":"var(--radius-sm)"}}>
-                              <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>7. Other Additions</div>
-                              <div style={{"fontWeight":"600","color":"var(--text-main)","fontSize":"0.95rem"}}>₹0</div>
-                            </div>
-                            <div style={{"background":"#F1F5F9","padding":"0.75rem","borderRadius":"var(--radius-sm)"}}>
-                              <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>8. Arrears Amount</div>
-                              <div style={{"fontWeight":"600","color":"var(--text-main)","fontSize":"0.95rem"}}>₹0</div>
-                            </div>
-                          </div>
-
-                          <div style={{"marginBottom":"1rem","fontSize":"0.85rem","fontWeight":"bold","color":"var(--status-danger)"}}>DEDUCTIONS (Total: ₹7,340)</div>
-                          <div style={{"display":"grid","gridTemplateColumns":"repeat(auto-fit, minmax(140px, 1fr))","gap":"1rem"}}>
-                            <div style={{"background":"#FFF5F5","padding":"0.75rem","borderRadius":"var(--radius-sm)","border":"1px solid #FEB2B2"}}>
-                              <div style={{"fontSize":"0.75rem","color":"#991B1B"}}>1. Employee PF</div>
-                              <div style={{"fontWeight":"600","color":"#991B1B","fontSize":"0.95rem"}}>₹2,640</div>
-                            </div>
-                            <div style={{"background":"#FFF5F5","padding":"0.75rem","borderRadius":"var(--radius-sm)","border":"1px solid #FEB2B2"}}>
-                              <div style={{"fontSize":"0.75rem","color":"#991B1B"}}>2. Employee ESIC</div>
-                              <div style={{"fontWeight":"600","color":"#991B1B","fontSize":"0.95rem"}}>₹0</div>
-                            </div>
-                            <div style={{"background":"#FFF5F5","padding":"0.75rem","borderRadius":"var(--radius-sm)","border":"1px solid #FEB2B2"}}>
-                              <div style={{"fontSize":"0.75rem","color":"#991B1B"}}>3. Professional Tax</div>
-                              <div style={{"fontWeight":"600","color":"#991B1B","fontSize":"0.95rem"}}>₹200</div>
-                            </div>
-                            <div style={{"background":"#FFF5F5","padding":"0.75rem","borderRadius":"var(--radius-sm)","border":"1px solid #FEB2B2"}}>
-                              <div style={{"fontSize":"0.75rem","color":"#991B1B"}}>4. Welfare Fund</div>
-                              <div style={{"fontWeight":"600","color":"#991B1B","fontSize":"0.95rem"}}>₹0</div>
-                            </div>
-                            <div style={{"background":"#FFF5F5","padding":"0.75rem","borderRadius":"var(--radius-sm)","border":"1px solid #FEB2B2"}}>
-                              <div style={{"fontSize":"0.75rem","color":"#991B1B"}}>5. LOP Deduction</div>
-                              <div style={{"fontWeight":"600","color":"#991B1B","fontSize":"0.95rem"}}>₹0</div>
-                            </div>
-                            <div style={{"background":"#FFF5F5","padding":"0.75rem","borderRadius":"var(--radius-sm)","border":"1px solid #FEB2B2"}}>
-                              <div style={{"fontSize":"0.75rem","color":"#991B1B"}}>6. TDS</div>
-                              <div style={{"fontWeight":"600","color":"#991B1B","fontSize":"0.95rem"}}>₹4,500</div>
-                            </div>
-                          </div>
-
-                          <div style={{"marginTop":"1.5rem","padding":"1rem","background":"var(--primary-navy)","color":"white","borderRadius":"var(--radius-sm)","display":"flex","justifyContent":"space-between","fontWeight":"bold","fontSize":"1.1rem"}}>
-                            <span>NET TAKE HOME</span>
-                            <span style={{"color":"var(--accent-gold)"}}>₹37,660</span>
-                          </div>
-
-                          <div style={{"marginTop":"1.5rem","marginBottom":"1rem","fontSize":"0.85rem","fontWeight":"bold","color":"#64748B"}}>EMPLOYER CONTRIBUTIONS (Total: ₹2,640)</div>
-                          <div style={{"display":"grid","gridTemplateColumns":"repeat(auto-fit, minmax(140px, 1fr))","gap":"1rem"}}>
-                            <div style={{"background":"#FFFDF0","padding":"0.75rem","borderRadius":"var(--radius-sm)","border":"1px solid #FEF08A"}}>
-                              <div style={{"fontSize":"0.75rem","color":"#854D0E"}}>1. Employer PF</div>
-                              <div style={{"fontWeight":"600","color":"#854D0E","fontSize":"0.95rem"}}>₹2,640</div>
-                            </div>
-                            <div style={{"background":"#FFFDF0","padding":"0.75rem","borderRadius":"var(--radius-sm)","border":"1px solid #FEF08A"}}>
-                              <div style={{"fontSize":"0.75rem","color":"#854D0E"}}>2. Employer ESIC</div>
-                              <div style={{"fontWeight":"600","color":"#854D0E","fontSize":"0.95rem"}}>₹0</div>
-                            </div>
-                          </div>
-
-                          <div style={{"marginTop":"1.5rem","padding":"1rem","background":"#F1F5F9","border":"2px dashed var(--border-color)","borderRadius":"var(--radius-sm)","display":"flex","justifyContent":"space-between","fontWeight":"bold","fontSize":"1.1rem","color":"var(--primary-navy)"}}>
-                            <span>COST TO COMPANY (CTC)</span>
-                            <span>₹47,640</span>
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>₹35,000</td>
-                      <td><strong>₹38,000</strong></td>
-                      <td><span className="badge badge-success">+8.6%</span></td>
-                      <td>July 01, 2025</td>
-                      <td>Market Correction</td>
-                      <td><strong>Sunita - HR Manager</strong></td>
-                      <td style={{"textAlign":"right"}}>
-                        <button className="btn btn-link btn-xs" onClick={(event) => { window.toggleBreakup('breakup-2025-07') }}>View Breakup ▼</button>
-                      </td>
-                    </tr>
-                    <tr id="breakup-2025-07" style={{"display":"none","backgroundColor":"#F8FAFC"}}>
-                      <td colSpan="7" style={{"padding":"1.5rem"}}>
-                        <div style={{"background":"white","border":"1px solid var(--border-color)","borderRadius":"var(--radius-sm)","padding":"1.25rem","boxShadow":"0 1px 3px rgba(0,0,0,0.05)"}}>
-                          <h4 style={{"fontSize":"0.95rem","color":"var(--primary-navy)","marginBottom":"1rem","borderBottom":"1px solid var(--border-color)","paddingBottom":"0.5rem"}}>
-                            Compensation Breakup Snapshot (Effective July 01, 2025)
-                          </h4>
-                          <div style={{"marginBottom":"1rem","fontSize":"0.85rem","fontWeight":"bold","color":"var(--primary-navy)"}}>EARNINGS (Gross: ₹38,000)</div>
-                          <div style={{"display":"grid","gridTemplateColumns":"repeat(auto-fit, minmax(140px, 1fr))","gap":"1rem","marginBottom":"1.5rem"}}>
-                            <div style={{"background":"#F1F5F9","padding":"0.75rem","borderRadius":"var(--radius-sm)"}}>
-                              <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>1. Basic Pay</div>
-                              <div style={{"fontWeight":"600","color":"var(--text-main)","fontSize":"0.95rem"}}>₹19,000</div>
-                            </div>
-                            <div style={{"background":"#F1F5F9","padding":"0.75rem","borderRadius":"var(--radius-sm)"}}>
-                              <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>2. HRA</div>
-                              <div style={{"fontWeight":"600","color":"var(--text-main)","fontSize":"0.95rem"}}>₹9,500</div>
-                            </div>
-                            <div style={{"background":"#F1F5F9","padding":"0.75rem","borderRadius":"var(--radius-sm)"}}>
-                              <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>3. Conveyance</div>
-                              <div style={{"fontWeight":"600","color":"var(--text-main)","fontSize":"0.95rem"}}>₹1,600</div>
-                            </div>
-                            <div style={{"background":"#F1F5F9","padding":"0.75rem","borderRadius":"var(--radius-sm)"}}>
-                              <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>4. DA</div>
-                              <div style={{"fontWeight":"600","color":"var(--text-main)","fontSize":"0.95rem"}}>₹0</div>
-                            </div>
-                            <div style={{"background":"#F1F5F9","padding":"0.75rem","borderRadius":"var(--radius-sm)"}}>
-                              <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>5. Medical Allowance</div>
-                              <div style={{"fontWeight":"600","color":"var(--text-main)","fontSize":"0.95rem"}}>₹0</div>
-                            </div>
-                            <div style={{"background":"#F1F5F9","padding":"0.75rem","borderRadius":"var(--radius-sm)"}}>
-                              <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>6. Special Allowance</div>
-                              <div style={{"fontWeight":"600","color":"var(--text-main)","fontSize":"0.95rem"}}>₹7,900</div>
-                            </div>
-                            <div style={{"background":"#F1F5F9","padding":"0.75rem","borderRadius":"var(--radius-sm)"}}>
-                              <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>7. Other Additions</div>
-                              <div style={{"fontWeight":"600","color":"var(--text-main)","fontSize":"0.95rem"}}>₹0</div>
-                            </div>
-                            <div style={{"background":"#F1F5F9","padding":"0.75rem","borderRadius":"var(--radius-sm)"}}>
-                              <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>8. Arrears Amount</div>
-                              <div style={{"fontWeight":"600","color":"var(--text-main)","fontSize":"0.95rem"}}>₹0</div>
-                            </div>
-                          </div>
-
-                          <div style={{"marginBottom":"1rem","fontSize":"0.85rem","fontWeight":"bold","color":"var(--status-danger)"}}>DEDUCTIONS (Total: ₹5,480)</div>
-                          <div style={{"display":"grid","gridTemplateColumns":"repeat(auto-fit, minmax(140px, 1fr))","gap":"1rem"}}>
-                            <div style={{"background":"#FFF5F5","padding":"0.75rem","borderRadius":"var(--radius-sm)","border":"1px solid #FEB2B2"}}>
-                              <div style={{"fontSize":"0.75rem","color":"#991B1B"}}>1. Employee PF</div>
-                              <div style={{"fontWeight":"600","color":"#991B1B","fontSize":"0.95rem"}}>₹2,280</div>
-                            </div>
-                            <div style={{"background":"#FFF5F5","padding":"0.75rem","borderRadius":"var(--radius-sm)","border":"1px solid #FEB2B2"}}>
-                              <div style={{"fontSize":"0.75rem","color":"#991B1B"}}>2. Employee ESIC</div>
-                              <div style={{"fontWeight":"600","color":"#991B1B","fontSize":"0.95rem"}}>₹0</div>
-                            </div>
-                            <div style={{"background":"#FFF5F5","padding":"0.75rem","borderRadius":"var(--radius-sm)","border":"1px solid #FEB2B2"}}>
-                              <div style={{"fontSize":"0.75rem","color":"#991B1B"}}>3. Professional Tax</div>
-                              <div style={{"fontWeight":"600","color":"#991B1B","fontSize":"0.95rem"}}>₹200</div>
-                            </div>
-                            <div style={{"background":"#FFF5F5","padding":"0.75rem","borderRadius":"var(--radius-sm)","border":"1px solid #FEB2B2"}}>
-                              <div style={{"fontSize":"0.75rem","color":"#991B1B"}}>4. Welfare Fund</div>
-                              <div style={{"fontWeight":"600","color":"#991B1B","fontSize":"0.95rem"}}>₹0</div>
-                            </div>
-                            <div style={{"background":"#FFF5F5","padding":"0.75rem","borderRadius":"var(--radius-sm)","border":"1px solid #FEB2B2"}}>
-                              <div style={{"fontSize":"0.75rem","color":"#991B1B"}}>5. LOP Deduction</div>
-                              <div style={{"fontWeight":"600","color":"#991B1B","fontSize":"0.95rem"}}>₹0</div>
-                            </div>
-                            <div style={{"background":"#FFF5F5","padding":"0.75rem","borderRadius":"var(--radius-sm)","border":"1px solid #FEB2B2"}}>
-                              <div style={{"fontSize":"0.75rem","color":"#991B1B"}}>6. TDS</div>
-                              <div style={{"fontWeight":"600","color":"#991B1B","fontSize":"0.95rem"}}>₹3,000</div>
-                            </div>
-                          </div>
-
-                          <div style={{"marginTop":"1.5rem","padding":"1rem","background":"var(--primary-navy)","color":"white","borderRadius":"var(--radius-sm)","display":"flex","justifyContent":"space-between","fontWeight":"bold","fontSize":"1.1rem"}}>
-                            <span>NET TAKE HOME</span>
-                            <span style={{"color":"var(--accent-gold)"}}>₹32,520</span>
-                          </div>
-
-                          <div style={{"marginTop":"1.5rem","marginBottom":"1rem","fontSize":"0.85rem","fontWeight":"bold","color":"#64748B"}}>EMPLOYER CONTRIBUTIONS (Total: ₹2,280)</div>
-                          <div style={{"display":"grid","gridTemplateColumns":"repeat(auto-fit, minmax(140px, 1fr))","gap":"1rem"}}>
-                            <div style={{"background":"#FFFDF0","padding":"0.75rem","borderRadius":"var(--radius-sm)","border":"1px solid #FEF08A"}}>
-                              <div style={{"fontSize":"0.75rem","color":"#854D0E"}}>1. Employer PF</div>
-                              <div style={{"fontWeight":"600","color":"#854D0E","fontSize":"0.95rem"}}>₹2,280</div>
-                            </div>
-                            <div style={{"background":"#FFFDF0","padding":"0.75rem","borderRadius":"var(--radius-sm)","border":"1px solid #FEF08A"}}>
-                              <div style={{"fontSize":"0.75rem","color":"#854D0E"}}>2. Employer ESIC</div>
-                              <div style={{"fontWeight":"600","color":"#854D0E","fontSize":"0.95rem"}}>₹0</div>
-                            </div>
-                          </div>
-
-                          <div style={{"marginTop":"1.5rem","padding":"1rem","background":"#F1F5F9","border":"2px dashed var(--border-color)","borderRadius":"var(--radius-sm)","display":"flex","justifyContent":"space-between","fontWeight":"bold","fontSize":"1.1rem","color":"var(--primary-navy)"}}>
-                            <span>COST TO COMPANY (CTC)</span>
-                            <span>₹40,280</span>
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>—</td>
-                      <td><strong>₹35,000</strong></td>
-                      <td><span className="badge badge-neutral">Base CTC</span></td>
-                      <td>Jan 15, 2025</td>
-                      <td>Initial Onboarding Structure Setup</td>
-                      <td><strong>Rajesh - Agency Admin</strong></td>
-                      <td style={{"textAlign":"right"}}>
-                        <button className="btn btn-link btn-xs" onClick={(event) => { window.toggleBreakup('breakup-2025-01') }}>View Breakup ▼</button>
-                      </td>
-                    </tr>
-                    <tr id="breakup-2025-01" style={{"display":"none","backgroundColor":"#F8FAFC"}}>
-                      <td colSpan="7" style={{"padding":"1.5rem"}}>
-                        <div style={{"background":"white","border":"1px solid var(--border-color)","borderRadius":"var(--radius-sm)","padding":"1.25rem","boxShadow":"0 1px 3px rgba(0,0,0,0.05)"}}>
-                          <h4 style={{"fontSize":"0.95rem","color":"var(--primary-navy)","marginBottom":"1rem","borderBottom":"1px solid var(--border-color)","paddingBottom":"0.5rem"}}>
-                            Compensation Breakup Snapshot (Effective Jan 15, 2025)
-                          </h4>
-                          <div style={{"marginBottom":"1rem","fontSize":"0.85rem","fontWeight":"bold","color":"var(--primary-navy)"}}>EARNINGS (Gross: ₹35,000)</div>
-                          <div style={{"display":"grid","gridTemplateColumns":"repeat(auto-fit, minmax(140px, 1fr))","gap":"1rem","marginBottom":"1.5rem"}}>
-                            <div style={{"background":"#F1F5F9","padding":"0.75rem","borderRadius":"var(--radius-sm)"}}>
-                              <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>1. Basic Pay</div>
-                              <div style={{"fontWeight":"600","color":"var(--text-main)","fontSize":"0.95rem"}}>₹17,500</div>
-                            </div>
-                            <div style={{"background":"#F1F5F9","padding":"0.75rem","borderRadius":"var(--radius-sm)"}}>
-                              <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>2. HRA</div>
-                              <div style={{"fontWeight":"600","color":"var(--text-main)","fontSize":"0.95rem"}}>₹8,750</div>
-                            </div>
-                            <div style={{"background":"#F1F5F9","padding":"0.75rem","borderRadius":"var(--radius-sm)"}}>
-                              <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>3. Conveyance</div>
-                              <div style={{"fontWeight":"600","color":"var(--text-main)","fontSize":"0.95rem"}}>₹1,600</div>
-                            </div>
-                            <div style={{"background":"#F1F5F9","padding":"0.75rem","borderRadius":"var(--radius-sm)"}}>
-                              <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>4. DA</div>
-                              <div style={{"fontWeight":"600","color":"var(--text-main)","fontSize":"0.95rem"}}>₹0</div>
-                            </div>
-                            <div style={{"background":"#F1F5F9","padding":"0.75rem","borderRadius":"var(--radius-sm)"}}>
-                              <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>5. Medical Allowance</div>
-                              <div style={{"fontWeight":"600","color":"var(--text-main)","fontSize":"0.95rem"}}>₹0</div>
-                            </div>
-                            <div style={{"background":"#F1F5F9","padding":"0.75rem","borderRadius":"var(--radius-sm)"}}>
-                              <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>6. Special Allowance</div>
-                              <div style={{"fontWeight":"600","color":"var(--text-main)","fontSize":"0.95rem"}}>₹7,150</div>
-                            </div>
-                            <div style={{"background":"#F1F5F9","padding":"0.75rem","borderRadius":"var(--radius-sm)"}}>
-                              <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>7. Other Additions</div>
-                              <div style={{"fontWeight":"600","color":"var(--text-main)","fontSize":"0.95rem"}}>₹0</div>
-                            </div>
-                            <div style={{"background":"#F1F5F9","padding":"0.75rem","borderRadius":"var(--radius-sm)"}}>
-                              <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>8. Arrears Amount</div>
-                              <div style={{"fontWeight":"600","color":"var(--text-main)","fontSize":"0.95rem"}}>₹0</div>
-                            </div>
-                          </div>
-
-                          <div style={{"marginBottom":"1rem","fontSize":"0.85rem","fontWeight":"bold","color":"var(--status-danger)"}}>DEDUCTIONS (Total: ₹5,412.50)</div>
-                          <div style={{"display":"grid","gridTemplateColumns":"repeat(auto-fit, minmax(140px, 1fr))","gap":"1rem"}}>
-                            <div style={{"background":"#FFF5F5","padding":"0.75rem","borderRadius":"var(--radius-sm)","border":"1px solid #FEB2B2"}}>
-                              <div style={{"fontSize":"0.75rem","color":"#991B1B"}}>1. Employee PF</div>
-                              <div style={{"fontWeight":"600","color":"#991B1B","fontSize":"0.95rem"}}>₹2,100</div>
-                            </div>
-                            <div style={{"background":"#FFF5F5","padding":"0.75rem","borderRadius":"var(--radius-sm)","border":"1px solid #FEB2B2"}}>
-                              <div style={{"fontSize":"0.75rem","color":"#991B1B"}}>2. Employee ESIC</div>
-                              <div style={{"fontWeight":"600","color":"#991B1B","fontSize":"0.95rem"}}>₹612.50</div>
-                            </div>
-                            <div style={{"background":"#FFF5F5","padding":"0.75rem","borderRadius":"var(--radius-sm)","border":"1px solid #FEB2B2"}}>
-                              <div style={{"fontSize":"0.75rem","color":"#991B1B"}}>3. Professional Tax</div>
-                              <div style={{"fontWeight":"600","color":"#991B1B","fontSize":"0.95rem"}}>₹200</div>
-                            </div>
-                            <div style={{"background":"#FFF5F5","padding":"0.75rem","borderRadius":"var(--radius-sm)","border":"1px solid #FEB2B2"}}>
-                              <div style={{"fontSize":"0.75rem","color":"#991B1B"}}>4. Welfare Fund</div>
-                              <div style={{"fontWeight":"600","color":"#991B1B","fontSize":"0.95rem"}}>₹0</div>
-                            </div>
-                            <div style={{"background":"#FFF5F5","padding":"0.75rem","borderRadius":"var(--radius-sm)","border":"1px solid #FEB2B2"}}>
-                              <div style={{"fontSize":"0.75rem","color":"#991B1B"}}>5. LOP Deduction</div>
-                              <div style={{"fontWeight":"600","color":"#991B1B","fontSize":"0.95rem"}}>₹0</div>
-                            </div>
-                            <div style={{"background":"#FFF5F5","padding":"0.75rem","borderRadius":"var(--radius-sm)","border":"1px solid #FEB2B2"}}>
-                              <div style={{"fontSize":"0.75rem","color":"#991B1B"}}>6. TDS</div>
-                              <div style={{"fontWeight":"600","color":"#991B1B","fontSize":"0.95rem"}}>₹2,500</div>
-                            </div>
-                          </div>
-
-                          <div style={{"marginTop":"1.5rem","padding":"1rem","background":"var(--primary-navy)","color":"white","borderRadius":"var(--radius-sm)","display":"flex","justifyContent":"space-between","fontWeight":"bold","fontSize":"1.1rem"}}>
-                            <span>NET TAKE HOME</span>
-                            <span style={{"color":"var(--accent-gold)"}}>₹29,587.50</span>
-                          </div>
-
-                          <div style={{"marginTop":"1.5rem","marginBottom":"1rem","fontSize":"0.85rem","fontWeight":"bold","color":"#64748B"}}>EMPLOYER CONTRIBUTIONS (Total: ₹2,712.50)</div>
-                          <div style={{"display":"grid","gridTemplateColumns":"repeat(auto-fit, minmax(140px, 1fr))","gap":"1rem"}}>
-                            <div style={{"background":"#FFFDF0","padding":"0.75rem","borderRadius":"var(--radius-sm)","border":"1px solid #FEF08A"}}>
-                              <div style={{"fontSize":"0.75rem","color":"#854D0E"}}>1. Employer PF</div>
-                              <div style={{"fontWeight":"600","color":"#854D0E","fontSize":"0.95rem"}}>₹2,100</div>
-                            </div>
-                            <div style={{"background":"#FFFDF0","padding":"0.75rem","borderRadius":"var(--radius-sm)","border":"1px solid #FEF08A"}}>
-                              <div style={{"fontSize":"0.75rem","color":"#854D0E"}}>2. Employer ESIC</div>
-                              <div style={{"fontWeight":"600","color":"#854D0E","fontSize":"0.95rem"}}>₹612.50</div>
-                            </div>
-                          </div>
-
-                          <div style={{"marginTop":"1.5rem","padding":"1rem","background":"#F1F5F9","border":"2px dashed var(--border-color)","borderRadius":"var(--radius-sm)","display":"flex","justifyContent":"space-between","fontWeight":"bold","fontSize":"1.1rem","color":"var(--primary-navy)"}}>
-                            <span>COST TO COMPANY (CTC)</span>
-                            <span>₹37,712.50</span>
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                    */}
+                        return (
+                          <tr key={rev.id}>
+                            <td>₹{oldCtc.toLocaleString('en-IN')}</td>
+                            <td><strong>₹{newCtc.toLocaleString('en-IN')}</strong></td>
+                            <td>
+                              <span className={`badge badge-${Number(pctChange) >= 0 ? 'success' : 'danger'}`}>
+                                {Number(pctChange) >= 0 ? `+${pctChange}%` : `${pctChange}%`}
+                              </span>
+                            </td>
+                            <td>{effDateStr}</td>
+                            <td>{rev.reason_for_revision || 'Salary Adjustment'}</td>
+                            <td>
+                              <span className={`badge badge-${rev.status === 'approved' ? 'success' : rev.status === 'pending_approval' ? 'warning' : 'danger'}`} style={{ textTransform: 'capitalize' }}>
+                                {rev.status === 'approved' ? `Approved (${rev.approver?.name || 'Admin'})` : rev.status.replace('_', ' ')}
+                              </span>
+                            </td>
+                            <td style={{ textAlign: 'right' }}>
+                              <a href={route('employees.salary-revision.create', employee.id)} className="btn btn-link btn-xs">
+                                View Revision →
+                              </a>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
                   </tbody>
                 </table>
               </div>

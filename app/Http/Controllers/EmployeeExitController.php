@@ -107,12 +107,16 @@ class EmployeeExitController extends Controller
 
     public function approve(Request $request, $id)
     {
-        $user = auth()->user();
-        if ($user->role !== 'admin') {
+        $user = $request->user();
+        if (!in_array($user->role, ['admin', 'manager'])) {
             abort(403, 'Unauthorized action.');
         }
 
         $employee = Employee::findOrFail($id);
+        if ($user->role === 'manager' && !$user->isManagerForClient($employee->client_id)) {
+            abort(403, 'Unauthorized access to this employee record.');
+        }
+
         $exitRequest = EmployeeExit::where('employee_id', $id)->latest('id')->firstOrFail();
 
         $exitRequest->update([
@@ -124,12 +128,15 @@ class EmployeeExitController extends Controller
 
     public function confirm(Request $request, $id)
     {
-        $user = auth()->user();
-        if ($user->role !== 'admin') {
+        $user = $request->user();
+        if (!in_array($user->role, ['admin', 'manager'])) {
             abort(403, 'Unauthorized action.');
         }
 
         $employee = Employee::findOrFail($id);
+        if ($user->role === 'manager' && !$user->isManagerForClient($employee->client_id)) {
+            abort(403, 'Unauthorized access to this employee record.');
+        }
         $exitRequest = EmployeeExit::where('employee_id', $id)->latest('id')->firstOrFail();
 
         $exitRequest->update([

@@ -98,7 +98,7 @@ export default function SalaryRevisionsQueue({
     };
 
     return (
-        <RoleGuard allowedRoles={['admin', 'manager']}>
+        <RoleGuard allowedRoles={['admin', 'manager']} moduleKey="candidates">
             <AuthenticatedLayout>
                 <Head title="Salary Revisions Queue" />
                 <div className="legacy-react-wrapper">

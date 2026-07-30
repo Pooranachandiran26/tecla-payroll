@@ -231,7 +231,7 @@ export default function AttendanceReview({ initialBatches, clients, selectedMont
   ];
 
   return (
-    <RoleGuard allowedRoles={['admin', 'manager']}>
+    <RoleGuard allowedRoles={['admin', 'manager']} moduleKey="payroll">
       <AuthenticatedLayout>
         <Head title="Attendance Review" />
 

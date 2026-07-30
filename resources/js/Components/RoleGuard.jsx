@@ -1,32 +1,32 @@
-import { useEffect } from 'react';
-import { router } from '@inertiajs/react';
-import { useRole, ROLE_DASHBOARDS } from '../Contexts/RoleContext.jsx';
+import { usePage } from '@inertiajs/react';
+import { useRole } from '../Contexts/RoleContext.jsx';
+import Error from '../Pages/Error';
 
 /**
- * RoleGuard — prevents unauthorized role access to a page.
- * 
- * Usage:
- *   <RoleGuard allowedRoles={['admin', 'executive']}>
- *     <MyAdminPage />
- *   </RoleGuard>
- * 
- * If the current role is NOT in allowedRoles, it redirects the user
- * to their role's dashboard (e.g. client → /client/dashboard).
+ * RoleGuard — prevents unauthorized role or module permission access to a page.
+ * Renders the 403 Error page design if access is restricted.
  */
-export default function RoleGuard({ allowedRoles = [], children }) {
+export default function RoleGuard({ allowedRoles = [], moduleKey = null, children }) {
   const { role } = useRole();
-  const isAllowed = allowedRoles.includes(role);
+  const { auth } = usePage().props;
 
-  useEffect(() => {
-    if (!isAllowed) {
-      const redirectTo = ROLE_DASHBOARDS[role] || '/dashboard';
-      router.visit(redirectTo);
+  const safeAllowedRoles = Array.isArray(allowedRoles) ? allowedRoles : [];
+  let isAllowed = safeAllowedRoles.includes(role);
+
+  if (isAllowed && moduleKey && role === 'manager') {
+    const userPermissions = auth?.user?.module_permissions;
+    if (userPermissions && Array.isArray(userPermissions) && userPermissions.length > 0) {
+      isAllowed = userPermissions.includes(moduleKey);
     }
-  }, [isAllowed, role]);
+  }
 
   if (!isAllowed) {
-    // Return null while redirecting to avoid flash of unauthorized content
-    return null;
+    const moduleName = moduleKey ? moduleKey.charAt(0).toUpperCase() + moduleKey.slice(1) : null;
+    const msg = moduleName
+      ? `Access Restricted: Your account role does not have permission to access the ${moduleName} module.`
+      : 'Access Restricted: You do not have permission to view this page.';
+
+    return <Error status={403} message={msg} />;
   }
 
   return children;
