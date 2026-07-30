@@ -40,7 +40,7 @@ export default function EmployeesList({ employees = { data: [], links: [] }, cli
     }, []);
 
     return (
-        <RoleGuard allowedRoles={['admin', 'manager']}>
+        <RoleGuard allowedRoles={['admin', 'manager']} moduleKey="candidates">
     <AuthenticatedLayout>
             <Head title="Employees List" />
             <div className="legacy-react-wrapper">
@@ -167,7 +167,7 @@ export default function EmployeesList({ employees = { data: [], links: [] }, cli
                         <Edit size={13} /> Revision
                       </Link>
                       <Link href={route('employees.show', emp.id)} className="btn btn-secondary btn-xs" style={{"marginRight":"0.4rem", display: 'inline-flex', alignItems: 'center', gap: '4px'}}>
-                        <Eye size={13} /> View
+                        <Eye size={13} /> View Profile
                       </Link>
                       <Link href={route('employees.edit', emp.id)} className="btn btn-navy btn-xs" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                         <Edit size={13} /> Edit

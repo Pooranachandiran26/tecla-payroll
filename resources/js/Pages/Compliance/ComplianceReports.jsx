@@ -78,7 +78,7 @@ export default function ComplianceReports() {
   ];
 
   return (
-    <RoleGuard allowedRoles={['admin', 'manager']}>
+    <RoleGuard allowedRoles={['admin', 'manager']} moduleKey="compliance">
     <AuthenticatedLayout>
       <Head title="Statutory Compliance Center" />
       

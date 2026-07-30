@@ -115,7 +115,7 @@ export default function QuickAccess() {
   };
 
   return (
-    <RoleGuard allowedRoles={['admin', 'manager']}>
+    <RoleGuard allowedRoles={['admin', 'manager']} moduleKey="quick-access">
     <AuthenticatedLayout>
 
       <div className="mb-8">

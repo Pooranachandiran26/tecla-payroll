@@ -152,7 +152,7 @@ export default function PayslipTemplateCustomizer({ clients, selectedClient, tem
   const safeTemplates = Array.isArray(templates) ? templates : [];
 
   return (
-    <RoleGuard allowedRoles={['admin']}>
+    <RoleGuard allowedRoles={['admin', 'manager']} moduleKey="admin">
       <AuthenticatedLayout>
         <Head title="PDF Templates — Admin" />
 
@@ -254,75 +254,167 @@ export default function PayslipTemplateCustomizer({ clients, selectedClient, tem
                   const previewUrl = `/admin/payslip-templates/preview?client_id=${activeClient?.id}&template=${tpl.key}&accent_color=${encodeURIComponent(accentColor)}`;
 
                   return (
-                    <div key={tpl.key} style={{ display: 'flex', flexDirection: 'column' }}>
-                      <h4 style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.6rem' }}>
-                        {tpl.name}
-                      </h4>
+                    <div 
+                      key={tpl.key} 
+                      style={{ 
+                        display: 'flex', 
+                        flexDirection: 'column',
+                        backgroundColor: '#ffffff',
+                        borderRadius: '12px',
+                        border: isCurrentDefault ? `2px solid ${accentColor}` : '1px solid #E2E8F0',
+                        overflow: 'hidden',
+                        boxShadow: isCurrentDefault 
+                          ? `0 10px 25px -5px ${accentColor}25, 0 8px 10px -6px ${accentColor}15`
+                          : '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05)',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      {/* Card Top Header Bar */}
+                      <div 
+                        style={{ 
+                          padding: '0.85rem 1.1rem', 
+                          backgroundColor: '#F8FAFC', 
+                          borderBottom: '1px solid #F1F5F9',
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'space-between' 
+                        }}
+                      >
+                        <span style={{ fontSize: '0.95rem', fontWeight: 700, color: '#0F172A' }}>
+                          {tpl.name}
+                        </span>
+
+                        {isCurrentDefault ? (
+                          <span 
+                            style={{ 
+                              display: 'inline-flex', 
+                              alignItems: 'center', 
+                              gap: '4px',
+                              padding: '0.25rem 0.65rem', 
+                              borderRadius: '20px', 
+                              fontSize: '0.72rem', 
+                              fontWeight: 700, 
+                              backgroundColor: '#ECFDF5', 
+                              color: '#047857', 
+                              border: '1px solid #A7F3D0',
+                              letterSpacing: '0.02em'
+                            }}
+                          >
+                            <CheckCircle2 size={12} /> Active Default
+                          </span>
+                        ) : (
+                          <span 
+                            style={{ 
+                              fontSize: '0.72rem', 
+                              fontWeight: 600, 
+                              color: '#64748B',
+                              backgroundColor: '#F1F5F9',
+                              padding: '0.2rem 0.55rem',
+                              borderRadius: '4px'
+                            }}
+                          >
+                            Available Template
+                          </span>
+                        )}
+                      </div>
 
                       {/* Template Preview Box */}
                       <div 
                         style={{
-                          border: isCurrentDefault ? `2px solid ${accentColor}` : '1px solid #e2e8f0',
-                          borderRadius: '8px', overflow: 'hidden', backgroundColor: '#ffffff',
-                          position: 'relative', height: '460px', boxShadow: '0 2px 4px rgba(0,0,0,0.04)'
+                          backgroundColor: '#ffffff',
+                          position: 'relative', 
+                          height: '430px', 
+                          overflow: 'hidden'
                         }}
                       >
                         <iframe
                           src={previewUrl}
                           title={`${tpl.name} Preview`}
                           style={{
-                            width: '153.8%', height: '153.8%', border: 'none',
-                            transform: 'scale(0.65)', transformOrigin: 'top left',
+                            width: '153.8%', 
+                            height: '153.8%', 
+                            border: 'none',
+                            transform: 'scale(0.65)', 
+                            transformOrigin: 'top left',
                             pointerEvents: 'none'
                           }}
                         />
+                      </div>
 
-                        {/* Default Badge if Active */}
-                        {isCurrentDefault && (
-                          <div style={{
-                            position: 'absolute', bottom: '12px', right: '12px',
-                            backgroundColor: accentColor, color: '#ffffff',
-                            padding: '4px 14px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 700,
-                            textTransform: 'uppercase', letterSpacing: '0.05em'
-                          }}>
-                            DEFAULT
+                      {/* Light & Functional Footer Action Bar */}
+                      <div 
+                        style={{
+                          padding: '0.85rem 1rem', 
+                          backgroundColor: '#FFFFFF',
+                          borderTop: '1px solid #F1F5F9', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'space-between',
+                          gap: '8px'
+                        }}
+                      >
+                        {!isCurrentDefault ? (
+                          <button
+                            type="button"
+                            onClick={() => handleSetAsDefault(tpl.key)}
+                            style={{
+                              flex: 1,
+                              backgroundColor: '#4F46E5', 
+                              color: '#FFFFFF', 
+                              padding: '0.5rem 0.85rem',
+                              borderRadius: '6px', 
+                              fontSize: '0.82rem', 
+                              fontWeight: 600, 
+                              border: 'none', 
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '6px',
+                              boxShadow: '0 1px 2px 0 rgba(79, 70, 229, 0.2)'
+                            }}
+                          >
+                            <CheckCircle2 size={14} /> Set as Default
+                          </button>
+                        ) : (
+                          <div 
+                            style={{ 
+                              flex: 1, 
+                              fontSize: '0.78rem', 
+                              fontWeight: 600, 
+                              color: '#059669',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '5px'
+                            }}
+                          >
+                            <CheckCircle2 size={14} /> Currently assigned to active client
                           </div>
                         )}
 
-                        {/* Hover Overlay Action Bar */}
-                        <div style={{
-                          position: 'absolute', bottom: 0, left: 0, right: 0,
-                          padding: '12px', backgroundColor: 'rgba(15, 23, 42, 0.75)',
-                          backdropFilter: 'blur(4px)', display: 'flex', justifyContent: 'center', gap: '8px',
-                          transition: 'opacity 0.2s ease'
-                        }}>
-                          {!isCurrentDefault && (
-                            <button
-                              type="button"
-                              onClick={() => handleSetAsDefault(tpl.key)}
-                              style={{
-                                backgroundColor: '#4f46e5', color: '#ffffff', padding: '0.45rem 1rem',
-                                borderRadius: '4px', fontSize: '0.8rem', fontWeight: 600, border: 'none', cursor: 'pointer'
-                              }}
-                            >
-                              Set as Default
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedTemplate(tpl.key);
-                              setActiveTab('customizer');
-                            }}
-                            style={{
-                              backgroundColor: '#ffffff', color: '#0f172a', padding: '0.45rem 0.85rem',
-                              borderRadius: '4px', fontSize: '0.8rem', fontWeight: 600, border: 'none', cursor: 'pointer',
-                              display: 'flex', alignItems: 'center', gap: '4px'
-                            }}
-                          >
-                            <Edit3 size={14} /> Customize
-                          </button>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedTemplate(tpl.key);
+                            setActiveTab('customizer');
+                          }}
+                          style={{
+                            backgroundColor: '#F8FAFC', 
+                            color: '#1E293B', 
+                            padding: '0.5rem 0.85rem',
+                            borderRadius: '6px', 
+                            fontSize: '0.82rem', 
+                            fontWeight: 600, 
+                            border: '1px solid #CBD5E1', 
+                            cursor: 'pointer',
+                            display: 'inline-flex', 
+                            alignItems: 'center', 
+                            gap: '5px',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <Sliders size={14} /> Customize
+                        </button>
                       </div>
                     </div>
                   );

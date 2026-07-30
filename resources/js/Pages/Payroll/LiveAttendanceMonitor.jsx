@@ -101,7 +101,7 @@ export default function LiveAttendanceMonitor({ clients = [], punches = {}, sele
   };
 
   return (
-    <RoleGuard allowedRoles={['admin', 'manager']}>
+    <RoleGuard allowedRoles={['admin', 'manager']} moduleKey="payroll">
       <AuthenticatedLayout>
         <Head title="Live Attendance Monitor" />
         <div className="legacy-react-wrapper">

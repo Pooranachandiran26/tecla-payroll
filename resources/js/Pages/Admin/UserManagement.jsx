@@ -19,6 +19,46 @@ export default function UserManagement({ users = {}, unlinkedEmployees = [], unl
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [editingManager, setEditingManager] = useState(null);
   const [editClientIds, setEditClientIds] = useState([]);
+  const [scopeSearchQuery, setScopeSearchQuery] = useState('');
+
+  const [editingPermissionsUser, setEditingPermissionsUser] = useState(null);
+  const [selectedPermissions, setSelectedPermissions] = useState([]);
+
+  const AVAILABLE_MODULES = [
+    { key: 'dashboard', label: 'Dashboard Overview', desc: 'Main executive dashboard metrics & pending queues' },
+    { key: 'quick-access', label: 'Quick Access Navigation', desc: 'Quick launcher shortcuts' },
+    { key: 'clients', label: 'Clients Directory', desc: 'Client profiles, branch locations, and statutory setups' },
+    { key: 'candidates', label: 'Employees Directory', desc: 'Employee master data, bulk upload & salary revisions' },
+    { key: 'payroll', label: 'Payroll & Invoicing', desc: 'Attendance review, payroll processing, approvals, payslips & invoices' },
+    { key: 'compliance', label: 'Compliance Reports', desc: 'PF, ESI, LWF, PT & Statutory tax reports' },
+    { key: 'reports', label: 'Analytics Reports', desc: 'Executive payroll analytics & export reports' },
+    { key: 'admin', label: 'Admin System Control', desc: 'Activity logs, user management, sessions, templates' },
+  ];
+
+  const openPermissionsModal = (user) => {
+    setEditingPermissionsUser(user);
+    const existing = user.module_permissions || [];
+    setSelectedPermissions(existing.length > 0 ? existing : AVAILABLE_MODULES.map(m => m.key));
+  };
+
+  const togglePermission = (moduleKey) => {
+    setSelectedPermissions(prev => 
+      prev.includes(moduleKey) ? prev.filter(k => k !== moduleKey) : [...prev, moduleKey]
+    );
+  };
+
+  const handleSavePermissions = () => {
+    if (!editingPermissionsUser) return;
+    router.put(
+      route('admin.users.update-module-permissions', editingPermissionsUser.id),
+      { module_permissions: selectedPermissions },
+      {
+        onSuccess: () => {
+          setEditingPermissionsUser(null);
+        }
+      }
+    );
+  };
 
   const { tab = 'system', search = '' } = filters;
   const [searchQuery, setSearchQuery] = useState(search);
@@ -80,6 +120,7 @@ export default function UserManagement({ users = {}, unlinkedEmployees = [], unl
 
   const openManagerEditModal = (user) => {
     setEditingManager(user);
+    setScopeSearchQuery('');
     const existingIds = (user.managed_clients || []).map(c => c.id);
     setEditClientIds(existingIds);
   };
@@ -87,7 +128,7 @@ export default function UserManagement({ users = {}, unlinkedEmployees = [], unl
   const usersList = users.data || [];
 
   return (
-    <RoleGuard allowedRoles={['admin']}>
+    <RoleGuard allowedRoles={['admin', 'manager']} moduleKey="admin">
       <AuthenticatedLayout>
         <Head title="User Management" />
         <div className="legacy-react-wrapper">
@@ -234,6 +275,7 @@ export default function UserManagement({ users = {}, unlinkedEmployees = [], unl
                     {tab === 'employees' && <th>Client Partner</th>}
                     {tab === 'clients' && <th>Company</th>}
                     {tab === 'system' && <th>Assigned Scope / Access</th>}
+                    {tab === 'system' && <th style={{ textAlign: 'right' }}>Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -281,6 +323,16 @@ export default function UserManagement({ users = {}, unlinkedEmployees = [], unl
                                     <AlertTriangle size={12} /> No clients assigned
                                   </span>
                                 )}
+                              </div>
+                            ) : (
+                              '—'
+                            )}
+                          </td>
+                        )}
+                        {tab === 'system' && (
+                          <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                            {row.role === 'manager' ? (
+                              <div style={{ display: 'inline-flex', gap: '0.4rem', justifyContent: 'flex-end' }}>
                                 <button
                                   type="button"
                                   className="btn btn-secondary btn-xs"
@@ -288,6 +340,14 @@ export default function UserManagement({ users = {}, unlinkedEmployees = [], unl
                                   style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}
                                 >
                                   <Edit2 size={11} /> Edit Scope
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn btn-navy btn-xs"
+                                  onClick={() => openPermissionsModal(row)}
+                                  style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                                >
+                                  <Shield size={11} /> Module Permissions
                                 </button>
                               </div>
                             ) : (
@@ -299,7 +359,7 @@ export default function UserManagement({ users = {}, unlinkedEmployees = [], unl
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={tab === 'system' ? 5 : 5} style={{ textAlign: 'center', padding: '2.5rem', color: 'var(--text-muted)' }}>
+                      <td colSpan={tab === 'system' ? 6 : 5} style={{ textAlign: 'center', padding: '2.5rem', color: 'var(--text-muted)' }}>
                         No user records found matching the search criteria.
                       </td>
                     </tr>
@@ -394,37 +454,263 @@ export default function UserManagement({ users = {}, unlinkedEmployees = [], unl
         </Modal>
 
         {/* Manager Scope Edit Modal */}
-        <Modal isOpen={!!editingManager} onClose={() => setEditingManager(null)} title={`Edit Client Scope: ${editingManager?.name || ''}`}>
+        <Modal 
+          isOpen={!!editingManager} 
+          onClose={() => { setEditingManager(null); setScopeSearchQuery(''); }} 
+          title={`Edit Client Scope: ${editingManager?.name || ''}`}
+        >
           <form onSubmit={handleSaveManagerClients} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-              Select which client partners this manager is authorized to view and manage:
-            </p>
-            <div style={{ maxHeight: '250px', overflowY: 'auto', border: '1px solid #e2e8f0', padding: '0.5rem', borderRadius: '6px' }}>
-              {allClients.map(client => {
-                const isChecked = editClientIds.includes(client.id);
-                return (
-                  <label key={client.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.35rem 0.5rem', cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={isChecked}
-                      onChange={() => {
-                        if (isChecked) {
-                          setEditClientIds(editClientIds.filter(id => id !== client.id));
-                        } else {
-                          setEditClientIds([...editClientIds, client.id]);
-                        }
-                      }}
-                    />
-                    <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{client.company_name} ({client.client_code})</span>
-                  </label>
-                );
-              })}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <p style={{ fontSize: '0.85rem', color: '#64748B', margin: 0 }}>
+                Select client partners authorized for <strong>{editingManager?.name}</strong>:
+              </p>
+              <span style={{ fontSize: '0.78rem', fontWeight: 700, padding: '0.2rem 0.6rem', borderRadius: '12px', backgroundColor: '#EFF6FF', color: '#1E40AF', border: '1px solid #BFDBFE' }}>
+                Assigned: {editClientIds.length} of {allClients.length} clients
+              </span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1rem' }}>
-              <button type="button" className="btn btn-secondary" onClick={() => setEditingManager(null)}>Cancel</button>
+
+            {/* Live Search Input Bar */}
+            <div style={{ position: 'relative', width: '100%' }}>
+              <Search size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#94A3B8' }} />
+              <input
+                type="text"
+                placeholder="Search 1,000+ clients by name, code, or GSTIN..."
+                value={scopeSearchQuery}
+                onChange={(e) => setScopeSearchQuery(e.target.value)}
+                style={{
+                  width: '100%',
+                  paddingLeft: '34px',
+                  paddingRight: scopeSearchQuery ? '32px' : '12px',
+                  paddingTop: '8px',
+                  paddingBottom: '8px',
+                  fontSize: '0.85rem',
+                  border: '1px solid #CBD5E1',
+                  borderRadius: '6px',
+                  outline: 'none',
+                  backgroundColor: '#F8FAFC'
+                }}
+              />
+              {scopeSearchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setScopeSearchQuery('')}
+                  style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'none', color: '#94A3B8', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem' }}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {/* Quick Action Buttons */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.78rem' }}>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const filteredIds = allClients
+                      .filter(c => {
+                        if (!scopeSearchQuery.trim()) return true;
+                        const q = scopeSearchQuery.toLowerCase().trim();
+                        return (c.company_name && c.company_name.toLowerCase().includes(q)) ||
+                               (c.client_code && c.client_code.toLowerCase().includes(q)) ||
+                               (c.gstin && c.gstin.toLowerCase().includes(q));
+                      })
+                      .map(c => c.id);
+                    setEditClientIds(Array.from(new Set([...editClientIds, ...filteredIds])));
+                  }}
+                  style={{ border: 'none', background: 'none', color: '#2563EB', fontWeight: 600, cursor: 'pointer', padding: 0 }}
+                >
+                  Select {scopeSearchQuery ? 'Matching' : 'All'}
+                </button>
+                <span style={{ color: '#CBD5E1' }}>|</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const filteredIds = new Set(
+                      allClients
+                        .filter(c => {
+                          if (!scopeSearchQuery.trim()) return true;
+                          const q = scopeSearchQuery.toLowerCase().trim();
+                          return (c.company_name && c.company_name.toLowerCase().includes(q)) ||
+                                 (c.client_code && c.client_code.toLowerCase().includes(q)) ||
+                                 (c.gstin && c.gstin.toLowerCase().includes(q));
+                        })
+                        .map(c => c.id)
+                    );
+                    setEditClientIds(editClientIds.filter(id => !filteredIds.has(id)));
+                  }}
+                  style={{ border: 'none', background: 'none', color: '#DC2626', fontWeight: 600, cursor: 'pointer', padding: 0 }}
+                >
+                  Deselect {scopeSearchQuery ? 'Matching' : 'All'}
+                </button>
+              </div>
+
+              <span style={{ color: '#64748B' }}>
+                Showing {
+                  allClients.filter(c => {
+                    if (!scopeSearchQuery.trim()) return true;
+                    const q = scopeSearchQuery.toLowerCase().trim();
+                    return (c.company_name && c.company_name.toLowerCase().includes(q)) ||
+                           (c.client_code && c.client_code.toLowerCase().includes(q)) ||
+                           (c.gstin && c.gstin.toLowerCase().includes(q));
+                  }).length
+                } clients
+              </span>
+            </div>
+
+            {/* Checkboxes List */}
+            <div style={{ maxHeight: '280px', overflowY: 'auto', border: '1px solid #E2E8F0', borderRadius: '8px', backgroundColor: '#FFFFFF' }}>
+              {(() => {
+                const filtered = allClients.filter(c => {
+                  if (!scopeSearchQuery.trim()) return true;
+                  const q = scopeSearchQuery.toLowerCase().trim();
+                  return (c.company_name && c.company_name.toLowerCase().includes(q)) ||
+                         (c.client_code && c.client_code.toLowerCase().includes(q)) ||
+                         (c.gstin && c.gstin.toLowerCase().includes(q));
+                });
+
+                if (filtered.length === 0) {
+                  return (
+                    <div style={{ textAlign: 'center', padding: '2rem 1rem', color: '#64748B', fontSize: '0.85rem' }}>
+                      No client partners found matching "<strong>{scopeSearchQuery}</strong>"
+                    </div>
+                  );
+                }
+
+                return filtered.map(client => {
+                  const isChecked = editClientIds.includes(client.id);
+                  return (
+                    <label 
+                      key={client.id} 
+                      style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'space-between',
+                        padding: '0.5rem 0.75rem', 
+                        cursor: 'pointer',
+                        backgroundColor: isChecked ? '#EFF6FF' : 'transparent',
+                        borderBottom: '1px solid #F1F5F9',
+                        transition: 'background-color 0.15s ease'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {
+                            if (isChecked) {
+                              setEditClientIds(editClientIds.filter(id => id !== client.id));
+                            } else {
+                              setEditClientIds([...editClientIds, client.id]);
+                            }
+                          }}
+                          style={{ width: '16px', height: '16px', accentColor: '#1F3864' }}
+                        />
+                        <span style={{ fontSize: '0.88rem', fontWeight: 600, color: '#1E293B' }}>
+                          {client.company_name}
+                        </span>
+                      </div>
+                      {client.client_code && (
+                        <span style={{ fontSize: '0.75rem', fontFamily: 'monospace', padding: '0.15rem 0.4rem', backgroundColor: isChecked ? '#DBEAFE' : '#F1F5F9', color: isChecked ? '#1E40AF' : '#475569', borderRadius: '4px', fontWeight: 600 }}>
+                          {client.client_code}
+                        </span>
+                      )}
+                    </label>
+                  );
+                });
+              })()}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.5rem' }}>
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                onClick={() => { setEditingManager(null); setScopeSearchQuery(''); }}
+              >
+                Cancel
+              </button>
               <button type="submit" className="btn btn-navy">Save Scope</button>
             </div>
           </form>
+        </Modal>
+
+        {/* Module Permissions Modal */}
+        <Modal 
+          isOpen={!!editingPermissionsUser} 
+          onClose={() => setEditingPermissionsUser(null)}
+          title={`Custom Module Permissions — ${editingPermissionsUser?.name}`}
+        >
+          {editingPermissionsUser && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <p style={{ fontSize: '0.85rem', color: '#64748B', margin: 0 }}>
+                Select which top-level module tabs <strong>{editingPermissionsUser.name}</strong> is authorized to access:
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', maxHeight: '340px', overflowY: 'auto', paddingRight: '0.25rem' }}>
+                {AVAILABLE_MODULES.map(mod => {
+                  const isChecked = selectedPermissions.includes(mod.key);
+                  return (
+                    <label 
+                      key={mod.key}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: '0.75rem',
+                        padding: '0.75rem',
+                        border: '1px solid ' + (isChecked ? '#93C5FD' : '#E2E8F0'),
+                        borderRadius: '8px',
+                        backgroundColor: isChecked ? '#EFF6FF' : '#F8FAFC',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      <input 
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => togglePermission(mod.key)}
+                        style={{ marginTop: '3px', width: '16px', height: '16px' }}
+                      />
+                      <div>
+                        <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#1E293B' }}>
+                          {mod.label}
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: '#64748B', marginTop: '1px' }}>
+                          {mod.desc}
+                        </div>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.75rem', borderTop: '1px solid #E2E8F0' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-xs"
+                  onClick={() => setSelectedPermissions(AVAILABLE_MODULES.map(m => m.key))}
+                >
+                  Select All Modules
+                </button>
+
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button 
+                    type="button" 
+                    className="btn btn-secondary" 
+                    onClick={() => setEditingPermissionsUser(null)}
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="button" 
+                    className="btn btn-navy"
+                    onClick={handleSavePermissions}
+                  >
+                    Save Module Permissions
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </Modal>
 
       </AuthenticatedLayout>

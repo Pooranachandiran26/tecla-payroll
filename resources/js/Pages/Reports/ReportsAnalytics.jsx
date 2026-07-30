@@ -7,7 +7,7 @@ export default function ReportsAnalytics() {
   const role = 'admin'; // Or from context/props
 
   return (
-    <RoleGuard allowedRoles={['admin', 'manager']}>
+    <RoleGuard allowedRoles={['admin', 'manager']} moduleKey="reports">
     <AuthenticatedLayout>
       <Head title="Reports & Analytics" />
       

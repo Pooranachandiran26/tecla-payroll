@@ -7,7 +7,9 @@ use Inertia\Inertia;
 use App\Models\BankChangeRequest;
 use App\Models\Employee;
 use App\Models\Client;
+use App\Services\NotificationService;
 use Illuminate\Support\Facades\DB;
+
 
 class BankChangeRequestController extends Controller
 {
@@ -16,11 +18,17 @@ class BankChangeRequestController extends Controller
      */
     public function index(Request $request)
     {
-        if (!in_array(auth()->user()->role, ['admin', 'manager'])) {
+        if (!in_array($request->user()->role, ['admin', 'manager'])) {
             abort(403, 'Unauthorized access to bank change requests.');
         }
 
+        $user = $request->user();
         $query = BankChangeRequest::with(['employee.client']);
+
+        if ($user && $user->role === 'manager') {
+            $managedClientIds = $user->getManagedClientIds();
+            $query->whereHas('employee', fn($q) => $q->whereIn('client_id', $managedClientIds));
+        }
 
         if ($request->search) {
             $search = $request->search;
@@ -122,11 +130,21 @@ class BankChangeRequestController extends Controller
             'reason' => $validated['reason'],
         ]);
 
+        // Email watchers (pre-existing watcher system — unchanged)
         \App\Jobs\NotifyWatchersJob::dispatch(
             'system_alerts',
             'Bank Change Requested',
             "Employee {$employee->full_name} ({$employee->employee_code}) has requested to update their bank details.",
             null
+        );
+
+        // In-app notification for admins (isolated: never breaks submission)
+        NotificationService::sendToAdmins(
+            type: 'bank_change',
+            title: 'Bank Change Request Submitted',
+            body: "{$employee->full_name} ({$employee->employee_code}) has submitted a bank account change request.",
+            url: route('employees.bank-change-requests'),
+            data: ['employee_id' => $employee->id]
         );
 
         return redirect()->back()->with('success', 'Bank change request submitted successfully and queued for admin approval.');

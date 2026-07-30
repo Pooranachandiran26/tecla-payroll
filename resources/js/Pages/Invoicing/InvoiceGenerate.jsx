@@ -258,7 +258,7 @@ export default function InvoiceGenerate() {
   };
 
   return (
-    <RoleGuard allowedRoles={['admin', 'manager']}>
+    <RoleGuard allowedRoles={['admin', 'manager']} moduleKey="payroll">
     <AuthenticatedLayout>
       <Head title="Generate Invoice" />
 

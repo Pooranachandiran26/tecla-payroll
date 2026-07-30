@@ -135,7 +135,7 @@ export default function ClientsList({ clients, stats = {} }) {
   const meta = clients.meta || {};
 
   return (
-    <RoleGuard allowedRoles={['admin', 'manager']}>
+    <RoleGuard allowedRoles={['admin', 'manager']} moduleKey="clients">
       <AuthenticatedLayout>
         <Head title="Clients List" />
         <div className="legacy-react-wrapper">
