@@ -69,8 +69,15 @@ class SalaryCalculationService
 
             $basicDa = $basic + $da;
 
-            $empWageBasis = data_get($employeeData, 'employee_pf_wage_basis', $client->employee_pf_wage_basis ?? 'ceiling');
-            $emprWageBasis = data_get($employeeData, 'employer_pf_wage_basis', $client->employer_pf_wage_basis ?? 'ceiling');
+            $empWageBasis = data_get($employeeData, 'employee_pf_wage_basis');
+            if (empty($empWageBasis)) {
+                $empWageBasis = $client ? ($client->employee_pf_wage_basis ?? 'ceiling') : 'ceiling';
+            }
+
+            $emprWageBasis = data_get($employeeData, 'employer_pf_wage_basis');
+            if (empty($emprWageBasis)) {
+                $emprWageBasis = $client ? ($client->employer_pf_wage_basis ?? 'ceiling') : 'ceiling';
+            }
 
             $employeePfWage = ($empWageBasis === 'actual_basic_da') ? $basicDa : min($basicDa, $pfCeiling);
             $employerPfWage = ($emprWageBasis === 'actual_basic_da') ? $basicDa : min($basicDa, $pfCeiling);
