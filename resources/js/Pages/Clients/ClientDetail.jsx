@@ -14,14 +14,19 @@ import {
   ArrowLeft, Trash2, PauseCircle, PlayCircle, Edit3, Receipt, 
   Building2, Users, FolderOpen, UserCheck, Clock, History, 
   Calendar, Plus, AlertTriangle, CheckCircle2, UserPlus, 
-  UploadCloud, FileText, Mail, Phone, CreditCard, Smartphone, MessageSquare
+  UploadCloud, FileText, Mail, Phone, CreditCard, Smartphone, MessageSquare, Eye
 } from 'lucide-react';
 
-export default function ClientDetail({ client, employees }) {
+export default function ClientDetail({ client, employees, activityLogs = [] }) {
   const { auth } = usePage().props;
   const { showToast } = useToast();
   const c = client.data || {};
   const [activeTab, setActiveTab] = React.useState('overview');
+
+  const [logCategoryFilter, setLogCategoryFilter] = React.useState('all');
+  const [logStartDate, setLogStartDate] = React.useState('');
+  const [logEndDate, setLogEndDate] = React.useState('');
+  const [selectedLogModal, setSelectedLogModal] = React.useState(null);
 
   const [deactivateDialog, setDeactivateDialog] = React.useState(false);
   const [deleteDialog, setDeleteDialog] = React.useState({ isOpen: false, confirmText: '', reason: '' });
@@ -174,9 +179,6 @@ export default function ClientDetail({ client, employees }) {
             <Link href={route('clients.edit', c.id)} className="btn btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
               <Edit3 size={15} /> Edit Client
             </Link>
-            <button className="btn btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }} title="Invoicing not built yet">
-              <Receipt size={15} /> Generate Invoice
-            </button>
           </div>
         </div>
         
@@ -451,8 +453,16 @@ export default function ClientDetail({ client, employees }) {
                 {employees && employees.data && employees.data.length > 0 ? (
                   employees.data.map(emp => (
                     <tr key={emp.id}>
-                      <td>{emp.employee_code || 'N/A'}</td>
-                      <td><strong>{emp.full_name}</strong></td>
+                      <td>
+                        <Link href={route('employees.show', emp.id)} className="font-mono text-xs text-slate-600 hover:text-indigo-600 hover:underline">
+                          {emp.employee_code || 'N/A'}
+                        </Link>
+                      </td>
+                      <td>
+                        <Link href={route('employees.show', emp.id)} className="font-bold text-[#1F3864] hover:text-indigo-600 hover:underline">
+                          {emp.full_name}
+                        </Link>
+                      </td>
                       <td>{emp.designation || 'N/A'}</td>
                       <td>{emp.gross_monthly_salary ? `₹${parseFloat(emp.gross_monthly_salary).toLocaleString('en-IN')}` : 'N/A'}</td>
                       <td>
@@ -675,31 +685,175 @@ export default function ClientDetail({ client, employees }) {
 
         {/*  Tab 6: Activity Log  */}
         <div className={`tab-content ${activeTab === 'activity' ? 'active' : ''}`} style={{ display: activeTab === 'activity' ? 'block' : 'none' }}>
-          <div style={{"display":"flex","gap":"0.75rem","marginBottom":"1.5rem","flexWrap":"wrap","background":"#F8FAFC","padding":"0.75rem","borderRadius":"var(--radius-sm)","border":"1px solid var(--border-color)"}}>
-            <div style={{"flex":"1","minWidth":"150px"}}>
-              <label style={{"fontSize":"0.75rem","fontWeight":"600","display":"block","marginBottom":"0.25rem"}}>Log Type</label>
-              <select id="log-filter-type" className="form-control" style={{"padding":"0.35rem 0.5rem","height":"auto"}} onChange={(event) => { window.filterActivityLogs() }}>
-                <option value="all">All Types</option>
-                <option value="System">System</option>
-                <option value="Billing">Billing</option>
-                <option value="Compliance">Compliance</option>
-                <option value="Portal">Portal</option>
-                <option value="Account Manager">Account Manager</option>
-              </select>
-            </div>
-            <div style={{"flex":"1","minWidth":"150px"}}>
-              <label style={{"fontSize":"0.75rem","fontWeight":"600","display":"block","marginBottom":"0.25rem"}}>Start Date</label>
-              <input type="date" id="log-filter-start" className="form-control" style={{"padding":"0.35rem 0.5rem","height":"auto"}} onChange={(event) => { window.filterActivityLogs() }} />
-            </div>
-            <div style={{"flex":"1","minWidth":"150px"}}>
-              <label style={{"fontSize":"0.75rem","fontWeight":"600","display":"block","marginBottom":"0.25rem"}}>End Date</label>
-              <input type="date" id="log-filter-end" className="form-control" style={{"padding":"0.35rem 0.5rem","height":"auto"}} onChange={(event) => { window.filterActivityLogs() }} />
-            </div>
-          </div>
-          
-          <div className="activity-timeline" id="activity-timeline-container">
-            {/*  Dynamically populated  */}
-          </div>
+          {(() => {
+            const filteredLogs = (activityLogs || []).filter(log => {
+              if (logCategoryFilter !== 'all' && log.category !== logCategoryFilter) return false;
+              if (logStartDate && log.date_raw && log.date_raw < logStartDate) return false;
+              if (logEndDate && log.date_raw && log.date_raw > logEndDate) return false;
+              return true;
+            });
+
+            return (
+              <>
+                <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 mb-6 flex flex-wrap gap-4 items-end">
+                  <div className="flex-1 min-w-[160px]">
+                    <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">Log Type / Category</label>
+                    <select 
+                      className="form-control w-full text-xs" 
+                      value={logCategoryFilter} 
+                      onChange={(e) => setLogCategoryFilter(e.target.value)}
+                    >
+                      <option value="all">All Categories</option>
+                      <option value="Client Profile">Client Profile</option>
+                      <option value="Billing">Billing &amp; Invoicing</option>
+                      <option value="Compliance">Compliance &amp; Docs</option>
+                      <option value="Portal">Portal &amp; Employees</option>
+                      <option value="Account Manager">Account Manager</option>
+                    </select>
+                  </div>
+                  <div className="flex-1 min-w-[160px]">
+                    <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">Start Date</label>
+                    <input 
+                      type="date" 
+                      className="form-control w-full text-xs" 
+                      value={logStartDate} 
+                      onChange={(e) => setLogStartDate(e.target.value)} 
+                    />
+                  </div>
+                  <div className="flex-1 min-w-[160px]">
+                    <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">End Date</label>
+                    <input 
+                      type="date" 
+                      className="form-control w-full text-xs" 
+                      value={logEndDate} 
+                      onChange={(e) => setLogEndDate(e.target.value)} 
+                    />
+                  </div>
+                  {(logCategoryFilter !== 'all' || logStartDate || logEndDate) && (
+                    <button 
+                      type="button" 
+                      className="btn btn-secondary btn-xs"
+                      onClick={() => { setLogCategoryFilter('all'); setLogStartDate(''); setLogEndDate(''); }}
+                    >
+                      Reset Filters
+                    </button>
+                  )}
+                </div>
+                
+                <div className="card p-0 overflow-hidden">
+                  <table className="table w-full text-left text-xs">
+                    <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold uppercase text-[11px]">
+                      <tr>
+                        <th className="py-3 px-4">Timestamp</th>
+                        <th className="py-3 px-4">Performed By</th>
+                        <th className="py-3 px-4">Category</th>
+                        <th className="py-3 px-4">Action &amp; Details</th>
+                        <th className="py-3 px-4">IP Address</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {filteredLogs.length > 0 ? (
+                        filteredLogs.map(log => (
+                          <tr 
+                            key={log.id} 
+                            onClick={() => setSelectedLogModal(log)}
+                            className="hover:bg-indigo-50/50 transition-colors cursor-pointer"
+                            title="Click to view full field modification details"
+                          >
+                            <td className="py-3 px-4 font-mono text-slate-600 whitespace-nowrap">{log.created_at}</td>
+                            <td className="py-3 px-4">
+                              <div className="font-bold text-slate-900">{log.user}</div>
+                              <div className="text-[10px] text-slate-400 font-mono">{log.user_email}</div>
+                            </td>
+                            <td className="py-3 px-4">
+                              <Badge type={log.category === 'Billing' ? 'success' : log.category === 'Compliance' ? 'warning' : 'info'}>
+                                {log.category}
+                              </Badge>
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="font-bold text-[#1F3864] mb-0.5">{log.action}</div>
+                              <div className="text-slate-600 text-[11px] leading-snug">{log.details}</div>
+                            </td>
+                            <td className="py-3 px-4 font-mono text-slate-400 text-[11px]">{log.ip_address}</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="5" className="text-center py-8 text-slate-400">
+                            No activity logs found matching the selected filters.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Detailed Audit Log Modal */}
+                <Modal 
+                  show={Boolean(selectedLogModal)} 
+                  onClose={() => setSelectedLogModal(null)} 
+                  title="Activity Change Details"
+                  maxWidth="2xl"
+                >
+                  {selectedLogModal && (
+                    <div className="p-6 space-y-6">
+                      {/* Metadata Header Card */}
+                      <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-bold text-slate-500 font-mono">{selectedLogModal.created_at}</span>
+                          <Badge type={selectedLogModal.category === 'Billing' ? 'success' : selectedLogModal.category === 'Compliance' ? 'warning' : 'info'}>
+                            {selectedLogModal.category}
+                          </Badge>
+                        </div>
+                        <h3 className="text-lg font-bold text-[#1F3864] mb-1">{selectedLogModal.action}</h3>
+                        <div className="text-xs text-slate-600 flex flex-wrap gap-x-4 gap-y-1 mt-2 border-t border-slate-200/80 pt-2">
+                          <span><strong>User:</strong> {selectedLogModal.user} ({selectedLogModal.user_email})</span>
+                          <span><strong>IP Address:</strong> {selectedLogModal.ip_address}</span>
+                        </div>
+                      </div>
+
+                      {/* Field Changes Table */}
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                          <History size={14} className="text-indigo-600" /> Exact Field Modifications
+                        </h4>
+                        {selectedLogModal.changes && selectedLogModal.changes.length > 0 ? (
+                          <div className="border border-slate-200 rounded-lg overflow-hidden">
+                            <table className="w-full text-left text-xs">
+                              <thead className="bg-slate-100 border-b border-slate-200 text-slate-700 font-bold uppercase text-[10px]">
+                                <tr>
+                                  <th className="py-2.5 px-4">Field Name</th>
+                                  <th className="py-2.5 px-4 text-rose-700">Previous Value (Before)</th>
+                                  <th className="py-2.5 px-4 text-emerald-700">Updated Value (After)</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100 bg-white">
+                                {selectedLogModal.changes.map((chg, idx) => (
+                                  <tr key={idx} className="hover:bg-slate-50/50">
+                                    <td className="py-2.5 px-4 font-semibold text-slate-800">{chg.field}</td>
+                                    <td className="py-2.5 px-4 font-mono text-rose-600 bg-rose-50/30">{chg.old_value || '—'}</td>
+                                    <td className="py-2.5 px-4 font-mono text-emerald-600 bg-emerald-50/30">{chg.new_value || '—'}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        ) : (
+                          <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg text-slate-600 text-xs">
+                            <strong>Summary Details:</strong> {selectedLogModal.details}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex justify-end pt-2">
+                        <Button variant="secondary" onClick={() => setSelectedLogModal(null)}>Close</Button>
+                      </div>
+                    </div>
+                  )}
+                </Modal>
+              </>
+            );
+          })()}
         </div>
 
         {/*  Tab 7: Settings & SLA  */}

@@ -121,6 +121,19 @@ class EmployeeResource extends JsonResource
             'salary_revisions' => $this->whenLoaded('salaryRevisions'),
             'documents' => $this->whenLoaded('documents'),
             
+            // User & Invitation Status
+            'user' => $this->user ? [
+                'id' => $this->user->id,
+                'status' => $this->user->status,
+                'last_login_at' => $this->user->last_login_at,
+                'invitation_accepted_at' => $this->user->invitation_accepted_at,
+            ] : null,
+            'has_logged_in' => (bool)($this->user && (!empty($this->user->last_login_at) || !empty($this->user->invitation_accepted_at) || $this->user->status === 'active')),
+            'invitation_pending' => (bool)(!$this->user || ($this->user->status === 'invited' && empty($this->user->invitation_accepted_at) && empty($this->user->last_login_at))),
+            'has_pending_revision' => $this->relationLoaded('salaryRevisions')
+                ? $this->salaryRevisions->where('status', 'pending_approval')->count() > 0
+                : \App\Models\SalaryRevision::where('employee_id', $this->id)->where('status', 'pending_approval')->exists(),
+
             // Computed Document Counts
             'documents_verified_count' => $this->documents_verified_count,
             'documents_required_count' => $this->documents_required_count,

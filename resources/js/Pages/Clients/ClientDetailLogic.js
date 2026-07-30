@@ -546,8 +546,8 @@ window.sendInvoiceReminder = sendInvoiceReminder;
         clientCandList.forEach(cand => {
           tbody.innerHTML += `
             <tr>
-              <td>${cand.code || 'N/A'}</td>
-              <td><strong>${cand.name}</strong></td>
+              <td><a href="${route('employees.show', cand.id || cand.code)}" class="font-mono text-xs text-slate-600 hover:underline">${cand.code}</a></td>
+              <td><a href="${route('employees.show', cand.id || cand.code)}" class="font-bold text-[#1F3864] hover:underline">${cand.name}</a></td>
               <td>${cand.designation || 'N/A'}</td>
               <td>₹${(cand.grossSalary || 0).toLocaleString('en-IN')}</td>
               <td>

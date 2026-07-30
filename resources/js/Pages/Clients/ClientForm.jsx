@@ -58,15 +58,15 @@ export default function ClientForm({ client, defaultLopBasis, gstSettings }) {
         
         <div className="legacy-react-wrapper">
           {/* Page Header */}
-          <div style={{ marginBottom: '1.5rem' }}>
-            <Link href={route('clients.index')} style={{ fontSize: '0.85rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-              <ArrowLeft size={14} /> Back to Clients Directory
+          <div className="mb-6">
+            <Link href={route('clients.index')} className="text-[0.85rem] font-semibold text-[#1F3864] hover:underline inline-flex items-center gap-1">
+              ← Back to Clients Directory
             </Link>
-            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: '0.5rem' }}>
+            <div className="flex items-end justify-between mt-2">
               <div>
-                <h2 style={{ marginBottom: '0.2rem' }}>{client ? 'Edit Client' : 'Add New Client'}</h2>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                  Complete all sections for full compliance. Fields marked <span style={{ color: 'var(--status-danger)' }}>*</span> are mandatory.
+                <h2 className="text-2xl font-bold text-[#1F3864] mb-1">{client ? 'Edit Client Organization' : 'Add New Client Organization'}</h2>
+                <p className="text-gray-500 text-sm">
+                  Configure client organization profile, contract terms, billing model, branch locations, and statutory settings.
                 </p>
               </div>
               <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>

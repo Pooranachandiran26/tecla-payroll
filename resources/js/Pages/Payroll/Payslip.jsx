@@ -29,6 +29,132 @@ const Icons = {
     IndianRupee: () => <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 3h12"/><path d="M6 8h12"/><path d="M6 13l8.5 8"/><path d="M6 13h3c3.5 0 6-2.5 6-5H6"/></svg>,
 };
 
+// Searchable Client Dropdown Component
+function SearchableClientDropdown({ clients, selectedClientId, onChange }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [search, setSearch] = useState('');
+    const dropdownRef = React.useRef(null);
+
+    const selectedClient = clients.find(c => String(c.id) === String(selectedClientId)) || clients[0];
+
+    const filteredClients = clients.filter(c => 
+        c.company_name?.toLowerCase().includes(search.toLowerCase()) ||
+        c.client_code?.toLowerCase().includes(search.toLowerCase())
+    );
+
+    useEffect(() => {
+        function handleClickOutside(event) {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                setIsOpen(false);
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    return (
+        <div ref={dropdownRef} style={{ position: 'relative', width: '100%' }}>
+            <button
+                type="button"
+                onClick={() => setIsOpen(!isOpen)}
+                className="form-control"
+                style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justify: 'space-between',
+                    padding: '0.45rem 0.75rem',
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                    color: '#1e293b',
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                    textAlign: 'left'
+                }}
+            >
+                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, marginRight: '0.5rem' }}>
+                    {selectedClient?.company_name || 'Select Client'}
+                </span>
+                <span style={{ fontSize: '0.7rem', color: '#64748b', marginLeft: 'auto', flexShrink: 0 }}>▼</span>
+            </button>
+
+            {isOpen && (
+                <div style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 4px)',
+                    left: 0,
+                    right: 0,
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '8px',
+                    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                    zIndex: 9999,
+                    overflow: 'hidden'
+                }}>
+                    <div style={{ padding: '0.4rem 0.5rem', borderBottom: '1px solid #f1f5f9', backgroundColor: '#f8fafc' }}>
+                        <input
+                            type="text"
+                            autoFocus
+                            placeholder="Search client..."
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                            style={{
+                                width: '100%',
+                                padding: '0.4rem 0.65rem',
+                                fontSize: '0.82rem',
+                                border: '1px solid #cbd5e1',
+                                borderRadius: '5px',
+                                outline: 'none',
+                                background: '#ffffff'
+                            }}
+                        />
+                    </div>
+                    <div style={{ maxHeight: '200px', overflowY: 'auto', padding: '0.2rem 0' }}>
+                        {filteredClients.length > 0 ? (
+                            filteredClients.map(c => {
+                                const isSelected = String(c.id) === String(selectedClientId);
+                                return (
+                                    <div
+                                        key={c.id}
+                                        onClick={() => {
+                                            onChange(c.id);
+                                            setIsOpen(false);
+                                            setSearch('');
+                                        }}
+                                        style={{
+                                            padding: '0.5rem 0.75rem',
+                                            fontSize: '0.85rem',
+                                            fontWeight: isSelected ? 700 : 500,
+                                            color: isSelected ? '#1d4ed8' : '#334155',
+                                            backgroundColor: isSelected ? '#eff6ff' : 'transparent',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justify: 'space-between'
+                                        }}
+                                        onMouseEnter={e => { if (!isSelected) e.currentTarget.style.backgroundColor = '#f8fafc'; }}
+                                        onMouseLeave={e => { if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent'; }}
+                                    >
+                                        <span>{c.company_name}</span>
+                                        {c.client_code && <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{c.client_code}</span>}
+                                    </div>
+                                );
+                            })
+                        ) : (
+                            <div style={{ padding: '0.65rem', fontSize: '0.8rem', color: '#94a3b8', textAlign: 'center' }}>
+                                No clients found
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
 export default function Payslip({ items, clients = [], selectedClientId, selectedMonth, clientBranding, lockedRun }) {
     const { showToast } = useToast();
     const [isReleasing, setIsReleasing] = useState(false);
@@ -297,10 +423,10 @@ export default function Payslip({ items, clients = [], selectedClientId, selecte
                     }
                 `}</style>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+                <div className="mb-6 flex justify-between items-end flex-wrap gap-4">
                     <div>
-                        <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#1F3864', marginBottom: '0.15rem' }}>Employee Payslips Center</h2>
-                        <p style={{ color: '#64748b', fontSize: '0.85rem', margin: 0 }}>Review, print, or download finalized payslips from locked runs.</p>
+                        <h2 className="text-2xl font-bold text-[#1F3864] mb-1">Employee Payslips Center</h2>
+                        <p className="text-gray-500 text-[0.9rem]">Review, print, or download finalized payslips from locked runs.</p>
                     </div>
                     {lockedRun && items?.data?.length > 0 && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
@@ -326,25 +452,25 @@ export default function Payslip({ items, clients = [], selectedClientId, selecte
                     <div className="payslip-left-panel">
                         {/* Filters */}
                         <div className="filter-card">
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.65rem', fontSize: '0.75rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.75rem', fontSize: '0.85rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                                 <Icons.Filter /> Filters
                             </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                                 <div>
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.72rem', fontWeight: 600, color: '#64748b', marginBottom: '0.2rem' }}>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.82rem', fontWeight: 700, color: '#475569', marginBottom: '0.35rem' }}>
                                         <Icons.Building /> Client Contract
                                     </label>
-                                    <select className="form-control" value={clientId} onChange={e => handleClientChange(e.target.value)} style={{ fontSize: '0.82rem', padding: '0.4rem 0.6rem' }}>
-                                        {clients.map(c => (
-                                            <option key={c.id} value={c.id}>{c.company_name}</option>
-                                        ))}
-                                    </select>
+                                    <SearchableClientDropdown
+                                        clients={clients}
+                                        selectedClientId={clientId}
+                                        onChange={handleClientChange}
+                                    />
                                 </div>
                                 <div>
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.72rem', fontWeight: 600, color: '#64748b', marginBottom: '0.2rem' }}>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.82rem', fontWeight: 700, color: '#475569', marginBottom: '0.35rem' }}>
                                         <Icons.Calendar /> Payout Month
                                     </label>
-                                    <select className="form-control" value={month} onChange={e => handleMonthChange(e.target.value)} style={{ fontSize: '0.82rem', padding: '0.4rem 0.6rem' }}>
+                                    <select className="form-control" value={month} onChange={e => handleMonthChange(e.target.value)} style={{ fontSize: '0.92rem', padding: '0.5rem 0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontWeight: 600 }}>
                                         {getMonthOptions().map(opt => (
                                             <option key={opt.value} value={opt.value}>{opt.label}</option>
                                         ))}
@@ -358,10 +484,10 @@ export default function Payslip({ items, clients = [], selectedClientId, selecte
                             <div className="emp-list-card">
                                 <div className="emp-list-header">
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', fontWeight: 700, color: '#1e293b' }}>
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.95rem', fontWeight: 800, color: '#0f172a' }}>
                                             <Icons.Users /> Employees
                                         </span>
-                                        <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 500 }}>
+                                        <span style={{ fontSize: '0.82rem', color: '#64748b', fontWeight: 600 }}>
                                             {filteredEmployees.length} of {items.total}
                                         </span>
                                     </div>
@@ -375,6 +501,7 @@ export default function Payslip({ items, clients = [], selectedClientId, selecte
                                             placeholder="Search by name or code..."
                                             value={searchQuery}
                                             onChange={e => setSearchQuery(e.target.value)}
+                                            style={{ fontSize: '0.92rem', padding: '0.55rem 0.75rem 0.55rem 2.2rem', borderRadius: '8px', border: '1px solid #cbd5e1' }}
                                         />
                                     </div>
                                 </div>
@@ -387,14 +514,14 @@ export default function Payslip({ items, clients = [], selectedClientId, selecte
                                                 key={emp.id}
                                                 className={`emp-item ${isActive ? 'active' : ''}`}
                                                 onClick={() => setSelectedItem(emp)}
-                                                style={{ flexDirection: 'column', alignItems: 'stretch', gap: '0.15rem', position: 'relative', paddingLeft: isActive ? '0.75rem' : '0.55rem' }}
+                                                style={{ flexDirection: 'column', alignItems: 'stretch', gap: '0.2rem', position: 'relative', padding: '0.65rem 0.75rem', paddingLeft: isActive ? '0.85rem' : '0.75rem' }}
                                             >
-                                                {isActive && <div style={{ position: 'absolute', left: 0, top: '20%', bottom: '20%', width: '3px', borderRadius: '2px', background: '#3b82f6' }} />}
-                                                <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{emp.full_name}</div>
-                                                <div style={{ fontSize: '0.68rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                                {isActive && <div style={{ position: 'absolute', left: 0, top: '15%', bottom: '15%', width: '4px', borderRadius: '2px', background: '#2563eb' }} />}
+                                                <div style={{ fontSize: '0.95rem', fontWeight: 700, color: isActive ? '#1d4ed8' : '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{emp.full_name}</div>
+                                                <div style={{ fontSize: '0.82rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 500 }}>
                                                     <span>{emp.employee_code}</span>
                                                     <span style={{ opacity: 0.35 }}>|</span>
-                                                    <span style={{ color: '#10b981', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.1rem' }}>
+                                                    <span style={{ color: '#059669', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.1rem' }}>
                                                         <Icons.IndianRupee />
                                                         {Math.round(parseFloat(emp.net_pay)).toLocaleString('en-IN')}
                                                     </span>

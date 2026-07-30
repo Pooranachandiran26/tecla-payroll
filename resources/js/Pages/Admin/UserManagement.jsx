@@ -272,8 +272,8 @@ export default function UserManagement({ users = {}, unlinkedEmployees = [], unl
                               <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.4rem' }}>
                                 {(row.managed_clients || []).length > 0 ? (
                                   (row.managed_clients || []).map(c => (
-                                    <span key={c.id} className="badge badge-info">
-                                      🏢 {c.company_name}
+                                    <span key={c.id} className="badge badge-info" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                      <Building2 size={12} /> {c.company_name}
                                     </span>
                                   ))
                                 ) : (

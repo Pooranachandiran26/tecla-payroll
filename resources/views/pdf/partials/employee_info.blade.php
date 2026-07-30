@@ -5,7 +5,7 @@
             <table class="employee-info-table" style="width: 100%; margin-bottom: 0;">
                 <thead>
                     <tr>
-                        <th colspan="2" style="text-align: left; padding: 5px 8px; font-size: 10px; text-transform: uppercase; background-color: rgba(0,0,0,0.05); border-bottom: 1px solid #cbd5e1;">
+                        <th colspan="2" style="text-align: left; padding: 4px 8px; font-size: 9.5px; font-weight: bold; text-transform: uppercase; background-color: rgba(0,0,0,0.05); border-bottom: 1px solid #cbd5e1;">
                             Employee Summary
                         </th>
                     </tr>
@@ -44,7 +44,7 @@
             <table class="employee-info-table" style="width: 100%; margin-bottom: 0;">
                 <thead>
                     <tr>
-                        <th colspan="2" style="text-align: left; padding: 5px 8px; font-size: 10px; text-transform: uppercase; background-color: rgba(0,0,0,0.05); border-bottom: 1px solid #cbd5e1;">
+                        <th colspan="2" style="text-align: left; padding: 4px 8px; font-size: 9.5px; font-weight: bold; text-transform: uppercase; background-color: rgba(0,0,0,0.05); border-bottom: 1px solid #cbd5e1;">
                             Bank & Statutory Details
                         </th>
                     </tr>

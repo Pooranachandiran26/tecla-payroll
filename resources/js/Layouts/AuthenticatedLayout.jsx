@@ -6,8 +6,9 @@ import ToastContainer from '../Components/ui/Toast';
 import { useRole } from '../Contexts/RoleContext.jsx';
 import useToast from '../Hooks/useToast';
 
-export default function AuthenticatedLayout({ children }) {
-  const { url } = usePage();
+export default function AuthenticatedLayout({ children, hideSubNav = false }) {
+  const { url, component } = usePage();
+  const isErrorPage = component === 'Error' || hideSubNav;
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   // Use auth, branding, flash, and pendingQueryCount from usePage().props
@@ -137,7 +138,7 @@ export default function AuthenticatedLayout({ children }) {
         </div>
 
         {/* Secondary Sub-Nav Row */}
-        {subNavItems && (
+        {!isErrorPage && subNavItems && (
           <div className="nav-row-secondary">
             <ul className="sub-nav-tabs">
               {subNavItems.map((item, index) => {

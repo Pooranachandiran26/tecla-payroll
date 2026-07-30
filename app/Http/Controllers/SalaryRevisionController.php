@@ -182,4 +182,71 @@ class SalaryRevisionController extends Controller
             return redirect()->back()->with('error', 'Failed to send email notification: ' . $e->getMessage());
         }
     }
+
+    public function queue(Request $request)
+    {
+        $user = $request->user();
+
+        $query = SalaryRevision::with(['employee.client', 'approver']);
+
+        if ($user && $user->role === 'manager') {
+            $managedClientIds = $user->getManagedClientIds();
+            $query->whereHas('employee', function ($q) use ($managedClientIds) {
+                $q->whereIn('client_id', $managedClientIds);
+            });
+        }
+
+        if ($request->filled('client_id')) {
+            $query->whereHas('employee', function ($q) use ($request) {
+                $q->where('client_id', $request->client_id);
+            });
+        }
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->whereHas('employee', function ($q) use ($search) {
+                $q->where('full_name', 'like', "%{$search}%")
+                  ->orWhere('employee_code', 'like', "%{$search}%");
+            });
+        }
+
+        $statusFilter = $request->input('status', 'pending_approval');
+        if ($statusFilter !== 'all') {
+            $query->where('status', $statusFilter);
+        }
+
+        $baseStatsQuery = SalaryRevision::query();
+        if ($user && $user->role === 'manager') {
+            $managedClientIds = $user->getManagedClientIds();
+            $baseStatsQuery->whereHas('employee', function ($q) use ($managedClientIds) {
+                $q->whereIn('client_id', $managedClientIds);
+            });
+        }
+
+        $stats = [
+            'total' => (clone $baseStatsQuery)->count(),
+            'pending' => (clone $baseStatsQuery)->where('status', 'pending_approval')->count(),
+            'approved' => (clone $baseStatsQuery)->where('status', 'approved')->count(),
+            'rejected' => (clone $baseStatsQuery)->where('status', 'rejected')->count(),
+        ];
+
+        $revisions = $query->orderBy('created_at', 'desc')->paginate(15)->withQueryString();
+
+        $clientsQuery = \App\Models\Client::where('status', 'active');
+        if ($user && $user->role === 'manager') {
+            $clientsQuery->whereIn('id', $user->getManagedClientIds());
+        }
+        $clients = $clientsQuery->select('id', 'company_name')->get();
+
+        return inertia('Employees/SalaryRevisionsQueue', [
+            'revisions' => $revisions,
+            'stats' => $stats,
+            'clients' => $clients,
+            'filters' => [
+                'search' => $request->search ?? '',
+                'client_id' => $request->client_id ?? '',
+                'status' => $statusFilter,
+            ],
+        ]);
+    }
 }

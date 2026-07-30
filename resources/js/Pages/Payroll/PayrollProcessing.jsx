@@ -96,9 +96,12 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
             <AuthenticatedLayout>
                 <Head title="Payroll Processing" />
 
-                <div style={{ marginBottom: "1.5rem" }}>
-                    <h2 style={{ marginTop: "0.5rem" }}>Payroll Run & Calculations</h2>
-                    <p style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>Review statutory deductions, check for onboarding blockers, and process payslip calculations.</p>
+                <div className="mb-6">
+                    <Link href={route('payroll.attendance-review')} className="text-[0.85rem] font-semibold text-[#1F3864] hover:underline">
+                        ← Back to Attendance Review
+                    </Link>
+                    <h2 className="text-2xl font-bold text-[#1F3864] mt-2 mb-1">Payroll Run &amp; Calculations</h2>
+                    <p className="text-gray-500 text-[0.9rem]">Review statutory deductions, check pre-flight onboarding blockers, and process payslip calculations.</p>
                 </div>
                 
                 {/* Hard Blocker Modal Dialog */}
