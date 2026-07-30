@@ -89,8 +89,19 @@ export default function TaxDeclarationTab({ employee, taxDeclaration: decProp, t
     const newReg = comparison.new_regime || {};
     const oldReg = comparison.old_regime || {};
 
+    const isTdsDisabled = !employee?.tds_applicable;
+
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', opacity: isTdsDisabled ? 0.85 : 1 }}>
+            {isTdsDisabled && (
+                <div className="card" style={{ background: '#FFFBEB', border: '1px solid #FCD34D', padding: '1rem 1.25rem', borderRadius: 'var(--radius-md)', color: '#92400E', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <Landmark size={22} style={{ color: '#D97706', flexShrink: 0 }} />
+                    <div style={{ fontSize: '0.875rem', lineHeight: '1.4' }}>
+                        <strong>TDS Not Applicable:</strong> Income Tax (TDS) is not applicable for this employee. Tax declarations are disabled. Enable TDS in Employee Statutory Settings to use this feature.
+                    </div>
+                </div>
+            )}
+
             {/* Header & Status Card */}
             <div className="card" style={{ background: '#F8FAFC', border: '1px solid var(--border-color)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
@@ -194,101 +205,103 @@ export default function TaxDeclarationTab({ employee, taxDeclaration: decProp, t
             </div>
 
             {/* Declaration Input Form */}
-            <form onSubmit={handleSubmit} className="card" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                <h4 style={{ fontSize: '1.05rem', margin: 0, borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
-                    1. Tax Regime Selection
-                </h4>
-                <div style={{ display: 'flex', gap: '2rem', alignItems: 'center' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: '500' }}>
-                        <input type="radio" name="regime" value="new" checked={form.regime === 'new'} onChange={e => setForm(f => ({ ...f, regime: e.target.value }))} />
-                        New Tax Regime (Sec 115BAC - Default)
-                    </label>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: '500' }}>
-                        <input type="radio" name="regime" value="old" checked={form.regime === 'old'} onChange={e => setForm(f => ({ ...f, regime: e.target.value }))} />
-                        Old Tax Regime (Allows 80C, 80D, HRA &amp; 24b Exemptions)
-                    </label>
-                </div>
+            <form onSubmit={handleSubmit} className="card">
+                <fieldset disabled={isTdsDisabled} style={{ border: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                    <h4 style={{ fontSize: '1.05rem', margin: 0, borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+                        1. Tax Regime Selection
+                    </h4>
+                    <div style={{ display: 'flex', gap: '2rem', alignItems: 'center' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: '500' }}>
+                            <input type="radio" name="regime" value="new" checked={form.regime === 'new'} onChange={e => setForm(f => ({ ...f, regime: e.target.value }))} />
+                            New Tax Regime (Sec 115BAC - Default)
+                        </label>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: '500' }}>
+                            <input type="radio" name="regime" value="old" checked={form.regime === 'old'} onChange={e => setForm(f => ({ ...f, regime: e.target.value }))} />
+                            Old Tax Regime (Allows 80C, 80D, HRA &amp; 24b Exemptions)
+                        </label>
+                    </div>
 
-                <h4 style={{ fontSize: '1.05rem', margin: '1rem 0 0 0', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
-                    2. Section 80C Investments (Max Limit: ₹1,50,000)
-                </h4>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
-                    <div>
-                        <label className="data-label">PPF (Public Provident Fund)</label>
-                        <input type="number" min="0" className="form-control" value={form.ppf_amount} onChange={e => setForm(f => ({ ...f, ppf_amount: e.target.value }))} />
+                    <h4 style={{ fontSize: '1.05rem', margin: '1rem 0 0 0', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+                        2. Section 80C Investments (Max Limit: ₹1,50,000)
+                    </h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+                        <div>
+                            <label className="data-label">PPF (Public Provident Fund)</label>
+                            <input type="number" min="0" className="form-control" value={form.ppf_amount} onChange={e => setForm(f => ({ ...f, ppf_amount: e.target.value }))} />
+                        </div>
+                        <div>
+                            <label className="data-label">ELSS Mutual Funds</label>
+                            <input type="number" min="0" className="form-control" value={form.elss_amount} onChange={e => setForm(f => ({ ...f, elss_amount: e.target.value }))} />
+                        </div>
+                        <div>
+                            <label className="data-label">Life Insurance Premium</label>
+                            <input type="number" min="0" className="form-control" value={form.life_insurance_premium} onChange={e => setForm(f => ({ ...f, life_insurance_premium: e.target.value }))} />
+                        </div>
+                        <div>
+                            <label className="data-label">Children Tuition Fees</label>
+                            <input type="number" min="0" className="form-control" value={form.tuition_fees} onChange={e => setForm(f => ({ ...f, tuition_fees: e.target.value }))} />
+                        </div>
+                        <div>
+                            <label className="data-label">Housing Loan Principal</label>
+                            <input type="number" min="0" className="form-control" value={form.housing_loan_principal} onChange={e => setForm(f => ({ ...f, housing_loan_principal: e.target.value }))} />
+                        </div>
+                        <div>
+                            <label className="data-label">NSC / Other 80C</label>
+                            <input type="number" min="0" className="form-control" value={form.other_80c} onChange={e => setForm(f => ({ ...f, other_80c: e.target.value }))} />
+                        </div>
                     </div>
-                    <div>
-                        <label className="data-label">ELSS Mutual Funds</label>
-                        <input type="number" min="0" className="form-control" value={form.elss_amount} onChange={e => setForm(f => ({ ...f, elss_amount: e.target.value }))} />
+                    <div style={{ fontSize: '0.85rem', color: total80c > 150000 ? 'var(--status-warning)' : 'var(--text-muted)' }}>
+                        Total Declared 80C: <strong>₹{total80c.toLocaleString('en-IN')}</strong> | Eligible Capped Deduction: <strong>₹{capped80c.toLocaleString('en-IN')}</strong>
                     </div>
-                    <div>
-                        <label className="data-label">Life Insurance Premium</label>
-                        <input type="number" min="0" className="form-control" value={form.life_insurance_premium} onChange={e => setForm(f => ({ ...f, life_insurance_premium: e.target.value }))} />
-                    </div>
-                    <div>
-                        <label className="data-label">Children Tuition Fees</label>
-                        <input type="number" min="0" className="form-control" value={form.tuition_fees} onChange={e => setForm(f => ({ ...f, tuition_fees: e.target.value }))} />
-                    </div>
-                    <div>
-                        <label className="data-label">Housing Loan Principal</label>
-                        <input type="number" min="0" className="form-control" value={form.housing_loan_principal} onChange={e => setForm(f => ({ ...f, housing_loan_principal: e.target.value }))} />
-                    </div>
-                    <div>
-                        <label className="data-label">NSC / Other 80C</label>
-                        <input type="number" min="0" className="form-control" value={form.other_80c} onChange={e => setForm(f => ({ ...f, other_80c: e.target.value }))} />
-                    </div>
-                </div>
-                <div style={{ fontSize: '0.85rem', color: total80c > 150000 ? 'var(--status-warning)' : 'var(--text-muted)' }}>
-                    Total Declared 80C: <strong>₹{total80c.toLocaleString('en-IN')}</strong> | Eligible Capped Deduction: <strong>₹{capped80c.toLocaleString('en-IN')}</strong>
-                </div>
 
-                <h4 style={{ fontSize: '1.05rem', margin: '1rem 0 0 0', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
-                    3. House Rent Allowance (HRA - Section 10(13A)) &amp; Home Loan
-                </h4>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
-                    <div>
-                        <label className="data-label">Monthly Rent Paid (₹)</label>
-                        <input type="number" min="0" className="form-control" value={form.monthly_rent_paid} onChange={e => setForm(f => ({ ...f, monthly_rent_paid: e.target.value }))} />
+                    <h4 style={{ fontSize: '1.05rem', margin: '1rem 0 0 0', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+                        3. House Rent Allowance (HRA - Section 10(13A)) &amp; Home Loan
+                    </h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+                        <div>
+                            <label className="data-label">Monthly Rent Paid (₹)</label>
+                            <input type="number" min="0" className="form-control" value={form.monthly_rent_paid} onChange={e => setForm(f => ({ ...f, monthly_rent_paid: e.target.value }))} />
+                        </div>
+                        <div>
+                            <label className="data-label">Landlord Name</label>
+                            <input type="text" className="form-control" value={form.landlord_name} onChange={e => setForm(f => ({ ...f, landlord_name: e.target.value }))} placeholder="e.g. Ramesh Kumar" />
+                        </div>
+                        <div>
+                            <label className="data-label">Landlord PAN {annualRent > 100000 && <span style={{ color: 'var(--status-danger)' }}>* (Mandatory &gt;1L/yr)</span>}</label>
+                            <input type="text" maxLength="10" className="form-control" value={form.landlord_pan} onChange={e => setForm(f => ({ ...f, landlord_pan: e.target.value.toUpperCase() }))} placeholder="ABCDE1234F" />
+                        </div>
                     </div>
-                    <div>
-                        <label className="data-label">Landlord Name</label>
-                        <input type="text" className="form-control" value={form.landlord_name} onChange={e => setForm(f => ({ ...f, landlord_name: e.target.value }))} placeholder="e.g. Ramesh Kumar" />
+                    <div style={{ display: 'flex', gap: '2rem', alignItems: 'center' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem' }}>
+                            <input type="checkbox" checked={form.is_metro_city} onChange={e => setForm(f => ({ ...f, is_metro_city: e.target.checked }))} />
+                            Accommodation in Metro City (Mumbai, Delhi, Kolkata, Chennai - 50% Basic)
+                        </label>
                     </div>
-                    <div>
-                        <label className="data-label">Landlord PAN {annualRent > 100000 && <span style={{ color: 'var(--status-danger)' }}>* (Mandatory &gt;1L/yr)</span>}</label>
-                        <input type="text" maxLength="10" className="form-control" value={form.landlord_pan} onChange={e => setForm(f => ({ ...f, landlord_pan: e.target.value.toUpperCase() }))} placeholder="ABCDE1234F" />
-                    </div>
-                </div>
-                <div style={{ display: 'flex', gap: '2rem', alignItems: 'center' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem' }}>
-                        <input type="checkbox" checked={form.is_metro_city} onChange={e => setForm(f => ({ ...f, is_metro_city: e.target.checked }))} />
-                        Accommodation in Metro City (Mumbai, Delhi, Kolkata, Chennai - 50% Basic)
-                    </label>
-                </div>
 
-                <h4 style={{ fontSize: '1.05rem', margin: '1rem 0 0 0', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
-                    4. Section 80D Health Insurance &amp; Section 24b Home Loan
-                </h4>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
-                    <div>
-                        <label className="data-label">Health Insurance (Self/Family - Max ₹25,000)</label>
-                        <input type="number" min="0" className="form-control" value={form.health_insurance_self} onChange={e => setForm(f => ({ ...f, health_insurance_self: e.target.value }))} />
+                    <h4 style={{ fontSize: '1.05rem', margin: '1rem 0 0 0', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+                        4. Section 80D Health Insurance &amp; Section 24b Home Loan
+                    </h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+                        <div>
+                            <label className="data-label">Health Insurance (Self/Family - Max ₹25,000)</label>
+                            <input type="number" min="0" className="form-control" value={form.health_insurance_self} onChange={e => setForm(f => ({ ...f, health_insurance_self: e.target.value }))} />
+                        </div>
+                        <div>
+                            <label className="data-label">Health Insurance (Parents - Max ₹25k/50k)</label>
+                            <input type="number" min="0" className="form-control" value={form.health_insurance_parents} onChange={e => setForm(f => ({ ...f, health_insurance_parents: e.target.value }))} />
+                        </div>
+                        <div>
+                            <label className="data-label">Sec 24b Home Loan Interest (Max ₹2,00,000)</label>
+                            <input type="number" min="0" className="form-control" value={form.home_loan_interest_self} onChange={e => setForm(f => ({ ...f, home_loan_interest_self: e.target.value }))} />
+                        </div>
                     </div>
-                    <div>
-                        <label className="data-label">Health Insurance (Parents - Max ₹25k/50k)</label>
-                        <input type="number" min="0" className="form-control" value={form.health_insurance_parents} onChange={e => setForm(f => ({ ...f, health_insurance_parents: e.target.value }))} />
-                    </div>
-                    <div>
-                        <label className="data-label">Sec 24b Home Loan Interest (Max ₹2,00,000)</label>
-                        <input type="number" min="0" className="form-control" value={form.home_loan_interest_self} onChange={e => setForm(f => ({ ...f, home_loan_interest_self: e.target.value }))} />
-                    </div>
-                </div>
 
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
-                    <button type="submit" className="btn btn-navy" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }} disabled={processing}>
-                        <Save size={15} /> {processing ? 'Saving...' : 'Submit Tax Declaration'}
-                    </button>
-                </div>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
+                        <button type="submit" className="btn btn-navy" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }} disabled={processing || isTdsDisabled}>
+                            <Save size={15} /> {processing ? 'Saving...' : 'Submit Tax Declaration'}
+                        </button>
+                    </div>
+                </fieldset>
             </form>
 
             {/* Confirm Dialog for Verification */}
