@@ -47,6 +47,7 @@ export const subNavs = {
     { name: 'All Employees', url: safeRoute('employees.index', '/employees') },
     { name: 'Add New', url: safeRoute('employees.create', '/employees/create') },
     { name: 'Bulk Upload', url: safeRoute('employees.bulk-upload', '/employees/bulk-upload') },
+    { name: 'Salary Revisions', url: safeRoute('employees.salary-revisions-queue', '/employees/salary-revisions-queue') },
     { name: 'Bank Change Requests', url: safeRoute('employees.bank-change-requests', '/employees/bank-change-requests') },
     { name: 'Day Swap Requests', url: safeRoute('employees.day-swaps', '/day-swap-requests') },
     { name: 'Leave Approval Queue', url: safeRoute('leave-requests.index', '/leave-requests') },

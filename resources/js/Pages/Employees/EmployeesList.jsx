@@ -11,13 +11,15 @@ export default function EmployeesList({ employees = { data: [], links: [] }, cli
     const [clientId, setClientId] = useState(filters.client_id || '');
     const [empModel, setEmpModel] = useState(filters.employment_model || '');
     const [status, setStatus] = useState(filters.status || '');
+    const [revisionStatus, setRevisionStatus] = useState(filters.revision_status || '');
 
     const applyFilters = () => {
         router.get(route('employees.index'), {
             search,
             client_id: clientId,
             employment_model: empModel,
-            status: status
+            status: status,
+            revision_status: revisionStatus
         }, { preserveState: true, preserveScroll: true });
     };
 
@@ -90,6 +92,14 @@ export default function EmployeesList({ employees = { data: [], links: [] }, cli
             <option value="onboarding">Onboarding</option>
           </select>
         </div>
+        <div>
+          <select className="form-control" style={{"padding":"0.4rem 0.75rem"}} title="Select Revision Status" value={revisionStatus} onChange={e => setRevisionStatus(e.target.value)}>
+            <option value="">All Revisions</option>
+            <option value="pending_approval">Pending Revision Approval</option>
+            <option value="approved">Approved Revisions</option>
+            <option value="none">No Revisions</option>
+          </select>
+        </div>
         <button className="btn btn-navy" style={{"padding":"0.4rem 1rem", display: 'inline-flex', alignItems: 'center', gap: '5px'}} onClick={applyFilters}>
           <Search size={14} /> Apply
         </button>
@@ -133,7 +143,7 @@ export default function EmployeesList({ employees = { data: [], links: [] }, cli
                         <span className={`badge badge-${emp.status === 'active' ? 'success' : emp.status === 'exited' ? 'danger' : 'warning'}`} style={{ whiteSpace: 'nowrap' }}>
                           {emp.status ? (emp.status.charAt(0).toUpperCase() + emp.status.slice(1)) : 'Unknown'}
                         </span>
-                        <div style={{"display":"flex","gap":"0.4rem","flexWrap":"nowrap"}}>
+                        <div style={{"display":"flex","gap":"0.4rem","flexWrap":"wrap"}}>
                             {emp.status === 'onboarding' && (
                               <span className="badge badge-gold" style={{"fontSize":"0.75rem", whiteSpace: 'nowrap'}}>
                                 {emp.documents_verified_count || 0}/{emp.documents_required_count || 5} Docs
@@ -144,12 +154,20 @@ export default function EmployeesList({ employees = { data: [], links: [] }, cli
                                     <AlertCircle size={12} /> Action Required
                                 </span>
                             )}
+                            {emp.has_pending_revision && (
+                                <span className="badge badge-warning" style={{"fontSize":"0.7rem", "padding":"0.2rem 0.4rem", whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '3px'}}>
+                                    <AlertCircle size={12} /> Revision Pending
+                                </span>
+                            )}
                         </div>
                       </div>
                     </td>
                     <td style={{ whiteSpace: 'nowrap' }}>
-                      <Link href={route('employees.show', emp.id)} className="btn btn-secondary btn-xs" style={{"marginRight":"0.5rem", display: 'inline-flex', alignItems: 'center', gap: '4px'}}>
-                        <Eye size={13} /> View Profile
+                      <Link href={route('employees.salary-revision.create', emp.id)} className="btn btn-warning btn-xs" style={{"marginRight":"0.4rem", display: 'inline-flex', alignItems: 'center', gap: '4px'}}>
+                        <Edit size={13} /> Revision
+                      </Link>
+                      <Link href={route('employees.show', emp.id)} className="btn btn-secondary btn-xs" style={{"marginRight":"0.4rem", display: 'inline-flex', alignItems: 'center', gap: '4px'}}>
+                        <Eye size={13} /> View
                       </Link>
                       <Link href={route('employees.edit', emp.id)} className="btn btn-navy btn-xs" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                         <Edit size={13} /> Edit

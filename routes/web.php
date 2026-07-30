@@ -115,7 +115,8 @@ Route::middleware(['auth', 'active'])->group(function () {
             Route::post('/employees/bulk-upload/validate', [BulkUploadController::class, 'validateUpload'])->name('employees.bulk-upload.validate');
             Route::post('/employees/bulk-upload/execute', [BulkUploadController::class, 'executeImport'])->name('employees.bulk-upload.execute');
             Route::get('/employees/salary-bulk-update', fn() => Inertia::render('Employees/SalaryBulkUpdate'))->name('employees.salary-bulk-update');
-            Route::get('/employees/{id}', [EmployeeController::class, 'show'])->name('employees.show');
+            Route::get('/employees/salary-revisions-queue', [SalaryRevisionController::class, 'queue'])->name('employees.salary-revisions-queue');
+            Route::get('/employees/{id}', [EmployeeController::class, 'show'])->where('id', '[0-9]+')->name('employees.show');
             Route::get('/employees/{id}/edit', [EmployeeController::class, 'edit'])->name('employees.edit');
             Route::put('/employees/{id}', [EmployeeController::class, 'update'])->name('employees.update');
             Route::delete('/employees/{id}', [EmployeeController::class, 'destroy'])->name('employees.destroy');

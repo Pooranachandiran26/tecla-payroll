@@ -15,7 +15,7 @@ class EmployeeController extends Controller
 
     public function index(Request $request)
     {
-        $query = \App\Models\Employee::with(['client', 'documents']);
+        $query = \App\Models\Employee::with(['client', 'documents', 'salaryRevisions']);
         
         $user = $request->user();
 
@@ -47,6 +47,20 @@ class EmployeeController extends Controller
             $query->where('employment_model', $request->employment_model);
         }
 
+        if ($request->revision_status) {
+            if ($request->revision_status === 'pending_approval') {
+                $query->whereHas('salaryRevisions', function($q) {
+                    $q->where('status', 'pending_approval');
+                });
+            } elseif ($request->revision_status === 'approved') {
+                $query->whereHas('salaryRevisions', function($q) {
+                    $q->where('status', 'approved');
+                });
+            } elseif ($request->revision_status === 'none') {
+                $query->whereDoesntHave('salaryRevisions');
+            }
+        }
+
         $employees = $query->orderBy('id', 'desc')->paginate(10)->withQueryString();
         
         $clientsQuery = \App\Models\Client::where('status', 'active');
@@ -58,7 +72,7 @@ class EmployeeController extends Controller
         return \Inertia\Inertia::render('Employees/EmployeesList', [
             'employees' => \App\Http\Resources\EmployeeResource::collection($employees),
             'clients' => $clients,
-            'filters' => $request->only(['search', 'client_id', 'employment_model', 'status'])
+            'filters' => $request->only(['search', 'client_id', 'employment_model', 'status', 'revision_status'])
         ]);
     }
 

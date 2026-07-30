@@ -297,7 +297,7 @@ export default function Dashboard({
             <div className="flex items-center gap-2 shrink-0">
               {metrics.pendingSalaryRevisions > 0 && (
                 <Link
-                  href={route('employees.index')}
+                  href={route('employees.salary-revisions-queue')}
                   className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-lg shadow transition-all"
                 >
                   Review Revisions
