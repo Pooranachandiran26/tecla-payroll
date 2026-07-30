@@ -6,9 +6,254 @@ use Illuminate\Http\Request;
 use App\Models\Setting;
 use App\Services\SettingsService;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class SettingsController extends Controller
 {
+    // ───────────────────────────────────────────────────
+    //  Branding
+    // ───────────────────────────────────────────────────
+
+    public function getBranding()
+    {
+        $settings = SettingsService::group('branding');
+
+        // Convert stored file paths to public URLs for the frontend
+        foreach (['logo_path', 'favicon_path'] as $key) {
+            if (!empty($settings[$key])) {
+                $settings[$key . '_url'] = Storage::disk('public')->url($settings[$key]);
+            } else {
+                $settings[$key . '_url'] = '';
+            }
+        }
+
+        return response()->json($settings);
+    }
+
+    public function updateBranding(Request $request)
+    {
+        $request->validate([
+            'logo'               => 'nullable|image|mimes:jpg,jpeg,png,svg,webp|max:2048',
+            'favicon'            => 'nullable|image|mimes:jpg,jpeg,png,svg,webp|max:2048',
+            'primary_color'      => 'nullable|string|regex:/^#[0-9A-Fa-f]{6}$/',
+            'theme_mode_default' => 'nullable|string|in:light,dark,system',
+        ]);
+
+        $changes = [];
+
+        // Handle logo upload
+        if ($request->hasFile('logo')) {
+            $oldPath = SettingsService::get('branding.logo_path');
+            if ($oldPath && Storage::disk('public')->exists($oldPath)) {
+                Storage::disk('public')->delete($oldPath);
+            }
+            $path = $request->file('logo')->store('branding', 'public');
+            SettingsService::set('branding.logo_path', $path, auth()->id());
+            $changes[] = ['key' => 'logo_path', 'old_value' => $oldPath, 'new_value' => $path];
+        }
+
+        // Handle favicon upload
+        if ($request->hasFile('favicon')) {
+            $oldPath = SettingsService::get('branding.favicon_path');
+            if ($oldPath && Storage::disk('public')->exists($oldPath)) {
+                Storage::disk('public')->delete($oldPath);
+            }
+            $path = $request->file('favicon')->store('branding', 'public');
+            SettingsService::set('branding.favicon_path', $path, auth()->id());
+            $changes[] = ['key' => 'favicon_path', 'old_value' => $oldPath, 'new_value' => $path];
+        }
+
+        // Handle text fields
+        foreach (['primary_color', 'theme_mode_default'] as $field) {
+            if ($request->has($field)) {
+                $newValue = $request->input($field);
+                $oldValue = SettingsService::get("branding.{$field}");
+                if ($oldValue !== $newValue) {
+                    SettingsService::set("branding.{$field}", $newValue, auth()->id());
+                    $changes[] = ['key' => $field, 'old_value' => $oldValue, 'new_value' => $newValue];
+                }
+            }
+        }
+
+        if (!empty($changes)) {
+            app(\App\Services\AuditService::class)->log('branding_updated', auth()->user(), null, null, ['changes' => $changes]);
+        }
+
+        return response()->json(['message' => 'Branding settings updated successfully.']);
+    }
+    public function getCompanyProfile()
+    {
+        $settings = SettingsService::group('company_profile');
+        
+        // Fix: decode any JSON-encoded strings that have baked-in literal quotes
+        foreach ($settings as $key => $value) {
+            if (is_string($value) && str_starts_with($value, '"') && str_ends_with($value, '"')) {
+                $settings[$key] = json_decode($value);
+            }
+        }
+        
+        return response()->json($settings);
+    }
+
+    public function updateCompanyProfile(Request $request)
+    {
+        $updates = $request->validate([
+            'agency_legal_name' => 'nullable|string',
+            'tan_number' => 'nullable|string',
+            'default_authorized_signatory' => 'nullable|string',
+            'registered_office_address' => 'nullable|string',
+            'agency_gstin' => 'nullable|string',
+            'pf_establishment_code' => 'nullable|string|max:255',
+            'esi_code_number' => 'nullable|string|max:255',
+        ]);
+
+        $changes = [];
+
+        foreach ($updates as $key => $newValue) {
+            $oldValue = SettingsService::get("company_profile.{$key}");
+            
+            if ($oldValue !== $newValue) {
+                SettingsService::set("company_profile.{$key}", $newValue, auth()->id());
+                
+                $changes[] = [
+                    'key' => $key,
+                    'old_value' => $oldValue,
+                    'new_value' => $newValue,
+                ];
+            }
+        }
+
+        if (!empty($changes)) {
+            app(\App\Services\AuditService::class)->log('company_profile_updated', auth()->user(), null, null, ['changes' => $changes]);
+        }
+
+        return response()->json(['message' => 'Company Profile updated successfully.']);
+    }
+
+    public function getPtSlabs()
+    {
+        $slabs = \Illuminate\Support\Facades\DB::table('pt_slabs')
+            ->where('is_active', true)
+            ->orderBy('state')
+            ->orderBy('min_salary')
+            ->get()
+            ->map(function ($slab) {
+                $isHalfYearly = ($slab->frequency ?? 'monthly') === 'half_yearly';
+                $halfMin = $isHalfYearly ? floatval($slab->min_salary) * 6 : null;
+                $halfMax = ($isHalfYearly && $slab->max_salary !== null) ? floatval($slab->max_salary) * 6 : null;
+                $halfTax = $isHalfYearly ? floatval($slab->deduction_amount) * 6 : null;
+
+                return [
+                    'id' => $slab->id,
+                    'state' => $slab->state,
+                    'min_salary' => floatval($slab->min_salary),
+                    'max_salary' => $slab->max_salary !== null ? floatval($slab->max_salary) : null,
+                    'deduction_amount' => floatval($slab->deduction_amount),
+                    'deduction_note' => $slab->deduction_note,
+                    'exceptions_text' => $slab->exceptions_text,
+                    'frequency' => $slab->frequency ?? 'monthly',
+                    'from' => '₹' . number_format($slab->min_salary),
+                    'to' => $slab->max_salary !== null ? '₹' . number_format($slab->max_salary) : 'No Limit',
+                    'deduction' => '₹' . floatval($slab->deduction_amount) . ($slab->deduction_note ? ' ' . $slab->deduction_note : ''),
+                    'half_yearly_range' => $isHalfYearly ? ('₹' . number_format($halfMin) . ($halfMax ? ' to ₹' . number_format($halfMax) : ' & above')) : null,
+                    'half_yearly_tax' => $isHalfYearly ? ('₹' . number_format($halfTax, 0)) : null,
+                    'disabled' => false
+                ];
+            });
+        
+        return response()->json($slabs);
+    }
+
+    public function updatePtSlab(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'state' => 'required|string|max:255',
+            'min_salary' => 'required|numeric|min:0',
+            'max_salary' => 'nullable|numeric|min:0',
+            'deduction_amount' => 'required|numeric|min:0',
+            'deduction_note' => 'nullable|string|max:255',
+            'exceptions_text' => 'nullable|string|max:1000',
+            'frequency' => 'required|string|in:monthly,half_yearly',
+        ]);
+
+        $slab = \Illuminate\Support\Facades\DB::table('pt_slabs')->where('id', $id)->first();
+        if (!$slab) {
+            return response()->json(['message' => 'PT Slab not found.'], 404);
+        }
+
+        \Illuminate\Support\Facades\DB::table('pt_slabs')->where('id', $id)->update([
+            'state' => $validated['state'],
+            'min_salary' => $validated['min_salary'],
+            'max_salary' => $validated['max_salary'],
+            'deduction_amount' => $validated['deduction_amount'],
+            'deduction_note' => $validated['deduction_note'] ?? null,
+            'exceptions_text' => $validated['exceptions_text'] ?? null,
+            'frequency' => $validated['frequency'],
+            'updated_at' => now(),
+        ]);
+
+        app(\App\Services\AuditService::class)->log('pt_slab_updated', auth()->user(), null, null, [
+            'slab_id' => $id,
+            'old' => (array)$slab,
+            'new' => $validated
+        ]);
+
+        return response()->json(['message' => 'PT Slab updated successfully.']);
+    }
+
+    public function getLwfSlabs()
+    {
+        $slabs = \Illuminate\Support\Facades\DB::table('lwf_slabs')
+            ->where('is_active', true)
+            ->orderBy('state')
+            ->get()
+            ->map(function ($slab) {
+                return [
+                    'id' => $slab->id,
+                    'state' => $slab->state,
+                    'employee_contribution' => floatval($slab->employee_contribution),
+                    'employer_contribution' => floatval($slab->employer_contribution),
+                    'frequency' => $slab->frequency ?? 'yearly',
+                    'employee_formatted' => '₹' . number_format($slab->employee_contribution, 2),
+                    'employer_formatted' => '₹' . number_format($slab->employer_contribution, 2),
+                    'total_formatted' => '₹' . number_format($slab->employee_contribution + $slab->employer_contribution, 2),
+                ];
+            });
+
+        return response()->json($slabs);
+    }
+
+    public function updateLwfSlab(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'state' => 'required|string|max:255',
+            'employee_contribution' => 'required|numeric|min:0',
+            'employer_contribution' => 'required|numeric|min:0',
+            'frequency' => 'required|string|in:monthly,half_yearly,yearly',
+        ]);
+
+        $slab = \Illuminate\Support\Facades\DB::table('lwf_slabs')->where('id', $id)->first();
+        if (!$slab) {
+            return response()->json(['message' => 'LWF Slab not found.'], 404);
+        }
+
+        \Illuminate\Support\Facades\DB::table('lwf_slabs')->where('id', $id)->update([
+            'state' => $validated['state'],
+            'employee_contribution' => $validated['employee_contribution'],
+            'employer_contribution' => $validated['employer_contribution'],
+            'frequency' => $validated['frequency'],
+            'updated_at' => now(),
+        ]);
+
+        app(\App\Services\AuditService::class)->log('lwf_slab_updated', auth()->user(), null, null, [
+            'slab_id' => $id,
+            'old' => (array)$slab,
+            'new' => $validated
+        ]);
+
+        return response()->json(['message' => 'LWF Slab updated successfully.']);
+    }
+
     public function getAuthSecurity()
     {
         $settings = Setting::where('group', 'auth_security')->get()->keyBy('key');
@@ -22,6 +267,41 @@ class SettingsController extends Controller
         });
 
         return response()->json($response);
+    }
+
+    public function getPayrollConfig()
+    {
+        $settings = SettingsService::group('payroll_configuration');
+        return response()->json($settings);
+    }
+
+    public function updatePayrollConfig(Request $request)
+    {
+        $updates = $request->validate([
+            'default_lop_basis' => 'required|in:26,30'
+        ]);
+
+        $changes = [];
+
+        foreach ($updates as $key => $newValue) {
+            $oldValue = SettingsService::get("payroll_configuration.{$key}");
+            
+            if ($oldValue !== $newValue) {
+                SettingsService::set("payroll_configuration.{$key}", $newValue, auth()->id());
+                
+                $changes[] = [
+                    'key' => $key,
+                    'old_value' => $oldValue,
+                    'new_value' => $newValue,
+                ];
+            }
+        }
+
+        if (!empty($changes)) {
+            app(\App\Services\AuditService::class)->log('payroll_settings_updated', auth()->user(), null, null, ['changes' => $changes]);
+        }
+
+        return response()->json(['message' => 'Payroll configuration updated successfully.']);
     }
 
     public function updateAuthSecurity(Request $request)
@@ -197,5 +477,136 @@ class SettingsController extends Controller
 
             return response()->json(['error' => $reason, 'details' => $errorMsg], 422);
         }
+    }
+    // ───────────────────────────────────────────────────
+    // Localization
+    // ───────────────────────────────────────────────────
+
+    public function getLocalization()
+    {
+        $settings = SettingsService::group('localization');
+        return response()->json($settings);
+    }
+
+    public function updateLocalization(Request $request)
+    {
+        $validated = $request->validate([
+            'timezone' => 'nullable|string|max:255',
+            'date_format' => 'nullable|string|max:255',
+            'currency_symbol' => 'nullable|string|max:10',
+            'currency_code' => 'nullable|string|max:10',
+            'financial_year_start_month' => 'nullable|integer|min:1|max:12',
+        ]);
+
+        foreach ($validated as $key => $value) {
+            SettingsService::set('localization.' . $key, $value, auth()->id());
+        }
+
+        app(\App\Services\AuditService::class)->log('settings.localization_updated', auth()->user(), null, null, $validated);
+
+        return response()->json(['message' => 'Localization settings updated successfully']);
+    }
+    // ───────────────────────────────────────────────────
+    // File Upload Policy
+    // ───────────────────────────────────────────────────
+
+    public function getFileUploadPolicy()
+    {
+        $settings = SettingsService::group('file_upload_policy');
+        return response()->json($settings);
+    }
+
+    public function updateFileUploadPolicy(Request $request)
+    {
+        $validated = $request->validate([
+            'max_file_size_mb' => 'nullable|integer|min:1|max:100',
+            'allowed_document_types' => 'nullable|array',
+            'allowed_document_types.*' => 'string'
+        ]);
+
+        if (isset($validated['allowed_document_types'])) {
+            $validated['allowed_document_types'] = json_encode($validated['allowed_document_types']);
+        }
+
+        foreach ($validated as $key => $value) {
+            SettingsService::set('file_upload_policy.' . $key, $value, auth()->id());
+        }
+
+        app(\App\Services\AuditService::class)->log('settings.file_upload_policy_updated', auth()->user(), null, null, $validated);
+
+        return response()->json(['message' => 'File Upload Policy updated successfully']);
+    }
+
+    // ───────────────────────────────────────────────────
+    //  GST Settings
+    // ───────────────────────────────────────────────────
+
+    public function getGstSettings()
+    {
+        $settings = SettingsService::group('gst');
+
+        if (!empty($settings['gst_rates'])) {
+            if (is_string($settings['gst_rates'])) {
+                try {
+                    $settings['gst_rates'] = json_decode($settings['gst_rates'], true);
+                } catch (\Exception $e) {}
+            }
+            if (is_array($settings['gst_rates'])) {
+                $settings['gst_rates'] = array_values($settings['gst_rates']);
+            }
+        } else {
+            $settings['gst_rates'] = [];
+        }
+
+        if (!isset($settings['default_gst_rate'])) {
+            $settings['default_gst_rate'] = '18';
+        }
+        if (!isset($settings['default_reverse_charge'])) {
+            $settings['default_reverse_charge'] = false;
+        }
+        if (!isset($settings['default_tds_on_agency_fee'])) {
+            $settings['default_tds_on_agency_fee'] = 'na';
+        }
+        if (!isset($settings['notes'])) {
+            $settings['notes'] = '';
+        }
+
+        return response()->json($settings);
+    }
+
+    public function updateGstSettings(Request $request)
+    {
+        $validated = $request->validate([
+            'default_gst_rate'          => 'required|max:20',
+            'default_reverse_charge'    => 'nullable|boolean',
+            'default_tds_on_agency_fee' => 'nullable|max:20',
+            'notes'                     => 'nullable|string|max:1000',
+            'gst_rates'                 => 'nullable|array',
+            'gst_rates.*.rate'          => 'required|max:20',
+            'gst_rates.*.label'         => 'required|max:120',
+            'gst_rates.*.hsn_sac'       => 'nullable|max:20',
+            'gst_rates.*.description'   => 'nullable|max:255',
+        ]);
+
+        SettingsService::set('gst.default_gst_rate',          (string) $validated['default_gst_rate'], auth()->id());
+        SettingsService::set('gst.default_reverse_charge',    filter_var($validated['default_reverse_charge'] ?? false, FILTER_VALIDATE_BOOLEAN), auth()->id());
+        SettingsService::set('gst.default_tds_on_agency_fee', (string) ($validated['default_tds_on_agency_fee'] ?? 'na'), auth()->id());
+        SettingsService::set('gst.notes',                     (string) ($validated['notes'] ?? ''), auth()->id());
+
+        if (isset($validated['gst_rates'])) {
+            $setting = Setting::firstOrNew(['group' => 'gst', 'key' => 'gst_rates']);
+            $setting->type = 'json';
+            $setting->value = json_encode(array_values($validated['gst_rates']));
+            $setting->updated_by = auth()->id();
+            $setting->save();
+
+            \Illuminate\Support\Facades\Cache::forget("settings.gst");
+        }
+
+        app(\App\Services\AuditService::class)->log('settings.gst_updated', auth()->user(), null, null, [
+            'default_gst_rate' => $validated['default_gst_rate'],
+        ]);
+
+        return response()->json(['message' => 'GST settings updated successfully.']);
     }
 }

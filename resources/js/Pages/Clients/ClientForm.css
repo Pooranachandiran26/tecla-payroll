@@ -15,15 +15,16 @@
     }
 
     .section-icon {
-      width: 30px;
-      height: 30px;
-      border-radius: 6px;
-      background: var(--primary-navy);
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%);
       color: white;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 0.9rem;
+      box-shadow: 0 2px 4px rgba(30, 58, 138, 0.15);
+      flex-shrink: 0;
     }
 
     .section-header h3 {
@@ -75,22 +76,53 @@
     }
 
     .stat-row .stat-rate {
-      width: 120px;
+      min-width: 140px;
+      width: auto;
       flex-shrink: 0;
     }
 
     .stat-rate-input {
       width: 100%;
-      padding: 0.3rem 0.5rem;
-      border: 1px solid var(--border-color);
+      padding: 0.45rem 0.75rem;
+      border: 1.5px solid #CBD5E1;
       border-radius: var(--radius-sm);
-      font-size: 0.8rem;
-      text-align: right;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #0F172A;
+      background-color: #FFFFFF;
+      transition: all var(--transition-fast);
     }
 
-    .stat-rate-input:focus {
+    input[type="number"].stat-rate-input {
+      text-align: right;
+      max-width: 150px;
+      margin-left: auto;
+      display: block;
+      font-weight: 700;
+      color: #0F172A;
+      font-size: 0.95rem;
+      letter-spacing: 0.5px;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    }
+
+    select.stat-rate-input {
+      text-align: left;
+      min-width: 220px;
+      padding-right: 1.8rem;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      cursor: pointer;
+      font-weight: 600;
+      color: #0F172A;
+      background-color: #ffffff;
+    }
+
+    .stat-rate-input:focus,
+    input[type="number"].stat-rate-input:focus {
       outline: none;
-      border-color: var(--accent-gold);
+      border-color: var(--accent-gold, #D97706);
+      box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.15);
+      background-color: #FFFDF5;
     }
 
     .stat-row .stat-toggle {
@@ -207,6 +239,19 @@
       color: var(--status-success);
     }
 
+    /* Sticky Right Sidebar Container */
+    .sidebar-cards-container {
+      position: sticky;
+      top: 5.5rem;
+      align-self: start;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+      max-height: calc(100vh - 7rem);
+      overflow-y: auto;
+      padding-right: 2px;
+    }
+
     /* Onboarding checklist sidebar */
     .checklist-item {
       display: flex;
@@ -274,13 +319,18 @@
     .progress-step {
       flex: 1;
       text-align: center;
-      padding: 0.5rem 0.25rem;
-      font-size: 0.72rem;
+      padding: 0.6rem 0.35rem;
+      font-size: 0.78rem;
       font-weight: 600;
       background: #F8FAFC;
       color: var(--text-muted);
       border-right: 1px solid var(--border-color);
-      cursor: default;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.15s ease;
     }
 
     .progress-step:last-child {
@@ -288,13 +338,14 @@
     }
 
     .progress-step.active {
-      background: var(--primary-navy);
+      background: var(--primary-navy, #1E3A8A);
       color: white;
+      font-weight: 700;
     }
 
     .progress-step.complete {
-      background: var(--status-success-bg);
-      color: var(--status-success);
+      background: #ECFDF5;
+      color: #047857;
     }
 
     /* Wizard Steps styling */

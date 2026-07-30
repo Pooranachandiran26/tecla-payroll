@@ -11,29 +11,37 @@ let toastIdCounter = 0;
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
 
-  const showToast = useCallback(({ type = 'info', title, message, duration = 4000 }) => {
-    const id = ++toastIdCounter;
-    const toast = { id, type, title, message, duration, exiting: false };
-
-    setToasts(prev => [...prev, toast]);
-
-    if (duration > 0) {
-      setTimeout(() => {
-        dismissToast(id);
-      }, duration);
-    }
-
-    return id;
-  }, []);
-
   const dismissToast = useCallback((id) => {
     // Mark as exiting for animation
-    setToasts(prev => prev.map(t => t.id === id ? { ...t, exiting: true } : t));
+    setToasts(prev => (Array.isArray(prev) ? prev : []).map(t => t.id === id ? { ...t, exiting: true } : t));
     // Remove after animation
     setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.id !== id));
+      setToasts(prev => (Array.isArray(prev) ? prev : []).filter(t => t.id !== id));
     }, 300);
   }, []);
+
+  const showToast = useCallback(({ type = 'info', title, message, duration = 2000 }) => {
+    if (!message) return null;
+
+    const effectiveDuration = 2000; // Strictly 2 seconds for all alerts
+    const id = ++toastIdCounter;
+
+    setToasts(prev => {
+      const safePrev = Array.isArray(prev) ? prev : [];
+      // Prevent adding duplicate active toasts with the exact same message and type
+      if (safePrev.some(t => !t.exiting && t.message === message && t.type === type)) {
+        return safePrev;
+      }
+      const toast = { id, type, title, message, duration: effectiveDuration, exiting: false };
+      return [...safePrev, toast];
+    });
+
+    setTimeout(() => {
+      dismissToast(id);
+    }, effectiveDuration);
+
+    return id;
+  }, [dismissToast]);
 
   return (
     <ToastContext.Provider value={{ toasts, showToast, dismissToast }}>

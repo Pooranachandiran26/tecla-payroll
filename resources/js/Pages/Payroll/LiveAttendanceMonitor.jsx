@@ -1,306 +1,347 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import AuthenticatedLayout from '../../Layouts/AuthenticatedLayout';
-import { Head, Link } from '@inertiajs/react';
-import Button from '../../Components/ui/Button';
-import DataTable from '../../Components/ui/DataTable';
-import Badge from '../../Components/ui/Badge';
-import Select from '../../Components/ui/Select';
-import Input from '../../Components/ui/Input';
-import Modal from '../../Components/ui/Modal';
-import useToast from '../../Hooks/useToast';
-
+import { Head, Link, router } from '@inertiajs/react';
 import RoleGuard from '../../Components/RoleGuard.jsx';
-const initialPunches = [
-  {
-    id: 1,
-    client: 'mahindra',
-    clientName: 'Mahindra Corp',
-    name: 'Aarav Sharma',
-    code: 'TEC-088',
-    source: '🟢 Live Punch',
-    shift: 'General (09:00 - 18:00)',
-    in: '09:42 AM',
-    out: '06:15 PM',
-    hours: '8h 33m',
-    status: 'present'
-  },
-  {
-    id: 2,
-    client: 'mahindra',
-    clientName: 'Mahindra Corp',
-    name: 'Neha Patil',
-    code: 'TEC-121',
-    source: '🟢 Live Punch',
-    shift: 'General (09:00 - 18:00)',
-    in: '09:30 AM',
-    out: 'working',
-    hours: '8h 18m',
-    status: 'present'
-  },
-  {
-    id: 3,
-    client: 'reliance',
-    clientName: 'Reliance Digital',
-    name: 'Vikram Rao',
-    code: 'TEC-168',
-    source: '🟢 Live Punch',
-    shift: 'Retail Shift B',
-    in: '10:05 AM',
-    out: '07:00 PM',
-    hours: '8h 55m',
-    status: 'present'
-  },
-  {
-    id: 4,
-    client: 'mahindra',
-    clientName: 'Mahindra Corp',
-    name: 'Karan Malhotra',
-    code: 'TEC-142',
-    source: '🟢 Live Punch',
-    shift: 'General (09:00 - 18:00)',
-    in: '—',
-    out: '—',
-    hours: '0h 0m',
-    status: 'absent'
-  }
-];
+import useToast from '../../Hooks/useToast';
+import {
+  RefreshCw,
+  Upload,
+  Search,
+  Calendar,
+  Filter,
+  Fingerprint,
+  FileSpreadsheet,
+  PenLine,
+  Umbrella,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  ArrowRight,
+  AlertTriangle,
+  SlidersHorizontal
+} from 'lucide-react';
 
-export default function LiveAttendanceMonitor() {
+export default function LiveAttendanceMonitor({ clients = [], punches = {}, selectedClientId, selectedDate }) {
   const { showToast } = useToast();
-  
-  const [punches, setPunches] = useState(initialPunches);
-  const [clientFilter, setClientFilter] = useState('mahindra');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [clientId, setClientId] = useState(selectedClientId || '');
+  const [date, setDate] = useState(selectedDate || new Date().toISOString().split('T')[0]);
   const [search, setSearch] = useState('');
-  
-  const [overrideModalOpen, setOverrideModalOpen] = useState(false);
-  const [selectedEmp, setSelectedEmp] = useState(null);
 
-  useEffect(() => {
-    // Increment Neha Patil's live working timer slightly
-    const interval = setInterval(() => {
-      setPunches(prev => prev.map(p => {
-        if (p.id === 2) {
-          const match = p.hours.match(/(\d+)h\s+(\d+)m(?:\s+(\d+)s)?/);
-          if (match) {
-            let h = parseInt(match[1]);
-            let m = parseInt(match[2]);
-            let s = match[3] ? parseInt(match[3]) : 0;
-            s++;
-            if (s >= 60) { s = 0; m++; }
-            if (m >= 60) { m = 0; h++; }
-            return { ...p, hours: `${h}h ${m}m ${s}s` };
-          }
-        }
-        return p;
-      }));
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
+  const todayStr = new Date().toISOString().split('T')[0];
+  const yesterdayStr = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+  const isToday = date === todayStr;
 
-  const filteredPunches = punches.filter(p => {
-    if (clientFilter && p.client !== clientFilter) return false;
-    if (search && !p.name.toLowerCase().includes(search.toLowerCase())) return false;
-    return true;
-  });
+  // Defensive data extraction
+  const clientsList = Array.isArray(clients) ? clients : [];
+  const punchesObj = punches || {};
+  const punchesList = Array.isArray(punchesObj) ? punchesObj : (punchesObj.data || []);
+  const punchesLinks = Array.isArray(punchesObj) ? [] : (punchesObj.links || []);
+  const punchesTotal = Array.isArray(punchesObj) ? punchesObj.length : (punchesObj.total || 0);
+  const punchesFrom = Array.isArray(punchesObj) ? (punchesObj.length > 0 ? 1 : 0) : (punchesObj.from || 0);
+  const punchesTo = Array.isArray(punchesObj) ? punchesObj.length : (punchesObj.to || 0);
 
-  const readinessCounts = () => {
-    if (clientFilter === 'mahindra') {
-      return "3 employees ready for payroll | 1 missing attendance | 0 on approved leave";
-    } else if (clientFilter === 'reliance') {
-      return "1 employee ready for payroll | 0 missing attendance | 0 on approved leave";
-    } else if (clientFilter === 'tcs') {
-      return "0 employees ready for payroll | 0 missing attendance | 0 on approved leave";
-    }
-    return "4 employees ready for payroll | 1 missing attendance | 0 on approved leave";
+  const applyFilters = (newClientId = clientId, newDate = date) => {
+    router.get(route('payroll.live-monitor'), {
+      client_id: newClientId || undefined,
+      date: newDate || undefined,
+      search: search || undefined
+    }, { preserveState: true, preserveScroll: true });
   };
 
-  const columns = [
-    {
-      header: 'Employee',
-      accessor: 'employee',
-      cell: (row) => (
-        <>
-          <strong>{row.name}</strong>
-          <div className="text-xs text-gray-500">Emp Code: {row.code}</div>
-        </>
-      )
-    },
-    {
-      header: 'Client Partner',
-      accessor: 'clientName'
-    },
-    {
-      header: 'Source',
-      accessor: 'source',
-      cell: (row) => <span className="font-medium">{row.source}</span>
-    },
-    {
-      header: 'Shift Type',
-      accessor: 'shift'
-    },
-    {
-      header: 'Clock In Time',
-      accessor: 'in'
-    },
-    {
-      header: 'Clock Out Time',
-      accessor: 'out',
-      cell: (row) => row.out === 'working' ? <Badge type="warning">Still Working</Badge> : row.out
-    },
-    {
-      header: 'Hours Logged Today',
-      accessor: 'hours',
-      cell: (row) => <span className="font-semibold font-mono">{row.hours}</span>
-    },
-    {
-      header: 'Status',
-      accessor: 'status',
-      cell: (row) => (
-        <Badge type={row.status === 'present' ? 'success' : 'danger'}>
-          {row.status === 'present' ? 'Present' : 'Not Clocked In'}
-        </Badge>
-      )
-    },
-    {
-      header: 'Action Override',
-      accessor: 'actions',
-      cell: (row) => (
-        <Button size="xs" variant="secondary" onClick={() => { setSelectedEmp(row.name); setOverrideModalOpen(true); }}>
-          Override
-        </Button>
-      )
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      applyFilters();
     }
-  ];
+  };
+
+  const handleClientChange = (e) => {
+    const val = e.target.value;
+    setClientId(val);
+    applyFilters(val, date);
+  };
+
+  const handleDateChange = (newDate) => {
+    setDate(newDate);
+    applyFilters(clientId, newDate);
+  };
+
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    router.reload({
+      onFinish: () => {
+        setIsRefreshing(false);
+        showToast({
+          type: 'success',
+          title: 'Live Feeds Updated',
+          message: 'The attendance list has been successfully refreshed.',
+        });
+      }
+    });
+  };
+
+  const filteredPunches = punchesList.filter(p => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return (p.name || '').toLowerCase().includes(q) || (p.code || '').toLowerCase().includes(q);
+  });
+
+  const presentCount = punchesList.filter(p => p.status === 'present').length;
+  const absentCount  = punchesList.filter(p => p.status === 'absent').length;
+  const leaveCount   = punchesList.filter(p => p.status === 'leave').length;
+
+  const getSourceBadge = (source) => {
+    const srcMap = {
+      'live_punch': { icon: <Fingerprint size={13} />, label: 'Live Punch', badgeClass: 'badge-success' },
+      'uploaded':   { icon: <FileSpreadsheet size={13} />, label: 'Uploaded',   badgeClass: 'badge-info' },
+      'override':   { icon: <PenLine size={13} />,      label: 'Override',   badgeClass: 'badge-warning' },
+      'leave':      { icon: <Umbrella size={13} />,     label: 'Leave',      badgeClass: 'badge-secondary' },
+    };
+    return srcMap[(source || '').toLowerCase()] || { icon: <Clock size={13} />, label: source || 'Live Punch', badgeClass: 'badge-secondary' };
+  };
 
   return (
-    <RoleGuard allowedRoles={['admin', 'manager']}>
-    <AuthenticatedLayout>
-      <Head title="Live Attendance Monitor" />
+    <RoleGuard allowedRoles={['admin', 'manager']} moduleKey="payroll">
+      <AuthenticatedLayout>
+        <Head title="Live Attendance Monitor" />
+        <div className="legacy-react-wrapper">
 
-      <div className="flex justify-between items-end mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-[#1F3864] mb-1 flex items-center">
-            <span className="w-3 h-3 bg-green-500 rounded-full inline-block mr-2 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]"></span>
-            Live Attendance Monitor
-          </h2>
-          <p className="text-gray-500 text-sm">Today's live punch feed — showing who is clocked in right now. Monthly totals for payroll are computed in Attendance Review after the month closes.</p>
-        </div>
-        <div className="flex gap-3">
-          <Button variant="secondary" onClick={() => showToast({ message: 'Live punch records refreshed.' })}>
-            🔄 Refresh Live Punches
-          </Button>
-          <Link href="/payroll/attendance-upload">
-            <Button variant="primary">📤 Upload Spreadsheet Attendance</Button>
-          </Link>
-        </div>
-      </div>
-
-      <div className="card p-4 mb-6 flex gap-4 items-center flex-wrap">
-        <div className="text-[0.85rem] font-semibold text-[#1F3864]">Filters:</div>
-        <div className="flex-1 min-w-[150px]">
-          <Input placeholder="Search by Employee Name..." value={search} onChange={(e) => setSearch(e.target.value)} />
-        </div>
-        <div>
-          <Select value={clientFilter} onChange={(e) => setClientFilter(e.target.value)}>
-            <option value="">All Clients</option>
-            <option value="mahindra">Mahindra Corp</option>
-            <option value="reliance">Reliance Digital</option>
-            <option value="tcs">Tata Consultancy Services</option>
-          </Select>
-        </div>
-        <div>
-          <Select value="today">
-            <option value="today">Today ({new Date('2026-06-25').toLocaleDateString('en-US', {month: 'long', day:'numeric', year:'numeric'})})</option>
-            <option value="yesterday">Yesterday</option>
-          </Select>
-        </div>
-        <div>
-          <Select value="">
-            <option value="">All Statuses</option>
-            <option value="present">Present / Working</option>
-            <option value="absent">Absent</option>
-            <option value="leave">On Leave</option>
-          </Select>
-        </div>
-        <Button variant="navy" className="py-1.5 px-4 h-auto min-h-0 text-sm">Apply</Button>
-      </div>
-
-      <div className="text-[0.85rem] text-gray-500 mb-2 flex items-center gap-4 flex-wrap">
-        <strong>Attendance Source Key:</strong>
-        <span>🟢 Live Punch = Employee self-clocked</span>
-        <span>🔵 Uploaded = Client submitted</span>
-        <span>🟠 Override = Manually corrected</span>
-        <span>⚪ Leave = Approved absence</span>
-      </div>
-
-      <div className="bg-[#FFFBEB] border-l-4 border-l-[#F59E0B] text-[#92400E] p-2 px-3 rounded text-[0.85rem] mb-6">
-        If both a punch record and an uploaded sheet exist for the same employee, the live punch always wins in payroll. The uploaded sheet is only used as a fallback.
-      </div>
-
-      <div className="text-[0.85rem] text-gray-500 italic mb-2">
-        This view resets daily. Payroll uses the full month's accumulated attendance from Attendance Review, not this screen.
-      </div>
-
-      <div className="card p-0 mb-6">
-        <DataTable columns={columns} data={filteredPunches} />
-      </div>
-
-      <div className="card p-4 flex justify-between items-center bg-slate-50 mb-6">
-        <div className="text-[0.95rem] text-[#1F3864]">
-          <strong>
-            {clientFilter === 'mahindra' ? 'Mahindra Corp' : (clientFilter === 'reliance' ? 'Reliance Digital' : (clientFilter === 'tcs' ? 'Tata Consultancy Services' : 'All Clients'))} 
-             {' — June 2026'}: 
-          </strong> 
-          {' '}{readinessCounts()}
-        </div>
-        <Link href="/payroll/attendance-review">
-          <Button variant="primary" size="xs">→ Go to Attendance Review</Button>
-        </Link>
-      </div>
-
-      <div className="text-center text-[0.85rem] text-gray-500 italic">
-        At month-end, daily punch records accumulate into a monthly batch visible in Attendance Review. Once the client approves the monthly timesheet there, payroll can be processed.
-      </div>
-
-      {/* Override Modal */}
-      <Modal isOpen={overrideModalOpen} onClose={() => setOverrideModalOpen(false)} title="Override Attendance Punch">
-        <form onSubmit={(e) => { e.preventDefault(); setOverrideModalOpen(false); showToast({ message: 'Manual override applied to attendance record.', type: 'success' }); }}>
-          <div className="p-4">
-            <p className="text-[0.85rem] mb-4">
-              Force modify the attendance record for <strong>{selectedEmp}</strong>.
-            </p>
-            <div className="flex gap-4 mb-4">
-              <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Force Clock-In Time</label>
-                <Input type="time" defaultValue="09:00" />
-              </div>
-              <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Force Clock-Out Time</label>
-                <Input type="time" defaultValue="18:00" />
-              </div>
-            </div>
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Override Status Code</label>
-              <Select>
-                <option value="present">Present (Standard Hour Deduction)</option>
-                <option value="halfday">Half Day / Casual Leave combo</option>
-                <option value="leave">On Approved Leave (Paid)</option>
-                <option value="absent">Absent / Unpaid Leave</option>
-              </Select>
-            </div>
+          {/* Header Row */}
+          <div className="mb-6 flex justify-between items-end flex-wrap gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Reason for Manual Override</label>
-              <textarea className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-1 focus:ring-[#B8860B] focus:border-[#B8860B]" rows="2" placeholder="Client request / biometric failure..." required></textarea>
+              <h2 className="text-2xl font-bold text-[#1F3864] mb-1">Live Attendance Monitor</h2>
+              <p className="text-gray-500 text-[0.9rem]">
+                {isToday
+                  ? "Today's live punch feed — showing real-time clock-in status. Monthly totals for payroll are computed in Attendance Review."
+                  : `Punch feed for ${new Date(date + 'T00:00:00').toLocaleDateString('en-IN', { month: 'long', day: 'numeric', year: 'numeric' })}. Monthly totals are computed in Attendance Review.`}
+              </p>
+            </div>
+            <div style={{ display: "flex", gap: "0.75rem" }}>
+              <button
+                type="button"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="btn btn-secondary"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              >
+                <RefreshCw size={14} className={isRefreshing ? 'animate-spin' : ''} /> Refresh Feed
+              </button>
+              <Link 
+                href={route('payroll.attendance-upload')} 
+                className="btn btn-navy"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              >
+                <Upload size={14} /> Upload Spreadsheet
+              </Link>
             </div>
           </div>
-          <div className="flex justify-end gap-3 p-4 border-t border-gray-200 bg-gray-50 rounded-b-lg">
-            <Button type="button" variant="secondary" onClick={() => setOverrideModalOpen(false)}>Cancel</Button>
-            <Button type="submit" variant="primary">Apply Manual Override</Button>
-          </div>
-        </form>
-      </Modal>
 
-    </AuthenticatedLayout>
+          {/* Filter Card */}
+          <div className="card" style={{ padding: "1rem", marginBottom: "1.5rem", display: "flex", gap: "1rem", alignItems: "center", flexWrap: "wrap" }}>
+            <div style={{ fontSize: "0.85rem", fontWeight: "600", color: "var(--primary-navy)", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+              <Filter size={14} /> Filters:
+            </div>
+
+            <div style={{ flex: "1", minWidth: "200px" }}>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Search by Employee Code or Name..."
+                style={{ padding: "0.4rem 0.75rem" }}
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                onKeyPress={handleKeyPress}
+              />
+            </div>
+
+            <div>
+              <select
+                className="form-control"
+                style={{ padding: "0.4rem 0.75rem" }}
+                value={clientId}
+                onChange={handleClientChange}
+              >
+                <option value="">All Client Partners</option>
+                {clientsList.map(c => (
+                  <option key={c.id} value={c.id}>{c.company_name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <Calendar size={14} style={{ color: 'var(--text-muted)' }} />
+              <input
+                type="date"
+                className="form-control"
+                style={{ padding: "0.4rem 0.75rem" }}
+                value={date}
+                onChange={e => handleDateChange(e.target.value)}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.4rem' }}>
+              <button
+                type="button"
+                onClick={() => handleDateChange(todayStr)}
+                className={`btn ${date === todayStr ? 'btn-navy' : 'btn-secondary'}`}
+                style={{ padding: "0.4rem 0.75rem", fontSize: "0.8rem" }}
+              >
+                Today
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDateChange(yesterdayStr)}
+                className={`btn ${date === yesterdayStr ? 'btn-navy' : 'btn-secondary'}`}
+                style={{ padding: "0.4rem 0.75rem", fontSize: "0.8rem" }}
+              >
+                Yesterday
+              </button>
+            </div>
+
+            <button
+              className="btn btn-navy"
+              style={{ padding: "0.4rem 1rem", display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+              onClick={() => applyFilters()}
+            >
+              <Search size={14} /> Apply
+            </button>
+          </div>
+
+          {/* Attendance Source Legend & Alert */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.25rem', fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+              <span style={{ color: 'var(--primary-navy)', fontWeight: 700, textTransform: 'uppercase', fontSize: '0.75rem' }}>Source Legend:</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Fingerprint size={14} style={{ color: '#16a34a' }} /> Live Punch</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><FileSpreadsheet size={14} style={{ color: '#0284c7' }} /> Uploaded</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><PenLine size={14} style={{ color: '#ea580c' }} /> Override</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Umbrella size={14} style={{ color: '#64748b' }} /> Leave</span>
+            </div>
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+              Resets daily. Monthly totals calculate in Attendance Review.
+            </div>
+          </div>
+
+          {/* Priority Alert Banner */}
+          <div className="card" style={{ padding: '0.75rem 1rem', marginBottom: '1.25rem', background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <AlertTriangle size={16} style={{ color: '#d97706', flexShrink: 0 }} />
+            <span>If both a punch record and an uploaded timesheet exist for the same employee, the <strong>live punch always wins</strong> in payroll calculations.</span>
+          </div>
+
+          {/* Table Card */}
+          <div className="card">
+            <div className="table-responsive">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Emp Code</th>
+                    <th>Employee Name</th>
+                    <th>Client Partner</th>
+                    <th>Source</th>
+                    <th>Shift Type</th>
+                    <th>Clock In</th>
+                    <th>Clock Out</th>
+                    <th>Hours Logged</th>
+                    <th>Status</th>
+                    <th>Override</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredPunches && filteredPunches.length > 0 ? (
+                    filteredPunches.map((row, idx) => {
+                      const srcBadge = getSourceBadge(row.source);
+                      return (
+                        <tr key={idx}>
+                          <td style={{ fontWeight: '600', fontFamily: 'monospace' }}>{row.code}</td>
+                          <td>
+                            <div style={{ fontWeight: '600', color: 'var(--primary-navy)' }}>{row.name}</div>
+                          </td>
+                          <td>{row.clientName}</td>
+                          <td>
+                            <span className={`badge ${srcBadge.badgeClass}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                              {srcBadge.icon} {srcBadge.label}
+                            </span>
+                          </td>
+                          <td style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{row.shift || '—'}</td>
+                          <td style={{ fontFamily: 'monospace', fontWeight: '600' }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                              <Clock size={12} style={{ color: '#16a34a' }} /> {row.in || '—'}
+                            </span>
+                          </td>
+                          <td style={{ fontFamily: 'monospace', fontWeight: '600' }}>
+                            {row.out === 'working' ? (
+                              <span className="badge badge-warning">Still Working</span>
+                            ) : (
+                              <span>{row.out || '—'}</span>
+                            )}
+                          </td>
+                          <td style={{ fontWeight: '700', fontFamily: 'monospace' }}>{row.hours || '—'}</td>
+                          <td>
+                            <span className={`badge badge-${row.status === 'present' ? 'success' : (row.status === 'leave' ? 'warning' : 'danger')}`}>
+                              {row.status === 'present' ? 'Present' : (row.status === 'leave' ? 'On Leave' : 'Not Clocked In')}
+                            </span>
+                          </td>
+                          <td>
+                            <button
+                              className="btn btn-secondary btn-xs"
+                              disabled
+                              style={{ opacity: 0.6, cursor: 'not-allowed', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                              title="Biometric overrides are handled directly in the Employee Portal"
+                            >
+                              <SlidersHorizontal size={12} /> Disabled
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan="10" style={{ textAlign: "center", padding: "2.5rem", color: "var(--text-muted)" }}>
+                        No punch records found for the selected date and filters.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination Container */}
+            {punchesLinks && punchesLinks.length > 0 && (
+              <div className="pagination-container">
+                <div className="pagination-info">
+                  Showing <strong>{punchesFrom}</strong> to <strong>{punchesTo}</strong> of <strong>{punchesTotal}</strong> punch records
+                </div>
+                <ul className="pagination">
+                  {punchesLinks.map((link, idx) => (
+                    <li key={idx} className={`page-item ${link.active ? 'active' : ''} ${!link.url ? 'disabled' : ''}`}>
+                      <Link className="page-link" href={link.url || '#'} dangerouslySetInnerHTML={{ __html: link.label }}></Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+
+          {/* Summary Footer Card */}
+          <div className="card" style={{ padding: '1rem 1.25rem', marginTop: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flexWrap: 'wrap', fontSize: '0.85rem', fontWeight: 600 }}>
+              <span style={{ color: 'var(--primary-navy)', fontWeight: 700, textTransform: 'uppercase', fontSize: '0.75rem' }}>Daily Summary:</span>
+              <span style={{ color: '#15803d', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <CheckCircle2 size={14} /> {presentCount} Present
+              </span>
+              <span style={{ color: '#b91c1c', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <XCircle size={14} /> {absentCount} Not Clocked In
+              </span>
+              <span style={{ color: '#b45309', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <Umbrella size={14} /> {leaveCount} On Leave
+              </span>
+            </div>
+            <Link href={route('payroll.attendance-review')} className="btn btn-navy" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              Attendance Review <ArrowRight size={14} />
+            </Link>
+          </div>
+
+        </div>
+      </AuthenticatedLayout>
     </RoleGuard>
   );
 }

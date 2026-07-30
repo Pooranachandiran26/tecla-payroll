@@ -30,7 +30,22 @@ class ErrorBoundary extends React.Component {
   }
 }
 
+if (typeof window !== 'undefined') {
+  const triggerDatePicker = (e) => {
+    if (e.target && e.target.tagName === 'INPUT' && e.target.type === 'date') {
+      try {
+        if (typeof e.target.showPicker === 'function') {
+          e.target.showPicker();
+        }
+      } catch (err) {}
+    }
+  };
+  window.addEventListener('click', triggerDatePicker);
+  window.addEventListener('focusin', triggerDatePicker);
+}
+
 createInertiaApp({
+    progress: false,
     resolve: name => {
         const pages = import.meta.glob('./Pages/**/*.jsx', { eager: true });
         return pages[`./Pages/${name}.jsx`];

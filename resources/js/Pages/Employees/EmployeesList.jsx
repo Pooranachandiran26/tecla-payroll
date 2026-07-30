@@ -1,10 +1,33 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
+import { Upload, UserPlus, Eye, Edit, AlertCircle, Search, Filter } from 'lucide-react';
 import './EmployeesList.css';
 
 import RoleGuard from '../../Components/RoleGuard.jsx';
-export default function EmployeesList() {
+
+export default function EmployeesList({ employees = { data: [], links: [] }, clients = [], filters = {} }) {
+    const [search, setSearch] = useState(filters.search || '');
+    const [clientId, setClientId] = useState(filters.client_id || '');
+    const [empModel, setEmpModel] = useState(filters.employment_model || '');
+    const [status, setStatus] = useState(filters.status || '');
+    const [revisionStatus, setRevisionStatus] = useState(filters.revision_status || '');
+
+    const applyFilters = () => {
+        router.get(route('employees.index'), {
+            search,
+            client_id: clientId,
+            employment_model: empModel,
+            status: status,
+            revision_status: revisionStatus
+        }, { preserveState: true, preserveScroll: true });
+    };
+
+    const handleKeyPress = (e) => {
+        if (e.key === 'Enter') {
+            applyFilters();
+        }
+    };
     useEffect(() => {
         // Load the legacy logic dynamically so it runs on client side after render
         import('./EmployeesListLogic.js').then(module => {
@@ -17,53 +40,69 @@ export default function EmployeesList() {
     }, []);
 
     return (
-        <RoleGuard allowedRoles={['admin', 'manager']}>
+        <RoleGuard allowedRoles={['admin', 'manager']} moduleKey="candidates">
     <AuthenticatedLayout>
             <Head title="Employees List" />
             <div className="legacy-react-wrapper">
                 
-      <div className="flex-row-between">
+      <div className="mb-6 flex justify-between items-end flex-wrap gap-4">
         <div>
-          <h2>Employees Directory</h2>
-          <p style={{"color":"var(--text-muted)","fontSize":"0.9rem"}}>Manage agency personnel, statutory rules, salary revisions, and leave balances.</p>
+          <h2 className="text-2xl font-bold text-[#1F3864] mb-1">Employees Directory</h2>
+          <p className="text-gray-500 text-[0.9rem]">Manage agency personnel, statutory rules, salary revisions, and leave balances.</p>
         </div>
         <div style={{"display":"flex","gap":"0.75rem"}}>
-          <a href="candidates-bulk-upload.html" className="btn btn-secondary">📥 Bulk Upload Employees</a>
-          <a href="/employees/create" className="btn btn-primary">➕ Add New Employee</a>
+          <Link href={route('employees.bulk-upload')} className="btn btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <Upload size={15} /> Bulk Upload Employees
+          </Link>
+          <a href={route('employees.create')} className="btn btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <UserPlus size={15} /> Add New Employee
+          </a>
         </div>
       </div>
 
       {/*  Filters Row  */}
       <div className="card" style={{"padding":"1rem","marginBottom":"1.5rem","display":"flex","gap":"1rem","alignItems":"center","flexWrap":"wrap"}}>
-        <div style={{"fontSize":"0.85rem","fontWeight":"600","color":"var(--primary-navy)"}}>Filters:</div>
+        <div style={{"fontSize":"0.85rem","fontWeight":"600","color":"var(--primary-navy)", display: 'inline-flex', alignItems: 'center', gap: '4px'}}>
+          <Filter size={14} /> Filters:
+        </div>
         <div style={{"flex":"1","minWidth":"200px"}}>
-          <input type="text" className="form-control" placeholder="Search by Employee Code, Name or UAN..." style={{"padding":"0.4rem 0.75rem"}} />
+          <input type="text" className="form-control" placeholder="Search by Employee Code, Name or UAN..." style={{"padding":"0.4rem 0.75rem"}} value={search} onChange={e => setSearch(e.target.value)} onKeyPress={handleKeyPress} />
         </div>
         <div>
-          <select className="form-control" style={{"padding":"0.4rem 0.75rem"}} title="Select Client">
+          <select className="form-control" style={{"padding":"0.4rem 0.75rem"}} title="Select Client" value={clientId} onChange={e => setClientId(e.target.value)}>
             <option value="">All Clients</option>
-            <option value="mahindra">Mahindra Corp</option>
-            <option value="tcs">Tata Consultancy Services</option>
-            <option value="reliance">Reliance Digital</option>
+            {clients && clients.map(c => (
+               <option key={c.id} value={c.id}>{c.company_name}</option>
+            ))}
           </select>
         </div>
         <div>
-          <select className="form-control" style={{"padding":"0.4rem 0.75rem"}} title="Select Employment Type">
+          <select className="form-control" style={{"padding":"0.4rem 0.75rem"}} title="Select Employment Type" value={empModel} onChange={e => setEmpModel(e.target.value)}>
             <option value="">All Employment Types</option>
-            <option value="contract">Agency Contract</option>
+            <option value="agency_contract">Agency Contract</option>
             <option value="eor">Pass-through EOR</option>
             <option value="internal">Internal Staff</option>
           </select>
         </div>
         <div>
-          <select className="form-control" style={{"padding":"0.4rem 0.75rem"}} title="Select Status">
+          <select className="form-control" style={{"padding":"0.4rem 0.75rem"}} title="Select Status" value={status} onChange={e => setStatus(e.target.value)}>
             <option value="">All Statuses</option>
             <option value="active">Active</option>
             <option value="exited">Exited</option>
-            <option value="pending">Pending Onboarding</option>
+            <option value="onboarding">Onboarding</option>
           </select>
         </div>
-        <button className="btn btn-navy" style={{"padding":"0.4rem 1rem"}}>Apply</button>
+        <div>
+          <select className="form-control" style={{"padding":"0.4rem 0.75rem"}} title="Select Revision Status" value={revisionStatus} onChange={e => setRevisionStatus(e.target.value)}>
+            <option value="">All Revisions</option>
+            <option value="pending_approval">Pending Revision Approval</option>
+            <option value="approved">Approved Revisions</option>
+            <option value="none">No Revisions</option>
+          </select>
+        </div>
+        <button className="btn btn-navy" style={{"padding":"0.4rem 1rem", display: 'inline-flex', alignItems: 'center', gap: '5px'}} onClick={applyFilters}>
+          <Search size={14} /> Apply
+        </button>
       </div>
 
       {/*  Table Card  */}
@@ -83,104 +122,78 @@ export default function EmployeesList() {
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td>TEC-088</td>
-                <td>
-                  <a href="/employees/1" style={{"fontWeight":"600","color":"var(--primary-navy)"}}>Aarav Sharma</a>
-                  <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>UAN: 100523485790</div>
-                </td>
-                <td>Mahindra Corp</td>
-                <td>Senior Developer</td>
-                <td><span className="badge badge-info">Pass-through EOR</span></td>
-                <td>Jan 15, 2025</td>
-                <td><span className="badge badge-success">Active</span></td>
-                <td>
-                  <a href="/employees/1" className="btn btn-secondary btn-xs">View Profile</a>
-                  <a href="/employees/create?id=88" className="btn btn-navy btn-xs">Edit</a>
-                </td>
-              </tr>
-              <tr>
-                <td>TEC-121</td>
-                <td>
-                  <a href="/employees/1" style={{"fontWeight":"600","color":"var(--primary-navy)"}}>Neha Patil</a>
-                  <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>UAN: 100523485121</div>
-                </td>
-                <td>Mahindra Corp</td>
-                <td>QA Lead</td>
-                <td><span className="badge badge-info">Pass-through EOR</span></td>
-                <td>Mar 10, 2025</td>
-                <td><span className="badge badge-success">Active</span></td>
-                <td>
-                  <a href="/employees/1" className="btn btn-secondary btn-xs">View Profile</a>
-                  <a href="/employees/create?id=121" className="btn btn-navy btn-xs">Edit</a>
-                </td>
-              </tr>
-              <tr>
-                <td>TEC-142</td>
-                <td>
-                  <a href="/employees/1" style={{"fontWeight":"600","color":"var(--primary-navy)"}}>Karan Malhotra</a>
-                  <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>UAN: 100523485142</div>
-                </td>
-                <td>Mahindra Corp</td>
-                <td>UX Designer</td>
-                <td><span className="badge badge-success">Agency Contract</span></td>
-                <td>May 01, 2026</td>
-                <td><span className="badge badge-success">Active</span></td>
-                <td>
-                  <a href="/employees/1" className="btn btn-secondary btn-xs">View Profile</a>
-                  <a href="/employees/create?id=142" className="btn btn-navy btn-xs">Edit</a>
-                </td>
-              </tr>
-              <tr>
-                <td>TEC-168</td>
-                <td>
-                  <a href="/employees/1" style={{"fontWeight":"600","color":"var(--primary-navy)"}}>Vikram Rao</a>
-                  <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>UAN: Pending</div>
-                </td>
-                <td>Reliance Digital</td>
-                <td>Sales Exec</td>
-                <td><span className="badge badge-success">Agency Contract</span></td>
-                <td>June 01, 2026</td>
-                <td>
-                  <span className="badge badge-warning">Onboarding</span>
-                  <span className="badge badge-gold" style={{"fontSize":"0.7rem","padding":"0.2rem 0.5rem","marginLeft":"0.4rem"}} title="Mandatory KYC documents incomplete">4/7 docs</span>
-                </td>
-                <td>
-                  <a href="/employees/1" className="btn btn-secondary btn-xs">View Profile</a>
-                  <a href="/employees/create?id=168" className="btn btn-navy btn-xs">Edit</a>
-                </td>
-              </tr>
-              <tr>
-                <td>TEC-045</td>
-                <td>
-                  <a href="/employees/1" style={{"fontWeight":"600","color":"var(--primary-navy)"}}>Siddharth Sen</a>
-                  <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>UAN: 100523480045</div>
-                </td>
-                <td>Tata Consultancy Services</td>
-                <td>Operations Exec</td>
-                <td><span className="badge badge-success">Agency Contract</span></td>
-                <td>Aug 10, 2024</td>
-                <td><span className="badge badge-danger">Exited</span></td>
-                <td>
-                  <a href="/employees/1" className="btn btn-secondary btn-xs">View Profile</a>
-                  <span className="badge badge-neutral">Settled</span>
-                </td>
-              </tr>
+              {employees.data && employees.data.length > 0 ? (
+                employees.data.map(emp => (
+                  <tr key={emp.id}>
+                    <td>{emp.employee_code}</td>
+                    <td>
+                      <Link href={route('employees.show', emp.id)} style={{"fontWeight":"600","color":"var(--primary-navy)"}}>{emp.full_name}</Link>
+                      <div style={{"fontSize":"0.75rem","color":"var(--text-muted)"}}>UAN: {emp.uan_number || 'Pending'}</div>
+                    </td>
+                    <td>{emp.client_name || 'No Client'}</td>
+                    <td>{emp.designation}</td>
+                    <td>
+                      <span className={`badge ${emp.employment_model === 'eor' ? 'badge-info' : 'badge-success'}`}>
+                        {emp.employment_model === 'eor' ? 'Pass-through EOR' : 'Agency Contract'}
+                      </span>
+                    </td>
+                    <td>{emp.date_of_joining ? new Date(emp.date_of_joining).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}</td>
+                    <td>
+                      <div style={{"display":"flex","flexDirection":"column","gap":"0.4rem","alignItems":"flex-start"}}>
+                        <span className={`badge badge-${emp.status === 'active' ? 'success' : emp.status === 'exited' ? 'danger' : 'warning'}`} style={{ whiteSpace: 'nowrap' }}>
+                          {emp.status ? (emp.status.charAt(0).toUpperCase() + emp.status.slice(1)) : 'Unknown'}
+                        </span>
+                        <div style={{"display":"flex","gap":"0.4rem","flexWrap":"wrap"}}>
+                            {emp.status === 'onboarding' && (
+                              <span className="badge badge-gold" style={{"fontSize":"0.75rem", whiteSpace: 'nowrap'}}>
+                                {emp.documents_verified_count || 0}/{emp.documents_required_count || 5} Docs
+                              </span>
+                            )}
+                            {emp.documents && emp.documents.filter(d => d.status === 'pending').length > 0 && (
+                                <span className="badge badge-danger" style={{"fontSize":"0.7rem", "padding":"0.2rem 0.4rem", whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '3px'}}>
+                                    <AlertCircle size={12} /> Action Required
+                                </span>
+                            )}
+                            {emp.has_pending_revision && (
+                                <span className="badge badge-warning" style={{"fontSize":"0.7rem", "padding":"0.2rem 0.4rem", whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '3px'}}>
+                                    <AlertCircle size={12} /> Revision Pending
+                                </span>
+                            )}
+                        </div>
+                      </div>
+                    </td>
+                    <td style={{ whiteSpace: 'nowrap' }}>
+                      <Link href={route('employees.salary-revision.create', emp.id)} className="btn btn-warning btn-xs" style={{"marginRight":"0.4rem", display: 'inline-flex', alignItems: 'center', gap: '4px'}}>
+                        <Edit size={13} /> Revision
+                      </Link>
+                      <Link href={route('employees.show', emp.id)} className="btn btn-secondary btn-xs" style={{"marginRight":"0.4rem", display: 'inline-flex', alignItems: 'center', gap: '4px'}}>
+                        <Eye size={13} /> View Profile
+                      </Link>
+                      <Link href={route('employees.edit', emp.id)} className="btn btn-navy btn-xs" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <Edit size={13} /> Edit
+                      </Link>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="8" style={{ textAlign: "center", padding: "2rem" }}>No employees found.</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
         {/*  Pagination Container  */}
         <div className="pagination-container">
           <div className="pagination-info">
-            Showing <strong>1</strong> to <strong>5</strong> of <strong>24</strong> employees
+            Showing <strong>{employees.meta?.from || 0}</strong> to <strong>{employees.meta?.to || 0}</strong> of <strong>{employees.meta?.total || 0}</strong> employees
           </div>
           <ul className="pagination">
-            <li className="page-item disabled={true}"><a className="page-link" href="#">Prev</a></li>
-            <li className="page-item active"><a className="page-link" href="#">1</a></li>
-            <li className="page-item"><a className="page-link" href="#" onClick={(event) => { alert('Loading page 2...'); return false; }}>2</a></li>
-            <li className="page-item"><a className="page-link" href="#" onClick={(event) => { alert('Loading page 3...'); return false; }}>3</a></li>
-            <li className="page-item"><a className="page-link" href="#" onClick={(event) => { alert('Loading page 4...'); return false; }}>4</a></li>
-            <li className="page-item"><a className="page-link" href="#" onClick={(event) => { alert('Loading next page...'); return false; }}>Next</a></li>
+            {employees.meta?.links?.map((link, idx) => (
+              <li key={idx} className={`page-item ${link.active ? 'active' : ''} ${!link.url ? 'disabled' : ''}`}>
+                <Link className="page-link" href={link.url || '#'} dangerouslySetInnerHTML={{__html: link.label}}></Link>
+              </li>
+            ))}
           </ul>
         </div>
       </div>

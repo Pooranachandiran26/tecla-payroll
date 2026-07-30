@@ -19,7 +19,9 @@ class LoginController extends Controller
 
     public function showLogin()
     {
-        return Inertia::render('Auth/Login');
+        return Inertia::render('Auth/Login', [
+            'rememberMeEnabled' => $this->settings->getAuthSecurity('remember_me_enabled', true)
+        ]);
     }
 
     public function login(Request $request)
@@ -56,14 +58,17 @@ class LoginController extends Controller
         if ($this->settings->getAuthSecurity('otp_enabled', true)) {
             try {
                 $this->authService->generateOtp($user, 'login', $ip);
-                session(['login_user_id' => $user->id]);
+                session([
+                    'login_user_id' => $user->id,
+                    'login_remember' => $request->boolean('remember')
+                ]);
                 return redirect('/login/verify-otp');
             } catch (\App\Exceptions\OtpDeliveryException $e) {
                 return back()->withErrors(['email' => $e->getMessage()]);
             }
         }
 
-        return $this->completeLogin($user, $request);
+        return $this->completeLogin($user, $request, $request->boolean('remember'));
     }
 
     public function showVerifyOtp()
@@ -88,8 +93,9 @@ class LoginController extends Controller
         $request->validate(['code' => 'required|string']);
 
         if ($this->authService->verifyOtp($user, $request->code, 'login', $request->ip())) {
-            session()->forget('login_user_id');
-            return $this->completeLogin($user, $request);
+            $remember = session('login_remember', false);
+            session()->forget(['login_user_id', 'login_remember']);
+            return $this->completeLogin($user, $request, $remember);
         }
 
         return back()->withErrors(['code' => 'Invalid or expired code.']);
@@ -111,9 +117,17 @@ class LoginController extends Controller
         }
     }
 
-    protected function completeLogin(User $user, Request $request)
+    protected function completeLogin(User $user, Request $request, bool $remember = false)
     {
-        Auth::login($user);
+        if (app()->environment('testing')) {
+            logger('Remember flag passed to completeLogin: ' . ($remember ? 'true' : 'false'));
+            logger('Session remember flag before verify: ' . session('login_remember'));
+        }
+        if (!$this->settings->getAuthSecurity('remember_me_enabled', true)) {
+            $remember = false; // Override if disabled globally
+        }
+        
+        Auth::login($user, $remember);
         $request->session()->regenerate();
         
         $user->resetFailedAttempts();
@@ -122,11 +136,22 @@ class LoginController extends Controller
             'last_login_ip' => $request->ip(),
         ]);
 
-        if ($this->settings->getAuthSecurity('prevent_concurrent_logins', true)) {
-            \Illuminate\Support\Facades\DB::table('sessions')
+        $maxSessions = (int) $this->settings->getAuthSecurity('max_concurrent_sessions_per_user', 0);
+        if ($maxSessions > 0) {
+            $sessions = \Illuminate\Support\Facades\DB::table('sessions')
                 ->where('user_id', $user->id)
                 ->where('id', '!=', $request->session()->getId())
-                ->delete();
+                ->orderBy('last_activity', 'desc')
+                ->get();
+
+            if ($sessions->count() >= $maxSessions) {
+                $sessionsToDelete = $sessions->slice($maxSessions - 1)->pluck('id');
+                if ($sessionsToDelete->isNotEmpty()) {
+                    \Illuminate\Support\Facades\DB::table('sessions')
+                        ->whereIn('id', $sessionsToDelete)
+                        ->delete();
+                }
+            }
         }
         app(\App\Services\AuditService::class)->log('login', $user);
 

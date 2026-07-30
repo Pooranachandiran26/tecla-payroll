@@ -1,5 +1,6 @@
 import React from 'react';
 import { COMPANY_TYPES, INDUSTRIES, COUNTRIES } from '../constants/clientFormData';
+import { Building2, Zap, Info } from 'lucide-react';
 
 export default function IdentitySection({ formData, errors, hints, onChange, onValidate, hook }) {
   const isIndia = formData.country === 'India';
@@ -9,7 +10,7 @@ export default function IdentitySection({ formData, errors, hints, onChange, onV
   return (
     <>
       <div className="section-header">
-        <div className="section-icon">🏢</div>
+        <div className="section-icon"><Building2 size={18} /></div>
         <h3>Company Identity</h3>
         <span className="section-badge">MANDATORY</span>
       </div>
@@ -22,6 +23,7 @@ export default function IdentitySection({ formData, errors, hints, onChange, onV
             placeholder="e.g. Mahindra & Mahindra Limited"
             value={formData.companyName}
             onChange={e => { onChange('companyName', e.target.value); hook.markProgress(1); }} />
+          {errors.companyName && <div className={`field-msg ${errors.companyName?.type || 'error'} show`}>{errors.companyName?.msg || errors.companyName}</div>}
           <div className="field-hint">Enter the exact legal name as per MCA registration.</div>
         </div>
         <div className="form-group">
@@ -32,6 +34,7 @@ export default function IdentitySection({ formData, errors, hints, onChange, onV
             <option value="">-- Select --</option>
             {COMPANY_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
           </select>
+          {errors.companyType && <div className={`field-msg ${errors.companyType?.type || 'error'} show`}>{errors.companyType?.msg || errors.companyType}</div>}
         </div>
       </div>
 
@@ -43,6 +46,7 @@ export default function IdentitySection({ formData, errors, hints, onChange, onV
             placeholder="e.g. REG/1234/2026"
             value={formData.trustRegNo}
             onChange={e => onChange('trustRegNo', e.target.value)} />
+          {errors.trustRegNo && <div className={`field-msg ${errors.trustRegNo?.type || 'error'} show`}>{errors.trustRegNo?.msg || errors.trustRegNo}</div>}
           <div className="field-hint">Required for tax-exempt verification.</div>
         </div>
       )}
@@ -57,10 +61,23 @@ export default function IdentitySection({ formData, errors, hints, onChange, onV
                 placeholder="e.g. 27AAACM1234A1Z1" maxLength="15"
                 style={{ textTransform: 'uppercase' }}
                 value={formData.gstin}
+                onBlur={async (e) => {
+                  const val = e.target.value.trim();
+                  if (!val || val.length !== 15) return;
+                  try {
+                    const ignoreId = hook.editId ? `&ignore_id=${hook.editId}` : '';
+                    const res = await fetch(`/clients/check-unique?field=gstin&value=${encodeURIComponent(val)}${ignoreId}`);
+                    const data = await res.json();
+                    if (!data.available) {
+                      hook.setErrors(prev => ({ ...prev, gstin: { msg: data.message, type: 'error' } }));
+                    }
+                  } catch (err) {}
+                }}
                 onChange={e => {
                   const val = hook.validateGSTIN(e.target.value);
                   onChange('gstin', val);
                 }} />
+              {errors.gstin && <div className={`field-msg ${errors.gstin?.type || 'error'} show`}>{errors.gstin?.msg || errors.gstin}</div>}
               <div className={`field-hint ${hints.gstin?.type || ''}`}>
                 {hints.gstin?.text || '15-character alphanumeric GST Identification Number.'}
               </div>
@@ -91,12 +108,15 @@ export default function IdentitySection({ formData, errors, hints, onChange, onV
                 const val = hook.validatePAN(e.target.value);
                 onChange('pan', val);
               }} />
+            {errors.pan && <div className={`field-msg ${errors.pan?.type || 'error'} show`}>{errors.pan?.msg || errors.pan}</div>}
             <div className={`field-hint ${hints.pan?.type || ''}`}>
               {hints.pan?.text || '10-character PAN as per Income Tax.'}
             </div>
           </div>
           <div className="form-group">
-            <label>TAN (Tax Deduction Account No.)</label>
+            <label>
+              TAN (Tax Deduction Account No.) <span style={{ color: 'var(--status-danger)' }}>*</span>
+            </label>
             <input type="text" className={`form-control ${errors.tan ? 'invalid' : ''}`}
               placeholder="e.g. MUMD12345A" maxLength="10"
               style={{ textTransform: 'uppercase' }}
@@ -105,6 +125,7 @@ export default function IdentitySection({ formData, errors, hints, onChange, onV
                 const val = hook.validateTAN(e.target.value);
                 onChange('tan', val);
               }} />
+            {errors.tan && <div className={`field-msg ${errors.tan?.type || 'error'} show`}>{errors.tan?.msg || errors.tan}</div>}
             <div className={`field-hint ${hints.tan?.type || ''}`}>
               {hints.tan?.text || 'Required for TDS deduction filing.'}
             </div>
@@ -132,7 +153,28 @@ export default function IdentitySection({ formData, errors, hints, onChange, onV
           <input type="date" className={`form-control ${errors.incorporationDate ? 'invalid' : ''}`}
             value={formData.incorporationDate}
             onChange={e => { onChange('incorporationDate', e.target.value); hook.checkIncorporation(e.target.value); }} />
+          {errors.incorporationDate && <div className={`field-msg ${errors.incorporationDate?.type || 'error'} show`}>{errors.incorporationDate?.msg || errors.incorporationDate}</div>}
           <div className="field-hint">Must be in the past. Used for gratuity eligibility calculations.</div>
+        </div>
+      </div>
+
+      {/* Statutory Registration Codes (Client EOR) */}
+      <div className="form-row">
+        <div className="form-group">
+          <label style={{ color: 'var(--text-primary)' }}>PF Establishment Code <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(Required for EOR)</span></label>
+          <input type="text" className="form-control text-gray-700" placeholder="e.g. MH/BAN/1234567/000"
+            style={{ textTransform: 'uppercase' }}
+            value={formData.pfEstablishmentCode || ''}
+            onChange={e => onChange('pfEstablishmentCode', e.target.value)} />
+          <div className="field-hint"><Info size={13} style={{ display: 'inline', marginRight: '4px', verticalAlign: '-1px' }} /> Client's statutory PF registration code (Required for <strong>EOR candidate</strong> filings).</div>
+        </div>
+        <div className="form-group">
+          <label style={{ color: 'var(--text-primary)' }}>ESI Code Number <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(Required for EOR)</span></label>
+          <input type="text" className="form-control text-gray-700" placeholder="e.g. 31001234560001001"
+            style={{ textTransform: 'uppercase' }}
+            value={formData.esiCodeNumber || ''}
+            onChange={e => onChange('esiCodeNumber', e.target.value)} />
+          <div className="field-hint"><Info size={13} style={{ display: 'inline', marginRight: '4px', verticalAlign: '-1px' }} /> Client's statutory ESI employer code (Required for <strong>EOR candidate</strong> filings).</div>
         </div>
       </div>
 
@@ -143,15 +185,28 @@ export default function IdentitySection({ formData, errors, hints, onChange, onV
           <input type="text" className={`form-control ${errors.clientCode ? 'invalid' : ''}`}
             placeholder="e.g. MAH-012" style={{ maxWidth: '200px' }}
             value={formData.clientCode}
+            onBlur={async (e) => {
+              const val = e.target.value.trim();
+              if (!val) return;
+              try {
+                const ignoreId = hook.editId ? `&ignore_id=${hook.editId}` : '';
+                const res = await fetch(`/clients/check-unique?field=client_code&value=${encodeURIComponent(val)}${ignoreId}`);
+                const data = await res.json();
+                if (!data.available) {
+                  hook.setErrors(prev => ({ ...prev, clientCode: { msg: data.message, type: 'error' } }));
+                }
+              } catch (err) {}
+            }}
             onChange={e => onChange('clientCode', e.target.value)} />
           <button type="button" className="btn btn-secondary" onClick={hook.autoGenerateCode}
-            style={{ whiteSpace: 'nowrap' }}>
-            ⚡ Auto-Generate
+            style={{ whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <Zap size={14} /> Auto-Generate
           </button>
           <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
             Unique internal reference code for payroll processing.
           </span>
         </div>
+        {errors.clientCode && <div className={`field-msg ${errors.clientCode?.type || 'error'} show`}>{errors.clientCode?.msg || errors.clientCode}</div>}
       </div>
 
       {/* Industry & Status */}

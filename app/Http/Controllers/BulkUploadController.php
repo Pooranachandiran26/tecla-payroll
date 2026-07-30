@@ -1,0 +1,389 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use App\Services\BulkUploadValidationService;
+use Inertia\Inertia;
+
+class BulkUploadController extends Controller
+{
+    protected $validationService;
+
+    public function __construct(BulkUploadValidationService $validationService)
+    {
+        $this->validationService = $validationService;
+    }
+
+    public function showUploadForm(Request $request)
+    {
+        if (!in_array($request->user()->role, ['admin', 'manager'])) {
+            abort(403, 'Unauthorized');
+        }
+        $clients = \App\Models\Client::where('status', 'active')->select('id', 'company_name', 'client_code')->orderBy('id', 'desc')->get();
+        return Inertia::render('Employees/BulkUpload', ['clients' => $clients]);
+    }
+
+    public function downloadTemplate(Request $request)
+    {
+        if (!in_array($request->user()->role, ['admin', 'manager'])) {
+            abort(403, 'Unauthorized');
+        }
+
+        $request->validate([
+            'client_id' => 'required|exists:clients,id'
+        ]);
+
+        $client = \App\Models\Client::with('branches')->findOrFail($request->client_id);
+        
+        $filename = 'Bulk_Upload_Template_' . $client->client_code . '_' . date('Ymd_His') . '.xlsx';
+        $tempPath = storage_path('app/temp_bulk_uploads/' . $filename);
+        
+        if (!is_dir(storage_path('app/temp_bulk_uploads'))) {
+            mkdir(storage_path('app/temp_bulk_uploads'), 0755, true);
+        }
+
+        $writer = \Spatie\SimpleExcel\SimpleExcelWriter::create($tempPath);
+        
+        $options = $writer->getWriter()->getOptions();
+        if (method_exists($options, 'setColumnWidthForRange')) {
+            $options->setColumnWidthForRange(25.0, 1, 40);
+        }
+
+        $headerStyle = (new \OpenSpout\Common\Entity\Style\Style())
+            ->setFontBold()
+            ->setFontSize(11)
+            ->setFontColor(\OpenSpout\Common\Entity\Style\Color::WHITE)
+            ->setBackgroundColor('1F3864');
+        $writer->setHeaderStyle($headerStyle);
+
+        $healthInsuranceEnabled = $client->health_insurance_enabled !== false;
+
+        $headers = [
+            'employee_code', 'full_name', 'client_code', 'branch_name', 'personal_email', 'phone_number',
+            'date_of_birth', 'date_of_joining', 'designation', 'employment_model', 'prior_employment_flag',
+            'residential_address', 'bank_account_number', 'bank_ifsc', 'bank_name', 'bank_branch',
+            'account_holder_name', 'pan_number', 'basic_pay', 'hra', 'conveyance', 'da',
+            'medical_allowance', 'special_allowance', 'other_additions', 'pf_applicable', 'eps_applicable',
+            'esi_applicable', 'pt_applicable', 'lwf_applicable', 'tds_applicable', 'uan_mode',
+            'uan_number', 'esi_mode', 'esic_number', 'tds_regime', 'gratuity_mode', 'lop_basis_days',
+            'declarations_accepted', 'reporting_manager_code'
+        ];
+
+        if ($healthInsuranceEnabled) {
+            $headers[] = 'health_insurance_provider';
+            $headers[] = 'health_insurance_policy_no';
+            $headers[] = 'health_insurance_sum_insured';
+        }
+
+        $headers[] = 'probation_end_date';
+        $headers[] = 'attendance_tracking_start_date';
+
+        $writer->nameCurrentSheet('Employee Data');
+        $writer->addHeader($headers);
+
+        $sampleRow = [
+            'employee_code' => 'EMP101',
+            'full_name' => 'Sample Employee',
+            'client_code' => $client->client_code,
+            'branch_name' => $client->branches->first()?->branch_name ?? 'Main',
+            'personal_email' => 'employee@example.com',
+            'phone_number' => '9876543210',
+            'date_of_birth' => '1995-05-15',
+            'date_of_joining' => '2023-01-01',
+            'designation' => 'Software Engineer',
+            'employment_model' => ($client->contract_type === 'agency') ? 'agency_contract' : 'eor',
+            'prior_employment_flag' => '0',
+            'residential_address' => '123 Tech Park, City',
+            'bank_account_number' => '123456789012',
+            'bank_ifsc' => 'SBIN0001234',
+            'bank_name' => 'State Bank of India',
+            'bank_branch' => 'Main Branch',
+            'account_holder_name' => 'Sample Employee',
+            'pan_number' => 'ABCDE1234F',
+            'basic_pay' => '25000',
+            'hra' => '10000',
+            'conveyance' => '2000',
+            'da' => '0',
+            'medical_allowance' => '1250',
+            'special_allowance' => '5000',
+            'other_additions' => '0',
+            'pf_applicable' => '1',
+            'eps_applicable' => '1',
+            'esi_applicable' => '0',
+            'pt_applicable' => '1',
+            'lwf_applicable' => '0',
+            'tds_applicable' => '0',
+            'uan_mode' => 'new',
+            'uan_number' => '',
+            'esi_mode' => 'new',
+            'esic_number' => '',
+            'tds_regime' => 'new',
+            'gratuity_mode' => 'part_of_ctc',
+            'lop_basis_days' => '30',
+            'declarations_accepted' => '1',
+            'reporting_manager_code' => '',
+        ];
+
+        if ($healthInsuranceEnabled) {
+            $sampleRow['health_insurance_provider'] = 'Star Health Insurance';
+            $sampleRow['health_insurance_policy_no'] = 'POL-2026-99';
+            $sampleRow['health_insurance_sum_insured'] = '500000';
+        }
+
+        $sampleRow['probation_end_date'] = '2023-07-01';
+        $sampleRow['attendance_tracking_start_date'] = '2023-01-01';
+
+        $writer->addRow($sampleRow);
+
+        // Sheet 2: Client Defaults (Read Only)
+        $writer->addNewSheetAndMakeItCurrent('Client Defaults (Read Only)');
+        $writer->addRow([
+            'Setting Field' => 'Client Code',
+            'Value' => $client->client_code,
+            'Notes' => 'Must match client_code in Employee Data sheet'
+        ]);
+        $writer->addRow([
+            'Setting Field' => 'Company Name',
+            'Value' => $client->company_name,
+            'Notes' => 'Client legal entity name'
+        ]);
+        $writer->addRow([
+            'Setting Field' => 'Default LOP Basis',
+            'Value' => '30',
+            'Notes' => 'Default monthly calculation basis (strictly 30 days)'
+        ]);
+        $writer->addRow([
+            'Setting Field' => 'Contract Type / Employment Model',
+            'Value' => $client->contract_type === 'agency' ? 'Agency Contract (agency_contract)' : 'Pass-through EOR (eor)',
+            'Notes' => 'Default Employment Model for employees under this client'
+        ]);
+        $writer->addRow([
+            'Setting Field' => 'PF Default',
+            'Value' => $client->pf_applicable ? '1 (YES)' : '0 (NO)',
+            'Notes' => 'Inherited if pf_applicable is omitted in row'
+        ]);
+        $writer->addRow([
+            'Setting Field' => 'EPS Default & Age 58 Cutoff',
+            'Value' => '1 (YES) — Auto ₹0 cutoff at age 58+',
+            'Notes' => 'EPS 8.33% contribution capped at ₹1,249.50. Employees aged 58+ automatically cut off to ₹0 EPS with 100% employer PF allocated to EPF.'
+        ]);
+        $writer->addRow([
+            'Setting Field' => 'ESI Default',
+            'Value' => $client->esi_applicable ? '1 (YES)' : '0 (NO)',
+            'Notes' => 'Inherited if esi_applicable is omitted in row'
+        ]);
+        $writer->addRow([
+            'Setting Field' => 'Group Medical Insurance (GMI)',
+            'Value' => $healthInsuranceEnabled ? '1 (Enabled for establishment)' : '0 (Disabled for establishment)',
+            'Notes' => $healthInsuranceEnabled 
+                ? 'Optional insurance fields (provider, policy no, sum insured) active for non-ESI employees.' 
+                : 'Group Medical Insurance is OFF for this client. Insurance columns are omitted from Sheet 1.'
+        ]);
+        $writer->addRow([
+            'Setting Field' => 'Attendance Start Date Default',
+            'Value' => 'Defaults to Date of Joining (date_of_joining)',
+            'Notes' => 'If attendance_tracking_start_date is omitted, system defaults to Date of Joining.'
+        ]);
+        $writer->addRow([
+            'Setting Field' => 'Probation End Date Rule',
+            'Value' => 'Optional (YYYY-MM-DD)',
+            'Notes' => 'If provided, probation_end_date must be on or after Date of Joining.'
+        ]);
+        $writer->addRow([
+            'Setting Field' => 'PT Default',
+            'Value' => $client->pt_applicable ? '1 (YES)' : '0 (NO)',
+            'Notes' => 'Inherited if pt_applicable is omitted in row'
+        ]);
+        $writer->addRow([
+            'Setting Field' => 'LWF Default',
+            'Value' => $client->lwf_applicable ? '1 (YES)' : '0 (NO)',
+            'Notes' => 'Inherited if lwf_applicable is omitted in row'
+        ]);
+        $writer->addRow([
+            'Setting Field' => 'TDS Default',
+            'Value' => $client->tds_applicable ? '1 (YES)' : '0 (NO)',
+            'Notes' => 'Inherited if tds_applicable is omitted in row'
+        ]);
+        $writer->addRow([
+            'Setting Field' => 'Primary Branch State',
+            'Value' => $client->branches->first()?->state ?? 'N/A',
+            'Notes' => 'State jurisdiction for Professional Tax (PT) slabs'
+        ]);
+        $writer->addRow([
+            'Setting Field' => 'Important Notice',
+            'Value' => 'Reference Info — Do Not Edit',
+            'Notes' => 'This sheet is for reference only. Fill employee data in the "Employee Data" sheet.'
+        ]);
+
+        $writer->close();
+
+        return response()->download($tempPath, $filename)->deleteFileAfterSend(true);
+    }
+    public function validateUpload(Request $request)
+    {
+        if (!in_array($request->user()->role, ['admin', 'manager'])) {
+            abort(403, 'Unauthorized');
+        }
+
+        $request->validate([
+            'file' => 'required|file|mimes:csv,txt,xlsx,xls|max:10240', // max 10MB
+        ]);
+
+        $file = $request->file('file');
+        
+        // Store it temporarily
+        $extension = $file->getClientOriginalExtension() ?: 'csv';
+        $filename = \Illuminate\Support\Str::random(40) . '.' . $extension;
+        $file->move(storage_path('app/temp_bulk_uploads'), $filename);
+        $fullPath = storage_path('app/temp_bulk_uploads/' . $filename);
+
+        try {
+            $results = $this->validationService->validateFile($fullPath);
+            
+            // Clean up the temp file after reading
+            @unlink($fullPath);
+
+            return response()->json($results);
+        } catch (\Exception $e) {
+            if (file_exists($fullPath)) {
+                @unlink($fullPath);
+            }
+            return response()->json(['error' => 'Failed to parse file: ' . $e->getMessage()], 422);
+        }
+    }
+    public function executeImport(Request $request, \App\Services\AuditService $auditService)
+    {
+        if (!in_array($request->user()->role, ['admin', 'manager'])) {
+            abort(403, 'Unauthorized');
+        }
+
+        $request->validate([
+            'file' => 'required|file|mimes:csv,txt,xlsx,xls|max:10240',
+            'partial_import' => 'nullable|boolean',
+            'auto_provision_users' => 'nullable|boolean',
+        ]);
+
+        $file = $request->file('file');
+        $partialImport = $request->boolean('partial_import');
+        $autoProvisionUsers = $request->has('auto_provision_users') 
+            ? $request->boolean('auto_provision_users') 
+            : true; // Default true preserving current behavior
+        
+        $extension = $file->getClientOriginalExtension() ?: 'csv';
+        $filename = \Illuminate\Support\Str::random(40) . '.' . $extension;
+        $file->move(storage_path('app/temp_bulk_uploads'), $filename);
+        $fullPath = storage_path('app/temp_bulk_uploads/' . $filename);
+
+        try {
+            // Re-validate to ensure nothing has changed or tampered
+            $results = $this->validationService->validateFile($fullPath);
+            
+            if ($results['error_count'] > 0 && !$partialImport) {
+                @unlink($fullPath);
+                return response()->json(['error' => 'File contains validation errors.', 'results' => $results], 422);
+            }
+
+            if ($results['valid_count'] === 0) {
+                @unlink($fullPath);
+                return response()->json(['error' => 'No valid rows found to import.'], 422);
+            }
+
+            $importedCount = 0;
+            $clientImpacts = [];
+            $clientIds = [];
+            $createdEmployees = [];
+
+            // Wrap in transaction
+            \Illuminate\Support\Facades\DB::beginTransaction();
+
+            try {
+                foreach ($results['rows'] as $row) {
+                    if ($row['status'] === 'error') {
+                        continue;
+                    }
+
+                    $dbPayload = $row['db_payload'];
+                    $employee = \App\Models\Employee::create($dbPayload);
+                    $createdEmployees[] = $employee;
+                    $importedCount++;
+
+                    $clientId = $employee->client_id;
+                    $clientIds[$clientId] = true;
+
+                    if (!isset($clientImpacts[$clientId])) {
+                        $clientImpacts[$clientId] = [
+                            'client_name' => $row['client'],
+                            'employee_count' => 0,
+                            'total_ctc' => 0,
+                        ];
+                    }
+                    $clientImpacts[$clientId]['employee_count']++;
+                    $clientImpacts[$clientId]['total_ctc'] += $employee->ctc_monthly ?? 0;
+                }
+
+                \Illuminate\Support\Facades\DB::commit();
+
+                $employeeIds = array_map(fn($emp) => $emp->id, $createdEmployees);
+
+                // Log audit with Option A metadata tracking
+                $auditService->log(
+                    'employee.bulk_imported',
+                    $request->user(),
+                    null,
+                    null,
+                    null,
+                    [
+                        'count' => $importedCount,
+                        'client_ids' => array_keys($clientIds),
+                        'file_name' => $file->getClientOriginalName(),
+                        'auto_provision_users' => $autoProvisionUsers,
+                        'employee_ids' => $employeeIds,
+                    ]
+                );
+
+                // Provision users in the background ONLY if auto_provision_users toggle is true
+                if ($importedCount > 0 && $autoProvisionUsers) {
+                    \App\Jobs\ProvisionBulkUploadUsersJob::dispatch($employeeIds, $request->user()->id);
+                }
+
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\DB::rollBack();
+                // Determine failed row for error response
+                $failedRow = isset($row['rowNo']) ? $row['rowNo'] : 'unknown';
+                
+                if (file_exists($fullPath)) {
+                    @unlink($fullPath);
+                }
+                
+                return response()->json([
+                    'message' => 'Transaction fully rolled back. Zero employees were created.',
+                    'failed_row' => $failedRow,
+                    'reason' => $e->getMessage(),
+                ], 422);
+            }
+
+            @unlink($fullPath);
+
+            $message = $autoProvisionUsers
+                ? "Successfully imported {$importedCount} employees. User accounts and invitations are being provisioned in the background."
+                : "Successfully imported {$importedCount} employees. Auto-provisioning was skipped per settings.";
+
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'summary' => array_values($clientImpacts),
+                'results' => $results,
+                'imported_count' => $importedCount,
+                'ignored_errors_count' => $results['error_count'],
+                'auto_provision_users' => $autoProvisionUsers,
+            ]);
+
+        } catch (\Exception $e) {
+            if (file_exists($fullPath)) {
+                @unlink($fullPath);
+            }
+            return response()->json(['error' => 'Failed to parse file: ' . $e->getMessage()], 422);
+        }
+    }
+}

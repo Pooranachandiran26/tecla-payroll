@@ -1,4 +1,5 @@
 import React, { useRef } from 'react';
+import { Globe, Image } from 'lucide-react';
 
 export default function PortalSection({ formData, onChange, hook }) {
   const logoInputRef = useRef(null);
@@ -11,17 +12,19 @@ export default function PortalSection({ formData, onChange, hook }) {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
       if (file.size > 2 * 1024 * 1024) {
-        alert('Logo must be less than 2MB');
+        if (hook?.showToast) hook.showToast('❌ Logo must be less than 2MB');
         return;
       }
-      onChange('portalLogo', file);
+      if (hook?.handleLogoSelect) {
+        hook.handleLogoSelect(file);
+      }
     }
   };
 
   return (
     <>
       <div className="section-header">
-        <div className="section-icon">🔐</div>
+        <div className="section-icon"><Globe size={18} /></div>
         <h3>Client Portal Access</h3>
       </div>
 
@@ -38,7 +41,7 @@ export default function PortalSection({ formData, onChange, hook }) {
       </div>
 
       {formData.portalAccess && (
-        <div style={{ background: '#FAFBFC', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '1rem' }}>
+        <div style={{ background: '#FAFBFC', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '1rem', marginBottom: '1.5rem' }}>
           <div className="form-row">
             <div className="form-group">
               <label>Portal Login Email</label>
@@ -102,23 +105,52 @@ export default function PortalSection({ formData, onChange, hook }) {
               value={formData.ipWhitelist} onChange={e => onChange('ipWhitelist', e.target.value)}></textarea>
             <div className="field-hint">Leave blank for no IP restriction. Separate multiple CIDRs with commas.</div>
           </div>
-
-          <div className="form-group" style={{ marginTop: '1rem' }}>
-            <label>Client Logo Upload (for Portal Branding)</label>
-            <div className="doc-upload-zone" style={{ padding: '1.5rem', cursor: 'pointer' }} onClick={handleLogoClick}>
-              <div className="upload-icon" style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>🖼️</div>
-              <p style={{ fontWeight: 600 }}>Click to upload logo</p>
-              <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>PNG, JPG, SVG — Max 2MB</p>
-              {formData.portalLogo && (
-                <div className="field-hint success" style={{ marginTop: '0.5rem', fontWeight: 600 }}>
-                  Selected: {formData.portalLogo.name}
-                </div>
-              )}
-            </div>
-            <input type="file" ref={logoInputRef} style={{ display: 'none' }} accept="image/png, image/jpeg, image/svg+xml" onChange={handleLogoChange} />
-          </div>
         </div>
       )}
+
+      {/* Customizable Client Branding & Payslip Customization Section */}
+      <div style={{ marginTop: '1.5rem', borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem' }}>
+        <div className="section-header">
+          <div className="section-icon">🎨</div>
+          <h3>Client Branding & Payslip Customization</h3>
+        </div>
+        
+        <div className="form-row">
+          <div className="form-group">
+            <label>Company Display Name Override</label>
+            <input type="text" className="form-control" placeholder="e.g. Mahindra & Mahindra"
+              value={formData.displayNameOverride || ''} onChange={e => onChange('displayNameOverride', e.target.value)} />
+            <div className="field-hint">Optional. Defaults to the legal company name if left blank.</div>
+          </div>
+          <div className="form-group">
+            <label>Accent Color (Hex Code)</label>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <input type="color" className="form-control" style={{ width: '55px', padding: '2px', height: '38px', cursor: 'pointer' }}
+                value={formData.accentColor || '#1F3864'} onChange={e => onChange('accentColor', e.target.value)} />
+              <input type="text" className="form-control" placeholder="#1F3864" maxLength="7"
+                value={formData.accentColor || ''} onChange={e => onChange('accentColor', e.target.value)} />
+            </div>
+            <div className="field-hint">Used as the header background and accent color on printed payslips. Accepts 3 or 6 digit hex format.</div>
+          </div>
+        </div>
+
+        <div className="form-group" style={{ marginTop: '1rem' }}>
+          <label>Client Logo (for Payslip & Portal Branding)</label>
+          <div className="doc-upload-zone" style={{ padding: '1.5rem', cursor: 'pointer' }} onClick={handleLogoClick}>
+            <div className="upload-icon" style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.5rem' }}>
+              <Image size={28} color="var(--primary-blue)" />
+            </div>
+            <p style={{ fontWeight: 600 }}>Click to upload logo</p>
+            <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>PNG, JPG, SVG — Max 2MB</p>
+            {formData.logoUrl && (
+              <div className="field-hint success" style={{ marginTop: '0.5rem', fontWeight: 600, wordBreak: 'break-all' }}>
+                {formData.logoUrl.startsWith('data:') ? '✓ New logo uploaded (base64 image)' : `✓ Existing logo: ${formData.logoUrl}`}
+              </div>
+            )}
+          </div>
+          <input type="file" ref={logoInputRef} style={{ display: 'none' }} accept="image/png, image/jpeg, image/svg+xml" onChange={handleLogoChange} />
+        </div>
+      </div>
     </>
   );
 }

@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('group');
             $table->string('key');
             $table->text('value')->nullable();
-            $table->enum('type', ['string', 'boolean', 'integer', 'json'])->default('string');
+            $table->enum('type', ['string', 'boolean', 'integer', 'json', 'encrypted'])->default('string');
             $table->boolean('is_locked')->default(false);
             $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();

@@ -1,5 +1,5 @@
 import { Head } from '@inertiajs/react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import AuthenticatedLayout from '../../Layouts/AuthenticatedLayout';
 import Card from '../../Components/ui/Card';
@@ -12,6 +12,12 @@ import Checkbox from '../../Components/ui/Checkbox';
 import ConfirmDialog from '../../Components/ui/ConfirmDialog';
 import useToast from '../../Hooks/useToast';
 import RoleGuard from '../../Components/RoleGuard.jsx';
+import { 
+  Plus, Trash2, Save, Info, Percent, Receipt, CheckCircle2,
+  Building2, Globe, FileText, Palette, Mail, Bell, UserCheck,
+  IndianRupee, ShieldCheck, Lock, Image as ImageIcon, Star,
+  Sun, Moon, Monitor
+} from 'lucide-react';
 
 export default function Settings() {
   const { showToast } = useToast();
@@ -19,42 +25,421 @@ export default function Settings() {
   const [docVerify, setDocVerify] = useState(true);
 
   const tabs = [
-    { key: 'company', label: 'Company Profile' },
-    { key: 'email', label: 'Email Delivery' },
-    { key: 'slabs', label: 'Statutory Slab Configurations' },
-    { key: 'notif', label: 'Notification Setup' },
-    { key: 'onboarding', label: 'Onboarding Policy' },
-    { key: 'payroll', label: 'Payroll Configuration' },
-    { key: 'auth_security', label: 'Authentication & Security' }
+    { key: 'company', label: 'Company Profile', icon: Building2 },
+    { key: 'localization', label: 'Localization', icon: Globe },
+    { key: 'file_upload_policy', label: 'File Upload Policy', icon: FileText },
+    { key: 'branding', label: 'Branding', icon: Palette },
+    { key: 'email', label: 'Email Delivery', icon: Mail },
+    { key: 'slabs', label: 'Statutory Slab Configurations', icon: Percent },
+    { key: 'notif', label: 'Notification Setup', icon: Bell },
+    { key: 'onboarding', label: 'Onboarding Policy', icon: UserCheck },
+    { key: 'payroll', label: 'Payroll Configuration', icon: IndianRupee },
+    { key: 'gst', label: 'GST Settings', icon: Receipt },
+    { key: 'auth_security', label: 'Authentication & Security', icon: ShieldCheck }
   ];
 
-  const ptSlabs = [
-    { id: 1, from: '₹0', to: '₹7,500', deduction: '₹0', exceptions: 'Exempted', disabled: true },
-    { id: 2, from: '₹7,501', to: '₹10,000', deduction: '₹175 / month', exceptions: 'Standard slab', disabled: false },
-    { id: 3, from: '₹10,001', to: 'No Limit', deduction: '₹200 / month', exceptions: '₹300 deducted in February month', disabled: false }
-  ];
+  const [ptSlabs, setPtSlabs] = useState([]);
+  const [ptSlabsLoading, setPtSlabsLoading] = useState(false);
+  const [editingPtSlab, setEditingPtSlab] = useState(null);
+  const [savingPtSlab, setSavingPtSlab] = useState(false);
+
+  const [lwfSlabs, setLwfSlabs] = useState([]);
+  const [lwfSlabsLoading, setLwfSlabsLoading] = useState(false);
+  const [editingLwfSlab, setEditingLwfSlab] = useState(null);
+  const [savingLwfSlab, setSavingLwfSlab] = useState(false);
+
+  // Company Settings State
+  const [companySettings, setCompanySettings] = useState({});
+  const [companyLoading, setCompanyLoading] = useState(false);
+
+  // Localization State
+  const [localizationSettings, setLocalizationSettings] = useState({
+    timezone: 'Asia/Kolkata',
+    date_format: 'DD/MM/YYYY',
+    currency_symbol: '₹',
+    currency_code: 'INR',
+    financial_year_start_month: 4
+  });
+  const [localizationLoading, setLocalizationLoading] = useState(false);
+  const [localizationSaving, setLocalizationSaving] = useState(false);
+
+  // File Upload Policy State
+  const [uploadPolicySettings, setUploadPolicySettings] = useState({
+    max_file_size_mb: 10,
+    allowed_document_types: ['pdf', 'jpg', 'jpeg', 'png']
+  });
+  const [uploadPolicyLoading, setUploadPolicyLoading] = useState(false);
+  const [uploadPolicySaving, setUploadPolicySaving] = useState(false);
 
   // Auth & Security State
   const [authSettings, setAuthSettings] = useState({});
   const [authLoading, setAuthLoading] = useState(false);
+  
+  // Payroll State
+  const [payrollSettings, setPayrollSettings] = useState({});
+  const [payrollLoading, setPayrollLoading] = useState(false);
+
+  // GST Settings State
+  const [gstSettings, setGstSettings] = useState({
+    default_gst_rate: '18',
+    gst_rates: [
+      { rate: '18', label: '18% (Standard Services)', hsn_sac: '998311', description: 'Standard professional / staffing services' },
+      { rate: '0',  label: '0% (SEZ / Export without payment of IGST)', hsn_sac: '998311', description: 'Exports / SEZ supplies under LUT' },
+      { rate: 'exempt', label: 'Exempt', hsn_sac: '', description: 'Exempt category supplies' },
+    ],
+    default_reverse_charge: false,
+    default_tds_on_agency_fee: 'na',
+    notes: ''
+  });
+  const [gstLoading, setGstLoading] = useState(false);
+  const [gstSaving, setGstSaving] = useState(false);
+
+  // Branding State
+  const [brandingSettings, setBrandingSettings] = useState({});
+  const [brandingLoading, setBrandingLoading] = useState(false);
+  const [brandingSaving, setBrandingSaving] = useState(false);
+  const [logoFile, setLogoFile] = useState(null);
+  const [faviconFile, setFaviconFile] = useState(null);
+  const [logoPreview, setLogoPreview] = useState('');
+  const [faviconPreview, setFaviconPreview] = useState('');
+  const [brandingColor, setBrandingColor] = useState('#1e3a8a');
+  const [brandingTheme, setBrandingTheme] = useState('system');
+  const logoInputRef = useRef(null);
+  const faviconInputRef = useRef(null);
+  
   const [emailSettings, setEmailSettings] = useState({});
   const [emailLoading, setEmailLoading] = useState(false);
   const [testingEmail, setTestingEmail] = useState(false);
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, key: null, newValue: null, reason: '', confirmText: '' });
 
+  // Watcher State
+  const [watchers, setWatchers] = useState([]);
+  const [watchersLoading, setWatchersLoading] = useState(false);
+  const [showWatcherForm, setShowWatcherForm] = useState(false);
+  const [currentWatcher, setCurrentWatcher] = useState({ name: '', email: '', is_active: true, categories: [], notes: '' });
+
   useEffect(() => {
+    if (activeTab === 'company' && Object.keys(companySettings).length === 0) {
+      fetchCompanySettings();
+    }
+    if (activeTab === 'slabs') {
+      if (ptSlabs.length === 0) fetchPtSlabs();
+      if (lwfSlabs.length === 0) fetchLwfSlabs();
+    }
     if (activeTab === 'auth_security' && Object.keys(authSettings).length === 0) {
       fetchAuthSettings();
     }
     if (activeTab === 'email' && Object.keys(emailSettings).length === 0) {
       fetchEmailSettings();
     }
+    if (activeTab === 'payroll' && Object.keys(payrollSettings).length === 0) {
+      fetchPayrollSettings();
+    }
+    if (activeTab === 'branding' && Object.keys(brandingSettings).length === 0) {
+      fetchBrandingSettings();
+    }
+    if (activeTab === 'localization' && Object.keys(localizationSettings).length === 0 && !localizationLoading) {
+      fetchLocalizationSettings();
+    }
+    if (activeTab === 'file_upload_policy' && !uploadPolicyLoading) {
+      fetchUploadPolicySettings();
+    }
+    if (activeTab === 'notif' && watchers.length === 0) {
+      fetchWatchers();
+    }
+    if (activeTab === 'gst' && !gstLoading) {
+      fetchGstSettings();
+    }
   }, [activeTab]);
+
+  const fetchCompanySettings = async () => {
+    setCompanyLoading(true);
+    try {
+      const res = await axios.get(route('admin.settings.company.show'));
+      setCompanySettings(res.data);
+    } catch (e) {
+      showToast({ type: 'error', title: 'Error', message: 'Failed to load company settings' });
+    } finally {
+      setCompanyLoading(false);
+    }
+  };
+
+  const fetchLocalizationSettings = async () => {
+    setLocalizationLoading(true);
+    try {
+      const res = await axios.get(route('admin.settings.localization.show'));
+      setLocalizationSettings(prev => ({ ...prev, ...res.data }));
+    } catch (e) {
+      showToast({ type: 'error', title: 'Error', message: 'Failed to load localization settings' });
+    } finally {
+      setLocalizationLoading(false);
+    }
+  };
+
+  const saveLocalizationSettings = async (e) => {
+    e.preventDefault();
+    setLocalizationSaving(true);
+    try {
+      await axios.put(route('admin.settings.localization.update'), localizationSettings);
+      showToast({ type: 'success', title: 'Success', message: 'Localization settings updated!' });
+    } catch (e) {
+      showToast({ type: 'error', title: 'Error', message: e.response?.data?.message || 'Failed to save settings' });
+    } finally {
+      setLocalizationSaving(false);
+    }
+  };
+
+  const fetchUploadPolicySettings = async () => {
+    setUploadPolicyLoading(true);
+    try {
+      const res = await axios.get(route('admin.settings.file-upload-policy.show'));
+      if (res.data && Object.keys(res.data).length > 0) {
+        // Parse JSON array if it comes as string
+        const parsed = { ...res.data };
+        if (typeof parsed.allowed_document_types === 'string') {
+          try { parsed.allowed_document_types = JSON.parse(parsed.allowed_document_types); } catch(e){}
+        }
+        setUploadPolicySettings(prev => ({ ...prev, ...parsed }));
+      }
+    } catch (e) {
+      showToast({ type: 'error', title: 'Error', message: 'Failed to load file upload policy' });
+    } finally {
+      setUploadPolicyLoading(false);
+    }
+  };
+
+  const saveUploadPolicySettings = async (e) => {
+    e.preventDefault();
+    setUploadPolicySaving(true);
+    try {
+      await axios.put(route('admin.settings.file-upload-policy.update'), uploadPolicySettings);
+      showToast({ type: 'success', title: 'Success', message: 'File Upload Policy updated!' });
+    } catch (e) {
+      showToast({ type: 'error', title: 'Error', message: e.response?.data?.message || 'Failed to save settings' });
+    } finally {
+      setUploadPolicySaving(false);
+    }
+  };
+
+  const fetchPtSlabs = async () => {
+    setPtSlabsLoading(true);
+    try {
+      const res = await axios.get(route('admin.settings.pt-slabs'));
+      setPtSlabs(res.data);
+    } catch (e) {
+      showToast({ type: 'error', title: 'Error', message: 'Failed to load statutory slabs' });
+    } finally {
+      setPtSlabsLoading(false);
+    }
+  };
+
+  const savePtSlab = async (e) => {
+    e.preventDefault();
+    if (!editingPtSlab) return;
+    setSavingPtSlab(true);
+    try {
+      await axios.put(route('admin.settings.pt-slabs.update', editingPtSlab.id), editingPtSlab);
+      showToast({ type: 'success', title: 'Success', message: 'PT Slab updated successfully.' });
+      setEditingPtSlab(null);
+      fetchPtSlabs();
+    } catch (err) {
+      showToast({ type: 'error', title: 'Error', message: err.response?.data?.message || 'Failed to update PT Slab' });
+    } finally {
+      setSavingPtSlab(false);
+    }
+  };
+
+  const fetchLwfSlabs = async () => {
+    setLwfSlabsLoading(true);
+    try {
+      const res = await axios.get(route('admin.settings.lwf-slabs'));
+      setLwfSlabs(res.data);
+    } catch (e) {
+      showToast({ type: 'error', title: 'Error', message: 'Failed to load LWF slabs' });
+    } finally {
+      setLwfSlabsLoading(false);
+    }
+  };
+
+  const saveLwfSlab = async (e) => {
+    e.preventDefault();
+    if (!editingLwfSlab) return;
+    setSavingLwfSlab(true);
+    try {
+      await axios.put(route('admin.settings.lwf-slabs.update', editingLwfSlab.id), editingLwfSlab);
+      showToast({ type: 'success', title: 'Success', message: 'LWF Slab updated successfully.' });
+      setEditingLwfSlab(null);
+      fetchLwfSlabs();
+    } catch (err) {
+      showToast({ type: 'error', title: 'Error', message: err.response?.data?.message || 'Failed to update LWF Slab' });
+    } finally {
+      setSavingLwfSlab(false);
+    }
+  };
+
+  const handleCompanyChange = (key, value) => {
+    setCompanySettings(prev => ({ ...prev, [key]: value }));
+  };
+
+  const saveCompanySettings = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.put(route('admin.settings.company.update'), companySettings);
+      showToast({ type: 'success', title: 'Success', message: 'Company Profile updated successfully!' });
+    } catch (err) {
+      showToast({ type: 'error', title: 'Error', message: err.response?.data?.message || 'Failed to save company settings' });
+    }
+  };
+
+  const fetchPayrollSettings = async () => {
+    setPayrollLoading(true);
+    try {
+      const res = await axios.get(route('admin.settings.payroll.show'));
+      setPayrollSettings(res.data);
+    } catch (e) {
+      showToast({ type: 'error', title: 'Error', message: 'Failed to load payroll settings' });
+    } finally {
+      setPayrollLoading(false);
+    }
+  };
+
+  const savePayrollSettings = async (value) => {
+    try {
+      await axios.put(route('admin.settings.payroll.update'), { default_lop_basis: value });
+      setPayrollSettings(prev => ({ ...prev, default_lop_basis: value }));
+      showToast({ type: 'success', title: 'Success', message: 'Global LOP Basis updated.' });
+    } catch (err) {
+      showToast({ type: 'error', title: 'Error', message: err.response?.data?.message || 'Failed to save payroll settings' });
+    }
+  };
+
+  // ── GST Settings Functions ──────────────────────────────
+  const fetchGstSettings = async () => {
+    setGstLoading(true);
+    try {
+      const res = await axios.get(route('admin.settings.gst.show'));
+      if (res.data && Object.keys(res.data).length > 0) {
+        let rates = res.data.gst_rates;
+        if (typeof rates === 'string') {
+          try { rates = JSON.parse(rates); } catch(e) {}
+        }
+        setGstSettings(prev => ({
+          ...prev,
+          ...res.data,
+          gst_rates: Array.isArray(rates) ? rates : prev.gst_rates
+        }));
+      }
+    } catch (e) {
+      showToast({ type: 'error', title: 'Error', message: 'Failed to load GST settings' });
+    } finally {
+      setGstLoading(false);
+    }
+  };
+
+  const saveGstSettings = async (e) => {
+    e.preventDefault();
+    setGstSaving(true);
+    try {
+      const payload = {
+        ...gstSettings,
+        default_gst_rate: String(gstSettings.default_gst_rate || '18'),
+        default_reverse_charge: Boolean(gstSettings.default_reverse_charge),
+        default_tds_on_agency_fee: String(gstSettings.default_tds_on_agency_fee || 'na'),
+        notes: String(gstSettings.notes || ''),
+        gst_rates: (gstSettings.gst_rates || []).map(r => ({
+          rate: String(r.rate || ''),
+          label: String(r.label || ''),
+          hsn_sac: String(r.hsn_sac || ''),
+          description: String(r.description || '')
+        }))
+      };
+
+      const res = await axios.put(route('admin.settings.gst.update'), payload);
+      showToast({ type: 'success', title: 'Saved', message: res.data?.message || 'GST settings updated successfully!' });
+      
+      // Re-fetch to ensure state sync with DB
+      const freshRes = await axios.get(route('admin.settings.gst.show'));
+      if (freshRes.data && freshRes.data.gst_rates) {
+        let freshRates = freshRes.data.gst_rates;
+        if (typeof freshRates === 'string') {
+          try { freshRates = JSON.parse(freshRates); } catch(e) {}
+        }
+        setGstSettings(prev => ({
+          ...prev,
+          ...freshRes.data,
+          gst_rates: Array.isArray(freshRates) ? freshRates : prev.gst_rates
+        }));
+      }
+    } catch (err) {
+      showToast({ type: 'error', title: 'Error', message: err.response?.data?.message || 'Failed to save GST settings' });
+    } finally {
+      setGstSaving(false);
+    }
+  };
+
+  // ── Branding Functions ──────────────────────────────
+  const fetchBrandingSettings = async () => {
+    setBrandingLoading(true);
+    try {
+      const res = await axios.get(route('admin.settings.branding.show'));
+      setBrandingSettings(res.data);
+      setBrandingColor(res.data.primary_color || '#1e3a8a');
+      setBrandingTheme(res.data.theme_mode_default || 'system');
+      if (res.data.logo_path_url) setLogoPreview(res.data.logo_path_url);
+      if (res.data.favicon_path_url) setFaviconPreview(res.data.favicon_path_url);
+    } catch (e) {
+      showToast({ type: 'error', title: 'Error', message: 'Failed to load branding settings' });
+    } finally {
+      setBrandingLoading(false);
+    }
+  };
+
+  const handleFileSelect = (type, file) => {
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      showToast({ type: 'error', title: 'Error', message: `${type === 'logo' ? 'Logo' : 'Favicon'} must be less than 2MB` });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      if (type === 'logo') {
+        setLogoFile(file);
+        setLogoPreview(e.target.result);
+      } else {
+        setFaviconFile(file);
+        setFaviconPreview(e.target.result);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const saveBrandingSettings = async () => {
+    setBrandingSaving(true);
+    try {
+      const formData = new FormData();
+      if (logoFile) formData.append('logo', logoFile);
+      if (faviconFile) formData.append('favicon', faviconFile);
+      formData.append('primary_color', brandingColor);
+      formData.append('theme_mode_default', brandingTheme);
+
+      await axios.post(route('admin.settings.branding.update'), formData);
+
+      // Re-fetch to get updated URLs
+      await fetchBrandingSettings();
+      setLogoFile(null);
+      setFaviconFile(null);
+      showToast({ type: 'success', title: 'Success', message: 'Branding settings saved successfully!' });
+    } catch (err) {
+      showToast({ type: 'error', title: 'Error', message: err.response?.data?.message || 'Failed to save branding settings' });
+    } finally {
+      setBrandingSaving(false);
+    }
+  };
 
   const fetchAuthSettings = async () => {
     setAuthLoading(true);
     try {
-      const res = await axios.get('/admin/settings/auth-security');
+      const res = await axios.get(route('admin.settings.auth-security.show'));
       if (typeof res.data === 'string') {
         throw new Error('API returned HTML instead of JSON. You might not be logged in as an Admin.');
       }
@@ -66,11 +451,51 @@ export default function Settings() {
     }
   };
 
+  const fetchWatchers = async () => {
+    setWatchersLoading(true);
+    try {
+      const res = await axios.get(route('watchers.index'));
+      setWatchers(res.data);
+    } catch (e) {
+      showToast({ type: 'error', title: 'Error', message: 'Failed to load watchers' });
+    } finally {
+      setWatchersLoading(false);
+    }
+  };
+
+  const saveWatcher = async (e) => {
+    e.preventDefault();
+    try {
+      if (currentWatcher.id) {
+        await axios.put(route('watchers.update', currentWatcher.id), currentWatcher);
+        showToast({ type: 'success', title: 'Success', message: 'Watcher updated.' });
+      } else {
+        await axios.post(route('watchers.store'), currentWatcher);
+        showToast({ type: 'success', title: 'Success', message: 'Watcher added.' });
+      }
+      setShowWatcherForm(false);
+      fetchWatchers();
+    } catch (err) {
+      showToast({ type: 'error', title: 'Error', message: err.response?.data?.message || 'Failed to save watcher' });
+    }
+  };
+
+  const deleteWatcher = async (id) => {
+    if(!confirm('Are you sure you want to delete this watcher?')) return;
+    try {
+      await axios.delete(route('watchers.destroy', id));
+      showToast({ type: 'success', title: 'Success', message: 'Watcher deleted.' });
+      fetchWatchers();
+    } catch (err) {
+      showToast({ type: 'error', title: 'Error', message: 'Failed to delete watcher' });
+    }
+  };
+
   
   const fetchEmailSettings = async () => {
     setEmailLoading(true);
     try {
-      const res = await axios.get('/admin/settings/email');
+      const res = await axios.get(route('admin.settings.email.show'));
       setEmailSettings(res.data);
     } catch (e) {
       showToast({ type: 'error', title: 'Error', message: 'Failed to load email settings' });
@@ -96,7 +521,7 @@ export default function Settings() {
 
   const confirmEmailUpdate = async () => {
     try {
-      await axios.put('/admin/settings/email', emailSettings);
+      await axios.put(route('admin.settings.email.update'), emailSettings);
       showToast({ type: 'success', title: 'Success', message: 'Email settings saved successfully. Workers are restarting.' });
       setConfirmModal({ isOpen: false, key: null, newValue: null, reason: '', confirmText: '', type: null });
     } catch (e) {
@@ -107,7 +532,7 @@ export default function Settings() {
   const testEmailConnection = async () => {
     setTestingEmail(true);
     try {
-      await axios.post('/admin/settings/email/test', emailSettings);
+      await axios.post(route('admin.settings.email.test'), emailSettings);
       showToast({ type: 'success', title: 'Success', message: 'Test email sent successfully!' });
     } catch (e) {
       const errorReason = e.response?.data?.error;
@@ -148,7 +573,7 @@ export default function Settings() {
     };
 
     try {
-      await axios.put('/admin/settings/auth-security', payload);
+      await axios.put(route('admin.settings.auth-security.update'), payload);
       setAuthSettings(prev => ({
         ...prev,
         [key]: { ...prev[key], value: newValue }
@@ -186,7 +611,7 @@ export default function Settings() {
   const renderAuthVal = (key, fallback = '') => authSettings[key]?.value ?? fallback;
 
   return (
-    <RoleGuard allowedRoles={['admin']}>
+    <RoleGuard allowedRoles={['admin', 'manager']} moduleKey="admin">
     <AuthenticatedLayout>
       <Head title="System Settings" />
       
@@ -195,66 +620,737 @@ export default function Settings() {
         <p className="text-gray-500 text-sm mt-1">Configure default agency rules, customize professional tax (PT) slabs, and manage notification targets.</p>
       </div>
 
-      <Card noPadding>
-        <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
-        
-        <div className="p-6">
+      <div className="grid grid-cols-1 md:grid-cols-[250px_1fr] gap-6 items-start">
+        {/* Left Sidebar Menu */}
+        <Card noPadding className="sticky top-6">
+          <div className="p-4 border-b border-gray-100">
+            <h3 className="font-semibold text-gray-800">Settings Menu</h3>
+          </div>
+          <ul className="flex flex-col py-2">
+            {tabs.map(tab => {
+              const IconComp = tab.icon;
+              const isActive = activeTab === tab.key;
+              return (
+                <li key={tab.key}>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab(tab.key)}
+                    className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
+                      isActive 
+                        ? 'bg-blue-50/70 text-[#1F3864] border-l-4 border-[#1F3864] font-semibold' 
+                        : 'text-gray-600 hover:bg-gray-50 border-l-4 border-transparent hover:border-gray-200'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      {IconComp && <IconComp className={`w-4 h-4 shrink-0 ${isActive ? 'text-[#1F3864]' : 'text-gray-400'}`} />}
+                      <span>{tab.label}</span>
+                    </div>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </Card>
+
+        {/* Right Content Area */}
+        <Card noPadding>
+          <div className="p-6">
           {activeTab === 'company' && (
-            <form onSubmit={e => { e.preventDefault(); showToast('Company Profile updated successfully!'); }}>
-              <div className="flex gap-4 mb-4">
-                <div className="flex-1"><Input label="Agency Legal Name" value="Tecla Agency Private Limited" onChange={()=>{}} noMargin /></div>
-                <div className="flex-1"><Input label="TAN Number (Tax Deduction Account)" value="MUMT01234B" onChange={()=>{}} noMargin /></div>
-              </div>
-              <div className="flex gap-4 mb-4">
-                <div className="flex-1"><Input label="Default Authorized Signatory" value="Rajesh Kumar" onChange={()=>{}} noMargin /></div>
-                <div className="flex-1"><Input label="Register Office Address" value="BKC, Bandra East, Mumbai, Maharashtra" onChange={()=>{}} noMargin /></div>
-              </div>
-              <Button type="submit" variant="primary" className="mt-4">Update Basic Profile</Button>
-            </form>
+            <div className="max-w-4xl">
+              {companyLoading ? (
+                <div>Loading Company Settings...</div>
+              ) : (
+                <form onSubmit={saveCompanySettings}>
+                  <div className="flex gap-4 mb-4">
+                    <div className="flex-1">
+                      <Input label="Agency Legal Name" value={companySettings.agency_legal_name || ''} onChange={e => handleCompanyChange('agency_legal_name', e.target.value)} noMargin />
+                    </div>
+                    <div className="flex-1">
+                      <Input label="TAN Number (Tax Deduction Account)" value={companySettings.tan_number || ''} onChange={e => handleCompanyChange('tan_number', e.target.value)} noMargin />
+                    </div>
+                  </div>
+                  <div className="flex gap-4 mb-4">
+                    <div className="flex-1">
+                      <Input label="Default Authorized Signatory" value={companySettings.default_authorized_signatory || ''} onChange={e => handleCompanyChange('default_authorized_signatory', e.target.value)} noMargin />
+                    </div>
+                    <div className="flex-1">
+                      <Input label="Register Office Address" value={companySettings.registered_office_address || ''} onChange={e => handleCompanyChange('registered_office_address', e.target.value)} noMargin />
+                    </div>
+                  </div>
+                  <div className="flex gap-4 mb-4">
+                    <div className="flex-1">
+                      <Input label="Agency GSTIN" value={companySettings.agency_gstin || ''} onChange={e => handleCompanyChange('agency_gstin', e.target.value)} noMargin />
+                    </div>
+                    <div className="flex-1">
+                      <Input label="PF Establishment Code" value={companySettings.pf_establishment_code || ''} onChange={e => handleCompanyChange('pf_establishment_code', e.target.value)} placeholder="e.g. MH/BAN/1234567/000" noMargin />
+                      <p className="text-xs text-gray-500 mt-1">📌 Required for statutory PF return filing for <strong>Agency Contract</strong> employees.</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-4 mb-4">
+                    <div className="flex-1">
+                      <Input label="ESI Code Number" value={companySettings.esi_code_number || ''} onChange={e => handleCompanyChange('esi_code_number', e.target.value)} placeholder="e.g. 31001234560001001" noMargin />
+                      <p className="text-xs text-gray-500 mt-1">📌 Required for statutory ESI return filing for <strong>Agency Contract</strong> employees.</p>
+                    </div>
+                    <div className="flex-1">
+                      {/* Placeholder for future expansion */}
+                    </div>
+                  </div>
+                  <Button type="submit" variant="primary" className="mt-4">Update Basic Profile</Button>
+                </form>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'localization' && (
+            <div className="max-w-4xl">
+              <h3 className="text-lg font-bold text-gray-800 mb-1">Localization Settings</h3>
+              <p className="text-sm text-gray-500 mb-6">Manage timezone, currency symbols, and date formats used across the platform.</p>
+              
+              {localizationLoading ? (
+                <div>Loading Localization Settings...</div>
+              ) : (
+                <form onSubmit={saveLocalizationSettings} className="space-y-6">
+                  <Card title="Regional Defaults" noPadding>
+                    <div className="grid grid-cols-2 gap-6 p-4">
+                      <Select 
+                        label="Timezone" 
+                        value={localizationSettings.timezone || 'Asia/Kolkata'}
+                        onChange={e => setLocalizationSettings(prev => ({ ...prev, timezone: e.target.value }))}
+                        options={[
+                          { value: 'Asia/Kolkata', label: 'Asia/Kolkata (IST)' },
+                          { value: 'UTC', label: 'UTC' },
+                          { value: 'America/New_York', label: 'America/New_York (EST)' },
+                          { value: 'Europe/London', label: 'Europe/London (GMT)' },
+                        ]}
+                      />
+                      <Select 
+                        label="Date Format" 
+                        value={localizationSettings.date_format || 'DD/MM/YYYY'}
+                        onChange={e => setLocalizationSettings(prev => ({ ...prev, date_format: e.target.value }))}
+                        options={[
+                          { value: 'DD/MM/YYYY', label: 'DD/MM/YYYY (e.g. 25/12/2026)' },
+                          { value: 'MM/DD/YYYY', label: 'MM/DD/YYYY (e.g. 12/25/2026)' },
+                          { value: 'YYYY-MM-DD', label: 'YYYY-MM-DD (e.g. 2026-12-25)' },
+                        ]}
+                      />
+                    </div>
+                  </Card>
+                  
+                  <Card title="Financial Settings" noPadding>
+                    <div className="grid grid-cols-2 gap-6 p-4">
+                      <Input 
+                        label="Currency Symbol" 
+                        value={localizationSettings.currency_symbol || '₹'}
+                        onChange={e => setLocalizationSettings(prev => ({ ...prev, currency_symbol: e.target.value }))}
+                        placeholder="e.g. ₹ or $"
+                      />
+                      <Input 
+                        label="Currency Code" 
+                        value={localizationSettings.currency_code || 'INR'}
+                        onChange={e => setLocalizationSettings(prev => ({ ...prev, currency_code: e.target.value }))}
+                        placeholder="e.g. INR or USD"
+                      />
+                      <Select 
+                        label="Financial Year Start Month" 
+                        value={localizationSettings.financial_year_start_month || 4}
+                        onChange={e => setLocalizationSettings(prev => ({ ...prev, financial_year_start_month: parseInt(e.target.value) }))}
+                        options={[
+                          { value: 1, label: 'January' },
+                          { value: 4, label: 'April' },
+                          { value: 7, label: 'July' },
+                          { value: 10, label: 'October' },
+                        ]}
+                      />
+                    </div>
+                  </Card>
+                  
+                  <Button type="submit" variant="primary" disabled={localizationSaving}>
+                    {localizationSaving ? 'Saving...' : 'Save Localization'}
+                  </Button>
+                </form>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'file_upload_policy' && (
+            <div className="max-w-4xl">
+              <h3 className="text-lg font-bold text-gray-800 mb-1">File Upload Policy</h3>
+              <p className="text-sm text-gray-500 mb-6">Configure global defaults for document uploads across the platform.</p>
+              
+              {uploadPolicyLoading ? (
+                <div>Loading Upload Policy...</div>
+              ) : (
+                <form onSubmit={saveUploadPolicySettings} className="space-y-6">
+                  <Card title="Upload Constraints" noPadding>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4">
+                      <div>
+                        <Input 
+                          type="number"
+                          label="Max File Size (MB)" 
+                          value={uploadPolicySettings.max_file_size_mb || 10}
+                          onChange={e => setUploadPolicySettings(prev => ({ ...prev, max_file_size_mb: parseInt(e.target.value) || 10 }))}
+                          min={1}
+                          max={100}
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Maximum allowed size per file. Hard limit is 100MB.</p>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Allowed Document Types</label>
+                        <div className="grid grid-cols-2 gap-2">
+                          {['pdf', 'jpg', 'jpeg', 'png', 'docx', 'xlsx', 'csv'].map(type => (
+                            <label key={type} className="flex items-center gap-2 cursor-pointer">
+                              <input 
+                                type="checkbox" 
+                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                checked={(uploadPolicySettings.allowed_document_types || []).includes(type)}
+                                onChange={(e) => {
+                                  setUploadPolicySettings(prev => {
+                                    const types = prev.allowed_document_types || [];
+                                    if (e.target.checked) {
+                                      return { ...prev, allowed_document_types: [...types, type] };
+                                    } else {
+                                      return { ...prev, allowed_document_types: types.filter(t => t !== type) };
+                                    }
+                                  });
+                                }}
+                              />
+                              <span className="text-sm text-gray-700 uppercase">{type}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                  
+                  <Button type="submit" variant="primary" disabled={uploadPolicySaving}>
+                    {uploadPolicySaving ? 'Saving...' : 'Save Upload Policy'}
+                  </Button>
+                </form>
+              )}
+            </div>
           )}
 
           {activeTab === 'slabs' && (
             <div>
-              <div className="mb-6">
-                <h3 className="text-base text-blue-900 font-bold">Professional Tax (PT) Slabs - Maharashtra State</h3>
-                <p className="text-xs text-gray-500 mb-4">Customize deduction brackets mapped to employee gross earnings.</p>
-                <div className="border border-gray-200 rounded-md overflow-hidden">
-                  <DataTable 
-                    columns={[
-                      { key: 'from', label: 'Monthly Gross Salary (From)' },
-                      { key: 'to', label: 'Monthly Gross Salary (To)' },
-                      { key: 'deduction', label: 'Monthly PT Deduction Amount (₹)' },
-                      { key: 'exceptions', label: 'Exceptions / Flags' },
-                      { key: 'actions', label: 'Actions', render: (_, row) => (
-                        <Button 
-                          variant={row.disabled ? 'secondary' : 'navy'} 
-                          size="xs" 
-                          disabled={row.disabled}
-                          onClick={() => showToast('PT bracket editing is locked for compliance safety.')}
-                        >
-                          {row.disabled ? 'Standard' : 'Modify'}
-                        </Button>
-                      )}
-                    ]}
-                    data={ptSlabs}
-                    keyField="id"
-                  />
+              <div className="mb-4">
+                <h3 className="text-lg font-bold text-gray-800">Professional Tax (PT) Slabs</h3>
+                <p className="text-sm text-gray-500">PT rates dynamically map to employee work states for accurate monthly deduction.</p>
+              </div>
+
+              {/* Statutory Compliance Note for Half-Yearly States */}
+              <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4 text-xs text-blue-950 flex items-start gap-3">
+                <div className="text-lg mt-0.5">ℹ️</div>
+                <div>
+                  <h4 className="font-bold text-blue-900 text-sm mb-1">State Statutory Calculation Rules</h4>
+                  <p className="leading-relaxed mb-2">
+                    <strong>Maharashtra & Karnataka:</strong> Professional Tax is legislated on a <strong>Monthly Gross Salary</strong> basis.
+                  </p>
+                  <p className="leading-relaxed">
+                    <strong>Tamil Nadu:</strong> Legislate Professional Tax on a <strong>6-Month (Half-Yearly) Gross Income</strong> basis per <em>Tamil Nadu Municipalities Rules 1992</em>. Tecla Payroll automatically converts half-yearly govt brackets into <strong>Monthly Equivalent Salary Brackets</strong> (divided by 6) and deducts 1/6th of the half-yearly tax amount each month for a smooth monthly payroll calculation (e.g. Govt Half-Yearly ₹45,001–₹60,000 = ₹7,501–₹10,000/mo $\rightarrow$ ₹930/half-year = ₹155/month).
+                  </p>
                 </div>
               </div>
-              <div className="bg-blue-50 border border-blue-200 rounded-md p-4 text-xs text-blue-900">
-                <strong>Compliance Note:</strong> Tax slabs are pre-synchronized with Central and State Government notifications (updated June 2026). Overriding these slabs manually is audited in the Activity logs.
+              
+              {ptSlabsLoading ? (
+                <div>Loading Slabs...</div>
+              ) : (
+                <DataTable 
+                  columns={[
+                    { 
+                      label: 'State', 
+                      key: 'state',
+                      render: (_, row) => (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800">
+                          {row.state}
+                        </span>
+                      )
+                    },
+                    { label: 'Monthly Gross From', key: 'from' },
+                    { label: 'Monthly Gross To', key: 'to' },
+                    { label: 'Monthly Deduction', key: 'deduction' },
+                    { 
+                      label: 'Frequency', 
+                      key: 'frequency',
+                      render: (_, row) => (
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${row.frequency === 'half_yearly' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                          {row.frequency === 'half_yearly' ? 'Half-Yearly' : 'Monthly'}
+                        </span>
+                      )
+                    },
+                    { 
+                      label: 'Official Govt Slab (Half-Yearly)', 
+                      key: 'half_yearly_range',
+                      render: (_, row) => row.half_yearly_range ? (
+                        <div className="text-xs">
+                          <span className="font-semibold text-slate-700">{row.half_yearly_range}</span>
+                          <div className="text-slate-500 font-mono">Tax: {row.half_yearly_tax} / half-year</div>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-400">N/A (Monthly State)</span>
+                      )
+                    },
+                    { label: 'Exceptions/Notes', key: 'exceptions' },
+                    { 
+                      label: 'Action', 
+                      key: 'id',
+                      render: (_, row) => (
+                        <Button 
+                          variant="secondary" 
+                          size="sm" 
+                          onClick={() => setEditingPtSlab({ ...row })}
+                        >
+                          Modify
+                        </Button>
+                      )
+                    }
+                  ]}
+                  data={ptSlabs}
+                />
+              )}
+
+              {/* Edit PT Slab Modal */}
+              {editingPtSlab && (
+                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                  <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden border border-gray-100">
+                    <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-slate-50">
+                      <h4 className="font-bold text-slate-800">Modify PT Slab ({editingPtSlab.state})</h4>
+                      <button 
+                        type="button" 
+                        onClick={() => setEditingPtSlab(null)} 
+                        className="text-gray-400 hover:text-gray-600 font-bold text-lg"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <form onSubmit={savePtSlab} className="p-6 space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <Input 
+                          label="State" 
+                          value={editingPtSlab.state || ''} 
+                          onChange={e => setEditingPtSlab({ ...editingPtSlab, state: e.target.value })} 
+                          required 
+                        />
+                        <Select 
+                          label="Frequency" 
+                          value={editingPtSlab.frequency || 'monthly'} 
+                          onChange={e => setEditingPtSlab({ ...editingPtSlab, frequency: e.target.value })} 
+                          options={[
+                            { value: 'monthly', label: 'Monthly' },
+                            { value: 'half_yearly', label: 'Half-Yearly' }
+                          ]} 
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <Input 
+                          type="number" 
+                          label="Min Salary (From Gross ₹)" 
+                          value={editingPtSlab.min_salary ?? ''} 
+                          onChange={e => setEditingPtSlab({ ...editingPtSlab, min_salary: parseFloat(e.target.value) || 0 })} 
+                          required 
+                        />
+                        <Input 
+                          type="number" 
+                          label="Max Salary (To Gross ₹ — leave blank if No Limit)" 
+                          value={editingPtSlab.max_salary ?? ''} 
+                          onChange={e => setEditingPtSlab({ ...editingPtSlab, max_salary: e.target.value === '' ? null : parseFloat(e.target.value) })} 
+                          placeholder="No Limit" 
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <Input 
+                          type="number" 
+                          label="Deduction Amount (₹)" 
+                          value={editingPtSlab.deduction_amount ?? ''} 
+                          onChange={e => setEditingPtSlab({ ...editingPtSlab, deduction_amount: parseFloat(e.target.value) || 0 })} 
+                          required 
+                        />
+                        <Input 
+                          label="Deduction Note" 
+                          value={editingPtSlab.deduction_note || ''} 
+                          onChange={e => setEditingPtSlab({ ...editingPtSlab, deduction_note: e.target.value })} 
+                          placeholder="e.g. / month" 
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Exceptions & Statutory Notes</label>
+                        <textarea 
+                          className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                          rows={3} 
+                          value={editingPtSlab.exceptions_text || ''} 
+                          onChange={e => setEditingPtSlab({ ...editingPtSlab, exceptions_text: e.target.value })} 
+                          placeholder="e.g. Women earning <= Rs 25,000 exempt..." 
+                        />
+                      </div>
+                      <div className="flex justify-end gap-3 pt-2">
+                        <Button type="button" variant="secondary" onClick={() => setEditingPtSlab(null)}>
+                          Cancel
+                        </Button>
+                        <Button type="submit" variant="primary" disabled={savingPtSlab}>
+                          {savingPtSlab ? 'Saving...' : 'Update PT Slab'}
+                        </Button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
+
+              {/* Labour Welfare Fund (LWF) Slabs Section */}
+              <div className="mt-10 border-t border-gray-200 pt-8">
+                <div className="mb-4">
+                  <h3 className="text-lg font-bold text-gray-800">Labour Welfare Fund (LWF) State Rates</h3>
+                  <p className="text-sm text-gray-500">Statutory employee and employer contributions per state and frequency schedule.</p>
+                </div>
+
+                {lwfSlabsLoading ? (
+                  <div>Loading LWF Slabs...</div>
+                ) : (
+                  <DataTable 
+                    columns={[
+                      { 
+                        label: 'State', 
+                        key: 'state',
+                        render: (_, row) => (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-800">
+                            {row.state}
+                          </span>
+                        )
+                      },
+                      { label: 'Employee Contribution', key: 'employee_formatted' },
+                      { label: 'Employer Contribution', key: 'employer_formatted' },
+                      { label: 'Total Contribution', key: 'total_formatted' },
+                      { 
+                        label: 'Deduction Schedule', 
+                        key: 'frequency',
+                        render: (_, row) => (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-slate-100 text-slate-800 uppercase">
+                            {row.frequency === 'half_yearly' ? 'Bi-Annual (Jun & Dec)' : row.frequency === 'yearly' ? 'Annual (Dec)' : 'Monthly'}
+                          </span>
+                        )
+                      },
+                      { 
+                        label: 'Action', 
+                        key: 'id',
+                        render: (_, row) => (
+                          <Button 
+                            variant="secondary" 
+                            size="sm" 
+                            onClick={() => setEditingLwfSlab({ ...row })}
+                          >
+                            Modify
+                          </Button>
+                        )
+                      }
+                    ]}
+                    data={lwfSlabs}
+                  />
+                )}
+
+                {/* Edit LWF Slab Modal */}
+                {editingLwfSlab && (
+                  <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden border border-gray-100">
+                      <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-slate-50">
+                        <h4 className="font-bold text-slate-800">Modify LWF Slab ({editingLwfSlab.state})</h4>
+                        <button 
+                          type="button" 
+                          onClick={() => setEditingLwfSlab(null)} 
+                          className="text-gray-400 hover:text-gray-600 font-bold text-lg"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      <form onSubmit={saveLwfSlab} className="p-6 space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <Input 
+                            label="State" 
+                            value={editingLwfSlab.state || ''} 
+                            onChange={e => setEditingLwfSlab({ ...editingLwfSlab, state: e.target.value })} 
+                            required 
+                          />
+                          <Select 
+                            label="Deduction Schedule" 
+                            value={editingLwfSlab.frequency || 'yearly'} 
+                            onChange={e => setEditingLwfSlab({ ...editingLwfSlab, frequency: e.target.value })} 
+                            options={[
+                              { value: 'half_yearly', label: 'Bi-Annual (Jun & Dec)' },
+                              { value: 'yearly', label: 'Annual (Dec Only)' },
+                              { value: 'monthly', label: 'Monthly' }
+                            ]} 
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <Input 
+                            type="number" 
+                            label="Employee Contribution (₹)" 
+                            value={editingLwfSlab.employee_contribution ?? ''} 
+                            onChange={e => setEditingLwfSlab({ ...editingLwfSlab, employee_contribution: parseFloat(e.target.value) || 0 })} 
+                            required 
+                          />
+                          <Input 
+                            type="number" 
+                            label="Employer Contribution (₹)" 
+                            value={editingLwfSlab.employer_contribution ?? ''} 
+                            onChange={e => setEditingLwfSlab({ ...editingLwfSlab, employer_contribution: parseFloat(e.target.value) || 0 })} 
+                            required 
+                          />
+                        </div>
+                        <div className="flex justify-end gap-3 pt-2">
+                          <Button type="button" variant="secondary" onClick={() => setEditingLwfSlab(null)}>
+                            Cancel
+                          </Button>
+                          <Button type="submit" variant="primary" disabled={savingLwfSlab}>
+                            {savingLwfSlab ? 'Saving...' : 'Update LWF Slab'}
+                          </Button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
 
           {activeTab === 'notif' && (
             <div>
-              <h3 className="text-base text-blue-900 font-bold mb-4">E-mail Notifications Dispatch targets</h3>
-              <div className="flex flex-col gap-4">
-                <Checkbox checked={true} onChange={()=>{}} label="Email employee automatically upon final payroll locks (Payslip PDF attached)." />
-                <Checkbox checked={true} onChange={()=>{}} label="Nudge Client portal administrators automatically when timesheets are pending over 48 hours." />
-                <Checkbox checked={true} onChange={()=>{}} label="Send Admin alert when an employee crossing threshold limit triggers automated ESI locks." />
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-base text-blue-900 font-bold">Global Notification Watchers</h3>
+                {!showWatcherForm && (
+                  <Button variant="primary" onClick={() => { setCurrentWatcher({ name: '', email: '', is_active: true, categories: [], notes: '' }); setShowWatcherForm(true); }}>
+                    Add Watcher
+                  </Button>
+                )}
               </div>
+              
+              {showWatcherForm ? (
+                <Card>
+                  <form onSubmit={saveWatcher} className="flex flex-col gap-4">
+                    <div className="flex gap-4">
+                      <div className="flex-1">
+                        <Input label="Name" value={currentWatcher.name} onChange={e => setCurrentWatcher({...currentWatcher, name: e.target.value})} required />
+                      </div>
+                      <div className="flex-1">
+                        <Input type="email" label="Email" value={currentWatcher.email} onChange={e => setCurrentWatcher({...currentWatcher, email: e.target.value})} required />
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Notification Categories</label>
+                      <div className="flex flex-col gap-2 p-4 border rounded bg-slate-50">
+                        <Checkbox 
+                          label="All modules (including future ones)" 
+                          checked={currentWatcher.categories.includes('all')}
+                          onChange={e => {
+                            if (e.target.checked) {
+                              setCurrentWatcher({...currentWatcher, categories: ['all']});
+                            } else {
+                              setCurrentWatcher({...currentWatcher, categories: []});
+                            }
+                          }}
+                        />
+                        <div className="ml-6 flex gap-4 mt-2">
+                          <Checkbox 
+                            label="Client Module" 
+                            disabled={currentWatcher.categories.includes('all')}
+                            checked={currentWatcher.categories.includes('client')}
+                            onChange={e => {
+                              const cats = new Set(currentWatcher.categories);
+                              e.target.checked ? cats.add('client') : cats.delete('client');
+                              setCurrentWatcher({...currentWatcher, categories: Array.from(cats)});
+                            }}
+                          />
+                          <Checkbox 
+                            label="Employee Module" 
+                            disabled={currentWatcher.categories.includes('all')}
+                            checked={currentWatcher.categories.includes('employee')}
+                            onChange={e => {
+                              const cats = new Set(currentWatcher.categories);
+                              e.target.checked ? cats.add('employee') : cats.delete('employee');
+                              setCurrentWatcher({...currentWatcher, categories: Array.from(cats)});
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <Input label="Notes" value={currentWatcher.notes || ''} onChange={e => setCurrentWatcher({...currentWatcher, notes: e.target.value})} />
+                    
+                    <Checkbox label="Active" checked={currentWatcher.is_active} onChange={e => setCurrentWatcher({...currentWatcher, is_active: e.target.checked})} />
+                    
+                    <div className="flex gap-2">
+                      <Button type="button" variant="secondary" onClick={() => setShowWatcherForm(false)}>Cancel</Button>
+                      <Button type="submit" variant="primary">Save Watcher</Button>
+                    </div>
+                  </form>
+                </Card>
+              ) : (
+                <div className="border border-gray-200 rounded-md overflow-hidden">
+                  <DataTable 
+                    columns={[
+                      { key: 'name', label: 'Name' },
+                      { key: 'email', label: 'Email' },
+                      { key: 'categories', label: 'Categories', render: (_, row) => row.categories.join(', ') },
+                      { key: 'is_active', label: 'Status', render: (_, row) => row.is_active ? 'Active' : 'Inactive' },
+                      { key: 'actions', label: 'Actions', render: (_, row) => (
+                        <div className="flex gap-2">
+                          <Button variant="secondary" size="xs" onClick={() => { setCurrentWatcher(row); setShowWatcherForm(true); }}>Edit</Button>
+                          <Button variant="danger" size="xs" onClick={() => deleteWatcher(row.id)}>Delete</Button>
+                        </div>
+                      )}
+                    ]}
+                    data={watchers}
+                    keyField="id"
+                  />
+                  {watchers.length === 0 && !watchersLoading && (
+                    <div className="p-4 text-center text-gray-500">No watchers configured.</div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'branding' && (
+            <div>
+              <h3 className="text-base text-blue-900 font-bold mb-2">Branding & Appearance</h3>
+              <p className="text-sm text-gray-500 mb-6">Customize logos, colors, and theme defaults for the agency portal.</p>
+              
+              {brandingLoading ? (
+                <div>Loading branding settings...</div>
+              ) : (
+                <div className="space-y-8">
+                  {/* Logo & Favicon Row */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Logo Upload */}
+                    <Card>
+                      <h4 className="font-semibold text-slate-800 mb-3">Agency Logo</h4>
+                      <p className="text-xs text-gray-500 mb-4">Displayed in the header and login page. Max 2MB. Accepted: JPG, PNG, SVG, WebP.</p>
+                      <div 
+                        className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-400 transition-colors"
+                        onClick={() => logoInputRef.current?.click()}
+                        style={{ minHeight: '160px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        {logoPreview ? (
+                          <div>
+                            <img src={logoPreview} alt="Logo preview" style={{ maxHeight: '80px', maxWidth: '200px', objectFit: 'contain', marginBottom: '0.5rem' }} />
+                            <p className="text-xs text-gray-500">{logoFile ? logoFile.name : 'Current logo'}</p>
+                            <p className="text-xs text-blue-600 mt-1">Click to replace</p>
+                          </div>
+                        ) : (
+                          <div>
+                            <ImageIcon className="w-10 h-10 text-indigo-600/70 mx-auto mb-2" />
+                            <p className="text-sm font-medium text-gray-600">Click to upload logo</p>
+                            <p className="text-xs text-gray-400">JPG, PNG, SVG, WebP — max 2MB</p>
+                          </div>
+                        )}
+                      </div>
+                      <input
+                        ref={logoInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/svg+xml,image/webp"
+                        style={{ display: 'none' }}
+                        onChange={(e) => handleFileSelect('logo', e.target.files[0])}
+                      />
+                    </Card>
+
+                    {/* Favicon Upload */}
+                    <Card>
+                      <h4 className="font-semibold text-slate-800 mb-3">Favicon</h4>
+                      <p className="text-xs text-gray-500 mb-4">Displayed in the browser tab. Max 2MB. Accepted: JPG, PNG, SVG, WebP.</p>
+                      <div 
+                        className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-400 transition-colors"
+                        onClick={() => faviconInputRef.current?.click()}
+                        style={{ minHeight: '160px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        {faviconPreview ? (
+                          <div>
+                            <img src={faviconPreview} alt="Favicon preview" style={{ maxHeight: '64px', maxWidth: '64px', objectFit: 'contain', marginBottom: '0.5rem' }} />
+                            <p className="text-xs text-gray-500">{faviconFile ? faviconFile.name : 'Current favicon'}</p>
+                            <p className="text-xs text-blue-600 mt-1">Click to replace</p>
+                          </div>
+                        ) : (
+                          <div>
+                            <Star className="w-10 h-10 text-amber-500/80 mx-auto mb-2" />
+                            <p className="text-sm font-medium text-gray-600">Click to upload favicon</p>
+                            <p className="text-xs text-gray-400">JPG, PNG, SVG, WebP — max 2MB</p>
+                          </div>
+                        )}
+                      </div>
+                      <input
+                        ref={faviconInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/svg+xml,image/webp"
+                        style={{ display: 'none' }}
+                        onChange={(e) => handleFileSelect('favicon', e.target.files[0])}
+                      />
+                    </Card>
+                  </div>
+
+                  {/* Color & Theme Row */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Primary Color */}
+                    <Card>
+                      <h4 className="font-semibold text-slate-800 mb-3">Primary Brand Color</h4>
+                      <p className="text-xs text-gray-500 mb-4">Used for header backgrounds, buttons, and accents throughout the app.</p>
+                      <div className="flex items-center gap-4">
+                        <input 
+                          type="color" 
+                          value={brandingColor}
+                          onChange={(e) => setBrandingColor(e.target.value)}
+                          style={{ width: '48px', height: '48px', border: '2px solid #e2e8f0', borderRadius: '8px', cursor: 'pointer', padding: '2px' }}
+                        />
+                        <div>
+                          <input 
+                            type="text" 
+                            value={brandingColor}
+                            onChange={(e) => { if (/^#[0-9A-Fa-f]{0,6}$/.test(e.target.value)) setBrandingColor(e.target.value); }}
+                            className="border border-gray-300 rounded-md px-3 py-1.5 text-sm font-mono"
+                            style={{ width: '120px' }}
+                            placeholder="#1e3a8a"
+                          />
+                          <p className="text-xs text-gray-400 mt-1">Hex color code</p>
+                        </div>
+                        <div style={{ width: '80px', height: '36px', backgroundColor: brandingColor, borderRadius: '6px', border: '1px solid #e2e8f0' }} />
+                      </div>
+                    </Card>
+
+                    {/* Theme Mode */}
+                    <Card>
+                      <h4 className="font-semibold text-slate-800 mb-3">Default Theme Mode</h4>
+                      <p className="text-xs text-gray-500 mb-4">Default appearance across the agency portal.</p>
+                      <div className="flex gap-2">
+                        {[
+                          { value: 'light', label: 'Light', desc: 'Always light', Icon: Sun, color: 'text-amber-500' },
+                          { value: 'dark', label: 'Dark', desc: 'Always dark', Icon: Moon, color: 'text-indigo-500' },
+                          { value: 'system', label: 'System', desc: 'Match OS', Icon: Monitor, color: 'text-slate-500' },
+                        ].map(opt => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => setBrandingTheme(opt.value)}
+                            className={`flex-1 p-3 rounded-lg border-2 text-center transition-all ${
+                              brandingTheme === opt.value 
+                                ? 'border-blue-500 bg-blue-50' 
+                                : 'border-gray-200 bg-white hover:border-gray-300'
+                            }`}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            <opt.Icon className={`w-5 h-5 mx-auto mb-1 ${opt.color}`} />
+                            <div className="text-xs font-semibold mt-1">{opt.label}</div>
+                            <div className="text-xs text-gray-400">{opt.desc}</div>
+                          </button>
+                        ))}
+                      </div>
+                    </Card>
+                  </div>
+
+                  {/* Save Button */}
+                  <div className="flex justify-end">
+                    <Button onClick={saveBrandingSettings} disabled={brandingSaving}>
+                      {brandingSaving ? 'Saving...' : 'Save Branding Settings'}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -282,17 +1378,288 @@ export default function Settings() {
               <p className="text-sm text-gray-500 mb-6">Configure default calculation behaviors for the agency. These can be overridden per client.</p>
               
               <div className="max-w-md">
-                <Select 
-                  label="Default LOP Calculation Basis"
-                  options={[
-                    { value: '26', label: '26 Working Days (excludes Sundays)' },
-                    { value: '30', label: '30 Calendar Days' }
-                  ]}
-                  value="30"
-                  onChange={() => showToast('Global LOP Basis updated.')}
-                />
+                {payrollLoading ? (
+                  <div>Loading...</div>
+                ) : (
+                  <Select 
+                    label="Default LOP Calculation Basis"
+                    options={[
+                      { value: '26', label: '26 Working Days (excludes Sundays)' },
+                      { value: '30', label: '30 Calendar Days' }
+                    ]}
+                    value={payrollSettings.default_lop_basis || '30'}
+                    onChange={(e) => savePayrollSettings(e.target.value)}
+                  />
+                )}
                 <div className="text-xs text-gray-500 mt-1">Used when deducting Loss of Pay (LOP) for unapproved absences.</div>
               </div>
+            </div>
+          )}
+
+          {activeTab === 'gst' && (
+            <div className="max-w-4xl">
+              <h3 className="text-base text-blue-900 font-bold mb-1">GST / Taxation Settings</h3>
+              <p className="text-sm text-gray-500 mb-6">
+                Configure the GST Application Rate and related taxation defaults. The <strong>Default GST Rate</strong> is pre-filled on the Client Create / Edit form and can be overridden per client.
+              </p>
+
+              {gstLoading ? (
+                <div className="text-sm text-gray-500">Loading GST settings...</div>
+              ) : (
+                <form onSubmit={saveGstSettings} className="space-y-6">
+
+                  {/* Default Rate Card */}
+                  <Card title="Default GST Application Rate" noPadding>
+                    <div className="p-4 space-y-4">
+                      <div className="bg-amber-50 border border-amber-200 rounded-md p-3 text-xs text-amber-800 flex items-start gap-2">
+                        <Info size={16} className="text-amber-600 shrink-0 mt-0.5" />
+                        <div>
+                          This is the system-wide <strong>default</strong> rate. Clients in SEZ / Export categories should have their rate overridden to 0% at the client level.
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Default GST Rate <span className="text-red-500">*</span>
+                          </label>
+                          <select
+                            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            value={gstSettings.default_gst_rate || '18'}
+                            onChange={e => setGstSettings(prev => ({ ...prev, default_gst_rate: e.target.value }))}
+                          >
+                            {(gstSettings.gst_rates || []).map(r => (
+                              <option key={r.rate} value={r.rate}>{r.label}</option>
+                            ))}
+                          </select>
+                          <p className="text-xs text-gray-500 mt-1">Pre-filled on all new client forms. Can be changed per client.</p>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Default TDS on Agency Fee</label>
+                          <select
+                            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            value={gstSettings.default_tds_on_agency_fee || 'na'}
+                            onChange={e => setGstSettings(prev => ({ ...prev, default_tds_on_agency_fee: e.target.value }))}
+                          >
+                            <option value="na">Not Applicable</option>
+                            <option value="1">1% (Manpower Contracts — 194C)</option>
+                            <option value="2">2% (Technical Services — 194J)</option>
+                            <option value="10">10% (Professional Services — 194J)</option>
+                          </select>
+                          <p className="text-xs text-gray-500 mt-1">Default TDS deductible from agency fees on invoices.</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 p-3 border border-gray-200 rounded-md bg-slate-50">
+                        <input
+                          type="checkbox"
+                          id="default_reverse_charge"
+                          checked={Boolean(gstSettings.default_reverse_charge)}
+                          onChange={e => setGstSettings(prev => ({ ...prev, default_reverse_charge: e.target.checked }))}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          style={{ width: '16px', height: '16px' }}
+                        />
+                        <label htmlFor="default_reverse_charge" className="text-sm font-medium text-gray-700 cursor-pointer">
+                          Enable Reverse Charge Mechanism (RCM) by default
+                        </label>
+                      </div>
+                      <p className="text-xs text-gray-500 -mt-2">When enabled, GST liability is shifted to the client (recipient). Active invoices will bear a 'Reverse Charge Applicable' note.</p>
+                    </div>
+                  </Card>
+
+                  {/* GST Rate Table */}
+                  <Card 
+                    title="GST Rate Master Options" 
+                    noPadding 
+                    headerAction={
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setGstSettings(prev => ({
+                            ...prev,
+                            gst_rates: [
+                              ...(prev.gst_rates || []),
+                              { rate: '5', label: '5% (Low Rate Services)', hsn_sac: '998311', description: 'Custom 5% GST Rate' }
+                            ]
+                          }));
+                        }}
+                        style={{
+                          background: 'var(--primary-navy, #1e3a8a)',
+                          color: '#ffffff',
+                          border: 'none',
+                          padding: '0.35rem 0.75rem',
+                          borderRadius: '6px',
+                          fontSize: '0.8rem',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        <Plus size={14} /> Add GST Rate Option
+                      </button>
+                    }
+                  >
+                    <div className="p-4">
+                      <p className="text-xs text-gray-500 mb-3">
+                        Manage all GST Application Rate options. Added options automatically populate the GST rate selection dropdown on client forms.
+                      </p>
+                      <div className="overflow-x-auto">
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.83rem' }}>
+                          <thead>
+                            <tr style={{ background: '#F1F5F9', borderBottom: '1px solid #E2E8F0' }}>
+                              <th style={{ textAlign: 'left', padding: '0.5rem 0.75rem', fontWeight: '600', color: '#374151', width: '110px' }}>Rate Value</th>
+                              <th style={{ textAlign: 'left', padding: '0.5rem 0.75rem', fontWeight: '600', color: '#374151' }}>Label / Title</th>
+                              <th style={{ textAlign: 'left', padding: '0.5rem 0.75rem', fontWeight: '600', color: '#374151', width: '120px' }}>HSN/SAC Code</th>
+                              <th style={{ textAlign: 'left', padding: '0.5rem 0.75rem', fontWeight: '600', color: '#374151' }}>Description</th>
+                              <th style={{ textAlign: 'center', padding: '0.5rem 0.75rem', fontWeight: '600', color: '#374151', width: '80px' }}>Default?</th>
+                              <th style={{ textAlign: 'center', padding: '0.5rem 0.75rem', fontWeight: '600', color: '#374151', width: '70px' }}>Action</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(gstSettings.gst_rates || []).map((r, idx) => (
+                              <tr key={idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                                <td style={{ padding: '0.6rem 0.75rem' }}>
+                                  <input
+                                    className="border border-gray-300 rounded px-2 py-1 text-sm font-bold w-full"
+                                    value={r.rate}
+                                    placeholder="e.g. 18 or exempt"
+                                    onChange={e => {
+                                      const rates = [...(gstSettings.gst_rates || [])];
+                                      rates[idx] = { ...rates[idx], rate: e.target.value };
+                                      setGstSettings(prev => ({ ...prev, gst_rates: rates }));
+                                    }}
+                                  />
+                                </td>
+                                <td style={{ padding: '0.6rem 0.75rem' }}>
+                                  <input
+                                    className="border border-gray-300 rounded px-2 py-1 text-sm w-full"
+                                    value={r.label}
+                                    placeholder="Dropdown Option Label"
+                                    onChange={e => {
+                                      const rates = [...(gstSettings.gst_rates || [])];
+                                      rates[idx] = { ...rates[idx], label: e.target.value };
+                                      setGstSettings(prev => ({ ...prev, gst_rates: rates }));
+                                    }}
+                                  />
+                                </td>
+                                <td style={{ padding: '0.6rem 0.75rem' }}>
+                                  <input
+                                    className="border border-gray-300 rounded px-2 py-1 text-sm w-full font-mono"
+                                    value={r.hsn_sac || ''}
+                                    placeholder="e.g. 998311"
+                                    onChange={e => {
+                                      const rates = [...(gstSettings.gst_rates || [])];
+                                      rates[idx] = { ...rates[idx], hsn_sac: e.target.value };
+                                      setGstSettings(prev => ({ ...prev, gst_rates: rates }));
+                                    }}
+                                  />
+                                </td>
+                                <td style={{ padding: '0.6rem 0.75rem' }}>
+                                  <input
+                                    className="border border-gray-300 rounded px-2 py-1 text-sm w-full"
+                                    value={r.description || ''}
+                                    placeholder="Short description"
+                                    onChange={e => {
+                                      const rates = [...(gstSettings.gst_rates || [])];
+                                      rates[idx] = { ...rates[idx], description: e.target.value };
+                                      setGstSettings(prev => ({ ...prev, gst_rates: rates }));
+                                    }}
+                                  />
+                                </td>
+                                <td style={{ padding: '0.6rem 0.75rem', textAlign: 'center' }}>
+                                  <input
+                                    type="radio"
+                                    name="default_gst_rate_table"
+                                    checked={gstSettings.default_gst_rate === r.rate}
+                                    onChange={() => setGstSettings(prev => ({ ...prev, default_gst_rate: r.rate }))}
+                                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                                  />
+                                </td>
+                                <td style={{ padding: '0.6rem 0.75rem', textAlign: 'center' }}>
+                                  <button
+                                    type="button"
+                                    title="Delete Option"
+                                    disabled={(gstSettings.gst_rates || []).length <= 1}
+                                    onClick={() => {
+                                      setGstSettings(prev => ({
+                                        ...prev,
+                                        gst_rates: (prev.gst_rates || []).filter((_, i) => i !== idx)
+                                      }));
+                                    }}
+                                    style={{
+                                      background: 'none',
+                                      border: 'none',
+                                      color: (gstSettings.gst_rates || []).length <= 1 ? '#CBD5E1' : '#EF4444',
+                                      cursor: (gstSettings.gst_rates || []).length <= 1 ? 'not-allowed' : 'pointer',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      padding: '0.2rem 0.4rem'
+                                    }}
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <div className="mt-3 flex justify-between items-center">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setGstSettings(prev => ({
+                              ...prev,
+                              gst_rates: [
+                                ...(prev.gst_rates || []),
+                                { rate: '12', label: '12% (Reduced Rate Services)', hsn_sac: '998311', description: '12% GST Rate' }
+                              ]
+                            }));
+                          }}
+                          style={{
+                            background: '#F1F5F9',
+                            color: '#1E293B',
+                            border: '1px solid #CBD5E1',
+                            padding: '0.35rem 0.75rem',
+                            borderRadius: '6px',
+                            fontSize: '0.8rem',
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
+                        >
+                          <Plus size={14} /> Add Another Option
+                        </button>
+                        <span className="text-xs text-gray-500">{(gstSettings.gst_rates || []).length} rate options configured</span>
+                      </div>
+                    </div>
+                  </Card>
+
+                  {/* Notes */}
+                  <Card title="GST Compliance Notes" noPadding>
+                    <div className="p-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Internal Notes / Auditor Reference</label>
+                      <textarea
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+                        rows={3}
+                        value={gstSettings.notes || ''}
+                        onChange={e => setGstSettings(prev => ({ ...prev, notes: e.target.value }))}
+                        placeholder="e.g. Per GST Notification No. 20/2019, staffing services attract 18% GST under SAC 998311..."
+                      />
+                    </div>
+                  </Card>
+
+                  <Button type="submit" variant="primary" disabled={gstSaving} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    <Save size={15} /> {gstSaving ? 'Saving...' : 'Save GST Settings'}
+                  </Button>
+                </form>
+              )}
             </div>
           )}
 
@@ -411,6 +1778,11 @@ export default function Settings() {
                         label="Enable OTP Login" 
                         checked={renderAuthVal('otp_enabled', true) === true || renderAuthVal('otp_enabled', true) === 'true'} 
                         onChange={e => handleAuthChange('otp_enabled', e.target.checked)} 
+                      />
+                      <Checkbox 
+                        label="Enable 'Remember Me' (5-year persistent login)" 
+                        checked={renderAuthVal('remember_me_enabled', true) === true || renderAuthVal('remember_me_enabled', true) === 'true'} 
+                        onChange={e => handleAuthChange('remember_me_enabled', e.target.checked)} 
                       />
                       <Checkbox 
                         label="Enable Honeypot Anti-Bot Protection" 
@@ -648,8 +2020,9 @@ export default function Settings() {
               )}
             </div>
           )}
-        </div>
-      </Card>
+          </div>
+        </Card>
+      </div>
 
       <ConfirmDialog
         isOpen={confirmModal.isOpen}
@@ -667,6 +2040,7 @@ export default function Settings() {
             label="Type 'CONFIRM' to proceed" 
             value={confirmModal.confirmText} 
             onChange={e => setConfirmModal(prev => ({ ...prev, confirmText: e.target.value }))}
+            onPaste={e => e.preventDefault()}
             placeholder="CONFIRM"
           />
           <div>

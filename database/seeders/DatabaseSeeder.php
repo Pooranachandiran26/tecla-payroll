@@ -23,11 +23,19 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $this->call([
+            PtSlabSeeder::class,
             ClientSeeder::class,
             EmployeeSeeder::class,
             AuthSecuritySettingsSeeder::class,
             EmailSettingsSeeder::class,
+            GstSettingsSeeder::class,
             TestUsersSeeder::class,
         ]);
+
+        if (app()->environment() !== 'testing') {
+            $this->call([
+                PayrollFieldsDemoSeeder::class,
+            ]);
+        }
     }
 }

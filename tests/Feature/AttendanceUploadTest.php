@@ -1,0 +1,882 @@
+<?php
+
+namespace Tests\Feature;
+
+use Tests\TestCase;
+use App\Models\User;
+use App\Models\Client;
+use App\Models\Employee;
+use App\Models\AttendanceRecord;
+use App\Models\AttendanceUploadBatch;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
+use Carbon\Carbon;
+
+class AttendanceUploadTest extends TestCase
+{
+    use RefreshDatabase;
+
+    protected $admin;
+    protected $clientA;
+    protected $clientB;
+    protected $employeeA;
+    protected $employeeB;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Seed basic settings
+        $this->seed(\Database\Seeders\AuthSecuritySettingsSeeder::class);
+
+        // Create admin user
+        $this->admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
+
+        // Create clients
+        $this->clientA = Client::factory()->create(['company_name' => 'Client A', 'status' => 'active']);
+        $this->clientB = Client::factory()->create(['company_name' => 'Client B', 'status' => 'active']);
+
+        // Create branches
+        $branchA = \App\Models\ClientBranch::create([
+            'client_id' => $this->clientA->id,
+            'branch_name' => 'Branch A',
+            'state' => 'Maharashtra',
+            'gstin' => '27ABCDE1234F1Z5',
+        ]);
+
+        $branchB = \App\Models\ClientBranch::create([
+            'client_id' => $this->clientB->id,
+            'branch_name' => 'Branch B',
+            'state' => 'Karnataka',
+            'gstin' => '29ABCDE1234F1Z5',
+        ]);
+
+        // Create employees
+        $this->employeeA = Employee::factory()->create([
+            'client_id' => $this->clientA->id,
+            'branch_id' => $branchA->id,
+            'employee_code' => 'EMP-A01',
+            'full_name' => 'Employee A',
+            'date_of_joining' => '2025-01-01',
+            'status' => 'active',
+            'uan_mode' => 'new',
+            'personal_email' => 'employeea@example.com',
+            'bank_account_number' => '9999000011',
+            'pan_number' => 'ABCDE1111A',
+            'aadhaar_number' => '100020003001',
+        ]);
+
+        $this->employeeB = Employee::factory()->create([
+            'client_id' => $this->clientB->id,
+            'branch_id' => $branchB->id,
+            'employee_code' => 'EMP-B01',
+            'full_name' => 'Employee B',
+            'status' => 'active',
+            'uan_mode' => 'new',
+            'personal_email' => 'employeeb@example.com',
+            'bank_account_number' => '9999000022',
+            'pan_number' => 'ABCDE1111B',
+            'aadhaar_number' => '100020003002',
+        ]);
+    }
+
+    /**
+     * 1. Test template download.
+     */
+    public function test_download_template_returns_correct_headers_and_content()
+    {
+        $response = $this->actingAs($this->admin)->get('/payroll/attendance/template');
+
+        $response->assertStatus(200);
+        $response->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        $response->assertHeader('Content-Disposition', 'attachment; filename=attendance_upload_template.xlsx');
+    }
+
+    /**
+     * 2. Test validation preview on valid CSV data.
+     */
+    public function test_validate_upload_resolves_and_verifies_valid_csv()
+    {
+        $csvContent = "employee_code,days_present,days_lop\n";
+        $csvContent .= "EMP-A01,23,0\n";
+
+        $file = UploadedFile::fake()->createWithContent('timesheet.csv', $csvContent);
+
+        $response = $this->actingAs($this->admin)->post('/payroll/attendance/validate', [
+            'client_id' => $this->clientA->id,
+            'target_month' => '2026-07',
+            'file' => $file
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJsonPath('total_rows', 1);
+        $response->assertJsonPath('matched_rows', 1);
+        $response->assertJsonPath('error_count', 0);
+
+        $rows = $response->json('rows');
+        $this->assertEquals('valid', $rows[0]['status']);
+        $this->assertEquals('exact', $rows[0]['matchType']);
+        $this->assertEquals('Employee A (EMP-A01)', $rows[0]['matchedName']);
+    }
+
+    /**
+     * 3. Test validation catches unknown/invalid codes.
+     */
+    public function test_validate_upload_detects_invalid_employee_code()
+    {
+        $csvContent = "employee_code,days_present,days_lop\n";
+        $csvContent .= "EMP-UNKNOWN,23,0\n";
+
+        $file = UploadedFile::fake()->createWithContent('timesheet.csv', $csvContent);
+
+        $response = $this->actingAs($this->admin)->post('/payroll/attendance/validate', [
+            'client_id' => $this->clientA->id,
+            'target_month' => '2026-07',
+            'file' => $file
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJsonPath('total_rows', 1);
+        $response->assertJsonPath('matched_rows', 0);
+        $response->assertJsonPath('error_count', 1);
+
+        $rows = $response->json('rows');
+        $this->assertEquals('invalid', $rows[0]['status']);
+        $this->assertEquals('none', $rows[0]['matchType']);
+        $this->assertStringContainsString("not found for this client", $rows[0]['notes']);
+    }
+
+    /**
+     * 4. Test client scoping: employee from different client is invalid/not-found.
+     */
+    public function test_validate_upload_enforces_client_scoping()
+    {
+        // Try uploading Employee B (belongs to Client B) against Client A selection
+        $csvContent = "employee_code,days_present,days_lop\n";
+        $csvContent .= "EMP-B01,23,0\n";
+
+        $file = UploadedFile::fake()->createWithContent('timesheet.csv', $csvContent);
+
+        $response = $this->actingAs($this->admin)->post('/payroll/attendance/validate', [
+            'client_id' => $this->clientA->id, // Client A chosen
+            'target_month' => '2026-07',
+            'file' => $file
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJsonPath('total_rows', 1);
+        $response->assertJsonPath('matched_rows', 0);
+        $response->assertJsonPath('error_count', 1);
+
+        $rows = $response->json('rows');
+        $this->assertEquals('invalid', $rows[0]['status']);
+        $this->assertEquals('none', $rows[0]['matchType']);
+        $this->assertStringContainsString("not found for this client", $rows[0]['notes']);
+    }
+
+    /**
+     * 5. Test execute upload respects conflict policy:
+     *    - skips live_punch records
+     *    - overwrites previous uploaded records
+     *    - inserts new records
+     */
+    public function test_execute_upload_respects_conflict_policy_and_ignores_live_punch()
+    {
+        // Day 1: Already has a live_punch record (should be ignored)
+        $liveRecord = AttendanceRecord::create([
+            'employee_id' => $this->employeeA->id,
+            'attendance_date' => '2026-07-14',
+            'status' => 'present',
+            'source' => 'live_punch',
+            'notes' => 'Original portal clock-in'
+        ]);
+
+        // Day 2: Already has an uploaded record (should be overwritten)
+        $prevUploadRecord = AttendanceRecord::create([
+            'employee_id' => $this->employeeA->id,
+            'attendance_date' => '2026-07-15',
+            'status' => 'half_day',
+            'source' => 'uploaded',
+            'notes' => 'Previous uploaded row'
+        ]);
+
+        // CSV targets:
+        // July 2026 has 23 weekdays. 1 existing live_punch -> 22 available slots.
+        // Upload 22 present + 0 LOP. This perfectly matches the 22 available slots.
+        // It should overwrite the uploaded record on 2026-07-15 with status present,
+        // and insert the remaining 21 days as present (uploaded).
+        $csvContent = "employee_code,days_present,days_lop\n";
+        $csvContent .= "EMP-A01,22,0\n";
+
+        $file = UploadedFile::fake()->createWithContent('timesheet.csv', $csvContent);
+
+        $response = $this->actingAs($this->admin)->post('/payroll/attendance/upload', [
+            'client_id' => $this->clientA->id,
+            'target_month' => '2026-07',
+            'file' => $file
+        ]);
+
+        // Assert redirect back to monitor
+        $response->assertRedirect();
+        $response->assertSessionHasNoErrors();
+
+        // 1. Assert Day 1 live_punch is UNTOUCHED
+        $record1 = AttendanceRecord::where('employee_id', $this->employeeA->id)
+            ->where('attendance_date', '2026-07-14')
+            ->first();
+        $this->assertEquals('present', $record1->status);
+        $this->assertEquals('live_punch', $record1->source);
+        $this->assertEquals('Original portal clock-in', $record1->notes);
+
+        // 2. Assert Day 2 uploaded record is OVERWRITTEN/UPDATED to present
+        $record2 = AttendanceRecord::where('employee_id', $this->employeeA->id)
+            ->where('attendance_date', '2026-07-15')
+            ->first();
+        $this->assertEquals('present', $record2->status);
+        $this->assertEquals('uploaded', $record2->source);
+
+        // Assert Batch record created
+        $this->assertDatabaseHas('attendance_upload_batches', [
+            'client_id' => $this->clientA->id,
+            'target_month' => '2026-07-01 00:00:00',
+            'uploaded_file_name' => 'timesheet.csv',
+            'total_rows' => 1,
+            'matched_rows' => 1,
+        ]);
+    }
+
+    /**
+     * 6. Test days count mismatch rejection.
+     *    July 2026 has 23 weekdays. Upload 25 + 2 = 27. Must be rejected because days_lop > 0.
+     */
+    public function test_validate_upload_rejects_days_count_mismatch()
+    {
+        $csvContent = "employee_code,days_present,days_lop\n";
+        $csvContent .= "EMP-A01,25,2\n"; // 25 + 2 = 27 > 23 available with non-zero LOP
+
+        $file = UploadedFile::fake()->createWithContent('timesheet.csv', $csvContent);
+
+        $response = $this->actingAs($this->admin)->post('/payroll/attendance/validate', [
+            'client_id' => $this->clientA->id,
+            'target_month' => '2026-07',
+            'file' => $file,
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJsonPath('total_rows', 1);
+        $response->assertJsonPath('matched_rows', 0);
+        $response->assertJsonPath('error_count', 1);
+
+        $rows = $response->json('rows');
+        $this->assertEquals('invalid', $rows[0]['status']);
+
+        // Confirm the error message shows the overcount details using new short template
+        $this->assertStringContainsString("⚠️ Numbers don't match", $rows[0]['notes']);
+        $this->assertStringContainsString('entered 27 days total', $rows[0]['notes']);
+    }
+
+    /**
+     * 7. Test multi-live-punch slot exclusion.
+     *    Pre-seed 3 live_punch records on different weekdays.
+     *    Available slots = 23 - 3 = 20.
+     *
+     *    Positive path: Upload 18 present + 2 LOP = 20 → valid, exact match (zero notes).
+     */
+    public function test_execute_upload_with_multi_live_punch_slot_exclusion()
+    {
+        // Pre-seed 3 live_punch records on 3 different weekdays in July 2026
+        $livePunchDates = ['2026-07-01', '2026-07-06', '2026-07-10'];
+
+        foreach ($livePunchDates as $i => $date) {
+            AttendanceRecord::create([
+                'employee_id' => $this->employeeA->id,
+                'attendance_date' => $date,
+                'status' => 'present',
+                'source' => 'live_punch',
+                'notes' => "Live punch #{$i}",
+            ]);
+        }
+
+        // === NEGATIVE PATH: 22 + 2 = 24 but only 20 slots available ===
+        $csvBad = "employee_code,days_present,days_lop\n";
+        $csvBad .= "EMP-A01,22,2\n";
+
+        $fileBad = UploadedFile::fake()->createWithContent('bad.csv', $csvBad);
+
+        $responseBad = $this->actingAs($this->admin)->post('/payroll/attendance/validate', [
+            'client_id' => $this->clientA->id,
+            'target_month' => '2026-07',
+            'file' => $fileBad,
+        ]);
+
+        $responseBad->assertStatus(200);
+        $responseBad->assertJsonPath('matched_rows', 0);
+        $responseBad->assertJsonPath('error_count', 1);
+
+        $badRows = $responseBad->json('rows');
+        $this->assertEquals('invalid', $badRows[0]['status']);
+        $this->assertStringContainsString("⚠️ Numbers don't match", $badRows[0]['notes']);
+
+        // === POSITIVE PATH: 18 + 2 = 20 slots available ===
+        $csvGood = "employee_code,days_present,days_lop\n";
+        $csvGood .= "EMP-A01,18,2\n";
+
+        $fileGood1 = UploadedFile::fake()->createWithContent('good1.csv', $csvGood);
+        $fileGood2 = UploadedFile::fake()->createWithContent('good2.csv', $csvGood);
+
+        // Validate first to check that exact match generates NO warnings in the notes field
+        $responseValidate = $this->actingAs($this->admin)->post('/payroll/attendance/validate', [
+            'client_id' => $this->clientA->id,
+            'target_month' => '2026-07',
+            'file' => $fileGood1,
+        ]);
+        $responseValidate->assertStatus(200);
+        $responseValidate->assertJsonPath('matched_rows', 1);
+        $this->assertEquals("", $responseValidate->json('rows.0.notes'));
+
+        $responseGood = $this->actingAs($this->admin)->post('/payroll/attendance/upload', [
+            'client_id' => $this->clientA->id,
+            'target_month' => '2026-07',
+            'file' => $fileGood2,
+        ]);
+
+        $responseGood->assertRedirect();
+        $responseGood->assertSessionHasNoErrors();
+
+        // Assert live_punch records are UNTOUCHED
+        foreach ($livePunchDates as $i => $date) {
+            $record = AttendanceRecord::where('employee_id', $this->employeeA->id)
+                ->where('attendance_date', $date)
+                ->first();
+            $this->assertNotNull($record, "Live punch record for {$date} should exist");
+            $this->assertEquals('present', $record->status);
+            $this->assertEquals('live_punch', $record->source);
+            $this->assertEquals("Live punch #{$i}", $record->notes);
+        }
+
+        // Assert exactly 20 new uploaded records were created
+        $uploadedRecords = AttendanceRecord::where('employee_id', $this->employeeA->id)
+            ->where('source', 'uploaded')
+            ->get();
+        $this->assertCount(20, $uploadedRecords);
+
+        // Assert 18 present + 2 absent among uploaded records
+        $uploadedPresent = $uploadedRecords->where('status', 'present')->count();
+        $uploadedAbsent = $uploadedRecords->where('status', 'absent')->count();
+        $this->assertEquals(18, $uploadedPresent);
+        $this->assertEquals(2, $uploadedAbsent);
+
+        // Assert total attendance_records count = 3 (live_punch) + 20 (uploaded) = 23
+        $totalCount = AttendanceRecord::where('employee_id', $this->employeeA->id)->count();
+        $this->assertEquals(23, $totalCount);
+    }
+
+    /**
+     * 8. Test auto-reconcile shortfall validation.
+     *    July 2026 has 23 weekdays. Upload 22 present + 0 LOP = 22 days.
+     *    Shortfall is auto-reconciled: present = 22, LOP = 1.
+     */
+    public function test_validate_upload_auto_reconciles_shortfall()
+    {
+        $csvContent = "employee_code,days_present,days_lop\nEMP-A01,22,0\n";
+        $file = UploadedFile::fake()->createWithContent('timesheet.csv', $csvContent);
+
+        $response = $this->actingAs($this->admin)->post('/payroll/attendance/validate', [
+            'client_id' => $this->clientA->id,
+            'target_month' => '2026-07',
+            'file' => $file,
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJsonPath('total_rows', 1);
+        $response->assertJsonPath('matched_rows', 1);
+        $response->assertJsonPath('error_count', 0);
+
+        $rows = $response->json('rows');
+        $this->assertEquals('valid', $rows[0]['status']);
+        $this->assertStringContainsString('Warning: Shortfall', $rows[0]['notes']);
+        $this->assertStringContainsString('Uploaded: 22 present / 0 LOP', $rows[0]['notes']);
+        $this->assertStringContainsString('Saved: 22 present / 1 LOP', $rows[0]['notes']);
+    }
+
+    /**
+     * 9. Test cap over-count with zero LOP.
+     *    July 2026 has 23 weekdays. 1 existing punch on 2026-07-14. available slots = 22.
+     *    Upload 23 present + 0 LOP = 23 days (exceeds available slots).
+     *    Capped to 22 present + 0 LOP.
+     */
+    public function test_validate_upload_caps_overcount_with_zero_lop()
+    {
+        AttendanceRecord::create([
+            'employee_id' => $this->employeeA->id,
+            'attendance_date' => '2026-07-14',
+            'status' => 'present',
+            'source' => 'live_punch',
+        ]);
+
+        $csvContent = "employee_code,days_present,days_lop\nEMP-A01,23,0\n";
+        $file = UploadedFile::fake()->createWithContent('timesheet.csv', $csvContent);
+
+        $response = $this->actingAs($this->admin)->post('/payroll/attendance/validate', [
+            'client_id' => $this->clientA->id,
+            'target_month' => '2026-07',
+            'file' => $file,
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJsonPath('total_rows', 1);
+        $response->assertJsonPath('matched_rows', 1);
+        $response->assertJsonPath('error_count', 0);
+
+        $rows = $response->json('rows');
+        $this->assertEquals('valid', $rows[0]['status']);
+        $this->assertStringContainsString('⚠️ Adjusted', $rows[0]['notes']);
+        $this->assertStringContainsString('entered 23 present days', $rows[0]['notes']);
+        $this->assertStringContainsString('automatically capped it to 22', $rows[0]['notes']);
+    }
+
+    /**
+     * 10. Test reject over-count with non-zero LOP.
+     *     July 2026 has 23 weekdays. 1 existing punch. available slots = 22.
+     *     Upload 22 present + 1 LOP = 23 days (exceeds available slots with LOP > 0).
+     *     Must be rejected.
+     */
+    public function test_validate_upload_rejects_overcount_with_nonzero_lop()
+    {
+        AttendanceRecord::where('employee_id', $this->employeeA->id)->delete();
+        AttendanceRecord::create([
+            'employee_id' => $this->employeeA->id,
+            'attendance_date' => '2026-07-14',
+            'status' => 'present',
+            'source' => 'live_punch',
+        ]);
+
+        $csvContent = "employee_code,days_present,days_lop\nEMP-A01,22,1\n";
+        $file = UploadedFile::fake()->createWithContent('timesheet.csv', $csvContent);
+
+        $response = $this->actingAs($this->admin)->post('/payroll/attendance/validate', [
+            'client_id' => $this->clientA->id,
+            'target_month' => '2026-07',
+            'file' => $file,
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJsonPath('total_rows', 1);
+        $response->assertJsonPath('matched_rows', 0);
+        $response->assertJsonPath('error_count', 1);
+
+        $rows = $response->json('rows');
+        $this->assertEquals('invalid', $rows[0]['status']);
+        $this->assertStringContainsString("⚠️ Numbers don't match — you entered 23 days total, but this month only has 22 working days", $rows[0]['notes']);
+    }
+
+    /**
+     * 11. Test database records created match the reconciled numbers instead of raw uploaded counts.
+     */
+    public function test_execute_upload_inserts_reconciled_counts_in_db()
+    {
+        AttendanceRecord::where('employee_id', $this->employeeA->id)->delete();
+        // 23 available weekdays. Shortfall upload: 22 present + 0 LOP = 22 days.
+        // Reconciled: 22 present + 1 LOP.
+        $csvContent = "employee_code,days_present,days_lop\nEMP-A01,22,0\n";
+        $file = UploadedFile::fake()->createWithContent('timesheet.csv', $csvContent);
+
+        $response = $this->actingAs($this->admin)->post('/payroll/attendance/upload', [
+            'client_id' => $this->clientA->id,
+            'target_month' => '2026-07',
+            'file' => $file,
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHasNoErrors();
+
+        // Reconciled LOP should create 1 absent (LOP) record
+        $uploadedLopCount = AttendanceRecord::where('employee_id', $this->employeeA->id)
+            ->where('source', 'uploaded')
+            ->where('status', 'absent')
+            ->count();
+        $this->assertEquals(1, $uploadedLopCount);
+
+        // Reconciled present should create 22 present records
+        $uploadedPresentCount = AttendanceRecord::where('employee_id', $this->employeeA->id)
+            ->where('source', 'uploaded')
+            ->where('status', 'present')
+            ->count();
+        $this->assertEquals(22, $uploadedPresentCount);
+    }
+
+    /**
+     * 12. Test skipped status for employee whose DOJ is after target month:
+     *     - Preview shows status = 'skipped', skipped_count = 1, and distinct note
+     *     - Execute save writes ZERO attendance_records to the database
+     */
+    public function test_validate_and_execute_upload_handles_skipped_unjoined_employee_with_zero_db_records()
+    {
+        // Employee C joined July 22, 2026
+        $employeeC = Employee::factory()->create([
+            'client_id' => $this->clientA->id,
+            'employee_code' => 'EMP-UNJOINED',
+            'full_name' => 'Unjoined Employee',
+            'date_of_joining' => '2026-07-22',
+        ]);
+
+        $csvContent = "employee_code,days_present,days_lop\nEMP-UNJOINED,26,0\n";
+        $file1 = UploadedFile::fake()->createWithContent('timesheet1.csv', $csvContent);
+        $file2 = UploadedFile::fake()->createWithContent('timesheet2.csv', $csvContent);
+
+        // 1. Validation Preview
+        $responseValidate = $this->actingAs($this->admin)->post('/payroll/attendance/validate', [
+            'client_id' => $this->clientA->id,
+            'target_month' => '2026-05', // May 2026 (before July 22, 2026)
+            'file' => $file1,
+        ]);
+
+        $responseValidate->assertStatus(200);
+        $responseValidate->assertJsonPath('total_rows', 1);
+        $responseValidate->assertJsonPath('matched_rows', 0);
+        $responseValidate->assertJsonPath('skipped_count', 1);
+        $responseValidate->assertJsonPath('error_count', 0);
+
+        $rows = $responseValidate->json('rows');
+        $this->assertEquals('skipped', $rows[0]['status']);
+        $this->assertStringContainsString('⚠️ Not yet joined — EMP-UNJOINED joined July 22, 2026. No attendance recorded for May 2026.', $rows[0]['notes']);
+
+        // 2. Execute Upload Save Action
+        $responseExecute = $this->actingAs($this->admin)->post('/payroll/attendance/upload', [
+            'client_id' => $this->clientA->id,
+            'target_month' => '2026-05',
+            'file' => $file2,
+        ]);
+
+        $responseExecute->assertRedirect();
+        $responseExecute->assertSessionHasNoErrors();
+
+        // 3. Database Proof: ZERO attendance_records created for this employee in May 2026
+        $savedCount = AttendanceRecord::where('employee_id', $employeeC->id)
+            ->whereBetween('attendance_date', ['2026-05-01', '2026-05-31'])
+            ->count();
+
+        $this->assertEquals(0, $savedCount, 'Skipped employee must have ZERO attendance_records saved in DB');
+    }
+
+    /**
+     * 13. Test download template as a real 2-Sheet .xlsx file with swapped sheet order, live context & piece 3 fields.
+     */
+    public function test_download_template_with_live_context_and_2sheet_xlsx_structure()
+    {
+        $response = $this->actingAs($this->admin)->get('/payroll/attendance/template?client_id=' . $this->clientA->id . '&target_month=2026-08');
+
+        $response->assertStatus(200);
+        $downloadedFilePath = $response->getFile()->getPathname();
+
+        // 1. Inspect ZipArchive workbook XML for exact sheet order (Index 0 = Reference Info & Rules, Index 1 = Attendance Entry)
+        $zip = new \ZipArchive();
+        $this->assertTrue($zip->open($downloadedFilePath));
+        $workbookXml = $zip->getFromName('xl/workbook.xml');
+        preg_match_all('/<sheet name="([^"]+)"/i', $workbookXml, $matches);
+        $sheetNames = array_map('html_entity_decode', $matches[1]);
+
+        $this->assertEquals('Reference Info & Rules', $sheetNames[0]);
+        $this->assertEquals('Attendance Entry', $sheetNames[1]);
+
+        // 2. Inspect sheet1.xml for custom column widths (Width 35 & Width 75)
+        $sheet1Xml = $zip->getFromName('xl/worksheets/sheet1.xml');
+        $this->assertStringContainsString('width="35"', $sheet1Xml);
+        $this->assertStringContainsString('width="75"', $sheet1Xml);
+        $zip->close();
+
+        // 3. Read Sheet 1 ("Reference Info & Rules")
+        $reader1 = \Spatie\SimpleExcel\SimpleExcelReader::create($downloadedFilePath);
+        if (method_exists($reader1, 'fromSheetName')) {
+            $reader1->fromSheetName('Reference Info & Rules');
+        }
+        $refRows = $reader1->getRows()->toArray();
+        $this->assertGreaterThan(5, count($refRows));
+
+        $sections = array_column($refRows, 'Section');
+        $this->assertContains('Target Client', $sections);
+        $this->assertContains('Cycle Ends', $sections);
+        $this->assertContains('Target Lock Date', $sections);
+        $this->assertContains('Target Salary Credit', $sections);
+
+        // 4. Read Sheet 2 ("Attendance Entry") by name
+        $reader2 = \Spatie\SimpleExcel\SimpleExcelReader::create($downloadedFilePath);
+        if (method_exists($reader2, 'fromSheetName')) {
+            $reader2->fromSheetName('Attendance Entry');
+        }
+        $entryRows = $reader2->getRows()->toArray();
+        $this->assertCount(1, $entryRows);
+        $this->assertEquals('2026-08', $entryRows[0]['target_month']);
+        $this->assertEquals('EMP-A01', $entryRows[0]['employee_code']);
+
+        // 5. Feed downloaded 2-Sheet XLSX file directly to validateFile
+        $validator = app(\App\Services\AttendanceUploadValidationService::class);
+        $result = $validator->validateFile($downloadedFilePath, $this->clientA->id, '2026-08');
+
+        $this->assertEquals(1, $result['total_rows']);
+        $this->assertEquals(1, $result['matched_rows']);
+        $this->assertEquals(0, $result['error_count']);
+    }
+
+    /**
+     * 14. Test validate upload with matching target_month header column.
+     */
+    public function test_validate_upload_with_matching_target_month_header()
+    {
+        $csvContent = "target_month,employee_code,days_present,days_lop\n2026-07,EMP-A01,23,0\n";
+        $file = UploadedFile::fake()->createWithContent('timesheet.csv', $csvContent);
+
+        $response = $this->actingAs($this->admin)->post('/payroll/attendance/validate', [
+            'client_id' => $this->clientA->id,
+            'target_month' => '2026-07',
+            'file' => $file,
+        ]);
+
+        $response->assertStatus(200);
+        $rows = $response->json('rows');
+        $this->assertEquals('valid', $rows[0]['status']);
+        $this->assertEquals("", $rows[0]['notes']);
+    }
+
+    /**
+     * 15. Test validate upload with mismatch target_month header column generates warning (status stays valid).
+     */
+    public function test_validate_upload_with_mismatch_target_month_header_generates_warning()
+    {
+        $csvContent = "target_month,employee_code,days_present,days_lop\n2026-05,EMP-A01,23,0\n";
+        $file = UploadedFile::fake()->createWithContent('timesheet.csv', $csvContent);
+
+        $response = $this->actingAs($this->admin)->post('/payroll/attendance/validate', [
+            'client_id' => $this->clientA->id,
+            'target_month' => '2026-07', // Page selected month: July 2026 vs Sheet specifies: May 2026
+            'file' => $file,
+        ]);
+
+        $response->assertStatus(200);
+        $rows = $response->json('rows');
+        $this->assertEquals('valid', $rows[0]['status']);
+        $this->assertStringContainsString("⚠️ Target month mismatch — sheet specifies 'May 2026', but 'July 2026' was selected on this page. Proceeding with July 2026", $rows[0]['notes']);
+    }
+
+    /**
+     * 16. Test backward compatibility: old format without target_month column processes normally.
+     */
+    public function test_validate_upload_backward_compatibility_with_missing_target_month_header()
+    {
+        $csvContent = "employee_code,days_present,days_lop\nEMP-A01,23,0\n"; // Old format (no target_month column)
+        $file = UploadedFile::fake()->createWithContent('old_timesheet.csv', $csvContent);
+
+        $response = $this->actingAs($this->admin)->post('/payroll/attendance/validate', [
+            'client_id' => $this->clientA->id,
+            'target_month' => '2026-07',
+            'file' => $file,
+        ]);
+
+        $response->assertStatus(200);
+        $rows = $response->json('rows');
+        $this->assertEquals('valid', $rows[0]['status']);
+        $this->assertEquals("", $rows[0]['notes']);
+    }
+
+    /**
+     * 17. End-to-end test: Download actual 2-sheet template, upload back through validate & execute endpoints.
+     */
+    public function test_17_end_to_end_download_xlsx_template_and_execute_upload()
+    {
+        // 1. Download 2-sheet template
+        $dlResponse = $this->actingAs($this->admin)->get('/payroll/attendance/template?client_id=' . $this->clientA->id . '&target_month=2026-08');
+        $dlResponse->assertStatus(200);
+
+        $downloadedFilePath = $dlResponse->getFile()->getPathname();
+
+        // 2. Validate upload endpoint POST (using copy 1)
+        $copy1 = storage_path('app/temp_test_copy1.xlsx');
+        copy($downloadedFilePath, $copy1);
+        $uploadFile1 = new \Illuminate\Http\UploadedFile($copy1, 'attendance_upload_template.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', null, true);
+
+        $valResponse = $this->actingAs($this->admin)->post('/payroll/attendance/validate', [
+            'client_id' => $this->clientA->id,
+            'target_month' => '2026-08',
+            'file' => $uploadFile1,
+        ]);
+
+        $valResponse->assertStatus(200);
+        $rows = $valResponse->json('rows');
+        $this->assertEquals('valid', $rows[0]['status']);
+        $this->assertEquals(1, $valResponse->json('matched_rows'));
+
+        // 3. Execute upload endpoint POST (using copy 2)
+        $copy2 = storage_path('app/temp_test_copy2.xlsx');
+        copy($downloadedFilePath, $copy2);
+        $uploadFile2 = new \Illuminate\Http\UploadedFile($copy2, 'attendance_upload_template.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', null, true);
+
+        $execResponse = $this->actingAs($this->admin)->post('/payroll/attendance/upload', [
+            'client_id' => $this->clientA->id,
+            'target_month' => '2026-08',
+            'file' => $uploadFile2,
+            'conflict_policy' => 'overwrite',
+        ]);
+
+        $execResponse->assertRedirect();
+
+        // 4. Confirm attendance_records created in DB
+        $dbCount = \App\Models\AttendanceRecord::where('employee_id', $this->employeeA->id)
+            ->whereBetween('attendance_date', ['2026-08-01', '2026-08-31'])
+            ->count();
+
+        $this->assertGreaterThan(0, $dbCount);
+    }
+
+    /**
+     * 18. Test template download includes per-employee custom off-day pattern callout section when overrides exist.
+     */
+    public function test_18_template_download_includes_custom_off_day_pattern_section_when_overrides_exist()
+    {
+        $client = Client::factory()->create([
+            'company_name' => 'OVERRIDE_TEST_CLIENT',
+            'weekly_off_pattern' => 'sat,sun',
+        ]);
+        \App\Models\ClientBranch::factory()->create(['client_id' => $client->id]);
+
+        $empOverride = Employee::factory()->create([
+            'client_id' => $client->id,
+            'employee_code' => 'EMP-OVR-01',
+            'full_name' => 'Override Employee',
+            'weekly_off_pattern' => 'sun',
+            'date_of_joining' => '2025-01-01',
+            'personal_email' => 'ovr01@example.com',
+            'pan_number' => 'ABCDE9991A',
+            'aadhaar_number' => '900080007001',
+            'bank_account_number' => '8888000011',
+            'status' => 'active',
+        ]);
+
+        $empDefault = Employee::factory()->create([
+            'client_id' => $client->id,
+            'employee_code' => 'EMP-DEF-01',
+            'full_name' => 'Default Employee',
+            'weekly_off_pattern' => null,
+            'date_of_joining' => '2025-01-01',
+            'personal_email' => 'def01@example.com',
+            'pan_number' => 'ABCDE9992B',
+            'aadhaar_number' => '900080007002',
+            'bank_account_number' => '8888000022',
+            'status' => 'active',
+        ]);
+
+        $response = $this->actingAs($this->admin)->get("/payroll/attendance/template?client_id={$client->id}&target_month=2026-08");
+        $response->assertStatus(200);
+        $downloadedFilePath = $response->getFile()->getPathname();
+
+        $reader = \Spatie\SimpleExcel\SimpleExcelReader::create($downloadedFilePath)->fromSheetName('Reference Info & Rules');
+        $rows = $reader->getRows()->toArray();
+
+        $sections = array_column($rows, 'Section');
+        $this->assertContains('--- EMPLOYEES WITH CUSTOM OFF-DAY PATTERNS ---', $sections);
+
+        $overrideRowKey = 'EMP-OVR-01 (Override Employee)';
+        $this->assertContains($overrideRowKey, $sections);
+
+        // Find the details string for EMP-OVR-01
+        $overrideRow = array_values(array_filter($rows, fn($r) => $r['Section'] === $overrideRowKey))[0];
+        $this->assertStringContainsString('Sunday → Required Working Days: 26', $overrideRow['Details']); // Aug 2026: 31 - 5 Sundays = 26 slots
+
+        // Default employee must NOT be listed in sections
+        $this->assertNotContains('EMP-DEF-01 (Default Employee)', $sections);
+    }
+
+    /**
+     * 19. Test template download omits custom off-day pattern section entirely when no overrides exist.
+     */
+    public function test_19_template_download_omits_custom_off_day_pattern_section_when_no_overrides()
+    {
+        $client = Client::factory()->create([
+            'company_name' => 'NO_OVERRIDE_CLIENT',
+            'weekly_off_pattern' => 'sat,sun',
+        ]);
+        \App\Models\ClientBranch::factory()->create(['client_id' => $client->id]);
+
+        Employee::factory()->create([
+            'client_id' => $client->id,
+            'employee_code' => 'EMP-DEF-02',
+            'full_name' => 'Standard Employee',
+            'weekly_off_pattern' => null,
+            'date_of_joining' => '2025-01-01',
+            'personal_email' => 'def02@example.com',
+            'pan_number' => 'ABCDE9993C',
+            'aadhaar_number' => '900080007003',
+            'bank_account_number' => '8888000033',
+            'status' => 'active',
+        ]);
+
+        $response = $this->actingAs($this->admin)->get("/payroll/attendance/template?client_id={$client->id}&target_month=2026-08");
+        $response->assertStatus(200);
+        $downloadedFilePath = $response->getFile()->getPathname();
+
+        $reader = \Spatie\SimpleExcel\SimpleExcelReader::create($downloadedFilePath)->fromSheetName('Reference Info & Rules');
+        $rows = $reader->getRows()->toArray();
+
+        $sections = array_column($rows, 'Section');
+        $this->assertNotContains('--- EMPLOYEES WITH CUSTOM OFF-DAY PATTERNS ---', $sections);
+    }
+
+    /**
+     * 20. Test zero drift check: template override working days EXACTLY matches validateFile() enforcement.
+     */
+    public function test_20_zero_drift_check_template_override_working_days_matches_validate_file()
+    {
+        $client = Client::factory()->create([
+            'company_name' => 'ZERO_DRIFT_CLIENT',
+            'weekly_off_pattern' => 'sat,sun',
+        ]);
+        \App\Models\ClientBranch::factory()->create(['client_id' => $client->id]);
+
+        $empOverride = Employee::factory()->create([
+            'client_id' => $client->id,
+            'employee_code' => 'EMP-DRIFT-01',
+            'full_name' => 'Drift Test Employee',
+            'weekly_off_pattern' => 'sun',
+            'date_of_joining' => '2025-01-01',
+            'personal_email' => 'drift01@example.com',
+            'pan_number' => 'ABCDE9994D',
+            'aadhaar_number' => '900080007004',
+            'bank_account_number' => '8888000044',
+            'status' => 'active',
+        ]);
+
+        // 1. Download template and extract working days slot number from Sheet 1
+        $response = $this->actingAs($this->admin)->get("/payroll/attendance/template?client_id={$client->id}&target_month=2026-08");
+        $downloadedFilePath = $response->getFile()->getPathname();
+
+        $reader = \Spatie\SimpleExcel\SimpleExcelReader::create($downloadedFilePath)->fromSheetName('Reference Info & Rules');
+        $rows = $reader->getRows()->toArray();
+
+        $overrideRowKey = 'EMP-DRIFT-01 (Drift Test Employee)';
+        $overrideRow = array_values(array_filter($rows, fn($r) => $r['Section'] === $overrideRowKey))[0];
+
+        preg_match('/Required Working Days: (\d+)/', $overrideRow['Details'], $matches);
+        $sheetSlots = (int) $matches[1]; // 26 days
+
+        // 2. Validate row with exact sheetSlots -> must be 'valid'
+        $csvPathValid = storage_path('app/temp_zero_drift_valid.csv');
+        file_put_contents($csvPathValid, "target_month,employee_code,days_present,days_lop\n2026-08,EMP-DRIFT-01,{$sheetSlots},0\n");
+
+        $service = app(\App\Services\AttendanceUploadValidationService::class);
+        $resValid = $service->validateFile($csvPathValid, $client->id, '2026-08');
+        @unlink($csvPathValid);
+
+        $this->assertEquals('valid', $resValid['rows'][0]['status']);
+        $this->assertEquals(0, $resValid['error_count']);
+
+        // 3. Validate row with overcount mismatch (25 present + 3 LOP = 28 total vs 26 required slots) -> must flag error
+        $csvPathInvalid = storage_path('app/temp_zero_drift_invalid.csv');
+        file_put_contents($csvPathInvalid, "target_month,employee_code,days_present,days_lop\n2026-08,EMP-DRIFT-01,25,3\n");
+
+        $resInvalid = $service->validateFile($csvPathInvalid, $client->id, '2026-08');
+        @unlink($csvPathInvalid);
+
+        $this->assertEquals(1, $resInvalid['error_count']);
+        $this->assertStringContainsString("⚠️ Numbers don't match — you entered 28 days total, but this month only has 26 working days", $resInvalid['rows'][0]['notes']);
+    }
+}

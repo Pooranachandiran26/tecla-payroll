@@ -17,6 +17,7 @@ export default function DatePicker({
         value={value} onChange={onChange}
         min={min} max={max}
         disabled={disabled} required={required}
+        onClick={(e) => { try { e.target.showPicker?.(); } catch (err) {} }}
         className={classNames('form-control', error && 'is-invalid', className)}
       />
       {error && <div className="form-error">{error}</div>}

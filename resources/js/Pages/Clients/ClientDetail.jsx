@@ -7,18 +7,78 @@ import RoleGuard from '../../Components/RoleGuard.jsx';
 import ConfirmDialog from '../../Components/ui/ConfirmDialog';
 import Input from '../../Components/ui/Input';
 import useToast from '../../Hooks/useToast';
+import Modal from '../../Components/ui/Modal';
+import Button from '../../Components/ui/Button';
+import Badge from '../../Components/ui/Badge';
+import { 
+  ArrowLeft, Trash2, PauseCircle, PlayCircle, Edit3, Receipt, 
+  Building2, Users, FolderOpen, UserCheck, Clock, History, 
+  Calendar, Plus, AlertTriangle, CheckCircle2, UserPlus, 
+  UploadCloud, FileText, Mail, Phone, CreditCard, Smartphone, MessageSquare, Eye
+} from 'lucide-react';
 
-export default function ClientDetail({ client, employees }) {
+export default function ClientDetail({ client, employees, activityLogs = [] }) {
   const { auth } = usePage().props;
   const { showToast } = useToast();
   const c = client.data || {};
   const [activeTab, setActiveTab] = React.useState('overview');
 
+  const [logCategoryFilter, setLogCategoryFilter] = React.useState('all');
+  const [logStartDate, setLogStartDate] = React.useState('');
+  const [logEndDate, setLogEndDate] = React.useState('');
+  const [selectedLogModal, setSelectedLogModal] = React.useState(null);
+
   const [deactivateDialog, setDeactivateDialog] = React.useState(false);
   const [deleteDialog, setDeleteDialog] = React.useState({ isOpen: false, confirmText: '', reason: '' });
 
+  const [holidayModalOpen, setHolidayModalOpen] = React.useState(false);
+  const [holidayForm, setHolidayForm] = React.useState({ holiday_date: '', name: '', is_optional: false });
+  const [holidayProcessing, setHolidayProcessing] = React.useState(false);
+  const [holidayError, setHolidayError] = React.useState(null);
+  const [deleteHolidayDialog, setDeleteHolidayDialog] = React.useState({ isOpen: false, holiday: null });
+
+  const handleAddHoliday = (e) => {
+    e.preventDefault();
+    setHolidayProcessing(true);
+    setHolidayError(null);
+
+    router.post(route('clients.holidays.store', c.id), holidayForm, {
+      onFinish: () => setHolidayProcessing(false),
+      onSuccess: (page) => {
+        setHolidayModalOpen(false);
+        setHolidayForm({ holiday_date: '', name: '', is_optional: false });
+        if (page.props.flash?.success) showToast({ type: 'success', title: 'Success', message: page.props.flash.success });
+      },
+      onError: (errs) => {
+        if (errs.holiday_date) {
+          setHolidayError(errs.holiday_date);
+        } else if (errs.name) {
+          setHolidayError(errs.name);
+        } else {
+          setHolidayError('Failed to add holiday. Please check form inputs.');
+        }
+      }
+    });
+  };
+
+  const handleDeleteHoliday = () => {
+    if (!deleteHolidayDialog.holiday) return;
+    setHolidayProcessing(true);
+
+    router.delete(route('clients.holidays.destroy', [c.id, deleteHolidayDialog.holiday.id]), {
+      onFinish: () => setHolidayProcessing(false),
+      onSuccess: (page) => {
+        setDeleteHolidayDialog({ isOpen: false, holiday: null });
+        if (page.props.flash?.success) showToast({ type: 'success', title: 'Success', message: page.props.flash.success });
+      },
+      onError: (errs) => {
+        showToast({ type: 'error', title: 'Error', message: errs.error || 'Failed to delete holiday.' });
+      }
+    });
+  };
+
   const handleDeactivate = () => {
-    router.post(`/clients/${c.id}/deactivate`, {}, {
+    router.post(route('clients.deactivate', c.id), {}, {
       onSuccess: () => {
         setDeactivateDialog(false);
         showToast({ type: 'success', title: 'Success', message: 'Client deactivated successfully.' });
@@ -30,7 +90,7 @@ export default function ClientDetail({ client, employees }) {
   };
 
   const handleRestore = () => {
-    router.post(`/clients/${c.id}/restore`, {}, {
+    router.post(route('clients.restore', c.id), {}, {
       onSuccess: () => {
         showToast({ type: 'success', title: 'Success', message: 'Client restored successfully.' });
       },
@@ -50,7 +110,7 @@ export default function ClientDetail({ client, employees }) {
       return;
     }
 
-    router.delete(`/clients/${c.id}`, {
+    router.delete(route('clients.destroy', c.id), {
       data: {
         confirm_text: deleteDialog.confirmText,
         reason: deleteDialog.reason
@@ -74,13 +134,15 @@ export default function ClientDetail({ client, employees }) {
   };
 
   return (
-    <RoleGuard allowedRoles={['admin', 'manager']}>
+    <RoleGuard allowedRoles={['admin', 'manager']} moduleKey="clients">
       <AuthenticatedLayout>
         <Head title={`Client Detail: ${c.company_name}`} />
         <div className="legacy-react-wrapper">
                 
       <div style={{"marginBottom":"1.5rem"}}>
-        <a href="/clients" style={{"fontSize":"0.85rem","fontWeight":"600"}}>← Back to Clients Directory</a>
+        <Link href={route('clients.index')} style={{ fontSize: "0.85rem", fontWeight: "600", display: "inline-flex", alignItems: "center", gap: "5px" }}>
+          <ArrowLeft size={14} /> Back to Clients Directory
+        </Link>
 
         <div className="client-header-container">
           <div>
@@ -97,19 +159,26 @@ export default function ClientDetail({ client, employees }) {
           </div>
           <div style={{"display":"flex","gap":"0.75rem","alignItems":"center"}}>
             {auth.user.role === 'admin' && (
-              <button className="btn btn-danger" style={{ backgroundColor: 'var(--status-danger)', color: 'white', borderColor: 'var(--status-danger)' }} onClick={() => setDeleteDialog({ isOpen: true, confirmText: '', reason: '' })}>🗑️ Delete</button>
+              <button className="btn btn-danger" style={{ backgroundColor: 'var(--status-danger)', color: 'white', borderColor: 'var(--status-danger)', display: 'inline-flex', alignItems: 'center', gap: '5px' }} onClick={() => setDeleteDialog({ isOpen: true, confirmText: '', reason: '' })}>
+                <Trash2 size={15} /> Delete
+              </button>
             )}
             
             {c.status === 'active' || c.status === 'onboarding' ? (
-              <button className="btn btn-warning" style={{ backgroundColor: 'var(--status-warning)', color: 'white', borderColor: 'var(--status-warning)' }} onClick={() => setDeactivateDialog(true)}>⏸️ Deactivate</button>
+              <button className="btn btn-warning" style={{ backgroundColor: 'var(--status-warning)', color: 'white', borderColor: 'var(--status-warning)', display: 'inline-flex', alignItems: 'center', gap: '5px' }} onClick={() => setDeactivateDialog(true)}>
+                <PauseCircle size={15} /> Deactivate
+              </button>
             ) : null}
 
             {c.status === 'inactive' && auth.user.role === 'admin' ? (
-              <button className="btn btn-success" style={{ backgroundColor: 'var(--status-success)', color: 'white', borderColor: 'var(--status-success)' }} onClick={handleRestore}>▶️ Restore</button>
+              <button className="btn btn-success" style={{ backgroundColor: 'var(--status-success)', color: 'white', borderColor: 'var(--status-success)', display: 'inline-flex', alignItems: 'center', gap: '5px' }} onClick={handleRestore}>
+                <PlayCircle size={15} /> Restore
+              </button>
             ) : null}
 
-            <Link href={`/clients/${c.id}/edit`} className="btn btn-secondary">✏️ Edit Client</Link>
-            <button className="btn btn-primary" title="Invoicing not built yet">🧾 Generate Invoice</button>
+            <Link href={route('clients.edit', c.id)} className="btn btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+              <Edit3 size={15} /> Edit Client
+            </Link>
           </div>
         </div>
         
@@ -144,6 +213,7 @@ export default function ClientDetail({ client, employees }) {
             label="Type 'DELETE' to confirm" 
             value={deleteDialog.confirmText} 
             onChange={e => setDeleteDialog(prev => ({ ...prev, confirmText: e.target.value }))}
+            onPaste={e => e.preventDefault()}
             placeholder="DELETE"
           />
           <div>
@@ -163,13 +233,27 @@ export default function ClientDetail({ client, employees }) {
       <div className="tab-container card" style={{"paddingTop":"0"}}>
         <ul className="tab-headers"
           style={{"padding":"0 1.5rem","background":"#FAFBFC","borderRadius":"var(--radius-md) var(--radius-md) 0 0","margin":"0 -1.5rem 1.5rem -1.5rem"}}>
-          <li className={activeTab === 'overview' ? 'active' : ''} onClick={() => setActiveTab('overview')}>Overview</li>
-          <li className={activeTab === 'candidates' ? 'active' : ''} onClick={() => setActiveTab('candidates')}>Deployed Candidates ({c.employees_count || 0})</li>
-          <li className={activeTab === 'invoices' ? 'active' : ''} onClick={() => setActiveTab('invoices')}>Invoices & Payments</li>
-          <li className={activeTab === 'documents' ? 'active' : ''} onClick={() => setActiveTab('documents')}>Documents ({c.documents?.length || 0})</li>
-          <li className={activeTab === 'contacts' ? 'active' : ''} onClick={() => setActiveTab('contacts')}>Contacts ({c.contacts?.length || 0})</li>
-          <li className={activeTab === 'sla' ? 'active' : ''} onClick={() => setActiveTab('sla')}>SLA & Settings</li>
-          <li className={activeTab === 'activity' ? 'active' : ''} onClick={() => setActiveTab('activity')}>Activity Log</li>
+          <li className={activeTab === 'overview' ? 'active' : ''} onClick={() => setActiveTab('overview')} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <Building2 size={15} /> Overview
+          </li>
+          <li className={activeTab === 'candidates' ? 'active' : ''} onClick={() => setActiveTab('candidates')} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <Users size={15} /> Deployed Candidates ({c.employees_count || 0})
+          </li>
+          <li className={activeTab === 'invoices' ? 'active' : ''} onClick={() => setActiveTab('invoices')} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <Receipt size={15} /> Invoices & Payments
+          </li>
+          <li className={activeTab === 'documents' ? 'active' : ''} onClick={() => setActiveTab('documents')} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <FolderOpen size={15} /> Documents ({c.documents?.length || 0})
+          </li>
+          <li className={activeTab === 'contacts' ? 'active' : ''} onClick={() => setActiveTab('contacts')} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <UserCheck size={15} /> Contacts ({c.contacts?.length || 0})
+          </li>
+          <li className={activeTab === 'sla' ? 'active' : ''} onClick={() => setActiveTab('sla')} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <Clock size={15} /> SLA & Settings
+          </li>
+          <li className={activeTab === 'activity' ? 'active' : ''} onClick={() => setActiveTab('activity')} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <History size={15} /> Activity Log
+          </li>
         </ul>
 
         {/*  Tab 1: Overview  */}
@@ -215,6 +299,64 @@ export default function ClientDetail({ client, employees }) {
                 </div>
               </div>
 
+              {/* Client Holiday Calendar */}
+              <div className="card">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+                  <h3 style={{ fontSize: '1.05rem', margin: 0, color: 'var(--primary-navy)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Calendar size={18} /> Client Holiday Calendar
+                  </h3>
+                  <Button variant="primary" size="sm" onClick={() => { setHolidayError(null); setHolidayModalOpen(true); }} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <Plus size={14} /> Add Holiday
+                  </Button>
+                </div>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+                  Configured paid holidays for {c.company_name}. AttendanceResolutionService automatically applies these holidays during payroll run resolution.
+                </p>
+                <div className="overflow-x-auto">
+                  <table className="data-table w-full" style={{ fontSize: '0.85rem' }}>
+                    <thead>
+                      <tr>
+                        <th>Holiday Date</th>
+                        <th>Holiday Name</th>
+                        <th>Type</th>
+                        <th style={{ textAlign: 'right' }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(!c.holidays || c.holidays.length === 0) ? (
+                        <tr>
+                          <td colSpan="4" style={{ textAlign: 'center', padding: '1.5rem', color: '#94A3B8' }}>
+                            No holidays configured for this client yet. Click "+ Add Holiday" to configure holidays.
+                          </td>
+                        </tr>
+                      ) : (
+                        c.holidays.map((h) => (
+                          <tr key={h.id}>
+                            <td><strong className="font-mono">{h.holiday_date}</strong></td>
+                            <td>{h.name}</td>
+                            <td>
+                              <Badge variant={h.is_optional ? 'warning' : 'success'}>
+                                {h.is_optional ? 'Optional' : 'Mandatory'}
+                              </Badge>
+                            </td>
+                            <td style={{ textAlign: 'right' }}>
+                              <Button
+                                size="sm"
+                                variant="danger"
+                                onClick={() => setDeleteHolidayDialog({ isOpen: true, holiday: h })}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                              >
+                                <Trash2 size={13} /> Delete
+                              </Button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
               {/*  PO Utilization Tracker  */}
               <div className="card" id="po-tracker-card" style={{"display":"none","borderLeft":"3px solid var(--accent-gold)"}}>
                 <div style={{"display":"flex","justifyContent":"space-between","alignItems":"center","marginBottom":"1rem"}}>
@@ -240,7 +382,7 @@ export default function ClientDetail({ client, employees }) {
                   </div>
                 </div>
                 <div id="po-warning-alert" style={{"display":"flex","marginTop":"1rem","padding":"0.75rem","background":"#FFF5F5","border":"1px solid #FEB2B2","borderRadius":"var(--radius-sm)","color":"#C53030","fontSize":"0.8rem","gap":"0.5rem","alignItems":"center"}}>
-                  <span>⚠️</span>
+                  <AlertTriangle size={16} />
                   <span><strong>Warning:</strong> PO Value is critically low or exhausted. Invoicing may be blocked.</span>
                 </div>
               </div>
@@ -251,16 +393,21 @@ export default function ClientDetail({ client, employees }) {
               <div className="card" style={{"borderLeft":"3px solid var(--status-success)"}}>
                 <h3 style={{"fontSize":"1.05rem","marginBottom":"1rem"}}>Onboarding Status</h3>
                 <div style={{"display":"flex","flexDirection":"column","gap":"0.5rem","fontSize":"0.85rem"}}>
-                  <div style={{"display":"flex","alignItems":"center","gap":"0.5rem"}}><span
-                      style={{"color":"var(--status-success)"}}>✅</span> Company Identity Configured</div>
-                  <div style={{"display":"flex","alignItems":"center","gap":"0.5rem"}}><span
-                      style={{"color":"var(--status-success)"}}>✅</span> Contacts Added</div>
-                  <div style={{"display":"flex","alignItems":"center","gap":"0.5rem"}}><span
-                      style={{"color":"var(--status-success)"}}>✅</span> Billing Terms Agreed</div>
-                  <div style={{"display":"flex","alignItems":"center","gap":"0.5rem"}}><span
-                      style={{"color":"var(--status-success)"}}>✅</span> Statutory Defaults Set</div>
-                  <div style={{"display":"flex","alignItems":"center","gap":"0.5rem"}}><span
-                      style={{"color":"var(--status-success)"}}>✅</span> Critical Documents Uploaded</div>
+                  <div style={{"display":"flex","alignItems":"center","gap":"0.5rem"}}>
+                    <CheckCircle2 size={15} color="var(--status-success)" /> Company Identity Configured
+                  </div>
+                  <div style={{"display":"flex","alignItems":"center","gap":"0.5rem"}}>
+                    <CheckCircle2 size={15} color="var(--status-success)" /> Contacts Added
+                  </div>
+                  <div style={{"display":"flex","alignItems":"center","gap":"0.5rem"}}>
+                    <CheckCircle2 size={15} color="var(--status-success)" /> Billing Terms Agreed
+                  </div>
+                  <div style={{"display":"flex","alignItems":"center","gap":"0.5rem"}}>
+                    <CheckCircle2 size={15} color="var(--status-success)" /> Statutory Defaults Set
+                  </div>
+                  <div style={{"display":"flex","alignItems":"center","gap":"0.5rem"}}>
+                    <CheckCircle2 size={15} color="var(--status-success)" /> Critical Documents Uploaded
+                  </div>
                 </div>
                 <div
                   style={{"marginTop":"1rem","paddingTop":"0.75rem","borderTop":"1px solid var(--border-color)","fontSize":"0.8rem"}}>
@@ -283,7 +430,9 @@ export default function ClientDetail({ client, employees }) {
                 <option value="resigned">Resigned</option>
               </select>
             </div>
-            <a href="/employees/create" className="btn btn-primary btn-xs" style={{"padding":"0.4rem 0.75rem"}}>➕ Add Candidate</a>
+             <Link href={route('employees.create')} className="btn btn-primary btn-xs" style={{ padding: "0.4rem 0.75rem", display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+               <UserPlus size={14} /> Add Candidate
+             </Link>
           </div>
 
           <div className="table-responsive">
@@ -304,10 +453,18 @@ export default function ClientDetail({ client, employees }) {
                 {employees && employees.data && employees.data.length > 0 ? (
                   employees.data.map(emp => (
                     <tr key={emp.id}>
-                      <td>{emp.employee_code || 'N/A'}</td>
-                      <td><strong>{emp.first_name} {emp.last_name}</strong></td>
+                      <td>
+                        <Link href={route('employees.show', emp.id)} className="font-mono text-xs text-slate-600 hover:text-indigo-600 hover:underline">
+                          {emp.employee_code || 'N/A'}
+                        </Link>
+                      </td>
+                      <td>
+                        <Link href={route('employees.show', emp.id)} className="font-bold text-[#1F3864] hover:text-indigo-600 hover:underline">
+                          {emp.full_name}
+                        </Link>
+                      </td>
                       <td>{emp.designation || 'N/A'}</td>
-                      <td>{emp.gross_salary ? `₹${parseFloat(emp.gross_salary).toLocaleString('en-IN')}` : 'N/A'}</td>
+                      <td>{emp.gross_monthly_salary ? `₹${parseFloat(emp.gross_monthly_salary).toLocaleString('en-IN')}` : 'N/A'}</td>
                       <td>
                         {emp.pf_applicable ? <span className="badge badge-success" style={{marginRight: '4px'}}>PF</span> : null}
                         {emp.esi_applicable ? <span className="badge badge-success" style={{marginRight: '4px'}}>ESI</span> : null}
@@ -315,7 +472,7 @@ export default function ClientDetail({ client, employees }) {
                       </td>
                       <td>{formatDate(emp.date_of_joining) || 'N/A'}</td>
                       <td><span className={`badge badge-${emp.status === 'active' ? 'success' : 'secondary'}`} style={{textTransform: 'capitalize'}}>{emp.status}</span></td>
-                      <td><a href={`/employees/${emp.id}`} className="btn btn-secondary btn-xs">View Profile</a></td>
+                       <td><Link href={route('employees.show', emp.id)} className="btn btn-secondary btn-xs">View Profile</Link></td>
                     </tr>
                   ))
                 ) : (
@@ -372,7 +529,50 @@ export default function ClientDetail({ client, employees }) {
                 </tr>
               </thead>
               <tbody id="invoice-table-body">
-                {/*  Dynamically populated  */}
+                {c.invoices && c.invoices.length > 0 ? (
+                  c.invoices.map(inv => {
+                    const totalAmt = parseFloat(inv.grand_total || 0);
+                    const marginAmt = parseFloat(inv.agency_service_fee || 0);
+                    const penaltyAmt = parseFloat(inv.late_penalty_amount || 0);
+                    
+                    return (
+                      <tr key={inv.id}>
+                        <td><strong>{inv.invoice_number}</strong></td>
+                        <td>{formatDate(inv.invoice_month) || inv.invoice_month}</td>
+                        <td>{formatDate(inv.created_at)}</td>
+                        <td>{formatDate(inv.due_date)}</td>
+                        <td>
+                          <strong>₹{Math.round(totalAmt).toLocaleString('en-IN')}</strong>
+                          {penaltyAmt > 0 && (
+                            <div style={{ fontSize: '0.72rem', color: 'var(--status-danger)' }}>
+                              +₹{Math.round(penaltyAmt).toLocaleString('en-IN')} late fee
+                            </div>
+                          )}
+                        </td>
+                        <td>₹{Math.round(marginAmt).toLocaleString('en-IN')}</td>
+                        <td>
+                          <span className={`badge badge-${inv.status === 'paid' ? 'success' : inv.status === 'overdue' ? 'danger' : 'warning'}`} style={{ textTransform: 'capitalize' }}>
+                            {inv.status}
+                          </span>
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', gap: '0.4rem' }}>
+                            <button className="btn btn-secondary btn-xs" title="Download Invoice" onClick={() => showToast({ type: 'info', title: 'Download Triggered', message: 'Downloading invoice PDF...' })}>Download</button>
+                            {inv.status !== 'paid' && (
+                              <button className="btn btn-navy btn-xs" onClick={() => showToast({ type: 'info', title: 'Payment Window', message: 'Please record payment through the Invoices Registry page.' })}>Record Payment</button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan="8" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                      No invoices available for this client.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -381,8 +581,10 @@ export default function ClientDetail({ client, employees }) {
         {/*  Tab 4: Documents  */}
         <div className={`tab-content ${activeTab === 'documents' ? 'active' : ''}`} style={{ display: activeTab === 'documents' ? 'block' : 'none' }}>
           <div style={{"display":"flex","justifyContent":"flex-end","marginBottom":"1.5rem"}}>
-            <button className="btn btn-primary btn-xs" style={{"padding":"0.4rem 0.75rem"}}
-              onClick={(event) => { document.getElementById('doc-upload-input').click() }}>➕ Upload Document</button>
+            <button className="btn btn-primary btn-xs" style={{ padding: "0.4rem 0.75rem", display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+              onClick={(event) => { document.getElementById('doc-upload-input').click() }}>
+              <UploadCloud size={14} /> Upload Document
+            </button>
             <input type="file" id="doc-upload-input" style={{"display":"none"}} onChange={(event) => { alert('Upload successful!') }} />
           </div>
 
@@ -391,7 +593,9 @@ export default function ClientDetail({ client, employees }) {
               c.documents.map(doc => (
                 <div key={doc.id} className="card metric-card" style={{ background: '#FAFBFC', border: '1px solid var(--border-color)', padding: '1rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                    <strong style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.9rem', wordBreak: 'break-word' }}>📄 {doc.document_type}</strong>
+                    <strong style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.9rem', wordBreak: 'break-word' }}>
+                      <FileText size={16} color="var(--primary-navy)" /> {doc.document_type}
+                    </strong>
                     {doc.verification_status === 'verified' ? (
                       <span className="badge badge-success" style={{ fontSize: '0.7rem' }}>Verified</span>
                     ) : (
@@ -400,7 +604,7 @@ export default function ClientDetail({ client, employees }) {
                   </div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>Uploaded: {formatDate(doc.created_at)}</div>
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <a href={`/clients/${c.id}/documents/${doc.id}/download`} target="_blank" rel="noreferrer" className="btn btn-secondary btn-xs" style={{ flex: 1, textAlign: 'center' }}>Download</a>
+                     <a href={route('clients.documents.download', { client: c.id, document: doc.id })} target="_blank" rel="noreferrer" className="btn btn-secondary btn-xs" style={{ flex: 1, textAlign: 'center' }}>Download</a>
                   </div>
                 </div>
               ))
@@ -414,19 +618,65 @@ export default function ClientDetail({ client, employees }) {
         <div className={`tab-content ${activeTab === 'contacts' ? 'active' : ''}`} style={{ display: activeTab === 'contacts' ? 'block' : 'none' }}>
           <div className="grid-cols-3" id="contacts-grid-container" style={{ display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
             {c.contacts && c.contacts.length > 0 ? (
-              c.contacts.map(contact => (
-                <div key={contact.id} className="card metric-card" style={{ background: '#FAFBFC', border: '1px solid var(--border-color)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                    <strong>{contact.full_name}</strong>
-                    <span className="badge badge-secondary" style={{ textTransform: 'capitalize' }}>{contact.contact_type}</span>
+              c.contacts.map(contact => {
+                const prefsArray = Array.isArray(contact.communication_preferences) ? contact.communication_preferences : [];
+                const hasEmail = contact.preference_email !== false && contact.preference_email !== 0;
+                const hasSms = Boolean(contact.preference_sms) || prefsArray.includes('SMS');
+                const hasWa = Boolean(contact.preference_whatsapp) || prefsArray.includes('WhatsApp') || prefsArray.includes('wa');
+
+                return (
+                  <div key={contact.id} className="card metric-card" style={{ background: '#FAFBFC', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                        <strong style={{ fontSize: '0.95rem', color: 'var(--primary-navy)' }}>{contact.full_name}</strong>
+                        <span className="badge badge-secondary" style={{ textTransform: 'capitalize', fontSize: '0.72rem' }}>{contact.contact_type}</span>
+                      </div>
+                      <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>{contact.designation || 'No designation'}</div>
+                      <div style={{ marginTop: '0.6rem', fontSize: '0.85rem', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <Mail size={13} color="var(--primary-navy)" /> <span>{contact.email || 'N/A'}</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <Phone size={13} color="var(--primary-navy)" /> <span>{contact.phone || 'N/A'}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ marginTop: '0.85rem', paddingTop: '0.6rem', borderTop: '1px dashed var(--border-color)' }}>
+                      <div style={{ fontSize: '0.73rem', fontWeight: '600', color: 'var(--primary-navy)', marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <MessageSquare size={12} /> Communication Preferences
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                        {hasEmail && (
+                          <span className="badge" style={{ background: '#EEF2FF', color: '#4338CA', fontSize: '0.7rem', display: 'inline-flex', alignItems: 'center', gap: '3px', padding: '0.15rem 0.45rem', borderRadius: '4px' }}>
+                            <Mail size={11} /> Email
+                          </span>
+                        )}
+                        {hasSms && (
+                          <span className="badge" style={{ background: '#F0F9FF', color: '#0369A1', fontSize: '0.7rem', display: 'inline-flex', alignItems: 'center', gap: '3px', padding: '0.15rem 0.45rem', borderRadius: '4px' }}>
+                            <Smartphone size={11} /> SMS
+                          </span>
+                        )}
+                        {hasWa && (
+                          <span className="badge" style={{ background: '#DCFCE7', color: '#15803D', fontSize: '0.7rem', display: 'inline-flex', alignItems: 'center', gap: '3px', padding: '0.15rem 0.45rem', borderRadius: '4px' }}>
+                            <MessageSquare size={11} /> WhatsApp
+                          </span>
+                        )}
+                        {Boolean(contact.cc_on_invoice) && (
+                          <span className="badge" style={{ background: '#FEF3C7', color: '#B45309', fontSize: '0.7rem', padding: '0.15rem 0.45rem', borderRadius: '4px' }}>
+                            CC on Invoice
+                          </span>
+                        )}
+                        {Boolean(contact.receive_onboarding_kits) && (
+                          <span className="badge" style={{ background: '#F3E8FF', color: '#6B21A8', fontSize: '0.7rem', padding: '0.15rem 0.45rem', borderRadius: '4px' }}>
+                            Onboarding Kits
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{contact.designation || 'No designation'}</div>
-                  <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                    <div>📧 {contact.email || 'N/A'}</div>
-                    <div>📞 {contact.phone || 'N/A'}</div>
-                  </div>
-                </div>
-              ))
+                );
+              })
             ) : (
               <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', gridColumn: '1 / -1' }}>No contacts have been added.</div>
             )}
@@ -435,31 +685,175 @@ export default function ClientDetail({ client, employees }) {
 
         {/*  Tab 6: Activity Log  */}
         <div className={`tab-content ${activeTab === 'activity' ? 'active' : ''}`} style={{ display: activeTab === 'activity' ? 'block' : 'none' }}>
-          <div style={{"display":"flex","gap":"0.75rem","marginBottom":"1.5rem","flexWrap":"wrap","background":"#F8FAFC","padding":"0.75rem","borderRadius":"var(--radius-sm)","border":"1px solid var(--border-color)"}}>
-            <div style={{"flex":"1","minWidth":"150px"}}>
-              <label style={{"fontSize":"0.75rem","fontWeight":"600","display":"block","marginBottom":"0.25rem"}}>Log Type</label>
-              <select id="log-filter-type" className="form-control" style={{"padding":"0.35rem 0.5rem","height":"auto"}} onChange={(event) => { window.filterActivityLogs() }}>
-                <option value="all">All Types</option>
-                <option value="System">System</option>
-                <option value="Billing">Billing</option>
-                <option value="Compliance">Compliance</option>
-                <option value="Portal">Portal</option>
-                <option value="Account Manager">Account Manager</option>
-              </select>
-            </div>
-            <div style={{"flex":"1","minWidth":"150px"}}>
-              <label style={{"fontSize":"0.75rem","fontWeight":"600","display":"block","marginBottom":"0.25rem"}}>Start Date</label>
-              <input type="date" id="log-filter-start" className="form-control" style={{"padding":"0.35rem 0.5rem","height":"auto"}} onChange={(event) => { window.filterActivityLogs() }} />
-            </div>
-            <div style={{"flex":"1","minWidth":"150px"}}>
-              <label style={{"fontSize":"0.75rem","fontWeight":"600","display":"block","marginBottom":"0.25rem"}}>End Date</label>
-              <input type="date" id="log-filter-end" className="form-control" style={{"padding":"0.35rem 0.5rem","height":"auto"}} onChange={(event) => { window.filterActivityLogs() }} />
-            </div>
-          </div>
-          
-          <div className="activity-timeline" id="activity-timeline-container">
-            {/*  Dynamically populated  */}
-          </div>
+          {(() => {
+            const filteredLogs = (activityLogs || []).filter(log => {
+              if (logCategoryFilter !== 'all' && log.category !== logCategoryFilter) return false;
+              if (logStartDate && log.date_raw && log.date_raw < logStartDate) return false;
+              if (logEndDate && log.date_raw && log.date_raw > logEndDate) return false;
+              return true;
+            });
+
+            return (
+              <>
+                <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 mb-6 flex flex-wrap gap-4 items-end">
+                  <div className="flex-1 min-w-[160px]">
+                    <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">Log Type / Category</label>
+                    <select 
+                      className="form-control w-full text-xs" 
+                      value={logCategoryFilter} 
+                      onChange={(e) => setLogCategoryFilter(e.target.value)}
+                    >
+                      <option value="all">All Categories</option>
+                      <option value="Client Profile">Client Profile</option>
+                      <option value="Billing">Billing &amp; Invoicing</option>
+                      <option value="Compliance">Compliance &amp; Docs</option>
+                      <option value="Portal">Portal &amp; Employees</option>
+                      <option value="Account Manager">Account Manager</option>
+                    </select>
+                  </div>
+                  <div className="flex-1 min-w-[160px]">
+                    <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">Start Date</label>
+                    <input 
+                      type="date" 
+                      className="form-control w-full text-xs" 
+                      value={logStartDate} 
+                      onChange={(e) => setLogStartDate(e.target.value)} 
+                    />
+                  </div>
+                  <div className="flex-1 min-w-[160px]">
+                    <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">End Date</label>
+                    <input 
+                      type="date" 
+                      className="form-control w-full text-xs" 
+                      value={logEndDate} 
+                      onChange={(e) => setLogEndDate(e.target.value)} 
+                    />
+                  </div>
+                  {(logCategoryFilter !== 'all' || logStartDate || logEndDate) && (
+                    <button 
+                      type="button" 
+                      className="btn btn-secondary btn-xs"
+                      onClick={() => { setLogCategoryFilter('all'); setLogStartDate(''); setLogEndDate(''); }}
+                    >
+                      Reset Filters
+                    </button>
+                  )}
+                </div>
+                
+                <div className="card p-0 overflow-hidden">
+                  <table className="table w-full text-left text-xs">
+                    <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold uppercase text-[11px]">
+                      <tr>
+                        <th className="py-3 px-4">Timestamp</th>
+                        <th className="py-3 px-4">Performed By</th>
+                        <th className="py-3 px-4">Category</th>
+                        <th className="py-3 px-4">Action &amp; Details</th>
+                        <th className="py-3 px-4">IP Address</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {filteredLogs.length > 0 ? (
+                        filteredLogs.map(log => (
+                          <tr 
+                            key={log.id} 
+                            onClick={() => setSelectedLogModal(log)}
+                            className="hover:bg-indigo-50/50 transition-colors cursor-pointer"
+                            title="Click to view full field modification details"
+                          >
+                            <td className="py-3 px-4 font-mono text-slate-600 whitespace-nowrap">{log.created_at}</td>
+                            <td className="py-3 px-4">
+                              <div className="font-bold text-slate-900">{log.user}</div>
+                              <div className="text-[10px] text-slate-400 font-mono">{log.user_email}</div>
+                            </td>
+                            <td className="py-3 px-4">
+                              <Badge type={log.category === 'Billing' ? 'success' : log.category === 'Compliance' ? 'warning' : 'info'}>
+                                {log.category}
+                              </Badge>
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="font-bold text-[#1F3864] mb-0.5">{log.action}</div>
+                              <div className="text-slate-600 text-[11px] leading-snug">{log.details}</div>
+                            </td>
+                            <td className="py-3 px-4 font-mono text-slate-400 text-[11px]">{log.ip_address}</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="5" className="text-center py-8 text-slate-400">
+                            No activity logs found matching the selected filters.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Detailed Audit Log Modal */}
+                <Modal 
+                  show={Boolean(selectedLogModal)} 
+                  onClose={() => setSelectedLogModal(null)} 
+                  title="Activity Change Details"
+                  maxWidth="2xl"
+                >
+                  {selectedLogModal && (
+                    <div className="p-6 space-y-6">
+                      {/* Metadata Header Card */}
+                      <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-bold text-slate-500 font-mono">{selectedLogModal.created_at}</span>
+                          <Badge type={selectedLogModal.category === 'Billing' ? 'success' : selectedLogModal.category === 'Compliance' ? 'warning' : 'info'}>
+                            {selectedLogModal.category}
+                          </Badge>
+                        </div>
+                        <h3 className="text-lg font-bold text-[#1F3864] mb-1">{selectedLogModal.action}</h3>
+                        <div className="text-xs text-slate-600 flex flex-wrap gap-x-4 gap-y-1 mt-2 border-t border-slate-200/80 pt-2">
+                          <span><strong>User:</strong> {selectedLogModal.user} ({selectedLogModal.user_email})</span>
+                          <span><strong>IP Address:</strong> {selectedLogModal.ip_address}</span>
+                        </div>
+                      </div>
+
+                      {/* Field Changes Table */}
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                          <History size={14} className="text-indigo-600" /> Exact Field Modifications
+                        </h4>
+                        {selectedLogModal.changes && selectedLogModal.changes.length > 0 ? (
+                          <div className="border border-slate-200 rounded-lg overflow-hidden">
+                            <table className="w-full text-left text-xs">
+                              <thead className="bg-slate-100 border-b border-slate-200 text-slate-700 font-bold uppercase text-[10px]">
+                                <tr>
+                                  <th className="py-2.5 px-4">Field Name</th>
+                                  <th className="py-2.5 px-4 text-rose-700">Previous Value (Before)</th>
+                                  <th className="py-2.5 px-4 text-emerald-700">Updated Value (After)</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100 bg-white">
+                                {selectedLogModal.changes.map((chg, idx) => (
+                                  <tr key={idx} className="hover:bg-slate-50/50">
+                                    <td className="py-2.5 px-4 font-semibold text-slate-800">{chg.field}</td>
+                                    <td className="py-2.5 px-4 font-mono text-rose-600 bg-rose-50/30">{chg.old_value || '—'}</td>
+                                    <td className="py-2.5 px-4 font-mono text-emerald-600 bg-emerald-50/30">{chg.new_value || '—'}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        ) : (
+                          <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg text-slate-600 text-xs">
+                            <strong>Summary Details:</strong> {selectedLogModal.details}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex justify-end pt-2">
+                        <Button variant="secondary" onClick={() => setSelectedLogModal(null)}>Close</Button>
+                      </div>
+                    </div>
+                  )}
+                </Modal>
+              </>
+            );
+          })()}
         </div>
 
         {/*  Tab 7: Settings & SLA  */}
@@ -472,6 +866,7 @@ export default function ClientDetail({ client, employees }) {
                 <div><strong>Payroll Lock Day:</strong> {c.payroll_lock_day || 'N/A'}</div>
                 <div><strong>Invoice Raise Day:</strong> {c.invoice_raise_day || 'N/A'}</div>
                 <div><strong>Salary Credit Day:</strong> {c.salary_credit_day || 'N/A'}</div>
+                <div><strong>Weekly Off Pattern:</strong> <strong style={{ color: 'var(--primary-navy)' }}>{c.weekly_off_pattern || 'sat,sun'}</strong></div>
                 <div><strong>Invoice Dispute Window:</strong> {c.invoice_dispute_window_days !== null && c.invoice_dispute_window_days !== undefined ? `${c.invoice_dispute_window_days} Days` : 'N/A'}</div>
                 <div><strong>Payroll Convention:</strong> <span style={{ textTransform: 'capitalize' }}>{c.payroll_convention || 'N/A'}</span></div>
                 <div><strong>Notice Period:</strong> {c.notice_period_days || 0} Days</div>
@@ -547,7 +942,9 @@ export default function ClientDetail({ client, employees }) {
   <div className="modal-overlay" id="payment-modal">
     <div className="modal-box">
       <div className="modal-header">
-        <h3 style={{"margin":"0","fontSize":"1.15rem"}}>💰 Record Invoice Payment</h3>
+        <h3 style={{"margin":"0","fontSize":"1.15rem", display: 'flex', alignItems: 'center', gap: '6px'}}>
+          <CreditCard size={18} /> Record Invoice Payment
+        </h3>
         <button className="modal-close" onClick={(event) => { window.closePaymentModal() }}>×</button>
       </div>
       <div className="modal-body" style={{"paddingTop":"1rem","maxHeight":"70vh","overflowY":"auto"}}>
@@ -611,9 +1008,80 @@ export default function ClientDetail({ client, employees }) {
       </div>
     </div>
   </div>
-  
+        {/* Add Holiday Modal */}
+        <Modal
+          isOpen={holidayModalOpen}
+          onClose={() => setHolidayModalOpen(false)}
+          title={`Add Holiday for ${c.company_name}`}
+        >
+          <form onSubmit={handleAddHoliday} className="space-y-4 py-2">
+            {holidayError && (
+              <div className="p-3 bg-red-50 text-red-600 text-xs rounded border border-red-200">
+                {holidayError}
+              </div>
+            )}
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Holiday Date *</label>
+              <input
+                type="date"
+                className="form-control w-full text-sm"
+                value={holidayForm.holiday_date}
+                onChange={e => setHolidayForm({ ...holidayForm, holiday_date: e.target.value })}
+                required
+              />
             </div>
-        </AuthenticatedLayout>
-    </RoleGuard>
-    );
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Holiday Name *</label>
+              <input
+                type="text"
+                className="form-control w-full text-sm"
+                placeholder="e.g. Independence Day"
+                value={holidayForm.name}
+                onChange={e => setHolidayForm({ ...holidayForm, name: e.target.value })}
+                required
+              />
+            </div>
+            <div className="flex items-center gap-2 pt-1">
+              <input
+                type="checkbox"
+                id="is_optional"
+                checked={holidayForm.is_optional}
+                onChange={e => setHolidayForm({ ...holidayForm, is_optional: e.target.checked })}
+              />
+              <label htmlFor="is_optional" className="text-sm text-gray-700">Optional / Floating Holiday</label>
+            </div>
+            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+              <Button variant="secondary" size="sm" type="button" onClick={() => setHolidayModalOpen(false)}>Cancel</Button>
+              <Button variant="primary" size="sm" type="submit" disabled={holidayProcessing}>
+                {holidayProcessing ? 'Saving...' : 'Save Holiday'}
+              </Button>
+            </div>
+          </form>
+        </Modal>
+
+        {/* Delete Holiday Confirm Dialog */}
+        <Modal
+          isOpen={deleteHolidayDialog.isOpen}
+          onClose={() => setDeleteHolidayDialog({ isOpen: false, holiday: null })}
+          title="Delete Client Holiday"
+        >
+          <div className="py-2 space-y-4">
+            <p className="text-sm text-gray-600">
+              Are you sure you want to delete the holiday <strong>{deleteHolidayDialog.holiday?.name}</strong> on <strong>{deleteHolidayDialog.holiday?.holiday_date}</strong> for {c.company_name}?
+            </p>
+            <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded border border-amber-200">
+              Note: Deleting a holiday will update future payroll attendance resolution for un-processed days. Locked historical payroll runs will remain immutable.
+            </p>
+            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+              <Button variant="secondary" size="sm" onClick={() => setDeleteHolidayDialog({ isOpen: false, holiday: null })}>Cancel</Button>
+              <Button variant="danger" size="sm" onClick={handleDeleteHoliday} disabled={holidayProcessing}>
+                {holidayProcessing ? 'Deleting...' : 'Confirm Delete'}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      </div>
+    </AuthenticatedLayout>
+  </RoleGuard>
+  );
 }

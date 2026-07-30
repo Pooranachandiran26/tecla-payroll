@@ -29,7 +29,7 @@ window.countText = countText;
       t.textContent = message;
       t.style.transform = 'translateY(0)';
       t.style.opacity = '1';
-      setTimeout(() => { t.style.transform = 'translateY(100px)'; t.style.opacity = '0'; }, 3000);
+      setTimeout(() => { t.style.transform = 'translateY(100px)'; t.style.opacity = '0'; }, 2000);
     }
 
     const defaultClients = [
@@ -113,7 +113,7 @@ window.countText = countText;
         code: "REL-099",
         gstin: "27AAARR9012A3Z3",
         pan: "AAARR9012A",
-        contractType: "hybrid",
+        contractType: "agency",
         billingModel: "markup",
         markupPct: "10.0",
         onboardingProgress: 100,
@@ -290,7 +290,7 @@ window.countText = countText;
           billingModelText = c.billingModel || '—';
         }
 
-        const contractLabelText = c.contractType === 'eor' ? 'Pass-through EOR' : (c.contractType === 'agency' ? 'Agency Staffing' : 'Hybrid');
+        const contractLabelText = c.contractType === 'eor' ? 'Pass-through EOR' : 'Agency Staffing';
 
         tr.innerHTML = `
           <td style="text-align: center;">
@@ -298,7 +298,7 @@ window.countText = countText;
           </td>
           <td>
             <div class="client-name-cell">
-              <a href="/clients/${c.code}" class="name">${c.name}</a>
+              <a href="${route('clients.show', c.code)}" class="name">${c.name}</a>
               <div class="meta">
                 <span><strong>Code:</strong> ${c.code}</span>
                 <span><strong>GSTIN:</strong> ${c.gstin || '—'}</span>
@@ -436,11 +436,11 @@ window.countText = countText;
       if (!action) return;
       
       if (action === 'view') {
-        window.location.href = `/clients/${clientCode}`;
+        window.location.href = route('clients.show', clientCode);
       } else if (action === 'edit') {
-        window.location.href = `/clients/create?id=1&code=${clientCode}`;
+        window.location.href = route('clients.create', { code: clientCode });
       } else if (action === 'invoice') {
-        window.location.href = `/invoices/generate?client=${clientCode}`;
+        window.location.href = route('invoices.generate', { client: clientCode });
       } else if (action === 'reminder') {
         showToast(`📧 Invoice reminder successfully queued and sent to ${clientCode}!`);
       } else if (action === 'report') {

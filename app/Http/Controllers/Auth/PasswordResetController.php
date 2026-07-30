@@ -45,7 +45,8 @@ class PasswordResetController extends Controller
         if (!session('reset_email')) return redirect('/forgot-password');
         
         return Inertia::render('Auth/VerifyResetOtp', [
-            'email' => session('reset_email')
+            'email' => session('reset_email'),
+            'otpLength' => \App\Services\SettingsService::get('auth_security.otp_length', 6)
         ]);
     }
 
@@ -70,7 +71,9 @@ class PasswordResetController extends Controller
             return redirect('/forgot-password');
         }
 
-        return Inertia::render('Auth/ResetPassword');
+        return Inertia::render('Auth/ResetPassword', [
+            'passwordPolicyRules' => $this->passwordService->getPolicyRules()
+        ]);
     }
 
     public function resetPassword(Request $request)
