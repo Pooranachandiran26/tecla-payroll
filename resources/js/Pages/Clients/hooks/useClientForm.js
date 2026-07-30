@@ -35,7 +35,7 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
     if (['companyName', 'companyType', 'trustRegNo', 'gstin', 'gstType', 'pan', 'tan', 'cin', 'incorporationDate', 'clientCode', 'industry', 'subIndustry', 'clientStatus', 'workLocationsCount', 'isGroupCompany', 'parentCompany'].includes(field)) return 1;
     if (['regAddressLine1', 'regAddressLine2', 'regCity', 'regState', 'regPin', 'country', 'taxId', 'regNo', 'billingSame', 'billAddressLine1', 'billCity', 'billState', 'billPin', 'hasAgencyBranches'].includes(field) || field.startsWith('branches')) return 2;
     if (field.startsWith('poc') || field.startsWith('extraContacts')) return 3;
-    if (['contractType', 'billingModel', 'markupPct', 'markupBase', 'fixedFeeCandidate', 'fixedMonthlyRetainer', 'hourlyRate', 'standardHours', 'otBilling', 'otApproval', 'invoiceCycle', 'paymentTerms', 'contractStart', 'contractEnd', 'autoRenewal', 'poRequired', 'poNumber', 'poValue', 'poValidity', 'gstRate', 'lutRefNo', 'reverseCharge', 'tdsApplicableAgency', 'prefFormatPDF', 'prefFormatXLSX', 'invoiceFooterNotes', 'noticePeriod', 'creditLimit', 'latePenalty', 'billingCurrency'].includes(field)) return 4;
+    if (['contractType', 'billingModel', 'markupPct', 'markupBase', 'fixedFeeCandidate', 'fixedMonthlyRetainer', 'lumpsumFee', 'hourlyRate', 'standardHours', 'otBilling', 'otApproval', 'invoiceCycle', 'paymentTerms', 'contractStart', 'contractEnd', 'autoRenewal', 'poRequired', 'poNumber', 'poValue', 'poValidity', 'gstRate', 'lutRefNo', 'reverseCharge', 'tdsApplicableAgency', 'prefFormatPDF', 'prefFormatXLSX', 'invoiceFooterNotes', 'noticePeriod', 'creditLimit', 'latePenalty', 'billingCurrency'].includes(field)) return 4;
     if (['pfCeiling', 'pfApplicable', 'esiLimit', 'esiApplicable', 'ptState', 'ptApplicable', 'lwfFrequency', 'lwfApplicable', 'tdsRegime', 'tdsApplicable', 'gratuityMode', 'gratuityApplicable', 'bonusPct', 'bonusApplicable', 'lopBasis'].includes(field)) return 5;
     if (field === 'documents') return 6;
     if (['portalAccess', 'portalEmail', 'portalAccessLevel', 'portalViewSalary', 'portalViewInvoices', 'portalViewPayslips', 'portalRaiseRequests', 'portal2fa', 'sessionTimeout', 'ipWhitelist', 'logoUrl', 'displayNameOverride', 'accentColor'].includes(field)) return 7;
@@ -255,6 +255,12 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
 
   const handleBillingModelChange = useCallback((value) => {
     handleInputChange('billingModel', value);
+    // Clear all fee fields to prevent stale values from previous model
+    handleInputChange('fixedFeeCandidate', '');
+    handleInputChange('fixedMonthlyRetainer', '');
+    handleInputChange('lumpsumFee', '');
+    handleInputChange('hourlyRate', '');
+    handleInputChange('standardHours', '');
     if (value) markProgress(4);
   }, [handleInputChange, markProgress]);
 
@@ -648,6 +654,12 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
       if (formData.billingModel === 'fixed_per_candidate') {
         requiredFields.push({ key: 'fixedFeeCandidate', label: 'Fixed Fee Per Candidate' });
       }
+      if (formData.billingModel === 'fixed_per_month') {
+        requiredFields.push({ key: 'fixedMonthlyRetainer', label: 'Monthly Retainer Amount' });
+      }
+      if (formData.billingModel === 'lumpsum') {
+        requiredFields.push({ key: 'lumpsumFee', label: 'Lump Sum Project Fee' });
+      }
     }
 
     let isValid = true;
@@ -798,8 +810,12 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
       billingModel: formData.billingModel,
       markupPct: parseFloat(formData.markupPct || '0'),
       markupBase: formData.markupBase,
-      fixedFeeCandidate: parseFloat(formData.fixedFeeCandidate || '0'),
-      fixedMonthlyRetainer: parseFloat(formData.fixedMonthlyRetainer || '0'),
+      fixedFeeAmount: parseFloat(
+        formData.billingModel === 'fixed_per_candidate' ? (formData.fixedFeeCandidate || '0') :
+        formData.billingModel === 'fixed_per_month' ? (formData.fixedMonthlyRetainer || '0') :
+        formData.billingModel === 'lumpsum' ? (formData.lumpsumFee || '0') :
+        '0'
+      ),
       hourlyRate: parseFloat(formData.hourlyRate || '0'),
       standardHours: parseFloat(formData.standardHours || '0'),
       invoiceCycle: formData.invoiceCycle,
@@ -1079,8 +1095,9 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
       billingModel: client.billing_model || '',
       markupPct: client.markup_percentage || '',
       markupBase: client.markup_base || 'gross',
-      fixedFeeCandidate: client.fixed_fee_per_candidate || '',
-      fixedMonthlyRetainer: client.fixed_monthly_retainer || '',
+      fixedFeeCandidate: client.billing_model === 'fixed_per_candidate' ? (client.fixed_fee_amount || '') : '',
+      fixedMonthlyRetainer: client.billing_model === 'fixed_per_month' ? (client.fixed_fee_amount || '') : '',
+      lumpsumFee: client.billing_model === 'lumpsum' ? (client.fixed_fee_amount || '') : '',
       hourlyRate: client.hourly_rate || '',
       standardHours: client.standard_hours_per_month || '',
       invoiceCycle: client.invoice_cycle || 'monthly',

@@ -68,9 +68,6 @@ export const PAYMENT_NET_TERMS = [
 
 export const INVOICE_CYCLES = [
   { value: 'monthly', label: 'Monthly (Last working day of month)' },
-  { value: 'biweekly', label: 'Bi-Weekly (Every 2 weeks)' },
-  { value: 'weekly', label: 'Weekly' },
-  { value: 'quarterly', label: 'Quarterly' },
 ];
 
 export const CURRENCIES = [
@@ -264,7 +261,7 @@ export function getDefaultFormData() {
     // Contract & Billing
     contractType: '', billingModel: '',
     markupPct: '', markupBase: 'gross',
-    fixedFeeCandidate: '', fixedMonthlyRetainer: '',
+    fixedFeeCandidate: '', fixedMonthlyRetainer: '', lumpsumFee: '',
     hourlyRate: '', standardHours: '',
     otBilling: 'not_applicable', otApproval: 'timesheet',
     invoiceCycle: 'monthly', paymentTerms: 'net15',

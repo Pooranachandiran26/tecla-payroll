@@ -717,13 +717,42 @@ export default function SalaryRevision({ employee, revisions }) {
                                     <select 
                                         className="w-full px-4 py-2.5 text-sm font-semibold rounded-lg border border-slate-300 focus:border-[#1F3864] focus:ring-2 focus:ring-[#1F3864]/20 bg-white transition-all shadow-sm" 
                                         value={data.reason_for_revision} 
-                                        onChange={e => setData('reason_for_revision', e.target.value)}
+                                        onChange={e => {
+                                            const selectedReason = e.target.value;
+                                            if (selectedReason === 'promotion') {
+                                                setData(prev => ({
+                                                    ...prev,
+                                                    reason_for_revision: 'promotion',
+                                                    is_promotion: true,
+                                                }));
+                                            } else {
+                                                setData(prev => ({
+                                                    ...prev,
+                                                    reason_for_revision: selectedReason,
+                                                }));
+                                            }
+                                        }}
                                     >
                                         <option value="appraisal">Annual Performance Appraisal</option>
                                         <option value="promotion">Role Promotion Adjustment</option>
                                         <option value="correction">Statutory Structure Correction</option>
                                         <option value="other">Other / Cost of Living Adjustment</option>
                                     </select>
+                                    {data.reason_for_revision === 'promotion' && !data.is_promotion && (
+                                        <div className="mt-2.5 p-3 bg-amber-50 border border-amber-300 rounded-lg flex items-center justify-between gap-2 text-amber-900 text-xs font-semibold shadow-sm">
+                                            <div className="flex items-center gap-2">
+                                                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                                                <span>⚠️ Please select <strong>"Is this a Promotion?"</strong> to enter the new designation.</span>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded transition-colors shrink-0"
+                                                onClick={() => setData('is_promotion', true)}
+                                            >
+                                                Select Promotion
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
