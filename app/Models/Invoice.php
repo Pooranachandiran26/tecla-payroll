@@ -13,6 +13,16 @@ class Invoice extends Model
 
     protected $appends = ['late_penalty_amount'];
 
+    protected $casts = [
+        'first_sent_at' => 'datetime',
+        'sent_at' => 'datetime',
+    ];
+
+    public function sentBy()
+    {
+        return $this->belongsTo(User::class, 'sent_by');
+    }
+
     public function getLatePenaltyAmountAttribute(): float
     {
         if ($this->status === 'paid' || now()->toDateString() <= $this->due_date) {

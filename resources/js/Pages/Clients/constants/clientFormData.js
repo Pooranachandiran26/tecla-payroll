@@ -264,7 +264,7 @@ export function getDefaultFormData() {
     // Contract & Billing
     contractType: '', billingModel: '',
     markupPct: '', markupBase: 'gross',
-    fixedFeeCandidate: '', fixedMonthlyRetainer: '',
+    fixedFeeCandidate: '', fixedMonthlyRetainer: '', lumpsumFee: '',
     hourlyRate: '', standardHours: '',
     otBilling: 'not_applicable', otApproval: 'timesheet',
     invoiceCycle: 'monthly', paymentTerms: 'net15',

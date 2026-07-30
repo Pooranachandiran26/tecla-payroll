@@ -9,6 +9,7 @@ export default function ContractSection({ formData, errors, onChange, hook, gstS
   const showFixedCandidate = formData.billingModel === 'fixed_per_candidate';
   const showFixedMonthly = formData.billingModel === 'fixed_per_month';
   const showHourly = formData.billingModel === 'hourly';
+  const showLumpsum = formData.billingModel === 'lumpsum';
 
   const [gstMasterRates, setGstMasterRates] = useState(gstSettings?.gst_rates || []);
 
@@ -99,6 +100,17 @@ export default function ContractSection({ formData, errors, onChange, hook, gstS
             <label>Monthly Retainer Amount (₹) <span style={{ color: 'var(--status-danger)' }}>*</span></label>
             <input type="number" className="form-control" placeholder="e.g. 50000" min="0"
               value={formData.fixedMonthlyRetainer} onChange={e => onChange('fixedMonthlyRetainer', e.target.value)} />
+          </div>
+        </div>
+      )}
+
+      {showLumpsum && (
+        <div className="conditional-field">
+          <div className="form-group" style={{ maxWidth: '300px' }}>
+            <label>Lump Sum Project Fee (₹) <span style={{ color: 'var(--status-danger)' }}>*</span></label>
+            <input type="number" className="form-control" placeholder="e.g. 100000" min="0"
+              value={formData.lumpsumFee} onChange={e => onChange('lumpsumFee', e.target.value)} />
+            <div className="field-hint">Flat agency fee for the entire project, billed once per invoice cycle.</div>
           </div>
         </div>
       )}
