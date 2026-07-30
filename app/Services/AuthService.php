@@ -62,8 +62,17 @@ class AuthService
             'ip_address' => $ip
         ]);
 
-        // "Send" email (using Log for now as requested)
-        Log::info("OTP generated for {$user->email} (Purpose: $purpose): $code");
+        try {
+            if (\App\Services\SettingsService::get('email.otp_send_mode') === 'sync') {
+                \Illuminate\Support\Facades\Mail::to($user->email)->send(new \App\Mail\OtpMail($code, $user));
+            } else {
+                \Illuminate\Support\Facades\Mail::to($user->email)->queue(new \App\Mail\OtpMail($code, $user));
+            }
+            $this->audit->log('otp.sent', $user, null, null, ['masked_email' => Str::mask($user->email, '*', 3)], null, $ip);
+        } catch (\Throwable $e) {
+            $this->audit->log('otp.send_failed', $user, null, null, ['error' => $e->getMessage()], null, $ip);
+            throw new \App\Exceptions\OtpDeliveryException("We couldn't send your verification code. Please try again in a moment.");
+        }
         
         $this->audit->log('otp_generated', $user, null, null, ['purpose' => $purpose], null, $ip);
     }

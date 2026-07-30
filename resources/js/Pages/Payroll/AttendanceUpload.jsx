@@ -1,57 +1,143 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import AuthenticatedLayout from '../../Layouts/AuthenticatedLayout';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import Button from '../../Components/ui/Button';
 import DataTable from '../../Components/ui/DataTable';
 import Badge from '../../Components/ui/Badge';
 import Select from '../../Components/ui/Select';
-import { UploadCloud } from 'lucide-react';
-
+import { UploadCloud, FileSpreadsheet, Loader2, Calendar, Info, CheckCircle2, AlertTriangle } from 'lucide-react';
+import axios from 'axios';
 import RoleGuard from '../../Components/RoleGuard.jsx';
-export default function AttendanceUpload() {
+
+export default function AttendanceUpload({ clients }) {
   const [tab, setTab] = useState('single');
-  
-  const validationData = [
-    {
-      id: 1,
-      empCode: 'TEC-088',
-      empName: 'Aarav Sharma',
-      matchedName: 'Aarav Sharma (TEC-088)',
-      matchType: 'exact',
-      daysPresent: '22 Days',
-      daysLOP: '0 Days',
-      status: 'valid'
-    },
-    {
-      id: 2,
-      empCode: 'TEC-121',
-      empName: 'Neha P.',
-      matchedName: 'Neha Patil (TEC-121)',
-      matchType: 'similar',
-      daysPresent: '21 Days',
-      daysLOP: '1 Day',
-      status: 'check'
-    },
-    {
-      id: 3,
-      empCode: 'TEC-199',
-      empName: 'John Doe',
-      matchedName: 'Unmatched / New Hire',
-      matchType: 'none',
-      daysPresent: '15 Days',
-      daysLOP: '0 Days',
-      status: 'invalid'
+  const [selectedClientId, setSelectedClientId] = useState(clients && clients.length > 0 ? clients[0].id : '');
+  const [targetMonth, setTargetMonth] = useState('2026-08');
+  const [file, setFile] = useState(null);
+  const [contextData, setContextData] = useState(null);
+
+  const getMonthOptions = () => {
+    const options = [];
+    const startDate = new Date(2026, 4, 1); // May 2026 (index 4)
+    const endDate = new Date();
+    endDate.setMonth(endDate.getMonth() + 2);
+
+    const currentDate = new Date(startDate);
+    while (currentDate <= endDate) {
+      const year = currentDate.getFullYear();
+      const monthNum = String(currentDate.getMonth() + 1).padStart(2, '0');
+      const label = currentDate.toLocaleString('default', { month: 'long' }) + ' ' + year;
+      options.push({ value: `${year}-${monthNum}`, label });
+      currentDate.setMonth(currentDate.getMonth() + 1);
     }
-  ];
+    return options.reverse();
+  };
+
+  const [validationData, setValidationData] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+  const [summary, setSummary] = useState(null);
+
+  const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    if (selectedClientId && targetMonth) {
+      axios.get(route('payroll.attendance.context'), {
+        params: { client_id: selectedClientId, target_month: targetMonth }
+      })
+      .then(res => setContextData(res.data))
+      .catch(() => setContextData(null));
+    }
+  }, [selectedClientId, targetMonth]);
+
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files[0];
+    if (selectedFile) {
+      setFile(selectedFile);
+      triggerValidation(selectedFile, selectedClientId, targetMonth);
+    }
+  };
+
+  const triggerValidation = (selectedFile, clientId, month) => {
+    setLoading(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+    
+    const formData = new FormData();
+    formData.append('client_id', clientId);
+    formData.append('target_month', month);
+    formData.append('file', selectedFile);
+
+    axios.post(route('payroll.attendance.validate'), formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+    .then(response => {
+      setValidationData(response.data.rows || []);
+      setSummary({
+        total: response.data.total_rows,
+        matched: response.data.matched_rows,
+        skipped: response.data.skipped_count || 0,
+        errors: response.data.error_count
+      });
+      setLoading(false);
+    })
+    .catch(err => {
+      setErrorMsg(err.response?.data?.error || err.response?.data?.message || 'Failed to validate timesheet file.');
+      setValidationData([]);
+      setSummary(null);
+      setLoading(false);
+    });
+  };
+
+  const handleClientChange = (e) => {
+    const nextClientId = e.target.value;
+    setSelectedClientId(nextClientId);
+    if (file) {
+      triggerValidation(file, nextClientId, targetMonth);
+    }
+  };
+
+  const handleMonthChange = (e) => {
+    const nextMonth = e.target.value;
+    setTargetMonth(nextMonth);
+    if (file) {
+      triggerValidation(file, selectedClientId, nextMonth);
+    }
+  };
+
+  const handleSave = () => {
+    if (!file) {
+      setErrorMsg('Please select and upload a valid timesheet first.');
+      return;
+    }
+
+    setLoading(true);
+    setErrorMsg('');
+
+    const formData = new FormData();
+    formData.append('client_id', selectedClientId);
+    formData.append('target_month', targetMonth);
+    formData.append('file', file);
+
+    router.post(route('payroll.attendance.upload'), formData, {
+      forceFormData: true,
+      onSuccess: () => {
+        setLoading(false);
+      },
+      onError: (errors) => {
+        setErrorMsg(Object.values(errors).join(', ') || 'Failed to save timesheet.');
+        setLoading(false);
+      }
+    });
+  };
 
   const columns = [
     {
       header: 'Parsed Emp Code',
       accessor: 'empCode'
-    },
-    {
-      header: 'Sheet Employee Name',
-      accessor: 'empName'
     },
     {
       header: 'System Matched Employee',
@@ -69,13 +155,6 @@ export default function AttendanceUpload() {
               <span className="text-[0.75rem] font-semibold text-green-600">100% Exact Match</span>
             </div>
           );
-        } else if (row.matchType === 'similar') {
-          return (
-            <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
-              <span className="text-[0.75rem] font-semibold text-yellow-600">88% Name Similarity</span>
-            </div>
-          );
         } else {
           return (
             <div className="flex items-center gap-1.5">
@@ -88,129 +167,245 @@ export default function AttendanceUpload() {
     },
     {
       header: 'Days Present',
-      accessor: 'daysPresent'
+      accessor: 'daysPresent',
+      cell: (row) => <span>{row.daysPresent} Days</span>
     },
     {
       header: 'Days LOP',
-      accessor: 'daysLOP'
+      accessor: 'daysLOP',
+      cell: (row) => <span>{row.daysLOP} Days</span>
     },
     {
       header: 'Status',
       accessor: 'status',
       cell: (row) => {
         if (row.status === 'valid') return <Badge type="success">✓ Valid</Badge>;
-        if (row.status === 'check') return <Badge type="warning">⚠ Check Name</Badge>;
-        if (row.status === 'invalid') return <Badge type="danger">✗ Ignored</Badge>;
+        if (row.status === 'skipped') return <Badge type="warning">⚠️ Skipped</Badge>;
+        if (row.status === 'invalid') return <Badge type="danger">✗ Invalid</Badge>;
       }
-    }
+    },
+    {
+      header: 'Notes',
+      accessor: 'notes',
+      cell: (row) => <span className="text-[0.75rem] text-gray-500 leading-snug block max-w-[320px]">{row.notes}</span>
+    },
   ];
 
   return (
-    <RoleGuard allowedRoles={['admin', 'executive']}>
-    <AuthenticatedLayout>
-      <Head title="Upload Attendance" />
+    <RoleGuard allowedRoles={['admin', 'manager']} moduleKey="payroll">
+      <AuthenticatedLayout>
+        <Head title="Upload Attendance" />
 
-      <div className="mb-6">
-        <Link href="/payroll/live-attendance" className="text-[0.85rem] font-semibold text-[#1F3864] hover:underline">
-          ← Back to Monitor
-        </Link>
-        <h2 className="text-2xl font-bold text-[#1F3864] mt-2 mb-1">Upload External Attendance sheets</h2>
-        <p className="text-gray-500 text-sm">Upload spreadsheet timesheets for clients who manage attendance separately instead of punch-in portal logging.</p>
-      </div>
-
-      <div className="bg-[#FFFBEB] border border-[#FDE68A] border-l-4 border-l-[#F59E0B] p-4 rounded-md mb-6 flex flex-col gap-2">
-        <div className="text-[0.95rem] text-[#92400E]">
-          <strong>Biometric Cloud Integration:</strong> Attendance auto-populates from the employee's active daily Punch In/Out logs. Use this form only to overlay manual spreadsheets or resolve corporate contract hours.
-        </div>
-        <div className="text-[0.85rem] text-[#92400E] opacity-90">
-          Use this screen ONLY for clients whose employees do not use the punch-in portal (e.g. the client tracks attendance in their own HR system and sends you a monthly Excel). Do not upload sheets for employees who already punch in via the Employee Portal — their punch data takes priority and this upload will be ignored for those employees.
-        </div>
-      </div>
-
-      <div className="card p-0 mb-6 overflow-hidden">
-        <ul className="flex border-b border-gray-200">
-          <li 
-            className={`flex-1 text-center py-3 font-semibold text-[0.9rem] cursor-pointer transition-colors ${tab === 'single' ? 'bg-white text-[#1F3864] border-b-2 border-b-[#1F3864]' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}
-            onClick={() => setTab('single')}
-          >
-            Single Client Upload
-          </li>
-          <li 
-            className={`flex-1 text-center py-3 font-semibold text-[0.9rem] cursor-pointer transition-colors ${tab === 'bulk' ? 'bg-white text-[#1F3864] border-b-2 border-b-[#1F3864]' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}
-            onClick={() => setTab('bulk')}
-          >
-            Multiple Clients (Bulk Import)
-          </li>
-        </ul>
-
-        <div className="p-6 max-w-[700px] mx-auto">
-          {tab === 'single' && (
-            <>
-              <div className="flex gap-4 mb-6">
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Select Target Client</label>
-                  <Select value="mahindra">
-                    <option value="mahindra">Mahindra Corp</option>
-                    <option value="tcs">Tata Consultancy Services</option>
-                    <option value="reliance">Reliance Digital</option>
-                  </Select>
-                </div>
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Payroll Target Month</label>
-                  <Select value="june">
-                    <option value="june">June 2026</option>
-                    <option value="may">May 2026</option>
-                  </Select>
-                </div>
-              </div>
-              <div className="flex flex-col items-center justify-center p-12 border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer rounded-lg text-center">
-                <UploadCloud className="w-12 h-12 text-[#1F3864] mb-4" strokeWidth={1.5} />
-                <p className="font-semibold text-[0.95rem] text-[#1F3864] mb-1">Drag and drop the Mahindra Corp June timesheet here</p>
-                <p className="text-[0.75rem] text-gray-500">Ensure columns match: Employee Code, Total Present Days, LOP Days</p>
-              </div>
-            </>
-          )}
-
-          {tab === 'bulk' && (
-            <>
-              <div className="mb-6 w-1/2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Target Settlement Month</label>
-                <Select value="june">
-                  <option value="june">June 2026</option>
-                  <option value="may">May 2026</option>
-                </Select>
-              </div>
-              <div className="flex flex-col items-center justify-center p-12 border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer rounded-lg text-center">
-                <UploadCloud className="w-12 h-12 text-[#1F3864] mb-4" strokeWidth={1.5} />
-                <p className="font-semibold text-[0.95rem] text-[#1F3864] mb-1">Drag and drop a consolidated multi-client timesheet here</p>
-                <p className="text-[0.75rem] text-gray-500">File must specify Client Code in first column to group automatically</p>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-
-      <div className="card p-0">
-        <div className="p-5 pb-2">
-          <h3 className="text-lg font-bold text-[#1F3864] m-0">Upload Match Confidence Check</h3>
-          <p className="text-[0.75rem] text-gray-500 mt-1">
-            🟢 Green dot indicates 100% Employee Code match. 🟡 Yellow dot flags name-similarity matches that must be verified.
-          </p>
-        </div>
-
-        <DataTable columns={columns} data={validationData} />
-
-        <div className="flex justify-end gap-3 mt-6 border-t border-gray-200 p-6 pt-6">
-          <Link href="/payroll/live-attendance">
-            <Button variant="secondary">Cancel</Button>
+        <div className="mb-6">
+          <Link href={route('payroll.attendance-review', { client_id: selectedClientId, month: targetMonth })} className="text-[0.85rem] font-semibold text-[#1F3864] hover:underline">
+            ← Back to Attendance Review
           </Link>
-          <Button variant="primary" onClick={() => window.location.href = '/payroll/attendance-review'}>
-            Validate & Save Attendance Batch
-          </Button>
+          <div className="flex justify-between items-center mt-2 mb-1">
+            <h2 className="text-2xl font-bold text-[#1F3864]">Upload External Attendance Sheets</h2>
+            <a 
+              href={route('payroll.attendance.template', { client_id: selectedClientId, target_month: targetMonth })} 
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-white border border-gray-300 rounded shadow-sm text-gray-700 hover:bg-gray-50"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              Download Excel (.xlsx) Template
+            </a>
+          </div>
+          <p className="text-gray-500 text-sm">Upload monthly summary timesheets for clients who manage attendance separately instead of punch-in portal logging.</p>
         </div>
-      </div>
 
-    </AuthenticatedLayout>
+        {/* How This Works Info Box */}
+        <div className="bg-[#EFF6FF] border border-[#BFDBFE] border-l-4 border-l-[#2563EB] p-4 rounded-md mb-6 flex items-start gap-3">
+          <Info className="w-5 h-5 text-[#2563EB] mt-0.5 shrink-0" />
+          <div className="text-sm text-[#1E40AF] leading-relaxed">
+            <strong>How This System Works:</strong> This system automatically pays employees for Sundays (or your client's configured off-days) and holidays — you don't need to include them in your upload. Just enter how many days someone actually worked (<code className="bg-blue-100 px-1 py-0.5 rounded text-blue-900 font-mono text-xs">days_present</code>), and how many days they were absent without leave (<code className="bg-blue-100 px-1 py-0.5 rounded text-blue-900 font-mono text-xs">days_lop</code>). These two numbers should always add up to the <strong>Working Days</strong> figure calculated below.
+          </div>
+        </div>
+
+        {errorMsg && (
+          <div className="bg-red-50 text-red-700 p-4 rounded-md mb-6 border border-red-200">
+            {errorMsg}
+          </div>
+        )}
+
+        <div className="card p-0 mb-6 overflow-hidden">
+          <ul className="flex border-b border-gray-200">
+            <li 
+              className={`flex-1 text-center py-3 font-semibold text-[0.9rem] cursor-pointer transition-colors ${tab === 'single' ? 'bg-white text-[#1F3864] border-b-2 border-b-[#1F3864]' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}
+              onClick={() => setTab('single')}
+            >
+              Single Client Upload
+            </li>
+            <li 
+              className={`flex-1 text-center py-3 font-semibold text-[0.9rem] cursor-pointer transition-colors ${tab === 'bulk' ? 'bg-white text-[#1F3864] border-b-2 border-b-[#1F3864]' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}
+              onClick={() => setTab('bulk')}
+            >
+              Multiple Clients (Bulk Import)
+            </li>
+          </ul>
+
+          <div className="p-6 max-w-[760px] mx-auto">
+            {tab === 'single' && (
+              <>
+                <div className="flex gap-4 mb-6">
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Select Target Client</label>
+                    <Select value={selectedClientId} onChange={handleClientChange}>
+                      {clients && clients.map(client => (
+                        <option key={client.id} value={client.id}>{client.company_name}</option>
+                      ))}
+                    </Select>
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Payroll Target Month</label>
+                    <Select value={targetMonth} onChange={handleMonthChange}>
+                      {getMonthOptions().map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Live Working Days Breakdown & Holiday Context Panel */}
+                {contextData && (
+                  <div className="bg-[#F8FAFC] border border-[#E2E8F0] p-4 rounded-lg mb-6 shadow-sm">
+                    <div className="flex items-center justify-between border-b border-gray-200 pb-3 mb-3">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-[#1F3864]" />
+                        <span className="font-bold text-sm text-[#1F3864]">
+                          {contextData.client_name} — Working Days Breakdown ({contextData.month_label})
+                        </span>
+                      </div>
+                      <span className="bg-[#1F3864] text-white text-xs font-bold px-2.5 py-1 rounded-full">
+                        {contextData.working_days_slots} Working Days Required
+                      </span>
+                    </div>
+
+                    <div className="text-xs text-gray-600 mb-3 leading-relaxed">
+                      <strong>Formula:</strong> {contextData.total_calendar_days} Total Calendar Days − {contextData.off_days_count} Off-Days ({contextData.off_days_label}) − {contextData.workday_holiday_count} Client Holiday(s) = <strong className="text-[#1F3864]">{contextData.working_days_slots} Working Day Slots</strong>.
+                    </div>
+
+                    <div className="bg-amber-50 border border-amber-200 text-amber-900 text-xs p-2.5 rounded mb-3 flex items-start gap-2">
+                      <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+                      <div>
+                        <strong>Upload Rule:</strong> Enter ONLY real working days worked + LOP in your CSV. For each employee, <code>days_present + days_lop</code> must add up to <strong>{contextData.working_days_slots}</strong>.
+                      </div>
+                    </div>
+
+                    {/* Holidays List */}
+                    <div>
+                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
+                        Configured Client Holidays ({contextData.month_label}):
+                      </span>
+                      {contextData.holidays && contextData.holidays.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {contextData.holidays.map((h, idx) => (
+                            <div key={idx} className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded border font-medium ${h.is_off_day ? 'bg-gray-100 border-gray-300 text-gray-600' : 'bg-emerald-50 border-emerald-200 text-emerald-800'}`}>
+                              <span>🏖️ {h.date} — {h.name}</span>
+                              {h.is_off_day ? (
+                                <span className="text-[10px] text-gray-500 font-normal">(Falls on Weekly Off)</span>
+                              ) : (
+                                <span className="text-[10px] bg-emerald-200 text-emerald-900 px-1 rounded">Paid Holiday</span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-400 italic">No holidays configured for this month.</span>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={handleFileChange} 
+                  accept=".csv,.xlsx,.xls,.txt"
+                  className="hidden" 
+                />
+
+                <div 
+                  className="flex flex-col items-center justify-center p-10 border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer rounded-lg text-center"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <UploadCloud className="w-10 h-10 text-[#1F3864] mb-3" strokeWidth={1.5} />
+                  {file ? (
+                    <>
+                      <p className="font-semibold text-[0.95rem] text-[#1F3864] mb-1">Selected File: {file.name}</p>
+                      <p className="text-[0.75rem] text-gray-500">Click to change file</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="font-semibold text-[0.95rem] text-[#1F3864] mb-1">Click to select the timesheet file (.xlsx, .csv)</p>
+                      <p className="text-[0.75rem] text-gray-500">Supported formats: Excel (.xlsx), CSV (.csv). Ensure columns: target_month, employee_code, days_present, days_lop</p>
+                    </>
+                  )}
+                </div>
+              </>
+            )}
+
+            {tab === 'bulk' && (
+              <div className="p-4 text-center text-gray-500 text-sm">
+                Consolidated multi-client timesheet upload is currently read-only. Please use the "Single Client Upload" tab to validate and save client timesheets.
+              </div>
+            )}
+          </div>
+        </div>
+
+        {summary && (
+          <div className="grid grid-cols-4 gap-4 mb-6">
+            <div className="bg-white p-4 border border-gray-200 rounded-md shadow-sm">
+              <div className="text-gray-500 text-xs uppercase font-bold">Total Employees</div>
+              <div className="text-xl font-extrabold text-[#1F3864] mt-1">{summary.total}</div>
+            </div>
+            <div className="bg-white p-4 border border-gray-200 rounded-md shadow-sm">
+              <div className="text-green-600 text-xs uppercase font-bold">Valid / Matched</div>
+              <div className="text-xl font-extrabold text-green-600 mt-1">{summary.matched}</div>
+            </div>
+            <div className="bg-white p-4 border border-gray-200 rounded-md shadow-sm">
+              <div className="text-amber-600 text-xs uppercase font-bold">Skipped (Not Joined)</div>
+              <div className="text-xl font-extrabold text-amber-600 mt-1">{summary.skipped}</div>
+            </div>
+            <div className="bg-white p-4 border border-gray-200 rounded-md shadow-sm">
+              <div className="text-red-600 text-xs uppercase font-bold">Errors / Invalid</div>
+              <div className="text-xl font-extrabold text-red-600 mt-1">{summary.errors}</div>
+            </div>
+          </div>
+        )}
+
+        {(validationData.length > 0 || loading) && (
+          <div className="card p-0">
+            <div className="p-5 pb-2">
+              <h3 className="text-lg font-bold text-[#1F3864] m-0">Upload Validation & Match Check</h3>
+              <p className="text-[0.75rem] text-gray-500 mt-1">
+                🟢 Green dot indicates 100% Employee Code match. Review notes below for any days mismatch warnings.
+              </p>
+            </div>
+
+            {loading ? (
+              <div className="flex flex-col items-center justify-center p-12 text-gray-500">
+                <Loader2 className="w-8 h-8 animate-spin text-[#1F3864] mb-2" />
+                <span>Processing validation...</span>
+              </div>
+            ) : (
+              <DataTable columns={columns} data={validationData} />
+            )}
+
+            <div className="flex justify-end gap-3 mt-6 border-t border-gray-200 p-6 pt-6">
+              <Link href={route('payroll.attendance-review', { client_id: selectedClientId, month: targetMonth })}>
+                <Button variant="secondary">Cancel</Button>
+              </Link>
+              <Button 
+                variant="primary" 
+                onClick={handleSave}
+                disabled={loading || validationData.length === 0 || summary?.matched === 0}
+              >
+                Validate & Save Attendance Batch
+              </Button>
+            </div>
+          </div>
+        )}
+      </AuthenticatedLayout>
     </RoleGuard>
   );
 }

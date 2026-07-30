@@ -1,4 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { router } from '@inertiajs/react';
+import useToast from '@/Hooks/useToast';
 import {
   PATTERNS, PIN_MAPPING, GST_STATE_CODES, ALLOWED_FILE_TYPES,
   MAX_FILE_SIZE, DOC_TYPE_LABELS, DOC_TYPE_ICONS, REQUIRED_DOC_TYPES,
@@ -9,9 +11,12 @@ import {
 //  useClientForm — All form state, validation & logic
 // ═══════════════════════════════════════════════════
 
-export default function useClientForm() {
+export default function useClientForm(defaultLopBasis = 'inherit', initialClient = null) {
   // ── Core state ───────────────────────────────────
-  const [formData, setFormData] = useState(getDefaultFormData());
+  const initialFormData = getDefaultFormData();
+  initialFormData.lopBasis = defaultLopBasis;
+  
+  const [formData, setFormData] = useState(initialFormData);
   const [errors, setErrors] = useState({});
   const [hints, setHints] = useState({});
   const [currentStep, setCurrentStep] = useState(1);
@@ -25,9 +30,24 @@ export default function useClientForm() {
   const [stateRegistrations, setStateRegistrations] = useState([
     { state: 'MH', ptRegNo: '', lwfRegNo: '' },
   ]);
-  const [toastMessage, setToastMessage] = useState('');
-  const [editId, setEditId] = useState(null);
-  const [isEditMode, setIsEditMode] = useState(false);
+
+  const getStepForField = (field) => {
+    if (['companyName', 'companyType', 'trustRegNo', 'gstin', 'gstType', 'pan', 'tan', 'cin', 'incorporationDate', 'clientCode', 'industry', 'subIndustry', 'clientStatus', 'workLocationsCount', 'isGroupCompany', 'parentCompany'].includes(field)) return 1;
+    if (['regAddressLine1', 'regAddressLine2', 'regCity', 'regState', 'regPin', 'country', 'taxId', 'regNo', 'billingSame', 'billAddressLine1', 'billCity', 'billState', 'billPin', 'hasAgencyBranches'].includes(field) || field.startsWith('branches')) return 2;
+    if (field.startsWith('poc') || field.startsWith('extraContacts')) return 3;
+    if (['contractType', 'billingModel', 'markupPct', 'markupBase', 'fixedFeeCandidate', 'fixedMonthlyRetainer', 'hourlyRate', 'standardHours', 'otBilling', 'otApproval', 'invoiceCycle', 'paymentTerms', 'contractStart', 'contractEnd', 'autoRenewal', 'poRequired', 'poNumber', 'poValue', 'poValidity', 'gstRate', 'lutRefNo', 'reverseCharge', 'tdsApplicableAgency', 'prefFormatPDF', 'prefFormatXLSX', 'invoiceFooterNotes', 'noticePeriod', 'creditLimit', 'latePenalty', 'billingCurrency'].includes(field)) return 4;
+    if (['pfCeiling', 'pfApplicable', 'esiLimit', 'esiApplicable', 'ptState', 'ptApplicable', 'lwfFrequency', 'lwfApplicable', 'tdsRegime', 'tdsApplicable', 'gratuityMode', 'gratuityApplicable', 'bonusPct', 'bonusApplicable', 'lopBasis'].includes(field)) return 5;
+    if (field === 'documents') return 6;
+    if (['portalAccess', 'portalEmail', 'portalAccessLevel', 'portalViewSalary', 'portalViewInvoices', 'portalViewPayslips', 'portalRaiseRequests', 'portal2fa', 'sessionTimeout', 'ipWhitelist', 'logoUrl', 'displayNameOverride', 'accentColor'].includes(field)) return 7;
+    if (['attendanceCutoff', 'payrollLockDay', 'salaryCreditDay', 'invoiceDisputeDays', 'invoiceRaiseDay', 'payrollMonthConvention', 'cycleStartDay', 'cycleEndDay', 'accountManager', 'backupAccountManager', 'autoReminders', 'clientNotes'].includes(field)) return 8;
+    return 1;
+  };
+
+  const { showToast: globalToast } = useToast();
+  const [isEditMode, setIsEditMode] = useState(!!initialClient);
+  const [editId, setEditId] = useState(initialClient ? initialClient.id : null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitSuccess, setSubmitSuccess] = useState('');
   const [pendingDocType, setPendingDocType] = useState('other');
   const fileInputRef = useRef(null);
   const logoInputRef = useRef(null);
@@ -63,10 +83,18 @@ export default function useClientForm() {
   }, []);
 
   // ── Toast helper ─────────────────────────────────
-  const showToast = useCallback((message) => {
-    setToastMessage(message);
-    setTimeout(() => setToastMessage(''), 3000);
-  }, []);
+  const showToast = useCallback((msgOrObj) => {
+    if (typeof msgOrObj === 'string') {
+      let type = 'success';
+      if (msgOrObj.includes('❌') || msgOrObj.includes('🚫') || msgOrObj.includes('🔴')) type = 'error';
+      else if (msgOrObj.includes('⚠️')) type = 'warning';
+      
+      const cleanMsg = msgOrObj.replace(/^[❌🚫🔴⚠️✅✓💡💻🔐⚙️📅🤝⭐💼🧾🔢📍🏢⚡👤👔📱💰📋📚📁✔️]\s*/, '');
+      globalToast({ message: cleanMsg, type });
+    } else {
+      globalToast(msgOrObj);
+    }
+  }, [globalToast]);
 
   // ── Mark section progress ────────────────────────
   const markProgress = useCallback((section) => {
@@ -135,7 +163,7 @@ export default function useClientForm() {
         setErrors(prev => { const n = { ...prev }; delete n.tan; return n; });
       } else {
         setHints(prev => ({ ...prev, tan: { text: '✗ Invalid TAN. Format: MUMD12345A (4 alpha + 5 digits + 1 alpha)', type: 'error' } }));
-        setErrors(prev => ({ ...prev, tan: true }));
+        setErrors(prev => ({ ...prev, tan: { msg: 'Invalid TAN format (e.g. MUMD12345A). Format: 4 letters + 5 digits + 1 letter.', type: 'error' } }));
       }
     } else {
       setHints(prev => ({ ...prev, tan: { text: 'Required for TDS deduction filing.', type: '' } }));
@@ -258,9 +286,9 @@ export default function useClientForm() {
 
   const getPFCeilingHint = useCallback(() => {
     if (parseFloat(formData.pfCeiling) > 15000) {
-      return { text: 'Voluntary PF — contributions computed on actual basic.', type: 'warning' };
+      return { text: '⚠️ Maximum allowed is ₹15,000. Raising above the statutory ceiling requires additional EPS-split configuration not yet available.', type: 'danger' };
     }
-    return { text: 'Standard EPFO statutory wage ceiling is ₹15,000.', type: '' };
+    return { text: 'Wage Ceiling Override (₹) — must be ₹15,000 or lower. Standard EPFO statutory ceiling is ₹15,000.', type: '' };
   }, [formData.pfCeiling]);
 
   const handleESILimit = useCallback((value) => {
@@ -483,19 +511,39 @@ export default function useClientForm() {
         showToast(`❌ ${file.name}: File exceeds 10 MB limit`);
         continue;
       }
-      const doc = {
-        id: Date.now() + Math.random(),
-        name: file.name, size: file.size, type: pendingDocType,
-        file, verified: false, expiryDate: '',
-      };
-      newDocs.push(doc);
-      showToast(`✅ ${file.name} uploaded successfully`);
-      markProgress(6);
+      
+      if (isEditMode && editId) {
+        // Upload immediately if editing an existing client
+        const docFormData = new FormData();
+        docFormData.append('type', pendingDocType);
+        docFormData.append('file', file);
+        
+        router.post(route('clients.documents.store', editId), docFormData, {
+          preserveScroll: true,
+          onSuccess: () => {
+            showToast(`✅ ${file.name} uploaded successfully`);
+          },
+          onError: (errs) => {
+            showToast(`❌ Failed to upload ${file.name}`);
+            console.error(errs);
+          }
+        });
+      } else {
+        // Queue for bulk upload on new client creation
+        const doc = {
+          id: Date.now() + Math.random(),
+          name: file.name, size: file.size, type: pendingDocType,
+          file, verified: false, expiryDate: '',
+        };
+        newDocs.push(doc);
+        showToast(`✅ ${file.name} added. Will upload on save.`);
+        markProgress(6);
+      }
     }
     if (newDocs.length > 0) {
       setUploadedDocs(prev => [...prev, ...newDocs]);
     }
-  }, [pendingDocType, showToast, markProgress]);
+  }, [pendingDocType, showToast, markProgress, isEditMode, editId]);
 
   const updateDocType = useCallback((docId, newType) => {
     setUploadedDocs(prev => prev.map(d => d.id === docId ? { ...d, type: newType } : d));
@@ -548,7 +596,7 @@ export default function useClientForm() {
 
   // ═══ WIZARD NAVIGATION ════════════════════════════
 
-  const validateStep = useCallback((stepNum) => {
+  const validateStep = useCallback((stepNum, isTabNavigation = false) => {
     const requiredFields = [];
     const country = formData.country;
     const compType = formData.companyType;
@@ -558,12 +606,14 @@ export default function useClientForm() {
         { key: 'companyName', label: 'Company Name' },
         { key: 'companyType', label: 'Company Type' },
         { key: 'clientCode', label: 'Client Code' },
+        { key: 'workLocationsCount', label: 'Number of Work Locations' },
+        { key: 'clientStatus', label: 'Client Status' }
       );
       if (country === 'India') {
         if (compType !== 'govt' && compType !== 'trust') {
           requiredFields.push({ key: 'gstin', label: 'GSTIN' });
         }
-        requiredFields.push({ key: 'pan', label: 'PAN' });
+        requiredFields.push({ key: 'pan', label: 'PAN' }, { key: 'tan', label: 'TAN' });
       } else {
         requiredFields.push({ key: 'taxId', label: 'Tax ID' }, { key: 'regNo', label: 'Registration Number' });
       }
@@ -592,12 +642,17 @@ export default function useClientForm() {
       if (formData.poRequired) {
         requiredFields.push({ key: 'poNumber', label: 'PO Number' });
       }
+      if (formData.billingModel === 'markup') {
+        requiredFields.push({ key: 'markupPct', label: 'Markup Percentage' });
+      }
+      if (formData.billingModel === 'fixed_per_candidate') {
+        requiredFields.push({ key: 'fixedFeeCandidate', label: 'Fixed Fee Per Candidate' });
+      }
     }
-    // Steps 5-8 have no required fields for step validation
 
     let isValid = true;
     let newErrors = { ...errors };
-    let firstErrorKey = null;
+    let missingLabels = [];
 
     requiredFields.forEach(field => {
       let value;
@@ -608,52 +663,80 @@ export default function useClientForm() {
         value = formData[field.key];
       }
       if (!value || String(value).trim() === '') {
-        newErrors[field.key] = true;
+        newErrors[field.key] = { msg: `${field.label} is required.`, type: 'error' };
         isValid = false;
-        if (!firstErrorKey) firstErrorKey = field.key;
+        missingLabels.push(field.label);
       } else {
         delete newErrors[field.key];
       }
     });
 
-    // GSTIN pattern validation on step 1
     if (stepNum === 1 && country === 'India' && compType !== 'govt' && compType !== 'trust') {
       const gstin = (formData.gstin || '').toUpperCase();
       if (gstin && !PATTERNS.GSTIN.test(gstin)) {
-        newErrors.gstin = true;
+        newErrors.gstin = { msg: 'Invalid GSTIN format. Must be 15 alphanumeric characters.', type: 'error' };
         isValid = false;
-        if (!firstErrorKey) firstErrorKey = 'gstin';
+        if (!missingLabels.includes('GSTIN (Invalid format)')) {
+            missingLabels.push('GSTIN (Invalid format)');
+        }
+      }
+
+      const isTdsActive = formData.tdsApplicableAgency && formData.tdsApplicableAgency !== 'na';
+      const tan = (formData.tan || '').toUpperCase().trim();
+
+      if (isTdsActive && !tan) {
+        newErrors.tan = { msg: 'TAN is required when TDS deduction is applicable on agency invoices.', type: 'error' };
+        isValid = false;
+        missingLabels.push('TAN (Required for TDS)');
+      } else if (tan && !PATTERNS.TAN.test(tan)) {
+        newErrors.tan = { msg: 'Invalid TAN format (e.g. MUMD12345A). Format: 4 letters + 5 digits + 1 letter.', type: 'error' };
+        isValid = false;
+        missingLabels.push('TAN (Invalid format)');
       }
     }
 
-    // Branch GSTIN validation on step 2
-    if (stepNum === 2 && !checkAllBranchesGSTIN()) {
-      isValid = false;
+    if (stepNum === 2) {
+      if (formData.workLocationsCount > 1 && !checkAllBranchesGSTIN()) {
+        isValid = false;
+        missingLabels.push('Valid Branch GSTINs');
+      }
+      if (formData.workLocationsCount > 1 && clientBranches.length === 0) {
+        isValid = false;
+        missingLabels.push('At least one Branch (required for >1 locations)');
+      }
     }
 
     setErrors(newErrors);
 
     if (!isValid) {
-      showToast(`❌ Section ${stepNum} has missing/invalid required fields.`);
+      const msg = `Missing required fields: ${missingLabels.join(', ')}`;
+      if (isTabNavigation) {
+        showToast({ message: `Cannot navigate: ${msg}`, type: 'error' });
+      } else {
+        showToast({ message: msg, type: 'error' });
+      }
     }
 
     return isValid;
-  }, [formData, errors, checkAllBranchesGSTIN, showToast]);
+  }, [formData, errors, checkAllBranchesGSTIN, showToast, clientBranches.length]);
 
   const goToStep = useCallback((stepNum) => {
+    // SUGGESTION: implement real-time validation observer for sectionProgress instead of only checking on forward nav
     if (stepNum > currentStep) {
       for (let s = currentStep; s < stepNum; s++) {
-        if (!validateStep(s)) return;
+        if (!validateStep(s, true)) return;
+        markProgress(s);
       }
     }
     setCurrentStep(stepNum);
-  }, [currentStep, validateStep]);
+  }, [currentStep, validateStep, markProgress]);
 
   const nextStep = useCallback(() => {
     if (validateStep(currentStep) && currentStep < 8) {
+      markProgress(currentStep);
       setCurrentStep(prev => prev + 1);
     }
-  }, [currentStep, validateStep]);
+  }, [currentStep, validateStep, markProgress]);
 
   const prevStep = useCallback(() => {
     if (currentStep > 1) setCurrentStep(prev => prev - 1);
@@ -701,16 +784,16 @@ export default function useClientForm() {
       billCity: formData.billCity,
       billState: formData.billState,
       billPin: formData.billPin,
-      branches: clientBranches.map(b => ({
-        name: b.name, code: b.code, addr1: b.addr1, addr2: b.addr2,
+      branches: formData.workLocationsCount === 1 ? [] : clientBranches.map(b => ({
+        id: b.id, name: b.name, code: b.code, addr1: b.addr1, addr2: b.addr2,
         city: b.city, state: b.state, pin: b.pin, gstin: b.gstin,
         gstType: b.gstType, pocName: b.pocName, pocEmail: b.pocEmail,
         pocPhone: b.pocPhone, isPrimary: b.isPrimary,
       })),
-      poc1: { ...formData.poc1, preferences: Object.entries(formData.poc1.prefs).filter(([, v]) => v).map(([k]) => k === 'wa' ? 'WhatsApp' : k === 'sms' ? 'SMS' : 'Email') },
-      poc2: { ...formData.poc2, preferences: Object.entries(formData.poc2.prefs).filter(([, v]) => v).map(([k]) => k === 'wa' ? 'WhatsApp' : k === 'sms' ? 'SMS' : 'Email') },
-      poc3: { ...formData.poc3, preferences: Object.entries(formData.poc3.prefs).filter(([, v]) => v).map(([k]) => k === 'wa' ? 'WhatsApp' : k === 'sms' ? 'SMS' : 'Email') },
-      extraContacts: extraContacts.filter(c => c.name && c.email),
+      poc1: { ...formData.poc1, preferences: Object.entries(formData.poc1?.prefs || {}).filter(([, v]) => v).map(([k]) => k === 'wa' ? 'WhatsApp' : k === 'sms' ? 'SMS' : 'Email') },
+      poc2: { ...formData.poc2, preferences: Object.entries(formData.poc2?.prefs || {}).filter(([, v]) => v).map(([k]) => k === 'wa' ? 'WhatsApp' : k === 'sms' ? 'SMS' : 'Email') },
+      poc3: { ...formData.poc3, preferences: Object.entries(formData.poc3?.prefs || {}).filter(([, v]) => v).map(([k]) => k === 'wa' ? 'WhatsApp' : k === 'sms' ? 'SMS' : 'Email') },
+      extraContacts: extraContacts.filter(c => c.name && c.email).map(c => ({ ...c })),
       contractType: formData.contractType,
       billingModel: formData.billingModel,
       markupPct: parseFloat(formData.markupPct || '0'),
@@ -740,7 +823,10 @@ export default function useClientForm() {
       prefFormatXLSX: formData.prefFormatXLSX,
       invoiceFooterNotes: formData.invoiceFooterNotes,
       pfCeiling: parseFloat(formData.pfCeiling || '15000'),
+      employeePfWageBasis: formData.employeePfWageBasis || 'ceiling',
+      employerPfWageBasis: formData.employerPfWageBasis || 'ceiling',
       pfApplicable: formData.pfApplicable,
+      edliExempted: formData.edliExempted,
       esiLimit: parseFloat(formData.esiLimit || '21000'),
       esiApplicable: formData.esiApplicable,
       ptState: formData.ptState,
@@ -755,6 +841,10 @@ export default function useClientForm() {
       bonusApplicable: formData.bonusApplicable,
       bonusRate: parseFloat(formData.bonusPct || '8.33'),
       statutoryBonusApplicable: formData.bonusApplicable,
+      healthInsuranceEnabled: formData.healthInsuranceEnabled !== false,
+      health_insurance_enabled: formData.healthInsuranceEnabled !== false,
+      weekly_off_pattern: formData.weeklyOffPattern || 'sat,sun',
+      weeklyOffPattern: formData.weeklyOffPattern || 'sat,sun',
       lopBasis: formData.lopBasis,
       portalAccess: formData.portalAccess,
       portalEmail: formData.portalEmail,
@@ -767,335 +857,470 @@ export default function useClientForm() {
       sessionTimeout: parseInt(formData.sessionTimeout || '60'),
       ipWhitelist: formData.ipWhitelist,
       logoUrl: formData.logoUrl,
+      displayNameOverride: formData.displayNameOverride,
+      accentColor: formData.accentColor,
       invoiceRaiseDay: formData.invoiceRaiseDay,
       payrollMonthConvention: formData.payrollMonthConvention,
       cycleStartDay: parseInt(formData.cycleStartDay || '1'),
       cycleEndDay: parseInt(formData.cycleEndDay || '28'),
+      attendanceCutoff: formData.attendanceCutoff,
+      payrollLockDay: formData.payrollLockDay,
+      salaryCreditDay: formData.salaryCreditDay,
+      invoiceDisputeDays: parseInt(formData.invoiceDisputeDays || '7'),
       backupAM: formData.backupAccountManager,
       autoReminders: formData.autoReminders,
       accountManager: formData.accountManager,
       clientNotes: formData.clientNotes,
       outstanding: 0, outstandingLimitExceeded: false,
       contractExpired: false, contractExpiringSoon: false,
+      documents: uploadedDocs.filter(d => d.file).map(d => ({
+        type: d.type,
+        file: d.file
+      })),
     };
-  }, [formData, editId, clientBranches, extraContacts]);
+  }, [formData, editId, clientBranches, extraContacts, uploadedDocs]);
+
+  const getDraftKey = useCallback(() => {
+    return isEditMode && editId ? `tecla_client_draft_edit_${editId}` : `tecla_client_draft_create`;
+  }, [isEditMode, editId]);
 
   const saveDraft = useCallback((isAuto = false) => {
-    const code = formData.clientCode || 'temp';
-    const payload = getFormPayload();
-    localStorage.setItem(`tecla_client_draft_${code}`, JSON.stringify(payload));
+    const key = getDraftKey();
+    const draftPayload = {
+      _draftVersion: 2,
+      formData: { ...formData },
+      clientBranches: [...clientBranches],
+      extraContacts: [...extraContacts],
+      agencyBranches: [...agencyBranches],
+      stateRegistrations: [...stateRegistrations],
+      sectionProgress: { ...sectionProgress },
+      currentStep,
+      savedAt: new Date().toISOString(),
+    };
+    localStorage.setItem(key, JSON.stringify(draftPayload));
     if (!isAuto) showToast('💾 Draft saved successfully!');
     return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  }, [formData.clientCode, getFormPayload, showToast]);
+  }, [getDraftKey, formData, clientBranches, extraContacts, agencyBranches, stateRegistrations, sectionProgress, currentStep, showToast]);
+
+  const errorKeyMap = useCallback((laravelErrors) => {
+    const mapped = {};
+    const flatMap = {
+      'company_name': 'companyName',
+      'company_type': 'companyType',
+      'client_code': 'clientCode',
+      'registered_address_line_1': 'regAddressLine1',
+      'registered_city': 'regCity',
+      'registered_state': 'regState',
+      'registered_pin': 'regPin',
+      'registered_pin_code': 'regPin',
+      'tax_id': 'taxId',
+      'registration_number': 'regNo',
+      'gstin': 'gstin',
+      'pan': 'pan',
+      'trust_registration_number': 'trustRegNo',
+      'contract_type': 'contractType',
+      'billing_model': 'billingModel',
+      'contract_start_date': 'contractStart',
+      'po_number': 'poNumber',
+      'primary_poc_name': 'poc1.name',
+    };
+
+    Object.keys(laravelErrors).forEach(key => {
+      let mappedKey = key;
+      if (flatMap[key]) mappedKey = flatMap[key];
+      else if (key.startsWith('contacts.')) {
+        // contacts.0.email -> poc1.email
+        const parts = key.split('.');
+        const index = parseInt(parts[1]);
+        const field = parts.slice(2).join('.');
+        if (index === 0) mappedKey = `poc1.${field}`;
+        else if (index === 1) mappedKey = `poc2.${field}`;
+        else if (index === 2) mappedKey = `poc3.${field}`;
+        else mappedKey = `extraContacts[${index - 3}].${field}`;
+      } else if (key.startsWith('branches.')) {
+        const parts = key.split('.');
+        const index = parseInt(parts[1]);
+        const field = parts.slice(2).join('.');
+        
+        let branchField = field;
+        if (field === 'branch_name') branchField = 'name';
+        if (field === 'branch_code') branchField = 'code';
+        if (field === 'address_line_1') branchField = 'addr1';
+        if (field === 'city') branchField = 'city';
+        if (field === 'pin_code') branchField = 'pin';
+        if (field === 'finance_poc_name') branchField = 'pocName';
+        if (field === 'finance_poc_email') branchField = 'pocEmail';
+        if (field === 'finance_poc_phone') branchField = 'pocPhone';
+        if (field === 'gst_registration_type') branchField = 'gstType';
+
+        mappedKey = `branches.${index}.${branchField}`;
+      }
+      const rawVal = laravelErrors[key];
+      const msgText = Array.isArray(rawVal) ? rawVal[0] : (typeof rawVal === 'object' && rawVal?.msg ? rawVal.msg : String(rawVal));
+      mapped[mappedKey] = { msg: msgText, type: 'error' };
+    });
+    return mapped;
+  }, []);
 
   const submitForm = useCallback(() => {
+    if (isSubmitting) return;
+
     const payload = getFormPayload();
-    const existingClients = JSON.parse(localStorage.getItem('tecla_clients') || '[]');
 
+    setIsSubmitting(true);
+    setErrors({});
+    
     // Status transition check
-    let initialStatus = 'draft';
-    let currentClient = null;
-    if (editId) {
-      currentClient = existingClients.find(c => c.id === editId || c.code === formData.clientCode);
-      if (currentClient) initialStatus = currentClient.status || 'draft';
-    }
-    if (initialStatus !== payload.status) {
-      const allowed = ALLOWED_STATUS_TRANSITIONS[initialStatus] || [];
-      if (!allowed.includes(payload.status)) {
-        showToast(`🚫 Cannot change status from ${initialStatus} to ${payload.status}.`);
-        return false;
-      }
-    }
-
-    // Full required field validation
-    const required = [
-      { key: 'companyName', label: 'Company Name' },
-      { key: 'companyType', label: 'Company Type' },
-      { key: 'clientCode', label: 'Client Code' },
-      { key: 'regAddressLine1', label: 'Registered Address' },
-      { key: 'regCity', label: 'City' },
-      { key: 'regState', label: 'State' },
-      { key: 'regPin', label: 'PIN Code' },
-      { key: 'poc1.name', label: 'Primary POC Name' },
-      { key: 'poc1.email', label: 'Primary POC Email' },
-      { key: 'poc1.phone', label: 'Primary POC Phone' },
-      { key: 'contractType', label: 'Contract Type' },
-      { key: 'billingModel', label: 'Billing Model' },
-      { key: 'contractStart', label: 'Contract Start Date' },
-    ];
-    if (formData.companyType === 'trust') required.push({ key: 'trustRegNo', label: 'Trust/NGO Registration Number' });
-    if (formData.country !== 'India') {
-      required.push({ key: 'taxId', label: 'Tax ID' }, { key: 'regNo', label: 'Registration Number' });
-    } else {
-      if (formData.companyType !== 'govt') required.push({ key: 'gstin', label: 'GSTIN' });
-      required.push({ key: 'pan', label: 'PAN' });
-    }
-    if (formData.poRequired) required.push({ key: 'poNumber', label: 'PO Number' });
-
-    let errorCount = 0;
-    let newErrors = {};
-    let firstErrorStep = null;
-
-    required.forEach(field => {
-      let value;
-      if (field.key.includes('.')) {
-        const [parent, child] = field.key.split('.');
-        value = formData[parent]?.[child];
-      } else {
-        value = formData[field.key];
-      }
-      if (!value || String(value).trim() === '') {
-        newErrors[field.key] = true;
-        errorCount++;
-        if (!firstErrorStep) {
-          // Determine which step this field belongs to
-          if (['companyName', 'companyType', 'clientCode', 'gstin', 'pan', 'tan', 'cin', 'trustRegNo', 'taxId', 'regNo'].includes(field.key)) firstErrorStep = 1;
-          else if (['regAddressLine1', 'regCity', 'regState', 'regPin'].includes(field.key)) firstErrorStep = 2;
-          else if (field.key.startsWith('poc1')) firstErrorStep = 3;
-          else if (['contractType', 'billingModel', 'contractStart', 'poNumber'].includes(field.key)) firstErrorStep = 4;
-        }
-      }
-    });
-
-    // GSTIN pattern check
-    if (formData.country === 'India' && formData.gstin) {
-      if (!PATTERNS.GSTIN.test(formData.gstin.toUpperCase())) {
-        newErrors.gstin = true;
-        errorCount++;
-        if (!firstErrorStep) firstErrorStep = 1;
-      }
-    }
-
-    // Branch GSTIN check
-    if (!checkAllBranchesGSTIN()) {
-      showToast('❌ Fix GSTIN errors in Branch / Work Locations before saving.');
-      if (!firstErrorStep) firstErrorStep = 2;
-      setErrors(prev => ({ ...prev, ...newErrors }));
-      if (firstErrorStep) goToStep(firstErrorStep);
-      return false;
-    }
-
-    if (errorCount > 0) {
-      setErrors(prev => ({ ...prev, ...newErrors }));
-      showToast(`❌ ${errorCount} required field(s) missing or invalid. Please review.`);
-      if (firstErrorStep) goToStep(firstErrorStep);
-      return false;
+    if (isEditMode) {
+      // Allow the backend to handle the status transition validation
+      // if it has it, otherwise we could keep it here.
     }
 
     // Warnings (non-blocking)
     if (payload.contractEnd && new Date(payload.contractEnd) < new Date()) {
       showToast('⚠️ Notice: Saving client with an expired contract end date.');
     }
-    if (payload.billingModel === 'markup' && payload.markupPct === 0) {
-      if (!confirm('⚠️ You entered 0% markup. Confirm you want to proceed with 0% markup?')) return false;
-    }
-    if (payload.creditLimit > 5000000) {
-      showToast('⚠️ Large credit exposure detected. Require Director sign-off.');
-    }
-    if (!payload.pfApplicable && !payload.esiApplicable && !payload.ptApplicable && !payload.lwfApplicable) {
-      showToast('⚠️ All statutory contributions disabled. Confirm this is correct under Section 16 of Code on Wages.');
-    }
 
-    // Save
-    const idx = existingClients.findIndex(c => c.code === payload.code || c.id === payload.id);
-    if (idx > -1) {
-      existingClients[idx] = { ...existingClients[idx], ...payload };
+    const handleSuccess = (page) => {
+      setIsSubmitting(false);
+      showToast('✅ Client saved & activated successfully!');
+      Object.keys(localStorage).forEach(k => {
+        if (k.startsWith('tecla_client_draft_')) {
+          localStorage.removeItem(k);
+        }
+      });
+    };
+
+    const handleError = (errors) => {
+      setIsSubmitting(false);
+      const mapped = errorKeyMap(errors);
+      setErrors(mapped);
+      
+      // Map branch errors directly to the state for AddressSection
+      let branchErrors = {};
+      Object.keys(mapped).forEach(k => {
+        if (k.startsWith('branches.')) {
+          const parts = k.split('.');
+          const idx = parts[1];
+          const f = parts[2];
+          if (f === 'gstin') branchErrors[idx] = mapped[k];
+        }
+      });
+      if (Object.keys(branchErrors).length > 0) {
+        setClientBranches(prev => prev.map((b, i) => {
+          if (branchErrors[i]) return { ...b, gstinError: branchErrors[i] };
+          return b;
+        }));
+      }
+
+      // Jump to first error step
+      if (Object.keys(mapped).length > 0) {
+        const firstErrorKey = Object.keys(mapped)[0];
+        const step = getStepForField(firstErrorKey);
+        setCurrentStep(step);
+      }
+
+      showToast(`❌ Required fields missing or invalid. Please check the highlighted errors.`);
+    };
+
+    if (isEditMode && editId) {
+      router.put(route('clients.update', editId), payload, {
+        onSuccess: handleSuccess,
+        onError: handleError,
+        preserveScroll: false
+      });
     } else {
-      existingClients.push(payload);
+      router.post(route('clients.store'), payload, {
+        onSuccess: handleSuccess,
+        onError: handleError,
+        preserveScroll: false
+      });
     }
-    localStorage.setItem('tecla_clients', JSON.stringify(existingClients));
-    localStorage.removeItem(`tecla_client_draft_${payload.code || 'temp'}`);
-    showToast('✅ Client saved & activated successfully!');
-    setTimeout(() => { window.location.href = '/clients'; }, 1500);
     return true;
-  }, [formData, editId, getFormPayload, checkAllBranchesGSTIN, showToast, goToStep]);
+  }, [getFormPayload, showToast, isEditMode, editId, errorKeyMap]);
 
-  // ═══ POPULATE FROM DATA ═══════════════════════════
+  const loadClientData = useCallback((client) => {
+    if (!client) return;
 
-  const populateForm = useCallback((data) => {
-    if (!data) return;
+    setIsEditMode(true);
+    setEditId(client.id);
+
     setFormData(prev => ({
       ...prev,
-      companyName: data.name || '',
-      companyType: data.type || '',
-      trustRegNo: data.trustRegNo || '',
-      gstin: data.gstin || '',
-      pan: data.pan || '',
-      tan: data.tan || '',
-      cin: data.cin || '',
-      incorporationDate: data.incorporationDate || '',
-      clientCode: data.code || '',
-      industry: data.industry || '',
-      subIndustry: data.subIndustry || '',
-      clientStatus: data.status || 'onboarding',
-      workLocationsCount: data.locationsCount || 1,
-      isGroupCompany: data.isGroupCompany || false,
-      parentCompany: data.parentCompany || '',
-      regAddressLine1: data.regAddressLine1 || '',
-      regAddressLine2: data.regAddressLine2 || '',
-      regCity: data.regCity || '',
-      regState: data.regState || '',
-      regPin: data.regPin || '',
-      country: data.country || 'India',
-      taxId: data.taxId || '',
-      regNo: data.regNo || '',
-      billingSame: data.billingSame !== undefined ? data.billingSame : true,
-      billAddressLine1: data.billAddressLine1 || '',
-      billCity: data.billCity || '',
-      billState: data.billState || '',
-      billPin: data.billPin || '',
-      poc1: data.poc1 ? {
-        name: data.poc1.name || '', designation: data.poc1.designation || '',
-        email: data.poc1.email || '', phone: data.poc1.phone || '',
-        whatsappSame: data.poc1.whatsappSame !== undefined ? data.poc1.whatsappSame : true,
-        prefs: { email: data.poc1.preferences?.includes('Email') ?? true, sms: data.poc1.preferences?.includes('SMS') ?? true, wa: data.poc1.preferences?.includes('WhatsApp') ?? true },
-      } : prev.poc1,
-      poc2: data.poc2 ? {
-        name: data.poc2.name || '', designation: data.poc2.designation || '',
-        email: data.poc2.email || '', phone: data.poc2.phone || '',
-        whatsappSame: data.poc2.whatsappSame !== undefined ? data.poc2.whatsappSame : true,
-        ccInvoice: data.poc2.ccInvoice !== undefined ? data.poc2.ccInvoice : true,
-        prefs: { email: data.poc2.preferences?.includes('Email') ?? true, sms: data.poc2.preferences?.includes('SMS') ?? false, wa: data.poc2.preferences?.includes('WhatsApp') ?? false },
-      } : prev.poc2,
-      poc3: data.poc3 ? {
-        name: data.poc3.name || '', email: data.poc3.email || '',
-        whatsappSame: data.poc3.whatsappSame !== undefined ? data.poc3.whatsappSame : true,
-        onboardingKits: data.poc3.onboardingKits !== undefined ? data.poc3.onboardingKits : true,
-        prefs: { email: data.poc3.preferences?.includes('Email') ?? true, sms: data.poc3.preferences?.includes('SMS') ?? false, wa: data.poc3.preferences?.includes('WhatsApp') ?? false },
-      } : prev.poc3,
-      contractType: data.contractType || '',
-      billingModel: data.billingModel || '',
-      markupPct: data.markupPct || '',
-      markupBase: data.markupBase || 'gross',
-      fixedFeeCandidate: data.fixedFeeCandidate || '',
-      fixedMonthlyRetainer: data.fixedMonthlyRetainer || '',
-      hourlyRate: data.hourlyRate || '',
-      standardHours: data.standardHours || '',
-      invoiceCycle: data.invoiceCycle || 'monthly',
-      paymentTerms: data.paymentTerms || 'net15',
-      contractStart: data.contractStart || '',
-      contractEnd: data.contractEnd || '',
-      autoRenewal: data.autoRenewal || false,
-      poRequired: data.poRequired || false,
-      poNumber: data.poNumber || '',
-      poValue: data.poValue || '',
-      poValidity: data.poValidity || '',
-      noticePeriod: data.noticePeriod || 30,
-      creditLimit: data.creditLimit || '',
-      latePenalty: data.latePenalty || '',
-      billingCurrency: data.billingCurrency || 'INR',
-      gstRate: data.gstRate || '18',
-      lutRefNo: data.lutRefNo || '',
-      reverseCharge: data.reverseCharge || false,
-      tdsApplicableAgency: data.tdsApplicableAgency || 'na',
-      prefFormatPDF: data.prefFormatPDF !== undefined ? data.prefFormatPDF : true,
-      prefFormatXLSX: data.prefFormatXLSX || false,
-      invoiceFooterNotes: data.invoiceFooterNotes || '',
-      pfCeiling: data.pfCeiling || 15000,
-      pfApplicable: data.pfApplicable !== undefined ? data.pfApplicable : true,
-      esiLimit: data.esiLimit || 21000,
-      esiApplicable: data.esiApplicable !== undefined ? data.esiApplicable : true,
-      ptState: data.ptState || 'auto',
-      ptApplicable: data.ptApplicable !== undefined ? data.ptApplicable : true,
-      lwfFrequency: data.lwfFrequency || 'biannual',
-      lwfApplicable: data.lwfApplicable !== undefined ? data.lwfApplicable : false,
-      tdsRegime: data.tdsRegime || 'new',
-      tdsApplicable: data.tdsApplicable !== undefined ? data.tdsApplicable : true,
-      gratuityMode: data.gratuityMode || 'ctc_included',
-      gratuityApplicable: data.gratuityApplicable !== undefined ? data.gratuityApplicable : true,
-      bonusPct: data.bonusPct || 8.33,
-      bonusApplicable: data.bonusApplicable !== undefined ? data.bonusApplicable : false,
-      lopBasis: data.lopBasis || 'inherit',
-      portalAccess: data.portalAccess || false,
-      portalEmail: data.portalEmail || '',
-      portalAccessLevel: data.portalAccessLevel || 'view_only',
-      portalViewSalary: data.portalViewSalary !== undefined ? data.portalViewSalary : true,
-      portalViewInvoices: data.portalViewInvoices !== undefined ? data.portalViewInvoices : true,
-      portalViewPayslips: data.portalViewPayslips || false,
-      portalRaiseRequests: data.portalRaiseRequests !== undefined ? data.portalRaiseRequests : true,
-      portal2fa: data.portal2fa !== undefined ? data.portal2fa : true,
-      sessionTimeout: data.sessionTimeout || 60,
-      ipWhitelist: data.ipWhitelist || '',
-      logoUrl: data.logoUrl || '',
-      invoiceRaiseDay: data.invoiceRaiseDay || 'Same as Payroll Lock Day',
-      payrollMonthConvention: data.payrollMonthConvention || 'calendar',
-      cycleStartDay: data.cycleStartDay || 1,
-      cycleEndDay: data.cycleEndDay || 28,
-      accountManager: data.accountManager || '',
-      backupAccountManager: data.backupAM || '',
-      autoReminders: data.autoReminders !== undefined ? data.autoReminders : true,
-      clientNotes: data.clientNotes || '',
+      companyName: client.company_name || '',
+      companyType: client.company_type || '',
+      trustRegNo: client.trust_registration_number || '',
+      gstin: client.gstin || '',
+      pan: client.pan_number || '',
+      tan: client.tan_number || '',
+      cin: client.cin_number || '',
+      incorporationDate: client.incorporation_date || '',
+      clientCode: client.client_code || '',
+      industry: client.industry || '',
+      subIndustry: client.sub_industry || '',
+      clientStatus: client.status || 'onboarding',
+      workLocationsCount: client.branches ? Math.max(1, client.branches.length) : 1,
+      isGroupCompany: client.is_group_company || false,
+      parentCompany: client.parent_company || '',
+      regAddressLine1: client.registered_address_line_1 || '',
+      regAddressLine2: client.registered_address_line_2 || '',
+      regCity: client.registered_city || '',
+      regState: client.registered_state || '',
+      regPin: client.registered_pin || '',
+      country: client.country || 'India',
+      taxId: client.tax_id || '',
+      regNo: client.registration_number || '',
+      billingSame: client.is_billing_same_as_registered !== undefined ? client.is_billing_same_as_registered : true,
+      billAddressLine1: client.billing_address_line_1 || '',
+      billCity: client.billing_city || '',
+      billState: client.billing_state || '',
+      billPin: client.billing_pin_code || '',
+      contractType: client.contract_type || '',
+      billingModel: client.billing_model || '',
+      markupPct: client.markup_percentage || '',
+      markupBase: client.markup_base || 'gross',
+      fixedFeeCandidate: client.fixed_fee_per_candidate || '',
+      fixedMonthlyRetainer: client.fixed_monthly_retainer || '',
+      hourlyRate: client.hourly_rate || '',
+      standardHours: client.standard_hours_per_month || '',
+      invoiceCycle: client.invoice_cycle || 'monthly',
+      paymentTerms: client.payment_net_terms || 'net15',
+      contractStart: client.contract_start_date || '',
+      contractEnd: client.contract_end_date || '',
+      autoRenewal: client.auto_renewal || false,
+      poRequired: client.po_required || false,
+      poNumber: client.po_number || '',
+      poValue: client.po_value || '',
+      poValidity: client.po_validity_date || '',
+      noticePeriod: client.notice_period_days || 30,
+      creditLimit: client.credit_limit || '',
+      latePenalty: client.late_payment_penalty_pct || '',
+      billingCurrency: client.currency || 'INR',
+      gstRate: client.gst_rate || '18',
+      lutRefNo: client.lut_reference_number || '',
+      reverseCharge: client.is_reverse_charge_applicable || false,
+      tdsApplicableAgency: client.tds_applicable_on_agency_fee || 'na',
+      prefFormatPDF: client.invoice_format_pdf !== undefined ? client.invoice_format_pdf : true,
+      prefFormatXLSX: client.invoice_format_xlsx || false,
+      invoiceFooterNotes: client.invoice_footer_notes || '',
+      pfCeiling: client.pf_ceiling || 15000,
+      employeePfWageBasis: client.employee_pf_wage_basis || 'ceiling',
+      employerPfWageBasis: client.employer_pf_wage_basis || 'ceiling',
+      pfApplicable: client.pf_applicable !== undefined ? client.pf_applicable : true,
+      edliExempted: client.edli_exempted !== undefined ? Boolean(client.edli_exempted) : false,
+      esiLimit: client.esi_limit || 21000,
+      esiApplicable: client.esi_applicable !== undefined ? client.esi_applicable : true,
+      ptState: client.pt_state || 'auto',
+      ptApplicable: client.pt_applicable !== undefined ? client.pt_applicable : true,
+      lwfFrequency: client.lwf_frequency || (client.registered_state === 'Maharashtra' || client.pt_state === 'MH' ? 'biannual' : 'annual'),
+      lwfApplicable: client.lwf_applicable !== undefined ? client.lwf_applicable : false,
+      tdsRegime: client.tds_regime || 'new',
+      tdsApplicable: client.tds_applicable !== undefined ? client.tds_applicable : true,
+      gratuityMode: (function(m) {
+        const map = { payable_on_separation: 'over_ctc', over_and_above: 'over_ctc', not_applicable: 'na' };
+        return map[m] || m || 'ctc_included';
+      })(client.default_gratuity_mode),
+      gratuityApplicable: true, // Not in DB, default true
+      bonusPct: client.bonus_rate_percentage || 8.33,
+      bonusApplicable: client.statutory_bonus_applicable !== undefined ? client.statutory_bonus_applicable : false,
+      healthInsuranceEnabled: client.health_insurance_enabled !== undefined ? Boolean(client.health_insurance_enabled) : true,
+      weeklyOffPattern: client.weekly_off_pattern || client.weeklyOffPattern || 'sat,sun',
+      lopBasis: '30',
+      portalAccess: client.client_portal_enabled || false,
+      portalEmail: client.primary_poc_email || '',
+      portalAccessLevel: client.portal_access_level || 'view_only',
+      portalViewSalary: client.portal_view_salary !== undefined ? client.portal_view_salary : true,
+      portalViewInvoices: client.portal_view_invoices !== undefined ? client.portal_view_invoices : true,
+      portalViewPayslips: client.portal_view_payslips || false,
+      portalRaiseRequests: client.portal_raise_requests !== undefined ? client.portal_raise_requests : true,
+      portal2fa: client.portal_require_2fa !== undefined ? client.portal_require_2fa : true,
+      sessionTimeout: client.portal_session_timeout || 60,
+      ipWhitelist: client.portal_ip_whitelist || '',
+      logoUrl: client.logo_path || client.logo_url || '',
+      displayNameOverride: client.display_name_override || '',
+      accentColor: client.accent_color || '#1F3864',
+      invoiceRaiseDay: client.invoice_raise_day || 'Same as Payroll Lock Day',
+      payrollMonthConvention: client.payroll_convention || 'calendar',
+      cycleStartDay: client.custom_cycle_start_day || 1,
+      cycleEndDay: client.custom_cycle_end_day || 28,
+      attendanceCutoff: client.cutoff_day || '28',
+      payrollLockDay: client.payroll_lock_day || '3_next',
+      salaryCreditDay: client.salary_credit_day || '7',
+      invoiceDisputeDays: client.invoice_dispute_window_days || '7',
+      accountManager: client.account_manager_id || '',
+      backupAccountManager: client.backup_account_manager_id || '',
+      autoReminders: client.auto_reminders !== undefined ? client.auto_reminders : true,
+      clientNotes: client.client_notes || '',
     }));
 
-    if (data.extraContacts) {
-      setExtraContacts(data.extraContacts.map((c, i) => ({ id: `contact-loaded-${i}`, ...c })));
+    // Contacts
+    if (client.contacts) {
+      let extContacts = [];
+      const newPoc1 = {};
+      const newPoc2 = {};
+      const newPoc3 = {};
+      
+      client.contacts.forEach(c => {
+        const contactData = {
+          id: c.id,
+          name: c.full_name || '',
+          designation: c.designation || '',
+          email: c.email || '',
+          phone: c.phone || '',
+          whatsappSame: c.is_whatsapp_same !== undefined ? !!c.is_whatsapp_same : true,
+          ccInvoice: c.cc_on_invoice !== undefined ? !!c.cc_on_invoice : false,
+          onboardingKits: c.receive_onboarding_kits !== undefined ? !!c.receive_onboarding_kits : false,
+          prefs: {
+            email: c.preference_email !== undefined ? !!c.preference_email : (Array.isArray(c.communication_preferences) ? c.communication_preferences.includes('Email') : true),
+            sms: c.preference_sms !== undefined ? !!c.preference_sms : (Array.isArray(c.communication_preferences) ? c.communication_preferences.includes('SMS') : false),
+            wa: c.preference_whatsapp !== undefined ? !!c.preference_whatsapp : (Array.isArray(c.communication_preferences) ? (c.communication_preferences.includes('WhatsApp') || c.communication_preferences.includes('wa')) : false)
+          }
+        };
+
+        if (c.contact_type === 'primary') Object.assign(newPoc1, contactData);
+        else if (c.contact_type === 'finance') Object.assign(newPoc2, contactData);
+        else if (c.contact_type === 'hr') Object.assign(newPoc3, contactData);
+        else {
+          extContacts.push({ ...contactData, id: `contact-loaded-${c.id}` });
+        }
+      });
+
+      setFormData(prev => ({
+        ...prev,
+        poc1: { ...prev.poc1, ...newPoc1 },
+        poc2: { ...prev.poc2, ...newPoc2 },
+        poc3: { ...prev.poc3, ...newPoc3 },
+      }));
+      setExtraContacts(extContacts);
     }
-    if (data.branches && data.branches.length > 0) {
-      setClientBranches([]);
-      // Use setTimeout to ensure state is clear first
-      setTimeout(() => {
-        data.branches.forEach(b => {
-          const branch = {
-            id: `branch-loaded-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-            ...b, gstinError: '', gstinValid: !!b.gstin,
-          };
-          setClientBranches(prev => [...prev, branch]);
-        });
-      }, 0);
+
+    // Branches Reverse-Mapping
+    if (client.branches && client.branches.length > 0) {
+      setClientBranches(client.branches.map(branch => ({
+        id: branch.id,
+        name: branch.branch_name || '',
+        code: branch.branch_code || '',
+        addr1: branch.address_line_1 || '',
+        addr2: branch.address_line_2 || '', // if it exists, else empty
+        city: branch.city || '',
+        state: branch.state || '',
+        pin: branch.pin_code || '', // if exists in DB
+        gstin: branch.gstin || '',
+        gstType: branch.gst_registration_type || 'Regular',
+        pocName: branch.finance_poc_name || '',
+        pocEmail: branch.finance_poc_email || '',
+        pocPhone: branch.finance_poc_phone || '',
+        isPrimary: branch.is_primary_billing_branch === 1 || branch.is_primary_billing_branch === true,
+        gstinError: '',
+        gstinValid: !!branch.gstin,
+      })));
     }
+
+    // Documents Reverse-Mapping
+    if (client.documents && client.documents.length > 0) {
+      setUploadedDocs(client.documents.map(doc => ({
+        id: doc.id,
+        dbId: doc.id,
+        name: doc.file_name,
+        size: doc.file_size_kb * 1024,
+        type: doc.document_type,
+        verified: doc.verification_status === 'verified',
+        verification_status: doc.verification_status,
+        rejection_reason: doc.rejection_reason,
+        file: null // already in DB
+      })));
+    }
+
+    setSectionProgress({ 1: true, 2: true, 3: true, 4: true, 5: true, 6: true, 7: true, 8: true });
   }, []);
 
   // ═══ INITIALIZATION ═══════════════════════════════
 
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const editCode = urlParams.get('code');
-    const editIdParam = urlParams.get('id') ? parseInt(urlParams.get('id')) : null;
+    // If not in edit mode, load draft if one exists for this exact key
+    if (!isEditMode) {
+      const key = getDraftKey();
+      const draftStr = localStorage.getItem(key);
 
-    const existingClients = JSON.parse(localStorage.getItem('tecla_clients') || '[]');
-    let clientToEdit = null;
+      if (draftStr) {
+        try {
+          const parsed = JSON.parse(draftStr);
 
-    if (editCode) {
-      clientToEdit = existingClients.find(c => c.code === editCode);
-    } else if (editIdParam) {
-      clientToEdit = existingClients.find(c => c.id === editIdParam);
+          if (parsed._draftVersion === 2 && parsed.formData) {
+            // ── Version 2 draft: raw formData was saved directly ──
+            const savedForm = parsed.formData;
+
+            // Normalise lopBasis
+            if (savedForm.lopBasis === 'inherit' || savedForm.lopBasis === '') {
+              savedForm.lopBasis = defaultLopBasis;
+            } else if (savedForm.lopBasis === '26_days') {
+              savedForm.lopBasis = '26';
+            } else if (savedForm.lopBasis === '30_days') {
+              savedForm.lopBasis = '30';
+            }
+
+            setFormData(prev => ({ ...prev, ...savedForm }));
+
+            // Restore client branches
+            if (Array.isArray(parsed.clientBranches)) {
+              setClientBranches(parsed.clientBranches);
+            }
+
+            // Restore extra contacts
+            if (Array.isArray(parsed.extraContacts)) {
+              setExtraContacts(parsed.extraContacts);
+            }
+
+            // Restore agency branches
+            if (Array.isArray(parsed.agencyBranches)) {
+              setAgencyBranches(parsed.agencyBranches);
+            }
+
+            // Restore state registrations
+            if (Array.isArray(parsed.stateRegistrations)) {
+              setStateRegistrations(parsed.stateRegistrations);
+            }
+
+            // Restore section progress
+            if (parsed.sectionProgress && typeof parsed.sectionProgress === 'object') {
+              setSectionProgress(parsed.sectionProgress);
+            }
+
+            // Restore step position
+            if (parsed.currentStep >= 1 && parsed.currentStep <= 8) {
+              setCurrentStep(parsed.currentStep);
+            }
+
+            showToast('ℹ️ Loaded form from local draft.');
+          }
+        } catch (e) { console.error('Draft restore error:', e); }
+      }
     }
+  }, [isEditMode, getDraftKey]);
 
-    const codeKey = clientToEdit ? clientToEdit.code : (editCode || 'temp');
-    const draftStr = localStorage.getItem(`tecla_client_draft_${codeKey}`);
-
-    if (draftStr) {
-      try {
-        const draftData = JSON.parse(draftStr);
-        populateForm(draftData);
-        setEditId(draftData.id || editIdParam);
-        showToast('ℹ️ Loaded form from auto-saved draft.');
-      } catch (e) { console.error(e); }
-    } else if (clientToEdit) {
-      setIsEditMode(true);
-      setEditId(clientToEdit.id);
-      populateForm(clientToEdit);
-      setSectionProgress({ 1: true, 2: true, 3: true, 4: true, 5: true, 6: true, 7: true, 8: true });
-    } else {
-      // New client — seed demo branches
-      DEMO_BRANCHES.forEach(b => addClientBranch(b));
-    }
-
-    // Auto-save every 60 seconds
-    autoSaveTimerRef.current = setInterval(() => saveDraft(true), 60000);
-    return () => {
-      if (autoSaveTimerRef.current) clearInterval(autoSaveTimerRef.current);
-    };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ═══ RETURN ═══════════════════════════════════════
+  const clearDraft = useCallback(() => {
+    Object.keys(localStorage).forEach(k => {
+      if (k.startsWith('tecla_client_draft_')) {
+        localStorage.removeItem(k);
+      }
+    });
+    const fresh = getDefaultFormData();
+    fresh.lopBasis = defaultLopBasis;
+    setFormData(fresh);
+    setClientBranches([]);
+    setExtraContacts([]);
+    setAgencyBranches([]);
+    setStateRegistrations([{ state: 'MH', ptRegNo: '', lwfRegNo: '' }]);
+    setSectionProgress({ 1: false, 2: false, 3: false, 4: false, 5: false, 6: false, 7: false, 8: false });
+    setCurrentStep(1);
+    showToast('🗑️ Draft cleared and form reset.');
+  }, [defaultLopBasis, showToast]);
 
   return {
     // State
     formData, errors, hints, currentStep, sectionProgress,
-    uploadedDocs, extraContacts, clientBranches, agencyBranches,
-    stateRegistrations, toastMessage, isEditMode, pendingDocType,
-    fileInputRef, logoInputRef,
+    uploadedDocs, extraContacts, clientBranches, agencyBranches, stateRegistrations,
+    isEditMode, editId, pendingDocType, fileInputRef, logoInputRef,
 
     // Generic handlers
     handleInputChange, handlePocChange, handlePocPrefChange,
@@ -1104,7 +1329,6 @@ export default function useClientForm() {
     // Validators
     validateGSTIN, validatePAN, validateTAN, validateCIN, validatePIN,
     validateEmail, validatePhone, validateContractDates, validateStep,
-    validateBranchGSTIN, checkAllBranchesGSTIN, crossCheckPANGSTIN,
 
     // Field-specific handlers
     autoGenerateCode, handleCompanyType, handleCountryChange,
@@ -1142,6 +1366,7 @@ export default function useClientForm() {
     completionPct, completionCount,
 
     // Form actions
-    saveDraft, submitForm, getFormPayload, populateForm,
+    saveDraft, clearDraft, submitForm, getFormPayload, loadClientData,
+    isSubmitting, submitSuccess,
   };
 }

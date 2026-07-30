@@ -2,8 +2,9 @@
 
 namespace App\Http\Requests;
 
-use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+use App\Models\Employee;
 
 class StoreEmployeeRequest extends FormRequest
 {
@@ -12,18 +13,249 @@ class StoreEmployeeRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return false;
+        return $this->user() && in_array($this->user()->role, ['admin', 'manager']);
+    }
+
+    protected function prepareForValidation()
+    {
+        $firstName = $this->firstName ?: $this->first_name;
+        $lastName = $this->lastName ?: $this->last_name;
+        $fatherName = $this->fatherName ?: $this->father_name;
+
+        $fullName = trim(($firstName ?: '') . ' ' . ($lastName ?: ''));
+        if (empty($fullName)) {
+            $fullName = trim($this->fullName ?: $this->full_name ?: '');
+        }
+
+        if (empty($firstName) || empty($lastName)) {
+            if (!empty($fullName)) {
+                $parts = explode(' ', $fullName, 2);
+                if (empty($firstName)) $firstName = $parts[0] ?? 'Employee';
+                if (empty($lastName)) $lastName = $parts[1] ?? 'Name';
+            }
+        }
+
+        if (empty($fatherName)) {
+            $fatherName = 'N/A';
+        }
+
+        $motherName = $this->motherName ?: $this->mother_name;
+        $spouseName = $this->spouseName ?: $this->wifeName ?: $this->spouse_name;
+
+        // Ensure default fallback values for boolean toggles if missing
+        $this->merge([
+            'client_id' => $this->clientPartner,
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+            'father_name' => $fatherName,
+            'mother_name' => $motherName,
+            'spouse_name' => $spouseName,
+            'full_name' => $fullName,
+            'personal_email' => $this->personalEmail,
+            'phone_number' => $this->phone,
+            'emergency_contact_phone' => $this->emergencyContact,
+            'gender' => $this->gender,
+            'blood_group' => $this->bloodGroup,
+            'marital_status' => $this->maritalStatus,
+            'date_of_birth' => $this->dob,
+            'date_of_joining' => $this->doj,
+            'attendance_tracking_start_date' => $this->attendanceTrackingStartDate ?: $this->attendance_tracking_start_date,
+            'employment_model' => $this->empType,
+            'prior_employment_flag' => $this->priorEmploymentFlag ? 1 : 0,
+            'residential_address' => $this->address,
+            'bank_account_number' => $this->accountNo,
+            'bank_ifsc' => $this->ifsc,
+            'bank_name' => $this->bankName,
+            'bank_branch' => $this->bankBranch,
+            'account_holder_name' => $this->accountHolder,
+            'pan_number' => $this->pan,
+            'aadhaar_number' => $this->aadhaar,
+            'uan_mode' => $this->uanMode,
+            'uan_number' => $this->uan,
+            'esi_mode' => $this->esiMode ?? 'new',
+            'esic_number' => $this->esiNo,
+            'basic_pay' => $this->basicSal,
+            'hra' => $this->hraSal,
+            'conveyance' => $this->conveyanceSal,
+            'da' => $this->daSal,
+            'medical_allowance' => $this->medicalSal,
+            'special_allowance' => $this->specialSal,
+            'other_additions' => $this->otherSal,
+            'pt_deduction_override' => $this->ptDeduction,
+            'pf_applicable' => filter_var($this->pfToggle, FILTER_VALIDATE_BOOLEAN) ? 1 : 0,
+            'eps_applicable' => $this->epsToggle !== null ? (filter_var($this->epsToggle, FILTER_VALIDATE_BOOLEAN) ? 1 : 0) : ($this->eps_applicable !== null ? (filter_var($this->eps_applicable, FILTER_VALIDATE_BOOLEAN) ? 1 : 0) : 1),
+            'esi_applicable' => filter_var($this->esiToggle, FILTER_VALIDATE_BOOLEAN) ? 1 : 0,
+            'health_insurance_provider' => $this->insuranceProvider ?? $this->health_insurance_provider ?? null,
+            'health_insurance_policy_no' => $this->insurancePolicyNo ?? $this->health_insurance_policy_no ?? null,
+            'health_insurance_sum_insured' => ($this->insuranceSumInsured !== null && $this->insuranceSumInsured !== '') ? (float)$this->insuranceSumInsured : (($this->health_insurance_sum_insured !== null && $this->health_insurance_sum_insured !== '') ? (float)$this->health_insurance_sum_insured : null),
+            'tds_applicable' => filter_var($this->tdsToggle, FILTER_VALIDATE_BOOLEAN) ? 1 : 0,
+            'pt_applicable' => filter_var($this->ptToggle, FILTER_VALIDATE_BOOLEAN) ? 1 : 0,
+            'lwf_applicable' => filter_var($this->lwfToggle, FILTER_VALIDATE_BOOLEAN) ? 1 : 0,
+            'bonus_toggle' => $this->bonusToggle ? 1 : 0,
+            'tds_regime' => $this->taxRegime ?? 'new',
+            'declarations_accepted' => $this->declarations === 'yes' ? 1 : 0,
+            'gratuity_mode' => $this->gratuityMode ?? 'part_of_ctc',
+            'lop_basis_days' => '30',
+            'weekly_off_pattern' => $this->weeklyOffPattern ?: $this->weekly_off_pattern ?: null,
+            'emergency_contact_name' => $this->emergencyContactName,
+            'previous_employer_name' => $this->prevEmployerName,
+            'previous_employer_uan' => $this->prevEmployerUAN,
+            'probation_end_date' => $this->probationEndDate,
+            'reporting_manager_id' => $this->reportingManagerId,
+            'notice_period_days' => $this->noticePeriodDays,
+            'joint_declaration_status' => $this->jointDeclarationStatus ?? $this->joint_declaration_status ?? 'not_required',
+            'esi_contribution_period_end' => $this->esiPeriodEnd,
+        ]);
     }
 
     /**
      * Get the validation rules that apply to the request.
-     *
-     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
         return [
-            //
+            'client_id' => 'required|exists:clients,id',
+            'first_name' => 'required|string|max:255',
+            'last_name' => 'required|string|max:255',
+            'father_name' => 'required|string|max:255',
+            'mother_name' => 'nullable|string|max:255',
+            'spouse_name' => 'nullable|string|max:255',
+            'full_name' => 'nullable|string|max:255',
+            'personal_email' => 'required|email|unique:employees,personal_email|unique:users,email',
+            'phone_number' => 'required|string|max:15|unique:employees,phone_number',
+            'emergency_contact_phone' => 'nullable|string|max:15',
+            'date_of_birth' => 'required|date|date_format:Y-m-d|before:-18 years',
+            'date_of_joining' => 'required|date|date_format:Y-m-d',
+            'attendance_tracking_start_date' => 'nullable|date|date_format:Y-m-d|after_or_equal:date_of_joining',
+            'designation' => 'required|string|max:255',
+            'gender' => 'nullable|in:male,female,other',
+            'blood_group' => 'nullable|string|max:10',
+            'marital_status' => 'nullable|in:single,married,other',
+            'employment_model' => [
+                'required',
+                'in:eor,agency_contract',
+                function ($attribute, $value, $fail) {
+                    if ($this->client_id) {
+                        $client = \App\Models\Client::find($this->client_id);
+                        if ($client) {
+                            if ($client->contract_type === 'agency' && $value === 'eor') {
+                                $fail("Employment model 'eor' is not permitted for client '{$client->company_name}' configured under Agency Payroll (agency). Must be 'agency_contract'.");
+                            } elseif ($client->contract_type === 'eor' && $value === 'agency_contract') {
+                                $fail("Employment model 'agency_contract' is not permitted for client '{$client->company_name}' configured under Pass-through EOR (eor). Must be 'eor'.");
+                            }
+                        }
+                    }
+                }
+            ],
+            'prior_employment_flag' => 'required|boolean',
+            'residential_address' => 'required|string',
+            
+            // Banking
+            'bank_account_number' => [
+                'required',
+                'string',
+                function ($attribute, $value, $fail) {
+                    if (Employee::where('bank_account_hash', hash('sha256', $value))->exists()) {
+                        $fail('This bank account is already registered to another employee.');
+                    }
+                }
+            ],
+            'bank_ifsc' => 'required|string|regex:/^[A-Z]{4}0[A-Z0-9]{6}$/',
+            'bank_name' => 'nullable|string',
+            'bank_branch' => 'nullable|string',
+            'account_holder_name' => 'required|string|max:255',
+            
+            // Identity
+            'pan_number' => [
+                'required',
+                'string',
+                'regex:/^[A-Z]{5}[0-9]{4}[A-Z]$/',
+                function ($attribute, $value, $fail) {
+                    if (Employee::where('pan_number_hash', hash('sha256', $value))->exists()) {
+                        $fail('This PAN number is already registered to another employee.');
+                    }
+                }
+            ],
+            'aadhaar_number' => [
+                'nullable',
+                'string',
+                function ($attribute, $value, $fail) {
+                    if (Employee::where('aadhaar_number_hash', hash('sha256', $value))->exists()) {
+                        $fail('This Aadhaar number is already registered to another employee.');
+                    }
+                }
+            ],
+            
+            // Statutory
+            'uan_mode' => 'nullable|in:new,existing_transfer',
+            'uan_number' => [
+                'nullable',
+                'digits:12',
+                Rule::requiredIf(fn() => $this->pf_applicable && $this->uan_mode === 'existing_transfer')
+            ],
+            'esi_mode' => 'nullable|in:new,existing_transfer',
+            'esic_number' => [
+                'nullable',
+                'digits:10',
+                Rule::requiredIf(fn() => $this->esi_applicable && ($this->esi_mode ?? 'new') === 'existing_transfer')
+            ],
+            'pf_applicable' => 'boolean',
+            'eps_applicable' => 'nullable|boolean',
+            'joint_declaration_status' => 'nullable|string|in:not_required,pending,submitted,approved',
+            'esi_applicable' => 'boolean',
+            'health_insurance_provider' => 'nullable|string|max:100',
+            'health_insurance_policy_no' => 'nullable|string|max:100',
+            'health_insurance_sum_insured' => 'nullable|numeric|min:0',
+            'tds_applicable' => 'boolean',
+            'pt_applicable' => 'boolean',
+            'lwf_applicable' => 'boolean',
+            'bonus_toggle' => 'boolean',
+            'tds_regime' => 'required|in:old,new',
+            'gratuity_mode' => 'required|in:part_of_ctc,over_and_above',
+            'lop_basis_days' => 'required|integer|min:15|max:31',
+            'weekly_off_pattern' => ['nullable', 'string', 'regex:/^(mon|tue|wed|thu|fri|sat|sun)(,(mon|tue|wed|thu|fri|sat|sun)){0,6}$/i'],
+            
+            // Salary
+            'basic_pay' => 'required|numeric|min:0',
+            'hra' => 'required|numeric|min:0',
+            'conveyance' => 'required|numeric|min:0',
+            'da' => 'required|numeric|min:0',
+            'medical_allowance' => 'required|numeric|min:0',
+            'special_allowance' => 'required|numeric|min:0',
+            'other_additions' => 'required|numeric|min:0',
+            'pt_deduction_override' => 'nullable|numeric|min:0',
+
+            // Previously missing fields
+            'emergency_contact_name' => 'nullable|string|max:255',
+            'previous_employer_name' => 'nullable|string|max:255',
+            'previous_employer_uan' => 'nullable|string|max:255',
+            'probation_end_date' => 'nullable|date|date_format:Y-m-d|after_or_equal:date_of_joining',
+            'reporting_manager_id' => 'nullable|exists:employees,id',
+            'notice_period_days' => 'nullable|integer|min:0',
+            'esi_contribution_period_end' => 'nullable|date|date_format:Y-m-d',
+            'declarations_accepted' => 'required|boolean',
         ];
+    }
+
+    public function withValidator($validator)
+    {
+        $validator->after(function ($validator) {
+            $clientId = $this->client_id ?: $this->clientPartner;
+            if ($clientId) {
+                $client = \App\Models\Client::find($clientId);
+                if ($client) {
+                    $isActualOnEmp = ($client->employee_pf_wage_basis === 'actual_basic_da');
+                    $isActualOnEmpr = ($client->employer_pf_wage_basis === 'actual_basic_da');
+                    $basicDa = ((float)($this->basic_pay ?? 0)) + ((float)($this->da ?? 0));
+
+                    if (($isActualOnEmp || $isActualOnEmpr) && $basicDa > 15000) {
+                        $status = $this->joint_declaration_status ?? $this->jointDeclarationStatus ?? 'not_required';
+                        if (!in_array($status, ['submitted', 'approved'])) {
+                            $validator->errors()->add('joint_declaration_status', 'Para 26(6) Joint Declaration is required when PF wage basis is Actual Basic+DA and Basic+DA exceeds ₹15,000.');
+                        }
+                    }
+                }
+            }
+        });
     }
 }

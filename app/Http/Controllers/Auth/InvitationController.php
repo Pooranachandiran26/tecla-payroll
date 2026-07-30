@@ -12,7 +12,10 @@ use Illuminate\Support\Facades\Hash;
 
 class InvitationController extends Controller
 {
-    public function __construct(protected InvitationService $invitationService) {}
+    public function __construct(
+        protected InvitationService $invitationService,
+        protected \App\Services\PasswordService $passwordService
+    ) {}
 
     public function show(string $token)
     {
@@ -31,14 +34,15 @@ class InvitationController extends Controller
         return Inertia::render('Auth/AcceptInvitation', [
             'email' => $user->email,
             'role' => $user->role,
-            'token' => $token
+            'token' => $token,
+            'passwordPolicyRules' => $this->passwordService->getPolicyRules()
         ]);
     }
 
     public function complete(string $token, Request $request)
     {
         $request->validate([
-            'password' => 'required|confirmed' // Add more rules using PasswordService if needed
+            'password' => ['required', 'confirmed', $this->passwordService->buildValidationRules()]
         ]);
 
         try {

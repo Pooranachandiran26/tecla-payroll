@@ -40,8 +40,6 @@ export const INDUSTRIES = [
 export const CONTRACT_TYPES = [
   { value: 'agency', label: 'Agency Payroll (Staffing Model)' },
   { value: 'eor', label: 'Employer of Record (EOR / Pass-through)' },
-  { value: 'hybrid', label: 'Hybrid (Agency + EOR)' },
-  { value: 'consulting', label: 'Consulting / Project Based' },
 ];
 
 export const BILLING_MODELS = [
@@ -261,7 +259,7 @@ export function getDefaultFormData() {
     // Contacts
     poc1: { name: '', designation: '', email: '', phone: '', whatsappSame: true, prefs: { email: true, sms: true, wa: true } },
     poc2: { name: '', designation: '', email: '', phone: '', whatsappSame: true, ccInvoice: true, prefs: { email: true, sms: false, wa: false } },
-    poc3: { name: '', email: '', whatsappSame: true, onboardingKits: true, prefs: { email: true, sms: false, wa: false } },
+    poc3: { name: '', designation: '', email: '', phone: '', whatsappSame: true, onboardingKits: true, prefs: { email: true, sms: false, wa: false } },
 
     // Contract & Billing
     contractType: '', billingModel: '',
@@ -278,20 +276,23 @@ export function getDefaultFormData() {
     noticePeriod: 30, creditLimit: '', latePenalty: '', billingCurrency: 'INR',
 
     // Statutory
-    pfCeiling: 15000, pfApplicable: true,
+    pfCeiling: 15000, employeePfWageBasis: 'ceiling', employerPfWageBasis: 'ceiling', pfApplicable: true, edliExempted: false,
     esiLimit: 21000, esiApplicable: true,
     ptState: 'auto', ptApplicable: true,
-    lwfFrequency: 'biannual', lwfApplicable: false,
+    lwfFrequency: 'annual', lwfApplicable: false,
     tdsRegime: 'new', tdsApplicable: true,
     gratuityMode: 'ctc_included', gratuityApplicable: true,
     bonusPct: 8.33, bonusApplicable: false,
-    lopBasis: 'inherit',
+    healthInsuranceEnabled: true,
+    weeklyOffPattern: 'sat,sun',
+    lopBasis: '30', // Strictly 30 days divisor
 
     // Portal
     portalAccess: false, portalEmail: '', portalAccessLevel: 'view_only',
     portalViewSalary: true, portalViewInvoices: true,
     portalViewPayslips: false, portalRaiseRequests: true,
     portal2fa: true, sessionTimeout: 60, ipWhitelist: '', logoUrl: '',
+    displayNameOverride: '', accentColor: '#1F3864',
 
     // SLA
     attendanceCutoff: '28', payrollLockDay: '3', salaryCreditDay: '7',

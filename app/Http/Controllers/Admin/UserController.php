@@ -6,20 +6,70 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use App\Models\User;
+use App\Models\Client;
+use App\Models\Employee;
 use App\Services\InvitationService;
 
 class UserController extends Controller
 {
     public function __construct(protected InvitationService $invitationService) {}
 
-    public function index()
+    public function index(Request $request)
     {
-        $users = User::with(['employee:id,first_name,last_name', 'client:id,company_name'])
-                     ->orderBy('name')
-                     ->get();
+        $tab = $request->input('tab', 'system');
+        $search = $request->input('search', '');
+
+        $query = User::with([
+            'employee:id,full_name,client_id', 
+            'employee.client:id,company_name',
+            'client:id,company_name',
+            'managedClients:id,company_name,client_code'
+        ]);
+
+        if ($tab === 'employees') {
+            $query->where('role', 'employee');
+        } elseif ($tab === 'clients') {
+            $query->where('role', 'client');
+        } else {
+            // Default to system staff
+            $query->whereIn('role', ['admin', 'manager']);
+        }
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        $users = $query->orderBy('name')->paginate(20)->withQueryString();
+
+        $linkedEmployeeIds = User::whereNotNull('employee_id')->pluck('employee_id');
+        $unlinkedEmployees = Employee::whereNotIn('id', $linkedEmployeeIds)
+            ->select('id', 'full_name', 'employee_code as code')
+            ->orderBy('full_name')
+            ->get();
+
+        $linkedClientIds = User::whereNotNull('client_id')->pluck('client_id');
+        $unlinkedClients = Client::whereNotIn('id', $linkedClientIds)
+            ->select('id', 'company_name', 'client_code as code')
+            ->orderBy('company_name')
+            ->get();
+
+        $allClients = Client::where('status', 'active')
+            ->select('id', 'company_name', 'client_code as code')
+            ->orderBy('company_name')
+            ->get();
 
         return Inertia::render('Admin/UserManagement', [
-            'users' => $users
+            'users' => $users,
+            'unlinkedEmployees' => $unlinkedEmployees,
+            'unlinkedClients' => $unlinkedClients,
+            'allClients' => $allClients,
+            'filters' => [
+                'tab' => $tab,
+                'search' => $search
+            ]
         ]);
     }
 
@@ -31,10 +81,54 @@ class UserController extends Controller
             'role' => 'required|in:admin,manager,client,employee',
             'employee_id' => 'nullable|exists:employees,id|required_if:role,employee',
             'client_id' => 'nullable|exists:clients,id|required_if:role,client',
+            'assigned_client_ids' => 'nullable|array',
+            'assigned_client_ids.*' => 'exists:clients,id',
         ]);
 
-        $this->invitationService->createInvitation($request->only('name', 'email', 'role', 'employee_id', 'client_id'));
+        try {
+            $user = $this->invitationService->createInvitation($request->only('name', 'email', 'role', 'employee_id', 'client_id'));
+            
+            if ($user && $user->role === 'manager' && $request->has('assigned_client_ids')) {
+                $user->managedClients()->sync($request->input('assigned_client_ids', []));
+            }
 
-        return back()->with('message', 'User invited successfully.');
+            return back()->with('message', 'User invited successfully.');
+        } catch (\App\Exceptions\InvitationDeliveryException $e) {
+            return back()->withErrors(['email' => $e->getMessage()]);
+        }
+    }
+
+    public function updateManagedClients(Request $request, User $user)
+    {
+        $request->validate([
+            'assigned_client_ids' => 'nullable|array',
+            'assigned_client_ids.*' => 'exists:clients,id',
+        ]);
+
+        if ($user->role !== 'manager') {
+            return back()->withErrors(['message' => 'Client assignment is only applicable for manager role.']);
+        }
+
+        $user->managedClients()->sync($request->input('assigned_client_ids', []));
+
+        return back()->with('message', 'Assigned clients updated successfully.');
+    }
+
+    public function updateModulePermissions(Request $request, User $user)
+    {
+        $request->validate([
+            'module_permissions' => 'nullable|array',
+            'module_permissions.*' => 'string|in:dashboard,quick-access,clients,candidates,payroll,compliance,reports,admin',
+        ]);
+
+        if ($user->role !== 'manager') {
+            return back()->withErrors(['message' => 'Module permission customization is only applicable for manager role.']);
+        }
+
+        $user->update([
+            'module_permissions' => $request->input('module_permissions', null),
+        ]);
+
+        return back()->with('message', 'Customized module permissions updated successfully.');
     }
 }

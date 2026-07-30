@@ -1607,7 +1607,8 @@
           { id: 'reg-state', label: 'State' },
           { id: 'reg-pin', label: 'PIN Code' }
         );
-        if (!checkAllBranchesGSTIN()) {
+        const locCount = parseInt(document.getElementById('work-locations-count')?.value || '1', 10);
+        if (locCount > 1 && !checkAllBranchesGSTIN()) {
            isValid = false;
            const firstErrInput = document.querySelector('.client-branch-card[data-gstin-error="true"] .branch-gstin');
            if (!firstError && firstErrInput) firstError = firstErrInput;

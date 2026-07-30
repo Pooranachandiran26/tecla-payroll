@@ -6,7 +6,7 @@ export default function Toast({ message }) {
   useEffect(() => {
     if (message) {
       setVisible(true);
-      const timer = setTimeout(() => setVisible(false), 3000);
+      const timer = setTimeout(() => setVisible(false), 2000);
       return () => clearTimeout(timer);
     }
   }, [message]);

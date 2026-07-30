@@ -28,11 +28,15 @@ class PasswordResetController extends Controller
         $user = User::where('email', $request->email)->first();
 
         if ($user) {
-            $this->authService->generateOtp($user, 'password_reset', $request->ip());
-            session(['reset_email' => $user->email]);
+            try {
+                $this->authService->generateOtp($user, 'password_reset', $request->ip());
+                session(['reset_email' => $user->email]);
+            } catch (\App\Exceptions\OtpDeliveryException $e) {
+                return back()->withErrors(['email' => $e->getMessage()]);
+            }
         }
 
-        // Always return success to prevent email enumeration
+        // Always return success to prevent email enumeration (except on total email failure)
         return redirect('/reset-password/verify-otp');
     }
 
@@ -41,7 +45,8 @@ class PasswordResetController extends Controller
         if (!session('reset_email')) return redirect('/forgot-password');
         
         return Inertia::render('Auth/VerifyResetOtp', [
-            'email' => session('reset_email')
+            'email' => session('reset_email'),
+            'otpLength' => \App\Services\SettingsService::get('auth_security.otp_length', 6)
         ]);
     }
 
@@ -66,7 +71,9 @@ class PasswordResetController extends Controller
             return redirect('/forgot-password');
         }
 
-        return Inertia::render('Auth/ResetPassword');
+        return Inertia::render('Auth/ResetPassword', [
+            'passwordPolicyRules' => $this->passwordService->getPolicyRules()
+        ]);
     }
 
     public function resetPassword(Request $request)

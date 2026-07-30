@@ -42,4 +42,25 @@ class DataMasker
         
         return $firstTwo . str_repeat('*', $length - 4) . $lastTwo;
     }
+
+    /**
+     * Mask GSTIN, keeping first 2 and last 4 characters unmasked.
+     */
+    public static function maskGstin(?string $gstin): ?string
+    {
+        if (empty($gstin)) {
+            return $gstin;
+        }
+
+        $length = strlen($gstin);
+
+        if ($length <= 6) {
+            return self::maskIdentityNumber($gstin);
+        }
+
+        $firstTwo = substr($gstin, 0, 2);
+        $lastFour = substr($gstin, -4);
+        
+        return $firstTwo . str_repeat('*', $length - 6) . $lastFour;
+    }
 }

@@ -54,12 +54,18 @@ class SettingsService
 
         [$group, $settingKey] = $parts;
 
-        $setting = Setting::where('group', $group)->where('key', $settingKey)->firstOrFail();
-        
-        $setting->update([
-            'value' => self::uncastValue($value, $setting->type),
-            'updated_by' => $updatedBy,
+        $setting = Setting::firstOrNew([
+            'group' => $group,
+            'key' => $settingKey,
         ]);
+        
+        if (!$setting->exists) {
+            $setting->type = is_bool($value) || $value === 'true' || $value === 'false' ? 'boolean' : (is_int($value) ? 'integer' : 'string');
+        }
+
+        $setting->value = self::uncastValue($value, $setting->type);
+        $setting->updated_by = $updatedBy;
+        $setting->save();
 
         // Invalidate cache for this group
         Cache::forget("settings.{$group}");
@@ -76,6 +82,7 @@ class SettingsService
             'boolean' => filter_var($value, FILTER_VALIDATE_BOOLEAN),
             'integer' => (int) $value,
             'json' => json_decode($value, true),
+            'encrypted' => $value ? \Illuminate\Support\Facades\Crypt::decryptString($value) : '',
             default => (string) $value,
         };
     }
@@ -88,6 +95,7 @@ class SettingsService
         return match ($type) {
             'boolean' => filter_var($value, FILTER_VALIDATE_BOOLEAN) ? 'true' : 'false',
             'json' => is_string($value) ? $value : json_encode($value),
+            'encrypted' => $value ? \Illuminate\Support\Facades\Crypt::encryptString($value) : '',
             default => (string) $value,
         };
     }
@@ -98,5 +106,22 @@ class SettingsService
     public function getAuthSecurity(string $key, $default = null)
     {
         return static::get("auth_security.{$key}", $default);
+    }
+
+    /**
+     * Get all settings for a specific group.
+     */
+    public static function group(string $group): array
+    {
+        $settings = Cache::rememberForever("settings.{$group}", function () use ($group) {
+            return Setting::where('group', $group)->get()->keyBy('key');
+        });
+
+        $result = [];
+        foreach ($settings as $key => $setting) {
+            $result[$key] = self::castValue($setting->value, $setting->type);
+        }
+
+        return $result;
     }
 }

@@ -1,28 +1,25 @@
 import React from 'react';
-import { CUTOFF_DAYS, PAYROLL_LOCK_DAYS, SALARY_CREDIT_DAYS, INVOICE_RAISE_DAYS, PAYROLL_CONVENTIONS, ACCOUNT_MANAGERS } from '../constants/clientFormData';
+import { usePage } from '@inertiajs/react';
+import { CUTOFF_DAYS, PAYROLL_LOCK_DAYS, SALARY_CREDIT_DAYS, INVOICE_RAISE_DAYS, PAYROLL_CONVENTIONS } from '../constants/clientFormData';
+import { Clock, Calendar, Info } from 'lucide-react';
 
 export default function SlaSection({ formData, errors, onChange, hook }) {
+  const { accountManagers = [] } = usePage().props;
   const showCustomCycle = formData.payrollMonthConvention === 'custom';
 
   return (
     <>
       <div className="section-header">
-        <div className="section-icon">📅</div>
+        <div className="section-icon"><Clock size={18} /></div>
         <h3>SLA &amp; Payroll Calendar</h3>
       </div>
 
-      <div className="info-box" style={{ marginBottom: '1rem' }}>
-        📆 Define the payroll processing timeline for this client. These dates drive automated reminders and lock-outs.
+      <div className="info-box" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+        <Calendar size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
+        <div>Define the payroll processing timeline for this client. These dates drive automated reminders and lock-outs.</div>
       </div>
 
       <div className="form-row">
-        <div className="form-group">
-          <label>Attendance Cut-off Day (of month)</label>
-          <select className="form-control" value={formData.attendanceCutoff} onChange={e => onChange('attendanceCutoff', e.target.value)}>
-            {CUTOFF_DAYS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
-          </select>
-          <div className="field-hint">Attendance submitted after this date will be counted in next month.</div>
-        </div>
         <div className="form-group">
           <label>Payroll Lock / Processing Day</label>
           <select className="form-control" value={formData.payrollLockDay} onChange={e => onChange('payrollLockDay', e.target.value)}>
@@ -83,14 +80,14 @@ export default function SlaSection({ formData, errors, onChange, hook }) {
           <label>Assigned Account Manager (Internal)</label>
           <select className="form-control" value={formData.accountManager} onChange={e => onChange('accountManager', e.target.value)}>
             <option value="">-- Assign Account Manager --</option>
-            {ACCOUNT_MANAGERS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+            {accountManagers.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
           </select>
         </div>
         <div className="form-group">
           <label>Backup Account Manager</label>
           <select className="form-control" value={formData.backupAccountManager} onChange={e => onChange('backupAccountManager', e.target.value)}>
             <option value="">-- Select Backup AM --</option>
-            {ACCOUNT_MANAGERS.filter(m => m.value !== formData.accountManager).map(m => (
+            {accountManagers.filter(m => m.value != formData.accountManager).map(m => (
               <option key={m.value} value={m.value}>{m.label}</option>
             ))}
           </select>
@@ -113,8 +110,9 @@ export default function SlaSection({ formData, errors, onChange, hook }) {
       </div>
 
       {formData.autoReminders && (
-        <div className="info-box" style={{ marginTop: '1rem', background: '#FFFBF0', borderColor: 'var(--accent-gold)' }}>
-          ℹ️ <strong>System will auto-send:</strong> Attendance reminder 3 days before cut-off | Invoice reminder 2 days before due date | Overdue alert on Day 1, 7, 15 after due date
+        <div className="info-box" style={{ marginTop: '1rem', background: '#FFFBF0', borderColor: 'var(--accent-gold)', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+          <Info size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
+          <div><strong>System will auto-send:</strong> Attendance reminder 3 days before cut-off | Invoice reminder 2 days before due date | Overdue alert on Day 1, 7, 15 after due date</div>
         </div>
       )}
 

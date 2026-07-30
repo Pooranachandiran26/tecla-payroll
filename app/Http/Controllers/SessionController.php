@@ -41,6 +41,11 @@ class SessionController extends Controller
         if ($session) {
             app(\App\Services\AuditService::class)->log('session_revoked', Auth::user(), Auth::user(), null, null, ['session_id' => $id, 'ip_address' => $session->ip_address]);
             DB::table('sessions')->where('id', $id)->delete();
+            
+            // Invalidate remember token to prevent automatic re-login across devices
+            $user = Auth::user();
+            $user->setRememberToken(\Illuminate\Support\Str::random(60));
+            $user->save();
         }
 
         return back()->with('message', 'Session revoked.');
@@ -48,29 +53,53 @@ class SessionController extends Controller
 
     public function allSessions(Request $request)
     {
-        $sessions = DB::table('sessions')
+        $perPage = 15;
+        $page    = max(1, (int) $request->input('page', 1));
+        $search  = $request->input('search', '');
+
+        $query = DB::table('sessions')
             ->join('users', 'sessions.user_id', '=', 'users.id')
             ->select('sessions.*', 'users.name', 'users.email')
-            ->orderBy('sessions.last_activity', 'desc')
-            ->get()
-            ->map(function ($session) {
-                $agent = new Agent();
-                $agent->setUserAgent($session->user_agent);
+            ->orderBy('sessions.last_activity', 'desc');
 
-                return [
-                    'id' => $session->id,
-                    'user_id' => $session->user_id,
-                    'name' => $session->name,
-                    'email' => $session->email,
-                    'ip_address' => $session->ip_address,
-                    'last_active' => \Carbon\Carbon::createFromTimestamp($session->last_activity)->toDateTimeString(),
-                    'browser' => $agent->browser(),
-                    'platform' => $agent->platform(),
-                ];
+        if ($search) {
+            $query->where(function($q) use ($search) {
+                $q->where('users.name', 'like', "%{$search}%")
+                  ->orWhere('users.email', 'like', "%{$search}%")
+                  ->orWhere('sessions.ip_address', 'like', "%{$search}%");
             });
+        }
+
+        $total   = $query->count();
+        $records = $query->skip(($page - 1) * $perPage)->take($perPage)->get();
+
+        $mapped = $records->map(function ($session) {
+            $agent = new Agent();
+            $agent->setUserAgent($session->user_agent);
+
+            return [
+                'id'          => $session->id,
+                'user_id'     => $session->user_id,
+                'name'        => $session->name,
+                'email'       => $session->email,
+                'ip_address'  => $session->ip_address,
+                'last_active' => \Carbon\Carbon::createFromTimestamp($session->last_activity)->toDateTimeString(),
+                'browser'     => $agent->browser(),
+                'platform'    => $agent->platform(),
+            ];
+        });
 
         return Inertia::render('Admin/Sessions', [
-            'sessions' => $sessions
+            'sessions' => [
+                'data'         => $mapped,
+                'total'        => $total,
+                'per_page'     => $perPage,
+                'current_page' => $page,
+                'last_page'    => max(1, (int) ceil($total / $perPage)),
+                'from'         => $total > 0 ? ($page - 1) * $perPage + 1 : 0,
+                'to'           => min($page * $perPage, $total),
+            ],
+            'filters' => ['search' => $search],
         ]);
     }
 
@@ -81,6 +110,10 @@ class SessionController extends Controller
             $user = \App\Models\User::find($session->user_id);
             if ($user) {
                 app(\App\Services\AuditService::class)->log('session_revoked', Auth::user(), $user, null, null, ['session_id' => $id, 'ip_address' => $session->ip_address]);
+                
+                // Invalidate remember token to prevent automatic re-login across devices
+                $user->setRememberToken(\Illuminate\Support\Str::random(60));
+                $user->save();
             }
             DB::table('sessions')->where('id', $id)->delete();
         }

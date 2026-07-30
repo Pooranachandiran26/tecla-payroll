@@ -68,7 +68,7 @@ export default function PayrollReconciliation() {
   ];
 
   return (
-    <RoleGuard allowedRoles={['admin', 'executive']}>
+    <RoleGuard allowedRoles={['admin', 'manager']}>
     <AuthenticatedLayout>
       <Head title="Payroll Reconciliation" />
 
