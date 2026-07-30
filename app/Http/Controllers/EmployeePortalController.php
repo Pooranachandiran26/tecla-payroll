@@ -8,7 +8,9 @@ use App\Models\Employee;
 use App\Models\AttendanceRecord;
 use App\Http\Resources\EmployeeResource;
 use App\Services\AttendanceResolutionService;
+use App\Services\NotificationService;
 use Carbon\Carbon;
+
 
 class EmployeePortalController extends Controller
 {
@@ -430,13 +432,23 @@ class EmployeePortalController extends Controller
 
         \App\Models\LeaveRequest::create([
             'employee_id' => $employee->id,
-            'leave_type' => $validated['leave_type'],
-            'from_date' => $fromDate,
-            'to_date' => $toDate,
-            'days_count' => $daysCount,
-            'reason' => $validated['reason'],
-            'status' => 'pending'
+            'leave_type'  => $validated['leave_type'],
+            'from_date'   => $fromDate,
+            'to_date'     => $toDate,
+            'days_count'  => $daysCount,
+            'reason'      => $validated['reason'],
+            'status'      => 'pending'
         ]);
+
+        // Notify admins & managers in-app (isolated: never breaks leave submission)
+        $leaveTypeName = ucwords(str_replace('_', ' ', $validated['leave_type']));
+        NotificationService::sendToAdminsAndManagers(
+            type: 'leave_request',
+            title: 'New Leave Request Pending Approval',
+            body: "{$employee->full_name} ({$employee->employee_code}) submitted a {$leaveTypeName} Leave request for {$daysCount} day(s).",
+            url: route('leave-requests.index'),
+            data: ['employee_id' => $employee->id]
+        );
 
         return redirect()->back()->with('success', 'Leave request submitted successfully.');
     }

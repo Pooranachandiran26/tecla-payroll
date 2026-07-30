@@ -5,6 +5,8 @@ import { useState, useEffect, useCallback } from 'react';
 import ToastContainer from '../Components/ui/Toast';
 import { useRole } from '../Contexts/RoleContext.jsx';
 import useToast from '../Hooks/useToast';
+import NotificationPanel from '../Components/NotificationPanel';
+
 
 export default function AuthenticatedLayout({ children, hideSubNav = false }) {
   const { url, component } = usePage();
@@ -12,8 +14,9 @@ export default function AuthenticatedLayout({ children, hideSubNav = false }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   // Use auth, branding, flash, and pendingQueryCount from usePage().props
-  const { auth, branding, flash, pendingQueryCount } = usePage().props;
-  const unreadCount = Number(pendingQueryCount || 0);
+  const { auth, branding, flash, notificationCount } = usePage().props;
+  const unreadCount = Number(notificationCount || 0);
+
   const { showToast } = useToast();
   const role = auth?.user?.role || 'guest';
   const userName = auth?.user?.name || 'User';
@@ -123,10 +126,11 @@ export default function AuthenticatedLayout({ children, hideSubNav = false }) {
           </nav>
 
           <div className="user-actions">
-            <button className="notif-bell" title={unreadCount > 0 ? `${unreadCount} Pending Queries` : 'Notifications'}>
-              <Bell size={20} />
-              {unreadCount > 0 && <span className="notif-badge">{unreadCount}</span>}
-            </button>
+            {/* Notification Bell — fully wired via NotificationPanel */}
+            {(role === 'admin' || role === 'manager') && (
+              <NotificationPanel unreadCount={unreadCount} />
+            )}
+
             
             <div className="user-profile-menu" style={{ position: 'relative', cursor: 'pointer' }} onClick={() => setDropdownOpen(!dropdownOpen)}>
               <div className="avatar" title={userName}>

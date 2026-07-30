@@ -9,10 +9,12 @@ use App\Models\User;
 use App\Events\EmployeeQuerySubmitted;
 use App\Mail\ClientQueryReceivedMail;
 use App\Mail\EmployeeQueryRespondedMail;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
+
 
 class EmployeeQueryController extends Controller
 {
@@ -64,10 +66,19 @@ class EmployeeQueryController extends Controller
             'status' => 'pending',
         ]);
 
-        // 1. Dispatch watcher notification (Agency Admin / Watchers)
+        // 1. Dispatch watcher email notification (Agency Admin / Watchers) — unchanged
         EmployeeQuerySubmitted::dispatch($query);
 
-        // 2. Defensive check for Client Primary Contact
+        // 2. In-app notification for admins & managers (isolated: never breaks submission)
+        NotificationService::sendToAdminsAndManagers(
+            type: 'employee_query',
+            title: 'New Employee Support Query',
+            body: "{$employee->full_name} ({$employee->employee_code}) submitted a [{$request->category}] query: {$request->subject}",
+            url: route('admin.employee-queries.index'),
+            data: ['query_id' => $query->id, 'employee_id' => $employee->id]
+        );
+
+        // 3. Defensive check for Client Primary Contact email — unchanged
         $client = Client::find($query->client_id);
         if ($client) {
             $primaryContact = $client->contacts()->where('contact_type', 'primary')->first();

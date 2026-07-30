@@ -29,5 +29,17 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->respond(function ($response, \Throwable $e, \Illuminate\Http\Request $request) {
+            if ($response->getStatusCode() === 403) {
+                return \Inertia\Inertia::render('Error', [
+                    'status' => 403,
+                    'title' => '403 — Access Forbidden',
+                    'message' => $e->getMessage() ?: 'You do not have permission to access this page or module.',
+                ])
+                ->toResponse($request)
+                ->setStatusCode(403);
+            }
+
+            return $response;
+        });
     })->create();

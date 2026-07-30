@@ -68,7 +68,11 @@ class HandleInertiaRequests extends Middleware
                 'warning' => fn () => $request->session()->get('warning'),
                 'info' => fn () => $request->session()->get('info'),
             ],
-            'pendingQueryCount' => fn () => ($request->user() && in_array($request->user()->role, ['admin', 'manager'])) ? \App\Models\EmployeeQuery::where('status', 'pending')->count() : 0,
+            // notificationCount: unread in-app notifications for Admin/Manager only (v1 scope boundary).
+            // Employees and Clients intentionally receive 0 — they are excluded from in-app notifications.
+            'notificationCount' => fn () => ($request->user() && in_array($request->user()->role, ['admin', 'manager']))
+                ? \App\Models\AppNotification::where('user_id', $request->user()->id)->whereNull('read_at')->count()
+                : 0,
         ];
     }
 }

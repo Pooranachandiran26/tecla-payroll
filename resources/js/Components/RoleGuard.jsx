@@ -1,9 +1,10 @@
-import { useEffect } from 'react';
-import { router, usePage } from '@inertiajs/react';
-import { useRole, ROLE_DASHBOARDS } from '../Contexts/RoleContext.jsx';
+import { usePage } from '@inertiajs/react';
+import { useRole } from '../Contexts/RoleContext.jsx';
+import Error from '../Pages/Error';
 
 /**
  * RoleGuard — prevents unauthorized role or module permission access to a page.
+ * Renders the 403 Error page design if access is restricted.
  */
 export default function RoleGuard({ allowedRoles = [], moduleKey = null, children }) {
   const { role } = useRole();
@@ -18,15 +19,13 @@ export default function RoleGuard({ allowedRoles = [], moduleKey = null, childre
     }
   }
 
-  useEffect(() => {
-    if (!isAllowed) {
-      const redirectTo = ROLE_DASHBOARDS[role] || '/dashboard';
-      router.visit(redirectTo);
-    }
-  }, [isAllowed, role]);
-
   if (!isAllowed) {
-    return null;
+    const moduleName = moduleKey ? moduleKey.charAt(0).toUpperCase() + moduleKey.slice(1) : null;
+    const msg = moduleName
+      ? `Access Restricted: Your account role does not have permission to access the ${moduleName} module.`
+      : 'Access Restricted: You do not have permission to view this page.';
+
+    return <Error status={403} message={msg} />;
   }
 
   return children;

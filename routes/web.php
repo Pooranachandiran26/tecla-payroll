@@ -21,6 +21,7 @@ use App\Http\Controllers\DaySwapController;
 use App\Http\Controllers\ClientHolidayController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmployeeLoanController;
+use App\Http\Controllers\NotificationController;
 
 // -----------------------------------------------------------------------
 // GUEST ROUTES (Unauthenticated)
@@ -207,6 +208,11 @@ Route::middleware(['auth', 'active'])->group(function () {
             Route::post('/admin/employee-queries/{query}/respond', [\App\Http\Controllers\EmployeeQueryController::class, 'adminRespond'])->name('admin.employee-queries.respond');
         });
  
+        // Notifications (Admin & Manager)
+        Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+        Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
+        Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.readAll');
+
         // ADMIN & MANAGER ACCESS (Gated by module:admin permission)
         Route::middleware(['role:admin,manager', 'module:admin'])->group(function () {
             Route::post('/payroll/runs', [\App\Http\Controllers\PayrollController::class, 'process'])->name('payroll.run.process');
@@ -266,11 +272,11 @@ Route::middleware(['auth', 'active'])->group(function () {
 
         // CLIENT ONLY
         Route::middleware('role:client')->group(function () {
-            Route::get('/client/dashboard', fn() => Inertia::render('ClientPortal/ClientDashboard'))->name('client.dashboard');
-            Route::get('/client/employees', fn() => Inertia::render('ClientPortal/ClientCandidates'))->name('client.employees');
-            Route::get('/client/attendance', fn() => Inertia::render('ClientPortal/ClientAttendanceApproval'))->name('client.attendance');
-            Route::get('/client/invoices', fn() => Inertia::render('ClientPortal/ClientInvoices'))->name('client.invoices');
-            Route::get('/client/profile', [ClientPortalController::class,'show'])->name('client.profile');
+            Route::get('/client/dashboard', [\App\Http\Controllers\ClientPortalController::class, 'dashboard'])->name('client.dashboard');
+            Route::get('/client/employees', [\App\Http\Controllers\ClientPortalController::class, 'employees'])->name('client.employees');
+            Route::get('/client/attendance', [\App\Http\Controllers\ClientPortalController::class, 'attendance'])->name('client.attendance');
+            Route::get('/client/invoices', [\App\Http\Controllers\ClientPortalController::class, 'invoices'])->name('client.invoices');
+            Route::get('/client/profile', [\App\Http\Controllers\ClientPortalController::class, 'show'])->name('client.profile');
         });
 
         // EMPLOYEE ONLY

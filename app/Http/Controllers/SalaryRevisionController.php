@@ -14,6 +14,8 @@ use Carbon\Carbon;
 
 use Illuminate\Support\Facades\Mail;
 use App\Mail\PromotionRevisionApprovedMail;
+use App\Services\NotificationService;
+
 
 class SalaryRevisionController extends Controller
 {
@@ -94,6 +96,15 @@ class SalaryRevisionController extends Controller
             'new_designation' => $newDesignation,
             'status' => 'pending_approval',
         ]);
+
+        // Notify all admins in-app (isolated: failure here never breaks the revision submission)
+        NotificationService::sendToAdmins(
+            type: 'salary_revision',
+            title: 'Salary Revision Pending Approval',
+            body: "{$employee->full_name} ({$employee->employee_code}) has submitted a salary revision request.",
+            url: route('employees.salary-revision.create', $employee->id),
+            data: ['employee_id' => $employee->id]
+        );
 
         return redirect()->back()->with('success', 'Salary revision submitted and is pending approval.');
     }
