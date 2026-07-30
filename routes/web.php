@@ -29,10 +29,10 @@ use App\Http\Controllers\NotificationController;
 Route::middleware('guest')->group(function () {
     Route::get('/', fn() => redirect('/login'));
     Route::get('/login', [LoginController::class, 'showLogin'])->name('login');
-    Route::post('/login', [LoginController::class, 'login'])->middleware('throttle:5,1')->name('login.post');
+    Route::post('/login', [LoginController::class, 'login'])->middleware('throttle:15,1')->name('login.post');
     Route::get('/login/verify-otp', [LoginController::class, 'showVerifyOtp'])->name('login.verify.show');
-    Route::post('/login/verify-otp', [LoginController::class, 'verifyOtp'])->middleware('throttle:5,1')->name('login.verify.post');
-    Route::post('/login/resend-otp', [LoginController::class, 'resendOtp'])->middleware('throttle:1,1')->name('login.resend-otp');
+    Route::post('/login/verify-otp', [LoginController::class, 'verifyOtp'])->middleware('throttle:15,1')->name('login.verify.post');
+    Route::post('/login/resend-otp', [LoginController::class, 'resendOtp'])->middleware('throttle:3,1')->name('login.resend-otp');
     
     Route::get('/invitation/{token}', [InvitationController::class, 'show'])->name('invitation.show');
     Route::post('/invitation/{token}/complete', [InvitationController::class, 'complete'])->name('invitation.complete');
