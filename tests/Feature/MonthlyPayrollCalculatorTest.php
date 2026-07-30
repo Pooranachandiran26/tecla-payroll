@@ -232,8 +232,8 @@ class MonthlyPayrollCalculatorTest extends TestCase
             'loan_emi_deduction' => 8000.00,
         ]);
 
-        $this->assertEquals(7425.00, $result['loan_emi_deduction']);
-        $this->assertEquals(575.00, $result['deferred_loan_amount']);
+        $this->assertEquals(7305.00, $result['loan_emi_deduction']);
+        $this->assertEquals(695.00, $result['deferred_loan_amount']);
         $this->assertEquals(10000.00, $result['net_pay']); // Gross 20000 - Deductions 10000 = 10000 net pay
     }
 
@@ -558,7 +558,7 @@ class MonthlyPayrollCalculatorTest extends TestCase
         $this->assertEquals(10000.00, $result['gross_total']);
 
         // -- Statutory Deductions --
-        $this->assertEquals(600.00, $result['employee_pf']);     // 12% of 5000
+        $this->assertEquals(660.00, $result['employee_pf']);     // 12% of (basic 5000 + da 500 = 5500)
         $this->assertEquals(75.00, $result['employee_esi']);     // 0.75% of 10000
 
         // -- LOP Deduction --

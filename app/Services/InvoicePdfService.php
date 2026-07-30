@@ -97,11 +97,15 @@ class InvoicePdfService
             'isEor' => $isEor,
         ];
 
-        $pdf = Pdf::loadView('pdf.invoice', $data)
-            ->setPaper('a4', 'portrait')
-            ->setOption('isRemoteEnabled', true);
+        if (class_exists(\Barryvdh\DomPDF\Facade\Pdf::class) || class_exists('Barryvdh\DomPDF\Facade\Pdf')) {
+            $pdf = Pdf::loadView('pdf.invoice', $data)
+                ->setPaper('a4', 'portrait')
+                ->setOption('isRemoteEnabled', true);
 
-        return $pdf->output();
+            return $pdf->output();
+        }
+
+        return view('pdf.invoice', $data)->render();
     }
 
     private function numberToEnglishWords(int $number): string

@@ -103,6 +103,7 @@ class StoreEmployeeRequest extends FormRequest
             'probation_end_date' => $this->probationEndDate,
             'reporting_manager_id' => $this->reportingManagerId,
             'notice_period_days' => $this->noticePeriodDays,
+            'joint_declaration_status' => $this->jointDeclarationStatus ?? $this->joint_declaration_status ?? 'not_required',
             'esi_contribution_period_end' => $this->esiPeriodEnd,
         ]);
     }
@@ -200,6 +201,7 @@ class StoreEmployeeRequest extends FormRequest
             ],
             'pf_applicable' => 'boolean',
             'eps_applicable' => 'nullable|boolean',
+            'joint_declaration_status' => 'nullable|string|in:not_required,pending,submitted,approved',
             'esi_applicable' => 'boolean',
             'health_insurance_provider' => 'nullable|string|max:100',
             'health_insurance_policy_no' => 'nullable|string|max:100',
@@ -233,5 +235,27 @@ class StoreEmployeeRequest extends FormRequest
             'esi_contribution_period_end' => 'nullable|date|date_format:Y-m-d',
             'declarations_accepted' => 'required|boolean',
         ];
+    }
+
+    public function withValidator($validator)
+    {
+        $validator->after(function ($validator) {
+            $clientId = $this->client_id ?: $this->clientPartner;
+            if ($clientId) {
+                $client = \App\Models\Client::find($clientId);
+                if ($client) {
+                    $isActualOnEmp = ($client->employee_pf_wage_basis === 'actual_basic_da');
+                    $isActualOnEmpr = ($client->employer_pf_wage_basis === 'actual_basic_da');
+                    $basicDa = ((float)($this->basic_pay ?? 0)) + ((float)($this->da ?? 0));
+
+                    if (($isActualOnEmp || $isActualOnEmpr) && $basicDa > 15000) {
+                        $status = $this->joint_declaration_status ?? $this->jointDeclarationStatus ?? 'not_required';
+                        if (!in_array($status, ['submitted', 'approved'])) {
+                            $validator->errors()->add('joint_declaration_status', 'Para 26(6) Joint Declaration is required when PF wage basis is Actual Basic+DA and Basic+DA exceeds ₹15,000.');
+                        }
+                    }
+                }
+            }
+        });
     }
 }

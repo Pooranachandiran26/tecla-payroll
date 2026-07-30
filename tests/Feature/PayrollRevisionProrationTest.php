@@ -128,8 +128,8 @@ class PayrollRevisionProrationTest extends TestCase
         $this->assertEquals(16615.40, round($result['lop_deduction'], 2));
 
         // Assert net_pay = grossTotal - deductions
-        // PF = round(min(basic, 15000) * 0.12, 2) = round(3846.15 * 0.12, 2) = 461.54
-        // netPay = grossTotal (5538.45) - PF (461.54) = 5076.91
-        $this->assertEquals(5076.91, round($result['net_pay'], 2));
+        // PF = round(min(basic + da, 15000) * 0.12, 2) = round((3846.15 + 307.69) * 0.12, 2) = 498.46
+        // netPay = grossTotal (5538.45) - PF (498.46) = 5039.99
+        $this->assertEquals(5039.99, round($result['net_pay'], 2));
     }
 }

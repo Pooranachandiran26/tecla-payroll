@@ -276,7 +276,7 @@ export function getDefaultFormData() {
     noticePeriod: 30, creditLimit: '', latePenalty: '', billingCurrency: 'INR',
 
     // Statutory
-    pfCeiling: 15000, pfApplicable: true, edliExempted: false,
+    pfCeiling: 15000, employeePfWageBasis: 'ceiling', employerPfWageBasis: 'ceiling', pfApplicable: true, edliExempted: false,
     esiLimit: 21000, esiApplicable: true,
     ptState: 'auto', ptApplicable: true,
     lwfFrequency: 'annual', lwfApplicable: false,

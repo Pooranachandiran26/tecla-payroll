@@ -105,6 +105,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       insuranceProvider: emp?.health_insurance_provider || '',
       insurancePolicyNo: emp?.health_insurance_policy_no || '',
       insuranceSumInsured: emp?.health_insurance_sum_insured ?? '',
+      jointDeclarationStatus: emp?.joint_declaration_status || 'not_required',
     };
   });
 
@@ -153,11 +154,13 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
           special_allowance: formData.specialSal || 0,
           other_additions: formData.otherSal || 0,
           pf_applicable: formData.pfToggle,
+          eps_applicable: formData.epsToggle,
           esi_applicable: formData.esiToggle,
           pt_applicable: formData.ptToggle,
           lwf_applicable: formData.lwfToggle,
           pt_deduction_override: formData.ptDeduction,
-          gender: formData.gender
+          gender: formData.gender,
+          date_of_birth: formData.dob
         };
         const res = await axios.post(route('employees.calculate-preview'), payload);
         if (res.status === 200) {
@@ -169,10 +172,10 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
     }, 500);
     return () => clearTimeout(timer);
   }, [
-    formData.clientPartner, formData.gender,
+    formData.clientPartner, formData.gender, formData.dob,
     formData.basicSal, formData.hraSal, formData.conveyanceSal, 
     formData.daSal, formData.medicalSal, formData.specialSal, 
-    formData.otherSal, formData.pfToggle, formData.esiToggle, 
+    formData.otherSal, formData.pfToggle, formData.epsToggle, formData.esiToggle, 
     formData.ptToggle, formData.lwfToggle, formData.ptDeduction
   ]);
 
@@ -551,6 +554,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       'reporting_manager_id': 'reportingManagerId', 'notice_period_days': 'noticePeriodDays',
       'esi_contribution_period_end': 'esiPeriodEnd', 'designation': 'designation', 'branch_id': 'branch_id',
       'health_insurance_provider': 'insuranceProvider', 'health_insurance_policy_no': 'insurancePolicyNo', 'health_insurance_sum_insured': 'insuranceSumInsured',
+      'joint_declaration_status': 'jointDeclarationStatus',
     };
     
     const url = isAdd ? route('employees.store') : route('employees.update', empId);
@@ -1159,6 +1163,34 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                           <span className="toggle-switch"></span>
                         </label>
                       </div>
+
+                      {/* Para 26(6) Joint Declaration Status — Shown whenever client uses Actual Basic+DA on either side */}
+                      {(
+                        activeClientDefaults?.employeePfWageBasis === 'actual_basic_da' || 
+                        activeClientDefaults?.employerPfWageBasis === 'actual_basic_da' || 
+                        activeClientDefaults?.employee_pf_wage_basis === 'actual_basic_da' || 
+                        activeClientDefaults?.employer_pf_wage_basis === 'actual_basic_da' ||
+                        clients.find(c => String(c.id) === String(formData.clientPartner))?.employee_pf_wage_basis === 'actual_basic_da' ||
+                        clients.find(c => String(c.id) === String(formData.clientPartner))?.employer_pf_wage_basis === 'actual_basic_da'
+                      ) && (
+                        <div style={{ marginTop: "0.75rem", paddingTop: "0.75rem", borderTop: "1px dashed var(--border-color)" }}>
+                          <div className="form-group" style={{ marginBottom: "0" }}>
+                            <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "var(--primary-navy)" }}>
+                              EPF Scheme Para 26(6) Joint Declaration Status
+                            </label>
+                            <select className={`form-control ${errors.joint_declaration_status ? 'is-invalid' : ''}`} value={formData.jointDeclarationStatus} onChange={e => { handleInputChange('jointDeclarationStatus', e.target.value); handleInputChange('joint_declaration_status', e.target.value); }}>
+                              <option value="not_required">Not Required (&le; ₹15,000 or Ceiling Base)</option>
+                              <option value="pending">Pending Attestation</option>
+                              <option value="submitted">Submitted to EPFO</option>
+                              <option value="approved">Approved by RPFC</option>
+                            </select>
+                            {errors.joint_declaration_status && <div className="field-msg error show">{errors.joint_declaration_status.msg || errors.joint_declaration_status}</div>}
+                            <small style={{ color: "var(--text-muted)", display: "block", marginTop: "4px" }}>
+                              Required whenever candidate earns Basic+DA &gt; ₹15,000/mo and employer or candidate contributes on Actual Basic+DA.
+                            </small>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                   <hr style={{ border: "0", borderTop: "1px solid var(--border-color)" }} />
@@ -1482,8 +1514,12 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                         <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem", background: "#F8FAFC", padding: "0.75rem", borderRadius: "6px", border: "1px solid var(--border-color)", fontSize: "0.78rem" }}>
                           <div style={{ fontWeight: "700", color: "#334155", marginBottom: "0.15rem" }}>Employer Contributions & Accruals Breakdown:</div>
                           <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: "0.5rem" }}>
-                            <span>• Employer EPF (12%):</span>
+                            <span>• Employer EPF (3.67% / Remainder):</span>
                             <strong>₹{(previewCalculations.employer_epf_monthly || 0).toLocaleString('en-IN')}</strong>
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: "0.5rem" }}>
+                            <span>• Employer EPS Pension (8.33% - Capped ₹1,249.50):</span>
+                            <strong>{previewCalculations.employer_eps_monthly > 0 ? `₹${(previewCalculations.employer_eps_monthly || 0).toLocaleString('en-IN')}` : '₹0.00 (EPS Excluded / Age 58+)'}</strong>
                           </div>
                           <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: "0.5rem" }}>
                             <span>• EDLI (0.5%):</span>
@@ -1495,7 +1531,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                           </div>
                           <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px dashed #CBD5E1", paddingTop: "0.35rem", marginTop: "0.15rem", fontWeight: "700", color: "#1E293B" }}>
                             <span>Total Employer PF & EPFO Charges:</span>
-                            <span style={{ color: "#1F3864" }}>₹{(previewCalculations.employer_pf_monthly || 0).toLocaleString('en-IN')}</span>
+                            <span style={{ color: "#1F3864" }}>₹{((previewCalculations.employer_epf_monthly || 0) + (previewCalculations.employer_eps_monthly || 0) + (previewCalculations.edli_monthly || 0) + (previewCalculations.epf_admin_monthly || 0)).toLocaleString('en-IN')}</span>
                           </div>
 
                           {previewCalculations.employer_esi_monthly > 0 && (
@@ -1677,10 +1713,13 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                   <span style={{ padding: "0.35rem", borderRadius: "6px", background: "#e2e8f0", color: "#1e293b", display: "inline-flex" }}>
                     <Scale size={16} />
                   </span>
-                  Statutory Modes (PF / ESI / TDS)
+                  Statutory Rules &amp; PF Compliance
                 </h4>
                 <p style={{ margin: 0, fontSize: "0.83rem", color: "#475569", lineHeight: "1.6" }}>
                   • <strong>PF &amp; ESI Modes:</strong> Select <em>"Pending / New Registration"</em> for first-time workers (EPFO/ESIC portals auto-issue numbers upon upload).<br/>
+                  • <strong>EPF Wage Basis:</strong> Inherited from Client defaults (Statutory Ceiling ₹15k vs Actual Basic+DA).<br/>
+                  • <strong>Para 26(6) Joint Declaration:</strong> Required whenever Actual Basic+DA contribution is active &amp; candidate earns Basic+DA &gt; ₹15,000.<br/>
+                  • <strong>Statutory Caps:</strong> EPS (8.33% = max ₹1,249.50), EDLI (0.5% = max ₹75), and Admin (0.5% = max ₹75) stay capped at ₹15,000 base regardless of employer EPF wage basis.<br/>
                   • <strong>ESI Limit:</strong> Auto-disables if Gross exceeds ₹21,000.<br/>
                   • <strong>TDS Slabs:</strong> FY26-27 New Regime tax-free up to ₹12L net taxable income.
                 </p>

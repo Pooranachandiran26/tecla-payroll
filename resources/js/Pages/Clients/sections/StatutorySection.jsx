@@ -165,17 +165,30 @@ export default function StatutorySection({ formData, onChange, hook }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
 
         {/* PF */}
-        <div className="stat-row">
+        <div className="stat-row" style={{ flexWrap: 'wrap' }}>
           <div className="stat-info">
             <strong>Provident Fund (PF) — EPFO</strong>
-            <span>Employee: 12% of Basic. Employer: 12% (3.67% EPF + 8.33% EPS). Applicable on Basic up to ₹15,000.</span>
+            <span>Employee: 12% of Basic+DA. Employer: 12% (EPF + 8.33% EPS capped at ₹1,250).</span>
+            {(formData.employeePfWageBasis === 'actual_basic_da' || formData.employerPfWageBasis === 'actual_basic_da') && (
+              <small style={{ color: '#0369A1', display: 'block', marginTop: '4px', fontWeight: '600' }}>
+                <Shield size={13} style={{ display: 'inline', marginRight: '4px', verticalAlign: '-1px' }} /> EPF Scheme Para 26(6) Requirement: Actual Basic+DA contribution requires a signed Joint Declaration per candidate earning &gt; ₹15,000/mo.
+              </small>
+            )}
           </div>
-          <div className="stat-rate">
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>Wage Ceiling Override (₹)</div>
-            <input type="number" className="stat-rate-input" placeholder="15000" max="15000" min="0"
-              value={formData.pfCeiling} onChange={e => hook.handlePFCeiling(e.target.value)} onWheel={e => e.target.blur()} {...lockProps} />
-            <div className={`field-hint ${hook.getPFCeilingHint().type}`} style={{ fontSize: '0.65rem', marginTop: '0.2rem' }}>
-              {hook.getPFCeilingHint().text}
+          <div className="stat-rate" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: '220px' }}>
+            <div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>Employee Wage Basis</div>
+              <select className="stat-rate-input" value={formData.employeePfWageBasis || 'ceiling'} onChange={e => onChange('employeePfWageBasis', e.target.value)} {...lockProps}>
+                <option value="ceiling">Statutory Ceiling (₹15,000 Max)</option>
+                <option value="actual_basic_da">Actual Basic + DA (Para 26(6))</option>
+              </select>
+            </div>
+            <div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>Employer Wage Basis</div>
+              <select className="stat-rate-input" value={formData.employerPfWageBasis || 'ceiling'} onChange={e => onChange('employerPfWageBasis', e.target.value)} {...lockProps}>
+                <option value="ceiling">Statutory Ceiling (₹15,000 Max)</option>
+                <option value="actual_basic_da">Actual Basic + DA (Para 26(6))</option>
+              </select>
             </div>
           </div>
           <div className="stat-toggle">
