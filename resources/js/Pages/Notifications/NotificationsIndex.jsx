@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, router, usePage } from '@inertiajs/react';
+import AuthenticatedLayout from '../../Layouts/AuthenticatedLayout';
+import { Head, router } from '@inertiajs/react';
 import RoleGuard from '../../Components/RoleGuard.jsx';
 import Pagination from '../../Components/ui/Pagination';
 import {
@@ -29,8 +29,12 @@ function timeAgo(dateStr) {
 }
 
 export default function NotificationsIndex({ notifications = {}, unreadCount = 0, filters = {} }) {
-  const [filterStatus, setFilterStatus] = useState(filters.filter || 'all');
-  const [filterType,   setFilterType]   = useState(filters.type   || 'all');
+  const safeNotifications = notifications || {};
+  const safeFilters = filters || {};
+  const safeUnreadCount = unreadCount || 0;
+
+  const [filterStatus, setFilterStatus] = useState(safeFilters.filter || 'all');
+  const [filterType,   setFilterType]   = useState(safeFilters.type   || 'all');
 
   const applyFilters = (newFilter, newType) => {
     const params = {};
@@ -50,7 +54,7 @@ export default function NotificationsIndex({ notifications = {}, unreadCount = 0
     router.post(route('notifications.readAll'), {}, { preserveScroll: true });
   };
 
-  const data = notifications.data || [];
+  const data = Array.isArray(safeNotifications.data) ? safeNotifications.data : [];
 
   return (
     <RoleGuard allowedRoles={['admin', 'manager']}>
@@ -67,13 +71,13 @@ export default function NotificationsIndex({ notifications = {}, unreadCount = 0
               In-app alerts for salary revisions, leave requests, bank changes, and employee queries.
             </p>
           </div>
-          {unreadCount > 0 && (
+          {safeUnreadCount > 0 && (
             <button
               onClick={handleMarkAll}
               className="btn btn-navy"
               style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.84rem' }}
             >
-              <CheckCheck size={15} /> Mark All Read ({unreadCount})
+              <CheckCheck size={15} /> Mark All Read ({safeUnreadCount})
             </button>
           )}
         </div>
@@ -198,16 +202,16 @@ export default function NotificationsIndex({ notifications = {}, unreadCount = 0
           )}
 
           {/* Pagination */}
-          {notifications.total > 0 && (
+          {safeNotifications.total > 0 && (
             <div style={{ padding: '1rem 1.25rem', borderTop: '1px solid #F1F5F9', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               <div style={{ fontSize: '0.82rem', color: '#64748B' }}>
-                Showing <strong>{notifications.from || 0}</strong> to <strong>{notifications.to || 0}</strong> of <strong>{notifications.total}</strong> notifications
+                Showing <strong>{safeNotifications.from || 0}</strong> to <strong>{safeNotifications.to || 0}</strong> of <strong>{safeNotifications.total}</strong> notifications
               </div>
               <Pagination
-                currentPage={notifications.current_page}
-                totalPages={notifications.last_page}
-                totalItems={notifications.total}
-                itemsPerPage={notifications.per_page}
+                currentPage={safeNotifications.current_page || 1}
+                totalPages={safeNotifications.last_page || 1}
+                totalItems={safeNotifications.total || 0}
+                itemsPerPage={safeNotifications.per_page || 20}
                 onPageChange={(page) => {
                   const params = new URLSearchParams(window.location.search);
                   params.set('page', page);

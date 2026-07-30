@@ -6,10 +6,6 @@ import {
   MessageSquare, X, CheckCheck, ChevronRight,
 } from 'lucide-react';
 
-// Badge count refresh on every Inertia page navigation (shared props pattern).
-// No 30s polling — count updates on next page load, consistent with other
-// counter patterns in this app. Can be upgraded to polling if needed in v2.
-
 const TYPE_META = {
   salary_revision: { icon: BriefcaseBusiness, color: '#6366F1', label: 'Salary Revision' },
   leave_request:   { icon: Clock,             color: '#F59E0B', label: 'Leave Request'   },
@@ -35,31 +31,13 @@ export default function NotificationPanel({ unreadCount }) {
   const [loading, setLoading] = useState(false);
   const panelRef = useRef(null);
 
+  const safeUnreadCount = Number(unreadCount || 0);
+
   // Fetch recent 10 notifications when panel opens
   useEffect(() => {
     if (!open) return;
     setLoading(true);
-    axios.get(route('notifications.index'), {
-      params: { per_page: 10 },
-      headers: { 'X-Inertia': false },
-    })
-      .then(res => {
-        // Inertia returns a full HTML page; use a direct JSON-safe API instead.
-        // Since our route returns Inertia, we fetch via router.visit with a
-        // lightweight alternative: a dedicated fetch of the Inertia partial.
-        // Simplest robust approach: use router.visit without render on index,
-        // and instead track state locally via axios with Accept: application/json.
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
 
-    // Use the Inertia partial-reload pattern to load notification data
-    router.reload({
-      only: [],
-      onSuccess: () => {},
-    });
-
-    // Actually fetch notifications via a direct XHR to a JSON-returning endpoint
     fetch(route('notifications.index') + '?per_page=10', {
       headers: {
         'Accept': 'application/json',
@@ -70,12 +48,17 @@ export default function NotificationPanel({ unreadCount }) {
     })
       .then(r => r.json())
       .then(data => {
-        if (data?.props?.notifications?.data) {
+        if (data?.props?.notifications?.data && Array.isArray(data.props.notifications.data)) {
           setItems(data.props.notifications.data);
+        } else {
+          setItems([]);
         }
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => {
+        setItems([]);
+        setLoading(false);
+      });
   }, [open]);
 
   // Close on outside click
@@ -95,7 +78,7 @@ export default function NotificationPanel({ unreadCount }) {
       preserveState: true,
       preserveScroll: true,
       onSuccess: () => {
-        setItems(prev => prev.map(n => n.id === id ? { ...n, read_at: new Date().toISOString() } : n));
+        setItems(prev => (Array.isArray(prev) ? prev : []).map(n => n.id === id ? { ...n, read_at: new Date().toISOString() } : n));
       },
     });
   };
@@ -104,7 +87,7 @@ export default function NotificationPanel({ unreadCount }) {
     router.post(route('notifications.readAll'), {}, {
       preserveScroll: true,
       onSuccess: () => {
-        setItems(prev => prev.map(n => ({ ...n, read_at: n.read_at ?? new Date().toISOString() })));
+        setItems(prev => (Array.isArray(prev) ? prev : []).map(n => ({ ...n, read_at: n.read_at ?? new Date().toISOString() })));
         setOpen(false);
       },
     });
@@ -118,20 +101,22 @@ export default function NotificationPanel({ unreadCount }) {
     }
   };
 
+  const safeItems = Array.isArray(items) ? items : [];
+
   return (
     <div className="notif-panel-wrapper" ref={panelRef} style={{ position: 'relative' }}>
       {/* Bell trigger */}
       <button
         className="notif-bell"
-        title={unreadCount > 0 ? `${unreadCount} unread notifications` : 'Notifications'}
+        title={safeUnreadCount > 0 ? `${safeUnreadCount} unread notifications` : 'Notifications'}
         onClick={() => setOpen(o => !o)}
         aria-expanded={open}
         style={{ position: 'relative' }}
       >
         <Bell size={20} />
-        {unreadCount > 0 && (
+        {safeUnreadCount > 0 && (
           <span className="notif-badge" style={{ position: 'absolute', top: '-4px', right: '-4px' }}>
-            {unreadCount > 99 ? '99+' : unreadCount}
+            {safeUnreadCount > 99 ? '99+' : safeUnreadCount}
           </span>
         )}
       </button>
@@ -159,14 +144,14 @@ export default function NotificationPanel({ unreadCount }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Bell size={16} color="#1E3A8A" />
               <span style={{ fontWeight: 700, fontSize: '0.88rem', color: '#1E293B' }}>Notifications</span>
-              {unreadCount > 0 && (
+              {safeUnreadCount > 0 && (
                 <span style={{ background: '#1E3A8A', color: '#FFF', fontSize: '0.7rem', fontWeight: 700, borderRadius: '999px', padding: '1px 7px' }}>
-                  {unreadCount}
+                  {safeUnreadCount}
                 </span>
               )}
             </div>
             <div style={{ display: 'flex', gap: '4px' }}>
-              {unreadCount > 0 && (
+              {safeUnreadCount > 0 && (
                 <button
                   onClick={handleMarkAll}
                   style={{ fontSize: '0.75rem', color: '#3B82F6', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px', padding: '2px 6px', borderRadius: '4px' }}
@@ -189,14 +174,14 @@ export default function NotificationPanel({ unreadCount }) {
               </div>
             )}
 
-            {!loading && items.length === 0 && (
+            {!loading && safeItems.length === 0 && (
               <div style={{ textAlign: 'center', padding: '2.5rem 1rem', color: '#94A3B8' }}>
                 <Bell size={32} style={{ margin: '0 auto 0.75rem', display: 'block', opacity: 0.3 }} />
                 <p style={{ fontSize: '0.85rem', margin: 0 }}>No notifications yet</p>
               </div>
             )}
 
-            {!loading && items.map((item) => {
+            {!loading && safeItems.map((item) => {
               const meta  = TYPE_META[item.type] || TYPE_META.system;
               const Icon  = meta.icon;
               const isUnread = !item.read_at;
