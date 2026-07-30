@@ -24,6 +24,12 @@ return new class extends Migration
             if (!Schema::hasColumn('employees', 'joint_declaration_status')) {
                 $table->enum('joint_declaration_status', ['not_required', 'pending', 'submitted', 'approved'])->default('not_required')->after('eps_applicable');
             }
+            if (!Schema::hasColumn('employees', 'employee_pf_wage_basis')) {
+                $table->enum('employee_pf_wage_basis', ['ceiling', 'actual_basic_da'])->nullable()->after('joint_declaration_status');
+            }
+            if (!Schema::hasColumn('employees', 'employer_pf_wage_basis')) {
+                $table->enum('employer_pf_wage_basis', ['ceiling', 'actual_basic_da'])->nullable()->after('employee_pf_wage_basis');
+            }
         });
     }
 

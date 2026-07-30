@@ -225,4 +225,62 @@ class PfWageBasisTest extends TestCase
         $this->assertEquals(1200.00, $calcWithoutDa['employee_pf_monthly']); // 12% * 10000
         $this->assertEquals(1680.00, $calcWithDa['employee_pf_monthly']);    // 12% * 14000
     }
+
+    /** @test */
+    public function test_6_monthly_payroll_calculator_uses_client_wage_basis_when_employee_override_is_null()
+    {
+        $clientActualEmp = Client::factory()->create([
+            'status' => 'active',
+            'contract_type' => 'agency',
+            'pf_applicable' => true,
+            'pf_ceiling' => 15000,
+            'employee_pf_wage_basis' => 'actual_basic_da',
+            'employer_pf_wage_basis' => 'ceiling',
+        ]);
+        $branch = \App\Models\ClientBranch::factory()->create(['client_id' => $clientActualEmp->id]);
+        $emp = Employee::factory()->create([
+            'client_id' => $clientActualEmp->id,
+            'branch_id' => $branch->id,
+            'basic_pay' => 22000,
+            'da' => 0,
+            'special_allowance' => 10400,
+            'lop_basis_days' => 30,
+            'date_of_joining' => '2023-01-01',
+            'attendance_tracking_start_date' => '2023-01-01',
+            'pf_applicable' => true,
+            'employee_pf_wage_basis' => null, // Inherits client's actual_basic_da
+            'employer_pf_wage_basis' => null, // Inherits client's ceiling
+            'pan_number' => 'PANKRATOZ1',
+            'aadhaar_number' => '999900000507',
+            'bank_account_number' => '100000000507',
+            'uan_mode' => 'existing_transfer',
+        ]);
+
+        \Illuminate\Support\Facades\DB::table('attendance_records')->insert(
+            array_map(fn($day) => [
+                'employee_id' => $emp->id,
+                'attendance_date' => sprintf('2026-08-%02d', $day),
+                'status' => 'present',
+                'source' => 'live_punch',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ], range(1, 31))
+        );
+
+        $payrollRun = \App\Models\PayrollRun::create([
+            'client_id' => $clientActualEmp->id,
+            'payroll_month' => '2026-08-01',
+            'status' => 'draft',
+        ]);
+
+        $monthlyCalc = app(\App\Services\MonthlyPayrollCalculator::class);
+        $res = $monthlyCalc->calculateForEmployee($emp, $payrollRun);
+
+        // Employee PF = 12% of 22,000 = 2,640.00
+        $this->assertEquals(2640.00, (float)$res['employee_pf']);
+        // Employer EPF + EDLI + Admin = 1,800 + 75 + 75 = 1,950.00
+        $this->assertEquals(1950.00, (float)$res['employer_pf']);
+        // Net Pay = 45,000 - 2,640 - 208.33 = 42,151.67
+        $this->assertEquals(round($res['gross_total'] - $res['employee_pf'] - $res['professional_tax'] - $res['tds_deduction'] - $res['employee_esi'] - $res['lwf_deduction'], 2), round((float)$res['net_pay'], 2));
+    }
 }
