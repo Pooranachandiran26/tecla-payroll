@@ -37,7 +37,10 @@ class NotificationController extends Controller
         return Inertia::render('Notifications/NotificationsIndex', [
             'notifications' => $notifications,
             'unreadCount'   => AppNotification::forUser($user->id)->unread()->count(),
-            'filters'       => $request->only(['filter', 'type']),
+            'filters'       => [
+                'filter' => $request->filter ?? 'all',
+                'type'   => $request->type ?? 'all',
+            ],
         ]);
     }
 
