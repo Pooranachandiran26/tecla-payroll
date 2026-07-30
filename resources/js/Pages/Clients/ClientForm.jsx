@@ -52,7 +52,7 @@ export default function ClientForm({ client, defaultLopBasis, gstSettings }) {
   }, [client, loadClientData]);
 
   return (
-    <RoleGuard allowedRoles={['admin', 'manager']}>
+    <RoleGuard allowedRoles={['admin', 'manager']} moduleKey="clients">
       <AuthenticatedLayout>
         <Head title="Add / Edit Client — Tecla Payroll" />
         

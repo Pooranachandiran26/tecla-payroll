@@ -611,7 +611,7 @@ export default function Settings() {
   const renderAuthVal = (key, fallback = '') => authSettings[key]?.value ?? fallback;
 
   return (
-    <RoleGuard allowedRoles={['admin']}>
+    <RoleGuard allowedRoles={['admin', 'manager']} moduleKey="admin">
     <AuthenticatedLayout>
       <Head title="System Settings" />
       

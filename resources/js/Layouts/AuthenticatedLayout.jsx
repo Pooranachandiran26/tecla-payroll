@@ -62,9 +62,19 @@ export default function AuthenticatedLayout({ children, hideSubNav = false }) {
     };
   }, [handleFlash]);
   
-  const navLinks = role === 'client' ? clientNav
+  const userPermissions = auth?.user?.module_permissions;
+
+  const rawNavLinks = role === 'client' ? clientNav
     : role === 'employee' ? candidateNav
     : adminNav;
+
+  const navLinks = rawNavLinks.filter(item => {
+    if (role === 'admin') return true;
+    if (role === 'manager' && Array.isArray(userPermissions) && userPermissions.length > 0) {
+      return userPermissions.includes(item.key);
+    }
+    return true;
+  });
 
   const activeCategory = getActiveCategory(url, role);
   

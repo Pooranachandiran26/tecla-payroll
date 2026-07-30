@@ -25,14 +25,19 @@ class DaySwapController extends Controller
      */
     public function index(Request $request)
     {
-        if (!in_array(auth()->user()->role, ['admin', 'manager'])) {
+        if (!in_array($request->user()->role, ['admin', 'manager'])) {
             abort(403, 'Unauthorized access to day swap requests.');
         }
 
-        // Fetch primary swap rows (work_day half of the pair)
+        $user = $request->user();
         $query = EmployeeAttendanceOverride::with(['employee.client'])
             ->where('attendance_day_type', 'work_day')
             ->whereNotNull('swap_target_date');
+
+        if ($user && $user->role === 'manager') {
+            $managedClientIds = $user->getManagedClientIds();
+            $query->whereHas('employee', fn($q) => $q->whereIn('client_id', $managedClientIds));
+        }
 
         if ($request->search) {
             $search = $request->search;

@@ -13,7 +13,7 @@ class PayslipTemplateCustomizerController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        if ($user->role !== 'admin') {
+        if (!in_array($user->role, ['admin', 'manager'])) {
             abort(403, 'Unauthorized access.');
         }
 
@@ -151,7 +151,7 @@ class PayslipTemplateCustomizerController extends Controller
     public function update(Request $request, $clientId)
     {
         $user = $request->user();
-        if ($user->role !== 'admin') {
+        if (!in_array($user->role, ['admin', 'manager'])) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 

@@ -76,125 +76,139 @@ Route::middleware(['auth', 'active'])->group(function () {
 
         // ADMIN & MANAGER
         Route::middleware('role:admin,manager')->group(function () {
-            Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-            Route::get('/quick-access', fn() => Inertia::render('Dashboard/QuickAccess'))->name('quick-access');
+            Route::get('/dashboard', [DashboardController::class, 'index'])->middleware('module:dashboard')->name('dashboard');
+            Route::get('/quick-access', fn() => Inertia::render('Dashboard/QuickAccess'))->middleware('module:quick-access')->name('quick-access');
 
             Route::post('/export/employees', [\App\Http\Controllers\ExportController::class, 'exportEmployeeData'])->name('employees.export');
 
-            // Clients
-            Route::get('/clients', [ClientController::class,'index'])->middleware('can:viewAny,App\Models\Client')->name('clients.index');
-            Route::get('/clients/create', [ClientController::class,'create'])->middleware('can:create,App\Models\Client')->name('clients.create');
-            Route::get('/clients/check-unique', [ClientController::class, 'checkUnique'])->name('clients.check-unique');
-            Route::post('/clients', [ClientController::class,'store'])->name('clients.store');
-            Route::get('/clients/{client}', [ClientController::class,'show'])->middleware('can:view,client')->name('clients.show');
-            Route::get('/clients/{client}/statutory-defaults', [ClientController::class, 'statutoryDefaults'])->middleware('can:view,client')->name('clients.statutoryDefaults');
-            Route::get('/clients/{client}/active-employees', [ClientController::class, 'activeEmployees'])->middleware('can:view,client')->name('clients.activeEmployees');
-            Route::get('/clients/{client}/edit', [ClientController::class,'edit'])->middleware('can:update,client')->name('clients.edit');
-            Route::put('/clients/{client}', [ClientController::class,'update'])->middleware('can:update,client')->name('clients.update');
-            Route::delete('/clients/{client}', [ClientController::class,'destroy'])->middleware('can:delete,client')->name('clients.destroy');
-            Route::post('/clients/{client}/deactivate', [ClientController::class,'deactivate'])->middleware('can:update,client')->name('clients.deactivate');
-            Route::post('/clients/{id}/restore', [ClientController::class,'restore'])->name('clients.restore');
-            Route::post('/clients/{client}/documents', [ClientController::class, 'uploadDocument'])->middleware('can:update,client')->name('clients.documents.store');
-            Route::put('/clients/{client}/documents/{document}/verify', [ClientController::class, 'verifyDocument'])->name('clients.documents.verify');
-            Route::get('/clients/{client}/documents/{document}/download', [ClientController::class, 'downloadDocument'])->name('clients.documents.download');
+            // Clients Module (Gated by module:clients)
+            Route::middleware('module:clients')->group(function () {
+                Route::get('/clients', [ClientController::class,'index'])->middleware('can:viewAny,App\Models\Client')->name('clients.index');
+                Route::get('/clients/create', [ClientController::class,'create'])->middleware('can:create,App\Models\Client')->name('clients.create');
+                Route::get('/clients/check-unique', [ClientController::class, 'checkUnique'])->name('clients.check-unique');
+                Route::post('/clients', [ClientController::class,'store'])->name('clients.store');
+                Route::get('/clients/{client}', [ClientController::class,'show'])->middleware('can:view,client')->name('clients.show');
+                Route::get('/clients/{client}/statutory-defaults', [ClientController::class, 'statutoryDefaults'])->middleware('can:view,client')->name('clients.statutoryDefaults');
+                Route::get('/clients/{client}/active-employees', [ClientController::class, 'activeEmployees'])->middleware('can:view,client')->name('clients.activeEmployees');
+                Route::get('/clients/{client}/edit', [ClientController::class,'edit'])->middleware('can:update,client')->name('clients.edit');
+                Route::put('/clients/{client}', [ClientController::class,'update'])->middleware('can:update,client')->name('clients.update');
+                Route::delete('/clients/{client}', [ClientController::class,'destroy'])->middleware('can:delete,client')->name('clients.destroy');
+                Route::post('/clients/{client}/deactivate', [ClientController::class,'deactivate'])->middleware('can:update,client')->name('clients.deactivate');
+                Route::post('/clients/{id}/restore', [ClientController::class,'restore'])->name('clients.restore');
+                Route::post('/clients/{client}/documents', [ClientController::class, 'uploadDocument'])->middleware('can:update,client')->name('clients.documents.store');
+                Route::put('/clients/{client}/documents/{document}/verify', [ClientController::class, 'verifyDocument'])->name('clients.documents.verify');
+                Route::get('/clients/{client}/documents/{document}/download', [ClientController::class, 'downloadDocument'])->name('clients.documents.download');
 
-            Route::post('/clients/{clientId}/holidays', [ClientHolidayController::class, 'store'])->name('clients.holidays.store');
-            Route::delete('/clients/{clientId}/holidays/{id}', [ClientHolidayController::class, 'destroy'])->name('clients.holidays.destroy');
+                Route::post('/clients/{clientId}/holidays', [ClientHolidayController::class, 'store'])->name('clients.holidays.store');
+                Route::delete('/clients/{clientId}/holidays/{id}', [ClientHolidayController::class, 'destroy'])->name('clients.holidays.destroy');
+            });
 
-            // Employees
-            Route::get('/employees/check-unique', [EmployeeController::class, 'checkUnique'])->name('employees.check-unique');
-            Route::post('/employees/calculate-preview', [EmployeeController::class, 'calculatePreview'])->name('employees.calculate-preview');
-            Route::get('/employees', [EmployeeController::class, 'index'])->name('employees.index');
-            Route::post('/employees', [EmployeeController::class, 'store'])->name('employees.store');
-            Route::get('/employees/create', function() {
-                $clients = \App\Models\Client::where('status', 'active')->select('id', 'company_name', 'weekly_off_pattern', 'employee_pf_wage_basis', 'employer_pf_wage_basis')->get();
-                return Inertia::render('Employees/EmployeeForm', ['clients' => $clients]);
-            })->name('employees.create');
-            Route::get('/employees/bulk-upload', [BulkUploadController::class, 'showUploadForm'])->name('employees.bulk-upload');
-            Route::get('/employees/bulk-upload/download-template', [BulkUploadController::class, 'downloadTemplate'])->name('employees.bulk-upload.download-template');
-            Route::post('/employees/bulk-upload/validate', [BulkUploadController::class, 'validateUpload'])->name('employees.bulk-upload.validate');
-            Route::post('/employees/bulk-upload/execute', [BulkUploadController::class, 'executeImport'])->name('employees.bulk-upload.execute');
-            Route::get('/employees/salary-bulk-update', fn() => Inertia::render('Employees/SalaryBulkUpdate'))->name('employees.salary-bulk-update');
-            Route::get('/employees/salary-revisions-queue', [SalaryRevisionController::class, 'queue'])->name('employees.salary-revisions-queue');
-            Route::get('/employees/{id}', [EmployeeController::class, 'show'])->where('id', '[0-9]+')->name('employees.show');
-            Route::get('/employees/{id}/edit', [EmployeeController::class, 'edit'])->name('employees.edit');
-            Route::put('/employees/{id}', [EmployeeController::class, 'update'])->name('employees.update');
-            Route::delete('/employees/{id}', [EmployeeController::class, 'destroy'])->name('employees.destroy');
-            Route::post('/employees/{id}/deactivate', [EmployeeController::class, 'deactivate'])->name('employees.deactivate');
-            Route::post('/employees/{id}/activate', [EmployeeController::class, 'activate'])->name('employees.activate');
-            Route::post('/employees/{id}/restore', [EmployeeController::class, 'restore'])->name('employees.restore');
-            Route::post('/employees/{id}/resend-invitation', [EmployeeController::class, 'resendInvitation'])->name('employees.resend-invitation');
-            Route::post('/employees/{id}/documents', [EmployeeController::class, 'storeDocument'])->name('employees.documents.store');
-            Route::put('/employees/{id}/documents/{docId}/verify', [EmployeeController::class, 'verifyDocument'])->name('employees.documents.verify');
-            Route::get('/employees/{id}/documents/{docId}/view', [EmployeeController::class, 'viewDocument'])->name('employees.documents.view');
-            Route::get('/employees/{id}/exit', [\App\Http\Controllers\EmployeeExitController::class, 'show'])->name('employees.exit.show');
-            Route::post('/employees/{id}/exit/preview-settlement', [\App\Http\Controllers\EmployeeExitController::class, 'previewSettlement'])->name('employees.exit.preview');
-            Route::post('/employees/{id}/exit/stage/{stage}', [\App\Http\Controllers\EmployeeExitController::class, 'storeStage'])->name('employees.exit.stage');
-            Route::post('/employees/{id}/exit/approve', [\App\Http\Controllers\EmployeeExitController::class, 'approve'])->name('employees.exit.approve');
-            Route::post('/employees/{id}/exit/confirm', [\App\Http\Controllers\EmployeeExitController::class, 'confirm'])->name('employees.exit.confirm');
-            
-            Route::post('/employees/{id}/tax-declarations/{declarationId}/verify', [\App\Http\Controllers\TaxDeclarationController::class, 'verify'])->name('employees.tax-declarations.verify');
+            // Employees Module (Gated by module:candidates)
+            Route::middleware('module:candidates')->group(function () {
+                Route::get('/employees/check-unique', [EmployeeController::class, 'checkUnique'])->name('employees.check-unique');
+                Route::post('/employees/calculate-preview', [EmployeeController::class, 'calculatePreview'])->name('employees.calculate-preview');
+                Route::get('/employees', [EmployeeController::class, 'index'])->name('employees.index');
+                Route::post('/employees', [EmployeeController::class, 'store'])->name('employees.store');
+                Route::get('/employees/create', function() {
+                    $clients = \App\Models\Client::where('status', 'active')->select('id', 'company_name', 'weekly_off_pattern', 'employee_pf_wage_basis', 'employer_pf_wage_basis')->get();
+                    return Inertia::render('Employees/EmployeeForm', ['clients' => $clients]);
+                })->name('employees.create');
+                Route::get('/employees/bulk-upload', [BulkUploadController::class, 'showUploadForm'])->name('employees.bulk-upload');
+                Route::get('/employees/bulk-upload/download-template', [BulkUploadController::class, 'downloadTemplate'])->name('employees.bulk-upload.download-template');
+                Route::post('/employees/bulk-upload/validate', [BulkUploadController::class, 'validateUpload'])->name('employees.bulk-upload.validate');
+                Route::post('/employees/bulk-upload/execute', [BulkUploadController::class, 'executeImport'])->name('employees.bulk-upload.execute');
+                Route::get('/employees/salary-bulk-update', fn() => Inertia::render('Employees/SalaryBulkUpdate'))->name('employees.salary-bulk-update');
+                Route::get('/employees/salary-revisions-queue', [SalaryRevisionController::class, 'queue'])->name('employees.salary-revisions-queue');
+                Route::get('/employees/{id}', [EmployeeController::class, 'show'])->where('id', '[0-9]+')->name('employees.show');
+                Route::get('/employees/{id}/edit', [EmployeeController::class, 'edit'])->name('employees.edit');
+                Route::put('/employees/{id}', [EmployeeController::class, 'update'])->name('employees.update');
+                Route::delete('/employees/{id}', [EmployeeController::class, 'destroy'])->name('employees.destroy');
+                Route::post('/employees/{id}/deactivate', [EmployeeController::class, 'deactivate'])->name('employees.deactivate');
+                Route::post('/employees/{id}/activate', [EmployeeController::class, 'activate'])->name('employees.activate');
+                Route::post('/employees/{id}/restore', [EmployeeController::class, 'restore'])->name('employees.restore');
+                Route::post('/employees/{id}/resend-invitation', [EmployeeController::class, 'resendInvitation'])->name('employees.resend-invitation');
+                Route::post('/employees/{id}/documents', [EmployeeController::class, 'storeDocument'])->name('employees.documents.store');
+                Route::put('/employees/{id}/documents/{docId}/verify', [EmployeeController::class, 'verifyDocument'])->name('employees.documents.verify');
+                Route::get('/employees/{id}/documents/{docId}/view', [EmployeeController::class, 'viewDocument'])->name('employees.documents.view');
+                Route::get('/employees/{id}/exit', [\App\Http\Controllers\EmployeeExitController::class, 'show'])->name('employees.exit.show');
+                Route::post('/employees/{id}/exit/preview-settlement', [\App\Http\Controllers\EmployeeExitController::class, 'previewSettlement'])->name('employees.exit.preview');
+                Route::post('/employees/{id}/exit/stage/{stage}', [\App\Http\Controllers\EmployeeExitController::class, 'storeStage'])->name('employees.exit.stage');
+                Route::post('/employees/{id}/exit/approve', [\App\Http\Controllers\EmployeeExitController::class, 'approve'])->name('employees.exit.approve');
+                Route::post('/employees/{id}/exit/confirm', [\App\Http\Controllers\EmployeeExitController::class, 'confirm'])->name('employees.exit.confirm');
+                
+                Route::post('/employees/{id}/tax-declarations/{declarationId}/verify', [\App\Http\Controllers\TaxDeclarationController::class, 'verify'])->name('employees.tax-declarations.verify');
 
-            // Employee Loans & Advances
-            Route::get('/employees/{employee}/loans', [EmployeeLoanController::class, 'index'])->name('employees.loans.index');
-            Route::post('/employees/{employee}/loans', [EmployeeLoanController::class, 'store'])->name('employees.loans.store');
-            Route::patch('/employees/loans/{loan}/status', [EmployeeLoanController::class, 'updateStatus'])->name('employees.loans.update-status');
+                // Employee Loans & Advances
+                Route::get('/employees/{employee}/loans', [EmployeeLoanController::class, 'index'])->name('employees.loans.index');
+                Route::post('/employees/{employee}/loans', [EmployeeLoanController::class, 'store'])->name('employees.loans.store');
+                Route::patch('/employees/loans/{loan}/status', [EmployeeLoanController::class, 'updateStatus'])->name('employees.loans.update-status');
 
-            // Salary Revision
-            Route::get('/employees/{id}/salary-revision', [SalaryRevisionController::class, 'create'])->name('employees.salary-revision.create');
-            Route::post('/employees/{id}/salary-revision', [SalaryRevisionController::class, 'store'])->name('employees.salary-revision.store');
-            Route::post('/employees/{id}/salary-revision/{revisionId}/approve', [SalaryRevisionController::class, 'approve'])->name('employees.salary-revision.approve');
-            Route::post('/employees/{id}/salary-revision/{revisionId}/send-email', [SalaryRevisionController::class, 'sendEmail'])->name('employees.salary-revision.send-email');
-            
-            Route::get('/bank-change-requests', [BankChangeRequestController::class, 'index'])->name('employees.bank-change-requests');
-            Route::post('/bank-change-requests/{id}/approve', [BankChangeRequestController::class, 'approve'])->name('employees.bank-change-requests.approve');
-            Route::post('/bank-change-requests/{id}/reject', [BankChangeRequestController::class, 'reject'])->name('employees.bank-change-requests.reject');
-            
-            Route::get('/day-swap-requests', [DaySwapController::class, 'index'])->name('employees.day-swaps');
-            Route::post('/day-swap-requests/{id}/approve', [DaySwapController::class, 'approve'])->name('employees.day-swaps.approve');
-            Route::post('/day-swap-requests/{id}/reject', [DaySwapController::class, 'reject'])->name('employees.day-swaps.reject');
+                // Salary Revision
+                Route::get('/employees/{id}/salary-revision', [SalaryRevisionController::class, 'create'])->name('employees.salary-revision.create');
+                Route::post('/employees/{id}/salary-revision', [SalaryRevisionController::class, 'store'])->name('employees.salary-revision.store');
+                Route::post('/employees/{id}/salary-revision/{revisionId}/approve', [SalaryRevisionController::class, 'approve'])->name('employees.salary-revision.approve');
+                Route::post('/employees/{id}/salary-revision/{revisionId}/send-email', [SalaryRevisionController::class, 'sendEmail'])->name('employees.salary-revision.send-email');
+                
+                Route::get('/bank-change-requests', [BankChangeRequestController::class, 'index'])->name('employees.bank-change-requests');
+                Route::post('/bank-change-requests/{id}/approve', [BankChangeRequestController::class, 'approve'])->name('employees.bank-change-requests.approve');
+                Route::post('/bank-change-requests/{id}/reject', [BankChangeRequestController::class, 'reject'])->name('employees.bank-change-requests.reject');
+                
+                Route::get('/day-swap-requests', [DaySwapController::class, 'index'])->name('employees.day-swaps');
+                Route::post('/day-swap-requests/{id}/approve', [DaySwapController::class, 'approve'])->name('employees.day-swaps.approve');
+                Route::post('/day-swap-requests/{id}/reject', [DaySwapController::class, 'reject'])->name('employees.day-swaps.reject');
 
-            Route::get('/leave-requests', [\App\Http\Controllers\LeaveApprovalController::class, 'index'])->name('leave-requests.index');
-            Route::post('/leave-requests/{id}/approve', [\App\Http\Controllers\LeaveApprovalController::class, 'approve'])->name('leave-requests.approve');
-            Route::post('/leave-requests/{id}/reject', [\App\Http\Controllers\LeaveApprovalController::class, 'reject'])->name('leave-requests.reject');
- 
-            // Payroll & Invoicing & Reports
-            Route::get('/payroll/live-monitor', [\App\Http\Controllers\PayrollController::class, 'indexLiveMonitor'])->name('payroll.live-monitor');
-            Route::get('/payroll/attendance-upload', [AttendanceUploadController::class, 'showUploadPage'])->name('payroll.attendance-upload');
-            Route::get('/payroll/attendance/template', [AttendanceUploadController::class, 'downloadTemplate'])->name('payroll.attendance.template');
-            Route::get('/payroll/attendance/context', [AttendanceUploadController::class, 'getContext'])->name('payroll.attendance.context');
-            Route::post('/payroll/attendance/validate', [AttendanceUploadController::class, 'validateUpload'])->name('payroll.attendance.validate');
-            Route::post('/payroll/attendance/upload', [AttendanceUploadController::class, 'executeUpload'])->name('payroll.attendance.upload');
-            Route::get('/payroll/attendance-review', [\App\Http\Controllers\AttendanceReviewController::class, 'index'])->name('payroll.attendance-review');
-            Route::get('/payroll/attendance-review/{clientId}/verify', [\App\Http\Controllers\AttendanceReviewController::class, 'verifyLogs'])->name('payroll.attendance-review.verify');
-            Route::post('/payroll/attendance-review/{clientId}/verify', [\App\Http\Controllers\AttendanceReviewController::class, 'saveVerification'])->name('payroll.attendance-review.verify.save');
-            Route::get('/payroll/attendance-review/{clientId}/details', [\App\Http\Controllers\AttendanceReviewController::class, 'details'])->name('payroll.attendance-review.details');
-            Route::get('/payroll/processing', [\App\Http\Controllers\PayrollController::class, 'indexProcessing'])->name('payroll.processing');
-            Route::get('/payroll/approval', [\App\Http\Controllers\PayrollController::class, 'indexApproval'])->name('payroll.approval');
-            Route::get('/payroll/payslips', [\App\Http\Controllers\PayrollController::class, 'indexPayslips'])->name('payroll.payslips');
-            Route::get('/invoices', [\App\Http\Controllers\InvoiceController::class, 'index'])->name('invoices.index');
-            Route::get('/invoices/{id}/download', [\App\Http\Controllers\InvoiceController::class, 'downloadPdf'])->name('invoices.download');
-            Route::post('/invoices/{id}/fees', [\App\Http\Controllers\InvoiceController::class, 'storeFee'])->name('invoices.fees.store');
-            Route::delete('/invoices/{id}/fees/{feeId}', [\App\Http\Controllers\InvoiceController::class, 'destroyFee'])->name('invoices.fees.destroy');
-            Route::get('/invoices/generate', fn() => Inertia::render('Invoicing/InvoiceGenerate'))->name('invoices.generate');
-            Route::get('/compliance', [\App\Http\Controllers\ComplianceController::class, 'index'])->name('compliance.index');
-            Route::get('/reports', fn() => Inertia::render('Reports/ReportsAnalytics'))->name('reports.index');
+                Route::get('/leave-requests', [\App\Http\Controllers\LeaveApprovalController::class, 'index'])->name('leave-requests.index');
+                Route::post('/leave-requests/{id}/approve', [\App\Http\Controllers\LeaveApprovalController::class, 'approve'])->name('leave-requests.approve');
+                Route::post('/leave-requests/{id}/reject', [\App\Http\Controllers\LeaveApprovalController::class, 'reject'])->name('leave-requests.reject');
+            });
+
+            // Payroll Module (Gated by module:payroll)
+            Route::middleware('module:payroll')->group(function () {
+                Route::get('/payroll/live-monitor', [\App\Http\Controllers\PayrollController::class, 'indexLiveMonitor'])->name('payroll.live-monitor');
+                Route::get('/payroll/attendance-upload', [AttendanceUploadController::class, 'showUploadPage'])->name('payroll.attendance-upload');
+                Route::get('/payroll/attendance/template', [AttendanceUploadController::class, 'downloadTemplate'])->name('payroll.attendance.template');
+                Route::get('/payroll/attendance/context', [AttendanceUploadController::class, 'getContext'])->name('payroll.attendance.context');
+                Route::post('/payroll/attendance/validate', [AttendanceUploadController::class, 'validateUpload'])->name('payroll.attendance.validate');
+                Route::post('/payroll/attendance/upload', [AttendanceUploadController::class, 'executeUpload'])->name('payroll.attendance.upload');
+                Route::get('/payroll/attendance-review', [\App\Http\Controllers\AttendanceReviewController::class, 'index'])->name('payroll.attendance-review');
+                Route::get('/payroll/attendance-review/{clientId}/verify', [\App\Http\Controllers\AttendanceReviewController::class, 'verifyLogs'])->name('payroll.attendance-review.verify');
+                Route::post('/payroll/attendance-review/{clientId}/verify', [\App\Http\Controllers\AttendanceReviewController::class, 'saveVerification'])->name('payroll.attendance-review.verify.save');
+                Route::get('/payroll/attendance-review/{clientId}/details', [\App\Http\Controllers\AttendanceReviewController::class, 'details'])->name('payroll.attendance-review.details');
+                Route::get('/payroll/processing', [\App\Http\Controllers\PayrollController::class, 'indexProcessing'])->name('payroll.processing');
+                Route::get('/payroll/approval', [\App\Http\Controllers\PayrollController::class, 'indexApproval'])->name('payroll.approval');
+                Route::get('/payroll/payslips', [\App\Http\Controllers\PayrollController::class, 'indexPayslips'])->name('payroll.payslips');
+                Route::get('/invoices', [\App\Http\Controllers\InvoiceController::class, 'index'])->name('invoices.index');
+                Route::get('/invoices/{id}/download', [\App\Http\Controllers\InvoiceController::class, 'downloadPdf'])->name('invoices.download');
+                Route::post('/invoices/{id}/fees', [\App\Http\Controllers\InvoiceController::class, 'storeFee'])->name('invoices.fees.store');
+                Route::delete('/invoices/{id}/fees/{feeId}', [\App\Http\Controllers\InvoiceController::class, 'destroyFee'])->name('invoices.fees.destroy');
+                Route::get('/invoices/generate', fn() => Inertia::render('Invoicing/InvoiceGenerate'))->name('invoices.generate');
+                Route::post('/payroll/{id}/release-payslips', [\App\Http\Controllers\PayrollController::class, 'releasePayslips'])->name('payroll.run.release-payslips');
+
+                // Payroll Correction routes
+                Route::post('/payroll/correction/preview', [\App\Http\Controllers\PayrollController::class, 'previewCorrection'])->name('payroll.correction.preview');
+                Route::post('/payroll/correction/store', [\App\Http\Controllers\PayrollController::class, 'storeCorrection'])->name('payroll.correction.store');
+                Route::get('/payroll/correction/template', [\App\Http\Controllers\PayrollController::class, 'downloadCorrectionTemplate'])->name('payroll.correction.template');
+                Route::post('/payroll/correction/batch-import', [\App\Http\Controllers\PayrollController::class, 'importBatchCorrection'])->name('payroll.correction.batch-import');
+                Route::post('/payroll/correction/batch-preview', [\App\Http\Controllers\PayrollController::class, 'previewBatchCorrection'])->name('payroll.correction.batch-preview');
+                Route::post('/payroll/correction/batch-store', [\App\Http\Controllers\PayrollController::class, 'storeBatchCorrection'])->name('payroll.correction.batch-store');
+            });
+
+            // Compliance Module (Gated by module:compliance)
+            Route::middleware('module:compliance')->group(function () {
+                Route::get('/compliance', [\App\Http\Controllers\ComplianceController::class, 'index'])->name('compliance.index');
+            });
+
+            // Reports Module (Gated by module:reports)
+            Route::middleware('module:reports')->group(function () {
+                Route::get('/reports', fn() => Inertia::render('Reports/ReportsAnalytics'))->name('reports.index');
+            });
 
             Route::get('/admin/employee-queries', [\App\Http\Controllers\EmployeeQueryController::class, 'adminIndex'])->name('admin.employee-queries.index');
             Route::post('/admin/employee-queries/{query}/respond', [\App\Http\Controllers\EmployeeQueryController::class, 'adminRespond'])->name('admin.employee-queries.respond');
-            Route::post('/payroll/{id}/release-payslips', [\App\Http\Controllers\PayrollController::class, 'releasePayslips'])->name('payroll.run.release-payslips');
-
-            // Payroll Correction routes
-            Route::post('/payroll/correction/preview', [\App\Http\Controllers\PayrollController::class, 'previewCorrection'])->name('payroll.correction.preview');
-            Route::post('/payroll/correction/store', [\App\Http\Controllers\PayrollController::class, 'storeCorrection'])->name('payroll.correction.store');
-            Route::get('/payroll/correction/template', [\App\Http\Controllers\PayrollController::class, 'downloadCorrectionTemplate'])->name('payroll.correction.template');
-            Route::post('/payroll/correction/batch-import', [\App\Http\Controllers\PayrollController::class, 'importBatchCorrection'])->name('payroll.correction.batch-import');
-            Route::post('/payroll/correction/batch-preview', [\App\Http\Controllers\PayrollController::class, 'previewBatchCorrection'])->name('payroll.correction.batch-preview');
-            Route::post('/payroll/correction/batch-store', [\App\Http\Controllers\PayrollController::class, 'storeBatchCorrection'])->name('payroll.correction.batch-store');
         });
  
-        // ADMIN ONLY
-        Route::middleware('role:admin')->group(function () {
+        // ADMIN & MANAGER ACCESS (Gated by module:admin permission)
+        Route::middleware(['role:admin,manager', 'module:admin'])->group(function () {
             Route::post('/payroll/runs', [\App\Http\Controllers\PayrollController::class, 'process'])->name('payroll.run.process');
             Route::post('/payroll/{id}/approve', [\App\Http\Controllers\PayrollController::class, 'approve'])->name('payroll.run.approve');
             
@@ -206,6 +220,7 @@ Route::middleware(['auth', 'active'])->group(function () {
             Route::get('/admin/users', [UserController::class, 'index'])->name('admin.users');
             Route::post('/admin/users', [UserController::class, 'store'])->name('admin.users.store');
             Route::put('/admin/users/{user}/managed-clients', [UserController::class, 'updateManagedClients'])->name('admin.users.update-managed-clients');
+            Route::put('/admin/users/{user}/module-permissions', [UserController::class, 'updateModulePermissions'])->name('admin.users.update-module-permissions');
             Route::get('/admin/payslip-templates', [\App\Http\Controllers\Admin\PayslipTemplateCustomizerController::class, 'index'])->name('admin.payslip-templates');
             Route::get('/admin/payslip-templates/preview', [\App\Http\Controllers\Admin\PayslipTemplateCustomizerController::class, 'previewHtml'])->name('admin.payslip-templates.preview');
             Route::post('/admin/payslip-templates/{client}', [\App\Http\Controllers\Admin\PayslipTemplateCustomizerController::class, 'update'])->name('admin.payslip-templates.update');

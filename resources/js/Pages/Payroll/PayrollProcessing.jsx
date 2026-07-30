@@ -92,7 +92,7 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
     const excludedCount = items ? items.filter(i => i.is_excluded).length : 0;
 
     return (
-        <RoleGuard allowedRoles={['admin', 'manager']}>
+        <RoleGuard allowedRoles={['admin', 'manager']} moduleKey="payroll">
             <AuthenticatedLayout>
                 <Head title="Payroll Processing" />
 

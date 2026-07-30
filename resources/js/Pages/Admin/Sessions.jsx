@@ -39,7 +39,7 @@ export default function AdminSessions({ sessions = {}, filters = {} }) {
   const allChecked = selected.length === data.length && data.length > 0;
 
   return (
-    <RoleGuard allowedRoles={['admin']}>
+    <RoleGuard allowedRoles={['admin', 'manager']} moduleKey="admin">
       <AuthenticatedLayout>
         <Head title="Active Sessions" />
         <div className="legacy-react-wrapper">

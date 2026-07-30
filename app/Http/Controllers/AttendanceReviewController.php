@@ -40,7 +40,11 @@ class AttendanceReviewController extends Controller
         $monthStart = Carbon::parse($targetMonth . '-01');
         $monthEnd = $monthStart->copy()->endOfMonth();
 
-        $clients = Client::where('status', 'active')->orderBy('id', 'desc')->get();
+        $clientsQuery = Client::where('status', 'active');
+        if ($request->user()->role === 'manager') {
+            $clientsQuery->whereIn('id', $request->user()->getManagedClientIds());
+        }
+        $clients = $clientsQuery->orderBy('id', 'desc')->get();
         $rows = [];
 
         foreach ($clients as $client) {
@@ -123,6 +127,10 @@ class AttendanceReviewController extends Controller
     {
         if (!in_array($request->user()->role, ['admin', 'manager'])) {
             abort(403, 'Unauthorized');
+        }
+
+        if ($request->user()->role === 'manager' && !$request->user()->isManagerForClient($clientId)) {
+            abort(403, 'Unauthorized access to this client partner.');
         }
 
         $targetMonth = $request->query('month', '2026-07');

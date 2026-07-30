@@ -25,6 +25,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => \App\Http\Middleware\EnsureUserRole::class,
             'fresh-password' => \App\Http\Middleware\RequireFreshPassword::class,
             'active' => \App\Http\Middleware\EnsureUserActive::class,
+            'module' => \App\Http\Middleware\EnsureModulePermission::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -197,7 +197,7 @@ export default function Dashboard({
   const strokeDashoffset = 283 - (283 * punchPct) / 100;
 
   return (
-    <RoleGuard allowedRoles={['admin', 'manager']}>
+    <RoleGuard allowedRoles={['admin', 'manager']} moduleKey="dashboard">
       <AuthenticatedLayout>
         <Head title={selectedClient ? `${selectedClient.company_name} Analytics` : "Executive Operations Command Center"} />
 
