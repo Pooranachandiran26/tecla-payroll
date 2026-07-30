@@ -186,7 +186,7 @@ class EmployeeController extends Controller
     public function edit($id)
     {
         $employee = \App\Models\Employee::findOrFail($id);
-        $clients = \App\Models\Client::where('status', 'active')->select('id', 'company_name', 'weekly_off_pattern')->get();
+        $clients = \App\Models\Client::where('status', 'active')->select('id', 'company_name', 'weekly_off_pattern', 'employee_pf_wage_basis', 'employer_pf_wage_basis')->get();
         return \Inertia\Inertia::render('Employees/EmployeeForm', [
             'clients' => $clients,
             'employee' => $employee

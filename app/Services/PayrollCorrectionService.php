@@ -33,10 +33,17 @@ class PayrollCorrectionService
         float $correctedPaidDays,
         float $correctedLopDays
     ): array {
-        // 1. Fetch original parent run item
+        // 1. Fetch original parent/supplementary run item across run family (non-correction item)
+        $allRunIds = $parentRun->children()->pluck('id')->prepend($parentRun->id)->toArray();
+
         $originalItem = DB::table('payroll_run_items')
-            ->where('payroll_run_id', $parentRun->id)
+            ->whereIn('payroll_run_id', $allRunIds)
             ->where('employee_id', $employee->id)
+            ->where(function ($q) {
+                $q->where('is_correction', false)
+                  ->orWhereNull('is_correction');
+            })
+            ->orderBy('id', 'asc')
             ->first();
 
         if (!$originalItem) {
@@ -101,11 +108,15 @@ class PayrollCorrectionService
 
                 if ($correctedLopDays == 0) {
                     $proRatedComponents[$key] = $isMidMonthHire
-                        ? round($currentVal * ($correctedPaidDays / $calendarDays), 2)
+                        ? round($currentVal * min(1.0, $correctedPaidDays / $calendarDays), 2)
                         : round($currentVal, 2);
                 } else {
-                    $componentLopDeduction = round($currentVal * ($correctedLopDays / $lopBasisDays), 2);
-                    $proRatedComponents[$key] = max(0.00, round($currentVal - $componentLopDeduction, 2));
+                    if ($isMidMonthHire) {
+                        $proRatedComponents[$key] = round($currentVal * ($correctedPaidDays / $lopBasisDays), 2);
+                    } else {
+                        $componentLopDeduction = round($currentVal * ($correctedLopDays / $lopBasisDays), 2);
+                        $proRatedComponents[$key] = max(0.00, round($currentVal - $componentLopDeduction, 2));
+                    }
                 }
             }
         }
@@ -253,7 +264,7 @@ class PayrollCorrectionService
             'deferred_loan_amount' => $deferredLoanAmount,
         ];
 
-        // Compute Component-wise Deltas (Corrected - Original)
+        // Compute Component-wise Deltas (Corrected - Original Base Item)
         $delta = [];
         foreach ($correctedModel as $field => $val) {
             $origVal = isset($originalItem->$field) ? (float)$originalItem->$field : 0.00;
@@ -658,9 +669,16 @@ class PayrollCorrectionService
         string $reason,
         ?int $queryId = null
     ): PayrollRunItem {
+        $allRunIds = $parentRun->children()->pluck('id')->prepend($parentRun->id)->toArray();
+
         $originalItem = DB::table('payroll_run_items')
-            ->where('payroll_run_id', $parentRun->id)
+            ->whereIn('payroll_run_id', $allRunIds)
             ->where('employee_id', $employee->id)
+            ->where(function ($q) {
+                $q->where('is_correction', false)
+                  ->orWhereNull('is_correction');
+            })
+            ->orderBy('id', 'asc')
             ->first();
 
         if (!$originalItem) {
@@ -689,11 +707,10 @@ class PayrollCorrectionService
 
             $delta = $previewData['delta'];
 
-            // Collision Scoping: Match existing item in draft supplementary run strictly by employee_id + is_correction=true + original_payroll_run_item_id
+            // Collision Scoping: Match existing item in draft supplementary run strictly by employee_id + is_correction=true
             $existingItem = PayrollRunItem::where('payroll_run_id', $suppRun->id)
                 ->where('employee_id', $employee->id)
                 ->where('is_correction', true)
-                ->where('original_payroll_run_item_id', $originalItem->id)
                 ->first();
 
             $itemData = [
@@ -802,9 +819,16 @@ class PayrollCorrectionService
                     $correctedLopDays
                 );
 
+                $allRunIds = $parentRun->children()->pluck('id')->prepend($parentRun->id)->toArray();
+
                 $originalItem = DB::table('payroll_run_items')
-                    ->where('payroll_run_id', $parentRun->id)
+                    ->whereIn('payroll_run_id', $allRunIds)
                     ->where('employee_id', $employee->id)
+                    ->where(function ($q) {
+                        $q->where('is_correction', false)
+                          ->orWhereNull('is_correction');
+                    })
+                    ->orderBy('id', 'asc')
                     ->first();
 
                 $delta = $previewData['delta'];
@@ -812,7 +836,6 @@ class PayrollCorrectionService
                 $existingItem = PayrollRunItem::where('payroll_run_id', $suppRun->id)
                     ->where('employee_id', $employee->id)
                     ->where('is_correction', true)
-                    ->where('original_payroll_run_item_id', $originalItem->id)
                     ->first();
 
                 $itemData = [

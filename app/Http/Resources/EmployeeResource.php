@@ -71,9 +71,13 @@ class EmployeeResource extends JsonResource
             'employee_esi_monthly' => $calc['employee_esi_monthly'],
             'pt_monthly' => $calc['pt_monthly'],
             
-            // Statutory settings
+            // Statutory settings & PF Basis
             'pf_applicable' => $this->pf_applicable !== null ? (bool)$this->pf_applicable : true,
             'eps_applicable' => $this->eps_applicable !== null ? (bool)$this->eps_applicable : true,
+            'employee_pf_wage_basis' => $this->employee_pf_wage_basis ?: ($this->relationLoaded('client') && $this->client ? ($this->client->employee_pf_wage_basis ?? 'ceiling') : 'ceiling'),
+            'employer_pf_wage_basis' => $this->employer_pf_wage_basis ?: ($this->relationLoaded('client') && $this->client ? ($this->client->employer_pf_wage_basis ?? 'ceiling') : 'ceiling'),
+            'joint_declaration_status' => $this->joint_declaration_status ?? 'not_required',
+            'edli_exempted' => $this->relationLoaded('client') && $this->client ? (bool)$this->client->edli_exempted : false,
             'esi_applicable' => $this->esi_applicable !== null ? (bool)$this->esi_applicable : true,
             'is_esi_active' => ($calc['employee_esi_monthly'] > 0),
             'pt_applicable' => $ptApplicable,
