@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import AuthenticatedLayout from '../../Layouts/AuthenticatedLayout';
-import { Head, usePage } from '@inertiajs/react';
+import { Head, usePage, router } from '@inertiajs/react';
 import Button from '../../Components/ui/Button';
 import Badge from '../../Components/ui/Badge';
 import RoleGuard from '../../Components/RoleGuard.jsx';
@@ -9,7 +9,7 @@ import AddInvoiceFeeModal from '../../Components/AddInvoiceFeeModal';
 import { Download, Plus, Tag } from 'lucide-react';
 
 export default function InvoicesList({ invoices }) {
-    const { auth } = usePage().props;
+    const { auth, flash, errors } = usePage().props;
     const role = auth?.user?.role || 'manager';
     const [selectedFeeInvoice, setSelectedFeeInvoice] = useState(null);
 
@@ -37,9 +37,20 @@ export default function InvoicesList({ invoices }) {
                 <div className="flex justify-between items-end mb-6">
                     <div>
                         <h2 className="text-2xl font-bold text-[#1F3864] mb-1">Client Invoices Registry</h2>
-                        <p className="text-gray-500 text-[0.9rem]">Track billing records, pass-through salaries, additional fees, and agency service fees.</p>
+                        <p className="text-gray-500 text-[0.9rem]">Track billing records, pass-through salaries, additional fees, GST tax, and agency service fees.</p>
                     </div>
                 </div>
+
+                {(flash?.success || flash?.message) && (
+                    <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-md text-sm font-medium">
+                        ✅ {flash.success || flash.message}
+                    </div>
+                )}
+                {(flash?.error || errors?.error) && (
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-800 rounded-md text-sm font-medium">
+                        ⚠️ {flash.error || errors.error}
+                    </div>
+                )}
 
                 <div className="card p-0">
                     <div className="w-full overflow-x-auto">
@@ -54,6 +65,8 @@ export default function InvoicesList({ invoices }) {
                                     {role !== 'manager' && (
                                         <th className="p-3 font-semibold text-gray-700 border-b border-gray-200">Agency Service Fee</th>
                                     )}
+                                    <th className="p-3 font-semibold text-gray-700 border-b border-gray-200">GST Amount (₹)</th>
+                                    <th className="p-3 font-semibold text-gray-700 border-b border-gray-200">Grand Total (₹)</th>
                                     <th className="p-3 font-semibold text-gray-700 border-b border-gray-200">Status</th>
                                     <th className="p-3 font-semibold text-gray-700 border-b border-gray-200">GST Type</th>
                                     <th className="p-3 font-semibold text-gray-700 border-b border-gray-200 text-center">Actions</th>
@@ -96,6 +109,12 @@ export default function InvoicesList({ invoices }) {
                                                          ₹{parseFloat(inv.agency_service_fee).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                                      </td>
                                                  )}
+                                                 <td className="p-3 font-semibold text-purple-700">
+                                                     ₹{parseFloat(inv.gst_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                 </td>
+                                                 <td className="p-3 font-bold text-[#1F3864]">
+                                                     ₹{parseFloat(inv.grand_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                 </td>
                                                  <td className="p-3">
                                                      {inv.status === 'draft' && <Badge type="warning">Draft</Badge>}
                                                      {inv.status === 'finalized' && <Badge type="info">Finalized</Badge>}
@@ -130,9 +149,7 @@ export default function InvoicesList({ invoices }) {
                                                                      type="button"
                                                                      onClick={() => {
                                                                          if (confirm(`Finalize Invoice ${inv.invoice_number}? No further fees can be added once finalized.`)) {
-                                                                             import('@inertiajs/react').then(({ router }) => {
-                                                                                 router.post(route('invoices.finalize', inv.id), {}, { preserveScroll: true });
-                                                                             });
+                                                                             router.post(route('invoices.finalize', inv.id), {}, { preserveScroll: true });
                                                                          }
                                                                      }}
                                                                      className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-md bg-amber-600 text-white hover:bg-amber-700 transition-colors"
@@ -156,9 +173,7 @@ export default function InvoicesList({ invoices }) {
                                                                  type="button"
                                                                  onClick={() => {
                                                                      if (confirm(`Send Tax Invoice ${inv.invoice_number} via email to client?`)) {
-                                                                         import('@inertiajs/react').then(({ router }) => {
-                                                                             router.post(route('invoices.send-email', inv.id), {}, { preserveScroll: true });
-                                                                         });
+                                                                         router.post(route('invoices.send-email', inv.id), {}, { preserveScroll: true });
                                                                      }
                                                                  }}
                                                                  className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-md bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
