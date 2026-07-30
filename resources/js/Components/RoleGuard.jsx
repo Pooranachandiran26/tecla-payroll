@@ -10,7 +10,8 @@ export default function RoleGuard({ allowedRoles = [], moduleKey = null, childre
   const { role } = useRole();
   const { auth } = usePage().props;
 
-  let isAllowed = allowedRoles.includes(role);
+  const safeAllowedRoles = Array.isArray(allowedRoles) ? allowedRoles : [];
+  let isAllowed = safeAllowedRoles.includes(role);
 
   if (isAllowed && moduleKey && role === 'manager') {
     const userPermissions = auth?.user?.module_permissions;

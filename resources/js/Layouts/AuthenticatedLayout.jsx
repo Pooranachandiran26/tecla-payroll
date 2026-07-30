@@ -67,11 +67,14 @@ export default function AuthenticatedLayout({ children, hideSubNav = false }) {
   
   const userPermissions = auth?.user?.module_permissions;
 
-  const rawNavLinks = role === 'client' ? clientNav
+  const rawNavLinks = (role === 'client' ? clientNav
     : role === 'employee' ? candidateNav
-    : adminNav;
+    : adminNav) || [];
 
-  const navLinks = rawNavLinks.filter(item => {
+  const safeRawLinks = Array.isArray(rawNavLinks) ? rawNavLinks : [];
+
+  const navLinks = safeRawLinks.filter(item => {
+    if (!item) return false;
     if (role === 'admin') return true;
     if (role === 'manager' && Array.isArray(userPermissions) && userPermissions.length > 0) {
       return userPermissions.includes(item.key);

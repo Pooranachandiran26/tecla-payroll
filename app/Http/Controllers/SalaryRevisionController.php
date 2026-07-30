@@ -146,6 +146,17 @@ class SalaryRevisionController extends Controller
 
                 $employee->update($employeeData);
                 
+                // Auto-recalculate any active draft payroll runs for this employee's client so processing page stays 100% in sync
+                $draftRuns = \App\Models\PayrollRun::where('client_id', $employee->client_id)->where('status', 'draft')->get();
+                if ($draftRuns->isNotEmpty()) {
+                    $monthlyCalc = app(\App\Services\MonthlyPayrollCalculator::class);
+                    $activeEmployees = \App\Models\Employee::where('client_id', $employee->client_id)->where('status', 'active')->get();
+                    foreach ($draftRuns as $run) {
+                        foreach ($activeEmployees as $empItem) {
+                            $monthlyCalc->calculateForEmployee($empItem, $run);
+                        }
+                    }
+                }
             } else {
                 $revision->update([
                     'status' => 'rejected',
