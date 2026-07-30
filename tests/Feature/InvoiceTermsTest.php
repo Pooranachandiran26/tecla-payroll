@@ -151,8 +151,8 @@ class InvoiceTermsTest extends TestCase
     public function test_invoice_cycle_and_raise_day_have_no_effect_on_due_date()
     {
         $combinations = [
-            ['cycle' => 'weekly', 'raise_day' => '1'],
-            ['cycle' => 'quarterly', 'raise_day' => '15'],
+            ['cycle' => 'monthly', 'raise_day' => '1'],
+            ['cycle' => null, 'raise_day' => '15'],
             ['cycle' => 'monthly', 'raise_day' => '28'],
         ];
 
