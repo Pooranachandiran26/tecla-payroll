@@ -263,6 +263,18 @@ class EmployeeController extends Controller
         
         $employee->update($request->validated());
 
+        // Auto-recalculate any active draft payroll runs for this employee's client
+        $draftRuns = \App\Models\PayrollRun::where('client_id', $employee->client_id)->where('status', 'draft')->get();
+        if ($draftRuns->isNotEmpty()) {
+            $monthlyCalc = app(\App\Services\MonthlyPayrollCalculator::class);
+            $activeEmployees = \App\Models\Employee::where('client_id', $employee->client_id)->where('status', 'active')->get();
+            foreach ($draftRuns as $run) {
+                foreach ($activeEmployees as $emp) {
+                    $monthlyCalc->calculateForEmployee($emp, $run);
+                }
+            }
+        }
+
         return redirect()->route('employees.index')->with('success', 'Employee updated successfully.');
     }
 
