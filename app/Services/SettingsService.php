@@ -82,13 +82,7 @@ class SettingsService
             'boolean' => filter_var($value, FILTER_VALIDATE_BOOLEAN),
             'integer' => (int) $value,
             'json' => json_decode($value, true),
-            'encrypted' => $value ? (function() use ($value) {
-                try {
-                    return \Illuminate\Support\Facades\Crypt::decryptString($value);
-                } catch (\Illuminate\Contracts\Encryption\DecryptException $e) {
-                    return '';
-                }
-            })() : '',
+            'encrypted' => $value ? \Illuminate\Support\Facades\Crypt::decryptString($value) : '',
             default => (string) $value,
         };
     }

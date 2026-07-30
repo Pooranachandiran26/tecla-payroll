@@ -31,7 +31,11 @@ class RequireFreshPassword
         }
 
         // 2. Expiry check
-        $expiryDays = $this->settings->getAuthSecurity('password_expiry_days', 90);
+        try {
+            $expiryDays = $this->settings->getAuthSecurity('password_expiry_days', 90);
+        } catch (\Throwable $e) {
+            $expiryDays = 90;
+        }
         if ($expiryDays > 0 && $user->password_changed_at) {
             if ($user->password_changed_at->addDays($expiryDays)->isPast()) {
                 $user->update(['must_change_password' => true]);
