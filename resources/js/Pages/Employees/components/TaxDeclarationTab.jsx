@@ -156,6 +156,11 @@ export default function TaxDeclarationTab({ employee, taxDeclaration: decProp, t
                             <span style={{ color: 'var(--text-muted)' }}>Annual Gross Income:</span>
                             <strong>₹{(newReg.annual_gross || 0).toLocaleString('en-IN')}</strong>
                         </div>
+                        {Number(form.previous_employer_gross || 0) > 0 && (
+                            <div style={{ fontSize: '0.75rem', color: '#64748B', textAlign: 'right', marginTop: '-0.25rem', fontStyle: 'italic' }}>
+                                (Current Co. ₹{((Number(employee.gross_monthly_salary || 0) * 12)).toLocaleString('en-IN')} + Prev. Employer ₹{Number(form.previous_employer_gross).toLocaleString('en-IN')})
+                            </div>
+                        )}
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                             <span style={{ color: 'var(--text-muted)' }}>Standard Deduction:</span>
                             <strong style={{ color: 'var(--status-success)' }}>- ₹{(newReg.standard_deduction || 75000).toLocaleString('en-IN')}</strong>
@@ -164,11 +169,17 @@ export default function TaxDeclarationTab({ employee, taxDeclaration: decProp, t
                             <span style={{ color: 'var(--text-muted)' }}>Section 87A Rebate:</span>
                             <strong style={{ color: 'var(--status-success)' }}>- ₹{(newReg.rebate_87a || 0).toLocaleString('en-IN')}</strong>
                         </div>
+                        {Number(newReg.previous_employer_tds || form.previous_employer_tds || 0) > 0 && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span style={{ color: 'var(--text-muted)' }}>Less: Prev. Employer TDS:</span>
+                                <strong style={{ color: 'var(--status-success)' }}>- ₹{Number(newReg.previous_employer_tds || form.previous_employer_tds).toLocaleString('en-IN')}</strong>
+                            </div>
+                        )}
                         <hr style={{ border: 0, borderTop: '1px solid var(--border-color)', margin: '0.25rem 0' }} />
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.95rem' }}>
-                            <strong>Projected Annual Tax:</strong>
-                            <strong style={{ color: (newReg.total_annual_tax || 0) === 0 ? 'var(--status-success)' : 'var(--status-danger)' }}>
-                                ₹{(newReg.total_annual_tax || 0).toLocaleString('en-IN')}
+                            <strong>Projected Annual Tax Payable:</strong>
+                            <strong style={{ color: (newReg.net_tax_payable ?? newReg.total_annual_tax ?? 0) === 0 ? 'var(--status-success)' : 'var(--status-danger)' }}>
+                                ₹{(newReg.net_tax_payable ?? newReg.total_annual_tax ?? 0).toLocaleString('en-IN')}
                             </strong>
                         </div>
                     </div>
@@ -185,6 +196,11 @@ export default function TaxDeclarationTab({ employee, taxDeclaration: decProp, t
                             <span style={{ color: 'var(--text-muted)' }}>Annual Gross Income:</span>
                             <strong>₹{(oldReg.annual_gross || 0).toLocaleString('en-IN')}</strong>
                         </div>
+                        {Number(form.previous_employer_gross || 0) > 0 && (
+                            <div style={{ fontSize: '0.75rem', color: '#64748B', textAlign: 'right', marginTop: '-0.25rem', fontStyle: 'italic' }}>
+                                (Current Co. ₹{((Number(employee.gross_monthly_salary || 0) * 12)).toLocaleString('en-IN')} + Prev. Employer ₹{Number(form.previous_employer_gross).toLocaleString('en-IN')})
+                            </div>
+                        )}
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                             <span style={{ color: 'var(--text-muted)' }}>Std Ded + HRA + Chapter VI-A:</span>
                             <strong style={{ color: 'var(--status-success)' }}>- ₹{(oldReg.total_deductions || 50000).toLocaleString('en-IN')}</strong>
@@ -193,11 +209,17 @@ export default function TaxDeclarationTab({ employee, taxDeclaration: decProp, t
                             <span style={{ color: 'var(--text-muted)' }}>Section 87A Rebate:</span>
                             <strong style={{ color: 'var(--status-success)' }}>- ₹{(oldReg.rebate_87a || 0).toLocaleString('en-IN')}</strong>
                         </div>
+                        {Number(oldReg.previous_employer_tds || form.previous_employer_tds || 0) > 0 && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span style={{ color: 'var(--text-muted)' }}>Less: Prev. Employer TDS:</span>
+                                <strong style={{ color: 'var(--status-success)' }}>- ₹{Number(oldReg.previous_employer_tds || form.previous_employer_tds).toLocaleString('en-IN')}</strong>
+                            </div>
+                        )}
                         <hr style={{ border: 0, borderTop: '1px solid var(--border-color)', margin: '0.25rem 0' }} />
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.95rem' }}>
-                            <strong>Projected Annual Tax:</strong>
-                            <strong style={{ color: (oldReg.total_annual_tax || 0) === 0 ? 'var(--status-success)' : 'var(--status-danger)' }}>
-                                ₹{(oldReg.total_annual_tax || 0).toLocaleString('en-IN')}
+                            <strong>Projected Annual Tax Payable:</strong>
+                            <strong style={{ color: (oldReg.net_tax_payable ?? oldReg.total_annual_tax ?? 0) === 0 ? 'var(--status-success)' : 'var(--status-danger)' }}>
+                                ₹{(oldReg.net_tax_payable ?? oldReg.total_annual_tax ?? 0).toLocaleString('en-IN')}
                             </strong>
                         </div>
                     </div>
@@ -221,78 +243,129 @@ export default function TaxDeclarationTab({ employee, taxDeclaration: decProp, t
                         </label>
                     </div>
 
-                    <h4 style={{ fontSize: '1.05rem', margin: '1rem 0 0 0', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
-                        2. Section 80C Investments (Max Limit: ₹1,50,000)
-                    </h4>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
-                        <div>
-                            <label className="data-label">PPF (Public Provident Fund)</label>
-                            <input type="number" min="0" className="form-control" value={form.ppf_amount} onChange={e => setForm(f => ({ ...f, ppf_amount: e.target.value }))} />
+                    {form.regime === 'new' ? (
+                        <div style={{ padding: '1.25rem', background: '#F0F9FF', border: '1px solid #BAE6FD', borderRadius: 'var(--radius-md)', color: '#0369A1', fontSize: '0.875rem', margin: '0.5rem 0', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                            <div style={{ fontWeight: '600', fontSize: '0.95rem', color: '#0284C7', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                ℹ️ You have selected the New Tax Regime (Section 115BAC).
+                            </div>
+
+                            <div>
+                                <div style={{ fontWeight: '500', marginBottom: '0.25rem', color: '#075985' }}>
+                                    Under this regime, the following deductions/exemptions are <strong>not available</strong>:
+                                </div>
+                                <ul style={{ margin: '0.25rem 0 0 1.25rem', padding: 0, color: '#0369A1', display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                                    <li>Section 80C Investments (PPF, ELSS, Insurance, Tuition, Housing Principal, NSC)</li>
+                                    <li>Section 80D Health Insurance</li>
+                                    <li>HRA Exemption (Section 10(13A))</li>
+                                    <li>Home Loan Interest (Section 24(b))</li>
+                                </ul>
+                            </div>
+
+                            <div>
+                                <div style={{ fontWeight: '500', marginBottom: '0.25rem', color: '#075985' }}>
+                                    The system automatically applies:
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', paddingLeft: '0.25rem' }}>
+                                    <div>✅ Standard Deduction (<strong>₹75,000</strong>)</div>
+                                    <div>✅ Section 87A Rebate (if eligible, up to <strong>₹60,000</strong>)</div>
+                                    <div>✅ Income Tax Slabs &amp; 4% Health &amp; Education Cess</div>
+                                </div>
+                            </div>
+
+                            <div style={{ fontSize: '0.825rem', color: '#0284C7', paddingTop: '0.25rem', borderTop: '1px dashed #BAE6FD' }}>
+                                💡 If you want to claim investment or HRA benefits, switch to the <strong>Old Tax Regime</strong> above.
+                            </div>
                         </div>
-                        <div>
-                            <label className="data-label">ELSS Mutual Funds</label>
-                            <input type="number" min="0" className="form-control" value={form.elss_amount} onChange={e => setForm(f => ({ ...f, elss_amount: e.target.value }))} />
-                        </div>
-                        <div>
-                            <label className="data-label">Life Insurance Premium</label>
-                            <input type="number" min="0" className="form-control" value={form.life_insurance_premium} onChange={e => setForm(f => ({ ...f, life_insurance_premium: e.target.value }))} />
-                        </div>
-                        <div>
-                            <label className="data-label">Children Tuition Fees</label>
-                            <input type="number" min="0" className="form-control" value={form.tuition_fees} onChange={e => setForm(f => ({ ...f, tuition_fees: e.target.value }))} />
-                        </div>
-                        <div>
-                            <label className="data-label">Housing Loan Principal</label>
-                            <input type="number" min="0" className="form-control" value={form.housing_loan_principal} onChange={e => setForm(f => ({ ...f, housing_loan_principal: e.target.value }))} />
-                        </div>
-                        <div>
-                            <label className="data-label">NSC / Other 80C</label>
-                            <input type="number" min="0" className="form-control" value={form.other_80c} onChange={e => setForm(f => ({ ...f, other_80c: e.target.value }))} />
-                        </div>
-                    </div>
-                    <div style={{ fontSize: '0.85rem', color: total80c > 150000 ? 'var(--status-warning)' : 'var(--text-muted)' }}>
-                        Total Declared 80C: <strong>₹{total80c.toLocaleString('en-IN')}</strong> | Eligible Capped Deduction: <strong>₹{capped80c.toLocaleString('en-IN')}</strong>
-                    </div>
+                    ) : (
+                        <>
+                            <h4 style={{ fontSize: '1.05rem', margin: '1rem 0 0 0', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+                                2. Section 80C Investments (Max Limit: ₹1,50,000)
+                            </h4>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+                                <div>
+                                    <label className="data-label">PPF (Public Provident Fund)</label>
+                                    <input type="number" min="0" className="form-control" value={form.ppf_amount} onChange={e => setForm(f => ({ ...f, ppf_amount: e.target.value }))} />
+                                </div>
+                                <div>
+                                    <label className="data-label">ELSS Mutual Funds</label>
+                                    <input type="number" min="0" className="form-control" value={form.elss_amount} onChange={e => setForm(f => ({ ...f, elss_amount: e.target.value }))} />
+                                </div>
+                                <div>
+                                    <label className="data-label">Life Insurance Premium</label>
+                                    <input type="number" min="0" className="form-control" value={form.life_insurance_premium} onChange={e => setForm(f => ({ ...f, life_insurance_premium: e.target.value }))} />
+                                </div>
+                                <div>
+                                    <label className="data-label">Children Tuition Fees</label>
+                                    <input type="number" min="0" className="form-control" value={form.tuition_fees} onChange={e => setForm(f => ({ ...f, tuition_fees: e.target.value }))} />
+                                </div>
+                                <div>
+                                    <label className="data-label">Housing Loan Principal</label>
+                                    <input type="number" min="0" className="form-control" value={form.housing_loan_principal} onChange={e => setForm(f => ({ ...f, housing_loan_principal: e.target.value }))} />
+                                </div>
+                                <div>
+                                    <label className="data-label">NSC / Other 80C</label>
+                                    <input type="number" min="0" className="form-control" value={form.other_80c} onChange={e => setForm(f => ({ ...f, other_80c: e.target.value }))} />
+                                </div>
+                            </div>
+                            <div style={{ fontSize: '0.85rem', color: total80c > 150000 ? 'var(--status-warning)' : 'var(--text-muted)' }}>
+                                Total Declared 80C: <strong>₹{total80c.toLocaleString('en-IN')}</strong> | Eligible Capped Deduction: <strong>₹{capped80c.toLocaleString('en-IN')}</strong>
+                            </div>
+
+                            <h4 style={{ fontSize: '1.05rem', margin: '1rem 0 0 0', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+                                3. House Rent Allowance (HRA - Section 10(13A)) &amp; Home Loan
+                            </h4>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+                                <div>
+                                    <label className="data-label">Monthly Rent Paid (₹)</label>
+                                    <input type="number" min="0" className="form-control" value={form.monthly_rent_paid} onChange={e => setForm(f => ({ ...f, monthly_rent_paid: e.target.value }))} />
+                                </div>
+                                <div>
+                                    <label className="data-label">Landlord Name</label>
+                                    <input type="text" className="form-control" value={form.landlord_name} onChange={e => setForm(f => ({ ...f, landlord_name: e.target.value }))} placeholder="e.g. Ramesh Kumar" />
+                                </div>
+                                <div>
+                                    <label className="data-label">Landlord PAN {annualRent > 100000 && <span style={{ color: 'var(--status-danger)' }}>* (Mandatory &gt;1L/yr)</span>}</label>
+                                    <input type="text" maxLength="10" className="form-control" value={form.landlord_pan} onChange={e => setForm(f => ({ ...f, landlord_pan: e.target.value.toUpperCase() }))} placeholder="ABCDE1234F" />
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: '2rem', alignItems: 'center' }}>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem' }}>
+                                    <input type="checkbox" checked={form.is_metro_city} onChange={e => setForm(f => ({ ...f, is_metro_city: e.target.checked }))} />
+                                    Accommodation in Metro City (Mumbai, Delhi, Kolkata, Chennai - 50% Basic)
+                                </label>
+                            </div>
+
+                            <h4 style={{ fontSize: '1.05rem', margin: '1rem 0 0 0', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+                                4. Section 80D Health Insurance &amp; Section 24b Home Loan
+                            </h4>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+                                <div>
+                                    <label className="data-label">Health Insurance (Self/Family - Max ₹25,000)</label>
+                                    <input type="number" min="0" className="form-control" value={form.health_insurance_self} onChange={e => setForm(f => ({ ...f, health_insurance_self: e.target.value }))} />
+                                </div>
+                                <div>
+                                    <label className="data-label">Health Insurance (Parents - Max ₹25k/50k)</label>
+                                    <input type="number" min="0" className="form-control" value={form.health_insurance_parents} onChange={e => setForm(f => ({ ...f, health_insurance_parents: e.target.value }))} />
+                                </div>
+                                <div>
+                                    <label className="data-label">Sec 24b Home Loan Interest (Max ₹2,00,000)</label>
+                                    <input type="number" min="0" className="form-control" value={form.home_loan_interest_self} onChange={e => setForm(f => ({ ...f, home_loan_interest_self: e.target.value }))} />
+                                </div>
+                            </div>
+                        </>
+                    )}
 
                     <h4 style={{ fontSize: '1.05rem', margin: '1rem 0 0 0', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
-                        3. House Rent Allowance (HRA - Section 10(13A)) &amp; Home Loan
+                        {form.regime === 'new' ? '2. Previous Employer Details (Form 12B)' : '5. Previous Employer Details (Form 12B)'}
                     </h4>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
                         <div>
-                            <label className="data-label">Monthly Rent Paid (₹)</label>
-                            <input type="number" min="0" className="form-control" value={form.monthly_rent_paid} onChange={e => setForm(f => ({ ...f, monthly_rent_paid: e.target.value }))} />
+                            <label className="data-label">Previous Employer Gross Income (₹)</label>
+                            <input type="number" min="0" className="form-control" value={form.previous_employer_gross} onChange={e => setForm(f => ({ ...f, previous_employer_gross: e.target.value }))} placeholder="0" />
                         </div>
                         <div>
-                            <label className="data-label">Landlord Name</label>
-                            <input type="text" className="form-control" value={form.landlord_name} onChange={e => setForm(f => ({ ...f, landlord_name: e.target.value }))} placeholder="e.g. Ramesh Kumar" />
-                        </div>
-                        <div>
-                            <label className="data-label">Landlord PAN {annualRent > 100000 && <span style={{ color: 'var(--status-danger)' }}>* (Mandatory &gt;1L/yr)</span>}</label>
-                            <input type="text" maxLength="10" className="form-control" value={form.landlord_pan} onChange={e => setForm(f => ({ ...f, landlord_pan: e.target.value.toUpperCase() }))} placeholder="ABCDE1234F" />
-                        </div>
-                    </div>
-                    <div style={{ display: 'flex', gap: '2rem', alignItems: 'center' }}>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem' }}>
-                            <input type="checkbox" checked={form.is_metro_city} onChange={e => setForm(f => ({ ...f, is_metro_city: e.target.checked }))} />
-                            Accommodation in Metro City (Mumbai, Delhi, Kolkata, Chennai - 50% Basic)
-                        </label>
-                    </div>
-
-                    <h4 style={{ fontSize: '1.05rem', margin: '1rem 0 0 0', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
-                        4. Section 80D Health Insurance &amp; Section 24b Home Loan
-                    </h4>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
-                        <div>
-                            <label className="data-label">Health Insurance (Self/Family - Max ₹25,000)</label>
-                            <input type="number" min="0" className="form-control" value={form.health_insurance_self} onChange={e => setForm(f => ({ ...f, health_insurance_self: e.target.value }))} />
-                        </div>
-                        <div>
-                            <label className="data-label">Health Insurance (Parents - Max ₹25k/50k)</label>
-                            <input type="number" min="0" className="form-control" value={form.health_insurance_parents} onChange={e => setForm(f => ({ ...f, health_insurance_parents: e.target.value }))} />
-                        </div>
-                        <div>
-                            <label className="data-label">Sec 24b Home Loan Interest (Max ₹2,00,000)</label>
-                            <input type="number" min="0" className="form-control" value={form.home_loan_interest_self} onChange={e => setForm(f => ({ ...f, home_loan_interest_self: e.target.value }))} />
+                            <label className="data-label">Previous Employer TDS Deducted (₹)</label>
+                            <input type="number" min="0" className="form-control" value={form.previous_employer_tds} onChange={e => setForm(f => ({ ...f, previous_employer_tds: e.target.value }))} placeholder="0" />
                         </div>
                     </div>
 
