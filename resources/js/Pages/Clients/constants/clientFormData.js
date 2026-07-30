@@ -68,9 +68,6 @@ export const PAYMENT_NET_TERMS = [
 
 export const INVOICE_CYCLES = [
   { value: 'monthly', label: 'Monthly (Last working day of month)' },
-  { value: 'biweekly', label: 'Bi-Weekly (Every 2 weeks)' },
-  { value: 'weekly', label: 'Weekly' },
-  { value: 'quarterly', label: 'Quarterly' },
 ];
 
 export const CURRENCIES = [
