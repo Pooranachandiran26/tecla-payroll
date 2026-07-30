@@ -33,10 +33,17 @@ class PayrollCorrectionService
         float $correctedPaidDays,
         float $correctedLopDays
     ): array {
-        // 1. Fetch original parent run item
+        // 1. Fetch original parent/supplementary run item across run family (non-correction item)
+        $allRunIds = $parentRun->children()->pluck('id')->prepend($parentRun->id)->toArray();
+
         $originalItem = DB::table('payroll_run_items')
-            ->where('payroll_run_id', $parentRun->id)
+            ->whereIn('payroll_run_id', $allRunIds)
             ->where('employee_id', $employee->id)
+            ->where(function ($q) {
+                $q->where('is_correction', false)
+                  ->orWhereNull('is_correction');
+            })
+            ->orderBy('id', 'asc')
             ->first();
 
         if (!$originalItem) {
@@ -101,11 +108,15 @@ class PayrollCorrectionService
 
                 if ($correctedLopDays == 0) {
                     $proRatedComponents[$key] = $isMidMonthHire
-                        ? round($currentVal * ($correctedPaidDays / $calendarDays), 2)
+                        ? round($currentVal * min(1.0, $correctedPaidDays / $calendarDays), 2)
                         : round($currentVal, 2);
                 } else {
-                    $componentLopDeduction = round($currentVal * ($correctedLopDays / $lopBasisDays), 2);
-                    $proRatedComponents[$key] = max(0.00, round($currentVal - $componentLopDeduction, 2));
+                    if ($isMidMonthHire) {
+                        $proRatedComponents[$key] = round($currentVal * ($correctedPaidDays / $lopBasisDays), 2);
+                    } else {
+                        $componentLopDeduction = round($currentVal * ($correctedLopDays / $lopBasisDays), 2);
+                        $proRatedComponents[$key] = max(0.00, round($currentVal - $componentLopDeduction, 2));
+                    }
                 }
             }
         }
@@ -253,7 +264,7 @@ class PayrollCorrectionService
             'deferred_loan_amount' => $deferredLoanAmount,
         ];
 
-        // Compute Component-wise Deltas (Corrected - Original)
+        // Compute Component-wise Deltas (Corrected - Original Base Item)
         $delta = [];
         foreach ($correctedModel as $field => $val) {
             $origVal = isset($originalItem->$field) ? (float)$originalItem->$field : 0.00;
@@ -412,6 +423,8 @@ class PayrollCorrectionService
                     if ($idxEmpCode === false) $idxEmpCode = array_search('emp_code', $cells);
                     $idxDaysPresent = array_search('days_present', $cells);
                     $idxDaysLOP = array_search('days_lop', $cells);
+                    $idxTargetMonth = array_search('target_month', $cells);
+                    if ($idxTargetMonth === false) $idxTargetMonth = array_search('month', $cells);
 
                     if ($idxEmpCode !== false && $idxDaysPresent !== false && $idxDaysLOP !== false) {
                         $targetSheet = $sheet;
@@ -421,6 +434,7 @@ class PayrollCorrectionService
                             'days_present' => $idxDaysPresent,
                             'days_lop' => $idxDaysLOP,
                             'reason' => array_search('reason', $cells),
+                            'target_month' => $idxTargetMonth,
                         ];
                         break 2;
                     }
@@ -446,6 +460,7 @@ class PayrollCorrectionService
                 $daysPresent = isset($cellValues[$headerMap['days_present']]) ? trim($cellValues[$headerMap['days_present']]) : '';
                 $daysLOP = isset($cellValues[$headerMap['days_lop']]) ? trim($cellValues[$headerMap['days_lop']]) : '';
                 $reason = ($headerMap['reason'] !== false && isset($cellValues[$headerMap['reason']])) ? trim($cellValues[$headerMap['reason']]) : '';
+                $targetMonth = ($headerMap['target_month'] !== false && isset($cellValues[$headerMap['target_month']])) ? trim($cellValues[$headerMap['target_month']]) : '';
 
                 if (empty($empCode)) continue;
 
@@ -454,6 +469,7 @@ class PayrollCorrectionService
                     'days_present' => $daysPresent,
                     'days_lop' => $daysLOP,
                     'reason' => $reason,
+                    'target_month' => $targetMonth,
                 ];
             }
             $reader->close();
@@ -476,6 +492,8 @@ class PayrollCorrectionService
             $idxDaysPresent = array_search('days_present', $headers);
             $idxDaysLOP = array_search('days_lop', $headers);
             $idxReason = array_search('reason', $headers);
+            $idxTargetMonth = array_search('target_month', $headers);
+            if ($idxTargetMonth === false) $idxTargetMonth = array_search('month', $headers);
 
             if ($idxEmpCode === false || $idxDaysPresent === false || $idxDaysLOP === false) {
                 if (is_resource($handle)) { @fclose($handle); }
@@ -489,6 +507,7 @@ class PayrollCorrectionService
                     'days_present' => isset($data[$idxDaysPresent]) ? trim($data[$idxDaysPresent]) : '',
                     'days_lop' => isset($data[$idxDaysLOP]) ? trim($data[$idxDaysLOP]) : '',
                     'reason' => ($idxReason !== false && isset($data[$idxReason])) ? trim($data[$idxReason]) : '',
+                    'target_month' => ($idxTargetMonth !== false && isset($data[$idxTargetMonth])) ? trim($data[$idxTargetMonth]) : '',
                 ];
             }
             if (is_resource($handle)) { @fclose($handle); }
@@ -497,6 +516,14 @@ class PayrollCorrectionService
         $parsedRows = [];
         foreach ($rawRows as $row) {
             if (empty($row['employee_code'])) continue;
+
+            if (!empty($row['target_month'])) {
+                $rowMonthShort = substr($row['target_month'], 0, 7);
+                $parentMonthShort = substr($parentRun->payroll_month, 0, 7);
+                if ($rowMonthShort !== $parentMonthShort) {
+                    throw new \Exception("Target month mismatch for employee {$row['employee_code']}: file specifies '{$row['target_month']}', but parent run target month is '{$parentRun->payroll_month}'.");
+                }
+            }
 
             $employee = Employee::where('client_id', $parentRun->client_id)
                 ->where('employee_code', $row['employee_code'])
@@ -642,9 +669,16 @@ class PayrollCorrectionService
         string $reason,
         ?int $queryId = null
     ): PayrollRunItem {
+        $allRunIds = $parentRun->children()->pluck('id')->prepend($parentRun->id)->toArray();
+
         $originalItem = DB::table('payroll_run_items')
-            ->where('payroll_run_id', $parentRun->id)
+            ->whereIn('payroll_run_id', $allRunIds)
             ->where('employee_id', $employee->id)
+            ->where(function ($q) {
+                $q->where('is_correction', false)
+                  ->orWhereNull('is_correction');
+            })
+            ->orderBy('id', 'asc')
             ->first();
 
         if (!$originalItem) {
@@ -673,11 +707,10 @@ class PayrollCorrectionService
 
             $delta = $previewData['delta'];
 
-            // Collision Scoping: Match existing item in draft supplementary run strictly by employee_id + is_correction=true + original_payroll_run_item_id
+            // Collision Scoping: Match existing item in draft supplementary run strictly by employee_id + is_correction=true
             $existingItem = PayrollRunItem::where('payroll_run_id', $suppRun->id)
                 ->where('employee_id', $employee->id)
                 ->where('is_correction', true)
-                ->where('original_payroll_run_item_id', $originalItem->id)
                 ->first();
 
             $itemData = [
@@ -786,9 +819,16 @@ class PayrollCorrectionService
                     $correctedLopDays
                 );
 
+                $allRunIds = $parentRun->children()->pluck('id')->prepend($parentRun->id)->toArray();
+
                 $originalItem = DB::table('payroll_run_items')
-                    ->where('payroll_run_id', $parentRun->id)
+                    ->whereIn('payroll_run_id', $allRunIds)
                     ->where('employee_id', $employee->id)
+                    ->where(function ($q) {
+                        $q->where('is_correction', false)
+                          ->orWhereNull('is_correction');
+                    })
+                    ->orderBy('id', 'asc')
                     ->first();
 
                 $delta = $previewData['delta'];
@@ -796,7 +836,6 @@ class PayrollCorrectionService
                 $existingItem = PayrollRunItem::where('payroll_run_id', $suppRun->id)
                     ->where('employee_id', $employee->id)
                     ->where('is_correction', true)
-                    ->where('original_payroll_run_item_id', $originalItem->id)
                     ->first();
 
                 $itemData = [

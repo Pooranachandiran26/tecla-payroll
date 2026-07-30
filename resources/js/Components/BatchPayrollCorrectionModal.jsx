@@ -80,11 +80,13 @@ export default function BatchPayrollCorrectionModal({ isOpen, onClose, parentRun
 
     const handleDaysChange = (empId, field, val) => {
         const num = Math.max(0, parseFloat(val) || 0);
-        const totalCalDays = workingDaysContext?.total_calendar_days || 31;
+        const emp = items.find(i => i.employee_id === empId);
+        const empPeriodDays = emp ? (parseFloat(emp.paid_days || 0) + parseFloat(emp.lop_days || 0)) : 0;
+        const safeTotal = empPeriodDays > 0 ? empPeriodDays : (workingDaysContext?.total_calendar_days || 31);
 
         setOverrides(prev => {
-            const newPaid = field === 'paid_days' ? num : Math.max(0, totalCalDays - num);
-            const newLop = field === 'lop_days' ? num : Math.max(0, totalCalDays - num);
+            const newPaid = field === 'paid_days' ? num : Math.max(0, safeTotal - num);
+            const newLop = field === 'lop_days' ? num : Math.max(0, safeTotal - num);
 
             return {
                 ...prev,
