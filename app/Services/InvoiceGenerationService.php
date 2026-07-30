@@ -18,14 +18,23 @@ class InvoiceGenerationService
      *
      * For supplementary runs: merges line items into the parent run's existing
      * invoice for the same branch, rather than creating duplicate invoices.
-     *
-     * ⚠️ TEST-ONLY: agency_gstin is currently a placeholder.
-     * Invoices generated must NOT be used for real accounting until replaced.
      */
     public function generateForRun(PayrollRun $payrollRun): array
     {
         // 1. Load the client
         $client = Client::findOrFail($payrollRun->client_id);
+
+        // 1b. Contract Expiry Check
+        if ($client->contract_end_date && \Carbon\Carbon::parse($client->contract_end_date)->startOfDay()->isPast() && !(bool)$client->auto_renewal) {
+            $formattedEnd = \Carbon\Carbon::parse($client->contract_end_date)->format('Y-m-d');
+            throw new \InvalidArgumentException("Cannot process invoice: Client contract for '{$client->company_name}' expired on {$formattedEnd} and auto-renewal is disabled.");
+        }
+
+        // 1c. Invoicing Cycle Guard
+        $cycle = $client->invoice_cycle;
+        if (!empty($cycle) && $cycle !== 'monthly') {
+            throw new \InvalidArgumentException("Cannot process invoice: Client '{$client->company_name}' uses '{$cycle}' invoicing cycle, which requires multi-run batch consolidation. Please set client invoicing cycle to Monthly.");
+        }
 
         // 2. Fetch all non-excluded items for this run
         $items = DB::table('payroll_run_items')
@@ -54,7 +63,6 @@ class InvoiceGenerationService
         $agencyStateCode = substr($agencyGstin, 0, 2);
 
         // 6. Determine the target payroll_run_id for invoice lookup
-        //    For supplementary runs, merge into the parent run's invoice
         $targetRunId = $payrollRun->is_supplementary_run
             ? $payrollRun->parent_run_id
             : $payrollRun->id;
@@ -86,7 +94,7 @@ class InvoiceGenerationService
                 $branchGross += $itemGross;
 
                 // Calculate per-item agency fee based on billing model
-                $itemFee = $this->calculateItemAgencyFee($client, $itemGross);
+                $itemFee = $this->calculateItemAgencyFee($client, $item);
                 $branchServiceFee += $itemFee;
 
                 $lineItemData[] = [
@@ -95,6 +103,11 @@ class InvoiceGenerationService
                     'agency_fee' => round($itemFee, 2),
                     'line_total' => round($itemGross + $itemFee, 2),
                 ];
+            }
+
+            // Fixed monthly retainer (fixed_per_month) & Lumpsum: applied ONCE per branch invoice, not per item
+            if (in_array($client->billing_model, ['fixed_per_month', 'fixed_monthly_retainer', 'lumpsum', 'lump_sum'])) {
+                $branchServiceFee = (float) ($client->fixed_fee_amount ?? 0);
             }
 
             $branchGross = round($branchGross, 2);
@@ -207,25 +220,48 @@ class InvoiceGenerationService
     }
 
     /**
-     * Calculate the agency fee for a single payroll item based on the client's billing model.
+     * Calculate agency fee for a single payroll item based on client billing model and markup basis.
      */
-    private function calculateItemAgencyFee(Client $client, float $itemGross): float
+    private function calculateItemAgencyFee(Client $client, $item): float
     {
-        return match ($client->billing_model) {
-            'markup' => $itemGross * ((float) ($client->markup_percentage ?? 0) / 100),
-            'fixed_per_candidate' => (float) ($client->fixed_fee_amount ?? 0),
-            'fixed_per_month' => (float) ($client->fixed_fee_amount ?? 0),
-            default => 0,
+        $itemGross = (float) data_get($item, 'gross_total', 0);
+        $model = $client->billing_model;
+
+        if (in_array($model, ['fixed_per_month', 'fixed_monthly_retainer', 'lumpsum', 'lump_sum'])) {
+            // Monthly retainer / Lump sum is applied ONCE per branch invoice
+            return 0.00;
+        }
+
+        if ($model === 'fixed_per_candidate' || $model === 'fixed_fee_per_candidate') {
+            return (float) ($client->fixed_fee_amount ?? 0);
+        }
+
+        if ($model === 'hourly' || $model === 'hourly_rate') {
+            $rate = (float) ($client->hourly_rate ?? $client->fixed_fee_amount ?? 0);
+            $paidDays = (float) data_get($item, 'paid_days', 30);
+            $hours = round($paidDays * 8, 2);
+            return round($hours * $rate, 2);
+        }
+
+        // Markup Billing Model
+        $basisSetting = $client->markup_applied_on ?: 'gross_salary';
+        $basis = match ($basisSetting) {
+            'ctc' => $itemGross + (float)data_get($item, 'employer_pf', 0) + (float)data_get($item, 'employer_esi', 0) + (float)data_get($item, 'employer_lwf', 0),
+            'basic_only' => (float) data_get($item, 'basic_pay', 0),
+            'ctc_minus_statutory' => $itemGross,
+            default => $itemGross,
         };
+
+        $pct = (float) ($client->markup_percentage ?? 0);
+        return round($basis * ($pct / 100), 2);
     }
 
     /**
-     * Fetch the agency GSTIN from settings, cleaning any JSON-encoded quotes.
+     * Fetch agency GSTIN from settings, cleaning any JSON-encoded quotes.
      */
     private function getAgencyGstin(): string
     {
         $gstin = SettingsService::get('company_profile.agency_gstin', '');
-        // Clean any literal double-quotes baked into the value
         return trim($gstin, '"');
     }
 
@@ -252,10 +288,13 @@ class InvoiceGenerationService
             '16' => 'Tripura', '17' => 'Meghalaya', '18' => 'Assam',
             '19' => 'West Bengal', '20' => 'Jharkhand', '21' => 'Odisha',
             '22' => 'Chhattisgarh', '23' => 'Madhya Pradesh', '24' => 'Gujarat',
-            '27' => 'Maharashtra', '29' => 'Karnataka', '30' => 'Goa',
-            '32' => 'Kerala', '33' => 'Tamil Nadu', '34' => 'Puducherry',
-            '36' => 'Telangana', '37' => 'Andhra Pradesh',
+            '26' => 'Dadra & Nagar Haveli and Daman & Diu', '27' => 'Maharashtra',
+            '28' => 'Andhra Pradesh (Old)', '29' => 'Karnataka', '30' => 'Goa',
+            '31' => 'Lakshadweep', '32' => 'Kerala', '33' => 'Tamil Nadu',
+            '34' => 'Puducherry', '35' => 'Andaman & Nicobar Islands', '36' => 'Telangana',
+            '37' => 'Andhra Pradesh (New)', '38' => 'Ladakh',
         ];
-        return $mapping[$stateCode] ?? "State-{$stateCode}";
+
+        return $mapping[$stateCode] ?? 'Maharashtra';
     }
 }

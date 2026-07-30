@@ -8,6 +8,9 @@ use App\Models\Invoice;
 use App\Models\InvoiceAdditionalFee;
 use App\Services\InvoicePdfService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\ClientInvoiceMail;
+use App\Services\AuditService;
 
 class InvoiceController extends Controller
 {
@@ -20,7 +23,7 @@ class InvoiceController extends Controller
     {
         $user = $request->user();
 
-        $query = Invoice::with(['client', 'branch', 'additionalFees'])
+        $query = Invoice::with(['client', 'branch', 'additionalFees', 'sentBy'])
             ->orderBy('id', 'desc');
 
         if ($user && $user->role === 'manager') {
@@ -63,6 +66,177 @@ class InvoiceController extends Controller
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline; filename="' . $filename . '"',
         ]);
+    }
+
+    /**
+     * Finalize a DRAFT invoice.
+     */
+    public function finalize(Request $request, $id)
+    {
+        $invoice = Invoice::with(['client'])->findOrFail($id);
+
+        try {
+            $this->validatePoRequirements($invoice);
+        } catch (\InvalidArgumentException $e) {
+            if ($request->wantsJson()) {
+                return response()->json(['error' => $e->getMessage()], 422);
+            }
+            return redirect()->back()->withErrors(['error' => $e->getMessage()]);
+        }
+
+        $invoice->update(['status' => 'finalized']);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'message' => 'Invoice finalized successfully.',
+                'invoice' => $invoice->fresh(['client', 'branch']),
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Invoice finalized successfully.');
+    }
+
+    /**
+     * Send Tax Invoice to Client Primary Contact via Email (Exact 8-step sequence).
+     */
+    public function sendEmail(Request $request, $id)
+    {
+        $invoice = Invoice::with(['client.contacts', 'branch', 'lineItems', 'additionalFees'])->findOrFail($id);
+        $client = $invoice->client;
+
+        // 1. DRAFT-STATUS GUARD FIRST
+        if ($invoice->status === 'draft') {
+            $msg = 'Cannot send invoice in draft status. Invoice must be finalized or raised first.';
+            if ($request->wantsJson()) {
+                return response()->json(['error' => $msg], 422);
+            }
+            return redirect()->back()->withErrors(['error' => $msg]);
+        }
+
+        // 2. PO VALIDATION SECOND
+        try {
+            $this->validatePoRequirements($invoice);
+        } catch (\InvalidArgumentException $e) {
+            if ($request->wantsJson()) {
+                return response()->json(['error' => $e->getMessage()], 422);
+            }
+            return redirect()->back()->withErrors(['error' => $e->getMessage()]);
+        }
+
+        // 3. PRIMARY-CONTACT RESOLUTION THIRD
+        $primaryContact = $client->contacts ? $client->contacts->first(function ($c) {
+            return (bool)($c->is_primary_contact ?? false) || ($c->contact_type ?? null) === 'primary';
+        }) : null;
+
+        $primaryEmail = $primaryContact?->email ?: $client->primary_poc_email;
+
+        if (empty($primaryEmail)) {
+            $msg = "Cannot send invoice: Client '{$client->company_name}' has no primary contact email configured. Please add a primary contact with a valid email address first.";
+            if ($request->wantsJson()) {
+                return response()->json(['error' => $msg], 422);
+            }
+            return redirect()->back()->withErrors(['error' => $msg]);
+        }
+
+        // CC Emails (contacts with cc_on_invoice == true)
+        $ccEmails = $client->contacts
+            ? $client->contacts
+                ->filter(fn($c) => (bool)($c->cc_on_invoice ?? false) && !empty($c->email) && $c->email !== $primaryEmail)
+                ->pluck('email')
+                ->values()
+                ->all()
+            : [];
+
+        // 4. GENERATE PDF
+        $pdfBytes = $this->pdfService->generatePdfBinary($invoice);
+
+        // 5. SEND EMAIL
+        Mail::to($primaryEmail)
+            ->cc($ccEmails)
+            ->send(new ClientInvoiceMail($invoice, $pdfBytes));
+
+        // 6. TRACK DELIVERY
+        $now = now();
+        $invoice->first_sent_at = $invoice->first_sent_at ?? $now;
+        $invoice->sent_at = $now;
+        $invoice->send_count = ((int)$invoice->send_count) + 1;
+        $invoice->sent_by = Auth::id();
+        $invoice->sent_to_email = $primaryEmail;
+        $invoice->delivery_status = 'sent';
+        if (in_array($invoice->status, ['draft', 'finalized'])) {
+            $invoice->status = 'sent';
+        }
+        $invoice->save();
+
+        // 7. IMMUTABLE AUDIT LOGGING
+        app(AuditService::class)->log(
+            'invoice_email_sent',
+            Auth::user(),
+            null,
+            null,
+            [
+                'invoice_id' => $invoice->id,
+                'invoice_number' => $invoice->invoice_number,
+                'recipient' => $primaryEmail,
+                'cc' => $ccEmails,
+                'send_count' => $invoice->send_count,
+                'sent_at' => $now->toDateTimeString(),
+            ]
+        );
+
+        // 8. RETURN RESPONSE
+        if ($request->wantsJson()) {
+            return response()->json([
+                'message' => "Invoice {$invoice->invoice_number} sent successfully to {$primaryEmail}.",
+                'invoice' => $invoice->fresh(['client', 'branch', 'sentBy']),
+            ]);
+        }
+
+        return redirect()->back()->with('success', "Invoice {$invoice->invoice_number} sent successfully to {$primaryEmail}.");
+    }
+
+    /**
+     * Shared PO Validation Helper Method.
+     */
+    private function validatePoRequirements(Invoice $invoice): void
+    {
+        $client = $invoice->client;
+        if (!$client) {
+            return;
+        }
+
+        if ($client->contract_end_date && \Carbon\Carbon::parse($client->contract_end_date)->startOfDay()->isPast() && !(bool)$client->auto_renewal) {
+            $formattedEnd = \Carbon\Carbon::parse($client->contract_end_date)->format('Y-m-d');
+            throw new \InvalidArgumentException("Cannot process invoice: Client contract for '{$client->company_name}' expired on {$formattedEnd} and auto-renewal is disabled.");
+        }
+
+        if (!$client->po_required) {
+            return;
+        }
+
+        if (empty($client->po_number)) {
+            throw new \InvalidArgumentException("Cannot process invoice: Client '{$client->company_name}' requires a Purchase Order (PO) number.");
+        }
+
+        if ($client->po_validity_date && \Carbon\Carbon::parse($client->po_validity_date)->startOfDay()->isPast()) {
+            $formattedDate = \Carbon\Carbon::parse($client->po_validity_date)->format('Y-m-d');
+            throw new \InvalidArgumentException("Cannot process invoice: Purchase Order for client '{$client->company_name}' expired on {$formattedDate}.");
+        }
+
+        if ($client->po_value > 0) {
+            $cumulativeBilled = Invoice::where('client_id', $client->id)
+                ->whereIn('status', ['finalized', 'raised', 'paid', 'sent', 'overdue'])
+                ->where('id', '!=', $invoice->id)
+                ->sum('grand_total');
+
+            $totalWithCurrent = round((float) $cumulativeBilled + (float) $invoice->grand_total, 2);
+
+            if ($totalWithCurrent > (float) $client->po_value) {
+                $formattedLimit = number_format((float)$client->po_value, 2);
+                $formattedTotal = number_format($totalWithCurrent, 2);
+                throw new \InvalidArgumentException("Cannot process invoice: Cumulative billed amount (₹{$formattedTotal}) exceeds PO budget limit of ₹{$formattedLimit}.");
+            }
+        }
     }
 
     /**

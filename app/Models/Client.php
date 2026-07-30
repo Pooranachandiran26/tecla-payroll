@@ -47,6 +47,12 @@ class Client extends Model
         'gratuity_applicable' => 'boolean',
         'health_insurance_enabled' => 'boolean',
         'payslip_visible_sections' => 'array',
+        'po_validity_date' => 'date',
+        'po_value' => 'decimal:2',
+        'pref_format_pdf' => 'boolean',
+        'pref_format_xlsx' => 'boolean',
+        'client_tds_percentage' => 'float',
+        'hourly_rate' => 'float',
     ];
 
     public function getPayslipVisibleSectionsAttribute($value)
