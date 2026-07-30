@@ -274,6 +274,20 @@
         </tr>
     </table>
 
+    @if(isset($client) && $client->client_tds_percentage !== null)
+    @php
+        $tdsRate = (float) $client->client_tds_percentage;
+        $taxableFee = (float) $invoice->agency_service_fee;
+        $estTds = round($taxableFee * ($tdsRate / 100), 2);
+        $netReceivable = round((float)$invoice->grand_total - $estTds, 2);
+    @endphp
+    <div style="margin-top: 4px; padding: 5px 10px; background-color: #f8fafc; border: 1px dashed #cbd5e1; font-size: 9px; text-align: right;">
+        <span style="color: #64748b;">Est. Client TDS Deduction ({{ number_format($tdsRate, 2) }}%): -₹{{ number_format($estTds, 2) }}</span>
+        &nbsp;&nbsp;|&nbsp;&nbsp;
+        <strong style="color: #0f172a;">Est. Net Cash Receivable: ₹{{ number_format($netReceivable, 2) }}</strong>
+    </div>
+    @endif
+
     <!-- Bank Details & Payment Instructions / Terms -->
     <table class="bank-terms-table">
         <tr>
@@ -296,6 +310,12 @@
             </td>
         </tr>
     </table>
+
+    @if(!empty($client->invoice_footer_notes))
+    <div style="margin-top: 15px; padding: 8px 10px; background-color: #f8fafc; border-left: 3px solid #1F3864; font-size: 9px; color: #334155;">
+        <strong>Client Special Note:</strong> {{ $client->invoice_footer_notes }}
+    </div>
+    @endif
 
     <table style="width: 100%; margin-top: 35px;">
         <tr>
