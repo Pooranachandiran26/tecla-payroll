@@ -104,13 +104,18 @@ class InvoiceController extends Controller
         $invoice = Invoice::with(['client.contacts', 'branch', 'lineItems', 'additionalFees'])->findOrFail($id);
         $client = $invoice->client;
 
-        // 1. DRAFT-STATUS GUARD FIRST
+        // 1. DRAFT-STATUS AUTO-FINALIZE: Finalize draft status before sending
         if ($invoice->status === 'draft') {
-            $msg = 'Cannot send invoice in draft status. Invoice must be finalized or raised first.';
-            if ($request->wantsJson()) {
-                return response()->json(['error' => $msg], 422);
+            try {
+                $this->validatePoRequirements($invoice);
+            } catch (\InvalidArgumentException $e) {
+                if ($request->wantsJson()) {
+                    return response()->json(['error' => $e->getMessage()], 422);
+                }
+                return redirect()->back()->withErrors(['error' => $e->getMessage()]);
             }
-            return redirect()->back()->withErrors(['error' => $msg]);
+            $invoice->status = 'finalized';
+            $invoice->save();
         }
 
         // 2. PO VALIDATION SECOND
@@ -275,7 +280,7 @@ class InvoiceController extends Controller
             return response()->json([
                 'success' => 'Additional fee added successfully.',
                 'fee' => $fee,
-                'invoice' => $invoice->fresh(['additionalFees']),
+                'invoice' => $invoice->fresh(['client', 'branch', 'additionalFees']),
             ]);
         }
 
@@ -306,7 +311,7 @@ class InvoiceController extends Controller
         if ($request->wantsJson()) {
             return response()->json([
                 'success' => 'Additional fee deleted successfully.',
-                'invoice' => $invoice->fresh(['additionalFees']),
+                'invoice' => $invoice->fresh(['client', 'branch', 'additionalFees']),
             ]);
         }
 
