@@ -151,20 +151,22 @@ export default function InvoicesList({ invoices }) {
                                                          >
                                                              <Download size={13} /> PDF
                                                          </a>
-                                                         <button
-                                                             type="button"
-                                                             onClick={() => {
-                                                                 if (confirm(`Send Tax Invoice ${inv.invoice_number} via email to client?`)) {
-                                                                     import('@inertiajs/react').then(({ router }) => {
-                                                                         router.post(route('invoices.send-email', inv.id), {}, { preserveScroll: true });
-                                                                     });
-                                                                 }
-                                                             }}
-                                                             className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-md bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
-                                                             title={inv.sent_at ? `Sent on ${new Date(inv.sent_at).toLocaleDateString()} (${inv.send_count}x)` : 'Send Tax Invoice Email'}
-                                                         >
-                                                             {inv.sent_at ? 'Resend Email' : 'Send Email'}
-                                                         </button>
+                                                         {inv.status !== 'draft' && (
+                                                             <button
+                                                                 type="button"
+                                                                 onClick={() => {
+                                                                     if (confirm(`Send Tax Invoice ${inv.invoice_number} via email to client?`)) {
+                                                                         import('@inertiajs/react').then(({ router }) => {
+                                                                             router.post(route('invoices.send-email', inv.id), {}, { preserveScroll: true });
+                                                                         });
+                                                                     }
+                                                                 }}
+                                                                 className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-md bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+                                                                 title={inv.sent_at ? `Sent on ${new Date(inv.sent_at).toLocaleDateString()} (${inv.send_count}x)` : 'Send Tax Invoice Email'}
+                                                             >
+                                                                 {inv.sent_at ? 'Resend Email' : 'Send Email'}
+                                                             </button>
+                                                         )}
                                                      </div>
                                                      {inv.sent_at && (
                                                          <div className="text-[10px] text-emerald-700 font-medium mt-1">

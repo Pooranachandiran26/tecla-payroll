@@ -169,10 +169,10 @@ class InvoicePhaseBCombinedTest extends TestCase
         $response = $this->actingAs($this->admin)
             ->postJson(route('invoices.send-email', $invoice->id));
 
-        $response->assertStatus(200);
-        $this->assertEquals('sent', $invoice->refresh()->status);
+        $response->assertStatus(422)
+            ->assertJsonFragment(['error' => 'Cannot send invoice in draft status. Invoice must be finalized or raised first.']);
 
-        Mail::assertSent(ClientInvoiceMail::class);
+        Mail::assertNothingSent();
     }
 
     /**

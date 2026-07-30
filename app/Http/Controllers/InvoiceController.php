@@ -104,18 +104,13 @@ class InvoiceController extends Controller
         $invoice = Invoice::with(['client.contacts', 'branch', 'lineItems', 'additionalFees'])->findOrFail($id);
         $client = $invoice->client;
 
-        // 1. DRAFT-STATUS AUTO-FINALIZE: Finalize draft status before sending
+        // 1. DRAFT-STATUS GUARD FIRST
         if ($invoice->status === 'draft') {
-            try {
-                $this->validatePoRequirements($invoice);
-            } catch (\InvalidArgumentException $e) {
-                if ($request->wantsJson()) {
-                    return response()->json(['error' => $e->getMessage()], 422);
-                }
-                return redirect()->back()->withErrors(['error' => $e->getMessage()]);
+            $msg = 'Cannot send invoice in draft status. Invoice must be finalized or raised first.';
+            if ($request->wantsJson()) {
+                return response()->json(['error' => $msg], 422);
             }
-            $invoice->status = 'finalized';
-            $invoice->save();
+            return redirect()->back()->withErrors(['error' => $msg]);
         }
 
         // 2. PO VALIDATION SECOND
