@@ -81,7 +81,7 @@ class EmployeeResource extends JsonResource
             'esi_applicable' => $this->esi_applicable !== null ? (bool)$this->esi_applicable : true,
             'is_esi_active' => ($calc['employee_esi_monthly'] > 0),
             'pt_applicable' => $ptApplicable,
-            'lwf_applicable' => $this->lwf_applicable,
+            'tds_applicable' => $this->tds_applicable !== null ? (bool)$this->tds_applicable : true,
             'tds_regime' => $this->tds_regime,
             'gratuity_mode' => $this->gratuity_mode,
             'weekly_off_pattern' => $this->weekly_off_pattern,
