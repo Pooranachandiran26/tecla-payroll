@@ -3,19 +3,18 @@ namespace Tests\Feature;
 
 use Tests\TestCase;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithoutMiddleware;
 use Illuminate\Support\Facades\Session;
 
 class TestClientPostTest extends TestCase
 {
-    use WithoutMiddleware;
+    use WithoutMiddleware, RefreshDatabase;
 
     protected function setUp(): void
     {
         parent::setUp();
-        config(['database.default' => 'mysql', 'database.connections.mysql.database' => 'tecla_payroll']);
-        \Illuminate\Support\Facades\DB::purge('mysql');
-        \Illuminate\Support\Facades\DB::reconnect('mysql');
+        // Use default testing connection
     }
 
     public function test_post_client()

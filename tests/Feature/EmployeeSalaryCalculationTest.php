@@ -28,4 +28,21 @@ class EmployeeSalaryCalculationTest extends TestCase
         // 13% of 15000 (statutory ceiling) is 1950
         $this->assertEquals(1950.00, $employee->employer_pf_monthly);
     }
+    public function test_esi_never_applies_above_threshold_regardless_of_toggle()
+    {
+        Employee::unguard();
+
+        $employee = new Employee([
+            'basic_pay' => 20000,
+            'hra' => 5000, // gross = 25000
+            'esi_applicable' => 1,
+            'esi_limit' => 21000,
+        ]);
+
+        $observer = new EmployeeObserver();
+        $observer->saving($employee);
+
+        $this->assertEquals(0, $employee->employee_esi_monthly);
+        $this->assertEquals(0, $employee->employer_esi_monthly);
+    }
 }

@@ -12,6 +12,11 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 
+use Illuminate\Support\Facades\Mail;
+use App\Mail\PromotionRevisionApprovedMail;
+use App\Services\NotificationService;
+
+
 class SalaryRevisionController extends Controller
 {
     public function create($employeeId)
@@ -23,7 +28,7 @@ class SalaryRevisionController extends Controller
             ->get();
 
         return inertia('Employees/SalaryRevision', [
-            'employee' => $employee,
+            'employee' => (new \App\Http\Resources\EmployeeResource($employee))->resolve(),
             'revisions' => $revisions,
         ]);
     }
@@ -38,6 +43,9 @@ class SalaryRevisionController extends Controller
         $calculationParams = [
             'client_id' => $employee->client_id,
             'pf_applicable' => $employee->pf_applicable,
+            'eps_applicable' => $employee->eps_applicable,
+            'date_of_birth' => $employee->date_of_birth,
+            'gender' => $employee->gender,
             'esi_applicable' => $employee->esi_applicable,
             'lwf_applicable' => $employee->lwf_applicable,
             'pt_applicable' => $employee->pt_applicable,
@@ -54,6 +62,10 @@ class SalaryRevisionController extends Controller
         ];
         
         $calculations = $calculator->calculateStructuralSalary($calculationParams);
+        
+        $isPromotion = (bool)($validated['is_promotion'] ?? false);
+        $oldDesignation = $isPromotion ? $employee->designation : null;
+        $newDesignation = $isPromotion ? ($validated['new_designation'] ?? null) : null;
         
         SalaryRevision::create([
             'employee_id' => $employee->id,
@@ -79,8 +91,20 @@ class SalaryRevisionController extends Controller
             
             'effective_date' => $validated['effective_date'],
             'reason_for_revision' => $validated['reason_for_revision'],
+            'is_promotion' => $isPromotion,
+            'old_designation' => $oldDesignation,
+            'new_designation' => $newDesignation,
             'status' => 'pending_approval',
         ]);
+
+        // Notify all admins in-app (isolated: failure here never breaks the revision submission)
+        NotificationService::sendToAdmins(
+            type: 'salary_revision',
+            title: 'Salary Revision Pending Approval',
+            body: "{$employee->full_name} ({$employee->employee_code}) has submitted a salary revision request.",
+            url: route('employees.salary-revision.create', $employee->id),
+            data: ['employee_id' => $employee->id]
+        );
 
         return redirect()->back()->with('success', 'Salary revision submitted and is pending approval.');
     }
@@ -106,7 +130,7 @@ class SalaryRevisionController extends Controller
                 
                 // Update employee
                 $employee = Employee::findOrFail($employeeId);
-                $employee->update([
+                $employeeData = [
                     'basic_pay' => $revision->new_basic_pay,
                     'hra' => $revision->new_hra,
                     'conveyance' => $revision->new_conveyance,
@@ -114,8 +138,25 @@ class SalaryRevisionController extends Controller
                     'medical_allowance' => $revision->new_medical_allowance,
                     'special_allowance' => $revision->new_special_allowance,
                     'other_additions' => $revision->new_other_additions,
-                ]);
+                ];
+
+                if ($revision->is_promotion && !empty($revision->new_designation)) {
+                    $employeeData['designation'] = $revision->new_designation;
+                }
+
+                $employee->update($employeeData);
                 
+                // Auto-recalculate any active draft payroll runs for this employee's client so processing page stays 100% in sync
+                $draftRuns = \App\Models\PayrollRun::where('client_id', $employee->client_id)->where('status', 'draft')->get();
+                if ($draftRuns->isNotEmpty()) {
+                    $monthlyCalc = app(\App\Services\MonthlyPayrollCalculator::class);
+                    $activeEmployees = \App\Models\Employee::where('client_id', $employee->client_id)->where('status', 'active')->get();
+                    foreach ($draftRuns as $run) {
+                        foreach ($activeEmployees as $empItem) {
+                            $monthlyCalc->calculateForEmployee($empItem, $run);
+                        }
+                    }
+                }
             } else {
                 $revision->update([
                     'status' => 'rejected',
@@ -126,7 +167,108 @@ class SalaryRevisionController extends Controller
             }
         });
 
-        $message = $action === 'approve' ? 'Salary revision approved successfully.' : 'Salary revision rejected.';
+        if ($action === 'approve') {
+            $employee = Employee::with('client', 'user')->find($employeeId);
+            $recipientEmail = $employee->personal_email ?? optional($employee->user)->email;
+            if ($recipientEmail) {
+                try {
+                    Mail::to($recipientEmail)->send(new PromotionRevisionApprovedMail($employee, $revision));
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::error("Failed sending salary revision email to {$recipientEmail}: " . $e->getMessage());
+                }
+            }
+        }
+
+        $message = $action === 'approve' ? 'Salary revision approved successfully and notification email sent.' : 'Salary revision rejected.';
         return redirect()->back()->with('success', $message);
+    }
+
+    public function sendEmail(Request $request, $employeeId, $revisionId)
+    {
+        $employee = Employee::with('client', 'user')->findOrFail($employeeId);
+        $revision = SalaryRevision::where('employee_id', $employeeId)->findOrFail($revisionId);
+
+        $recipientEmail = trim($request->input('recipient_email')) ?: ($employee->personal_email ?? optional($employee->user)->email);
+        if (!$recipientEmail) {
+            return redirect()->back()->with('error', 'Employee does not have a valid email address configured.');
+        }
+
+        $customSubject = $request->input('subject');
+        $customNote = $request->input('custom_note');
+
+        try {
+            Mail::to($recipientEmail)->send(new PromotionRevisionApprovedMail($employee, $revision, $customSubject, $customNote));
+            return redirect()->back()->with('success', "Promotion & Salary Revision letter sent successfully to {$recipientEmail}.");
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error("Failed sending salary revision email: " . $e->getMessage());
+            return redirect()->back()->with('error', 'Failed to send email notification: ' . $e->getMessage());
+        }
+    }
+
+    public function queue(Request $request)
+    {
+        $user = $request->user();
+
+        $query = SalaryRevision::with(['employee.client', 'approver']);
+
+        if ($user && $user->role === 'manager') {
+            $managedClientIds = $user->getManagedClientIds();
+            $query->whereHas('employee', function ($q) use ($managedClientIds) {
+                $q->whereIn('client_id', $managedClientIds);
+            });
+        }
+
+        if ($request->filled('client_id')) {
+            $query->whereHas('employee', function ($q) use ($request) {
+                $q->where('client_id', $request->client_id);
+            });
+        }
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->whereHas('employee', function ($q) use ($search) {
+                $q->where('full_name', 'like', "%{$search}%")
+                  ->orWhere('employee_code', 'like', "%{$search}%");
+            });
+        }
+
+        $statusFilter = $request->input('status', 'pending_approval');
+        if ($statusFilter !== 'all') {
+            $query->where('status', $statusFilter);
+        }
+
+        $baseStatsQuery = SalaryRevision::query();
+        if ($user && $user->role === 'manager') {
+            $managedClientIds = $user->getManagedClientIds();
+            $baseStatsQuery->whereHas('employee', function ($q) use ($managedClientIds) {
+                $q->whereIn('client_id', $managedClientIds);
+            });
+        }
+
+        $stats = [
+            'total' => (clone $baseStatsQuery)->count(),
+            'pending' => (clone $baseStatsQuery)->where('status', 'pending_approval')->count(),
+            'approved' => (clone $baseStatsQuery)->where('status', 'approved')->count(),
+            'rejected' => (clone $baseStatsQuery)->where('status', 'rejected')->count(),
+        ];
+
+        $revisions = $query->orderBy('created_at', 'desc')->paginate(15)->withQueryString();
+
+        $clientsQuery = \App\Models\Client::where('status', 'active');
+        if ($user && $user->role === 'manager') {
+            $clientsQuery->whereIn('id', $user->getManagedClientIds());
+        }
+        $clients = $clientsQuery->select('id', 'company_name')->get();
+
+        return inertia('Employees/SalaryRevisionsQueue', [
+            'revisions' => $revisions,
+            'stats' => $stats,
+            'clients' => $clients,
+            'filters' => [
+                'search' => $request->search ?? '',
+                'client_id' => $request->client_id ?? '',
+                'status' => $statusFilter,
+            ],
+        ]);
     }
 }

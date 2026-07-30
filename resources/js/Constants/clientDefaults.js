@@ -57,7 +57,7 @@ export const CLIENT_STATUTORY_DEFAULTS = {
   },
   reliance: {
     name: 'Reliance Digital',
-    contractType: 'hybrid',
+    contractType: 'agency',
     pfApplicable: true,
     pfCeiling: 15000,
     esiApplicable: true,
@@ -75,7 +75,7 @@ export const CLIENT_STATUTORY_DEFAULTS = {
   },
   wipro: {
     name: 'Wipro Ltd',
-    contractType: 'hybrid',
+    contractType: 'agency',
     pfApplicable: true,
     pfCeiling: 15000,
     esiApplicable: true,

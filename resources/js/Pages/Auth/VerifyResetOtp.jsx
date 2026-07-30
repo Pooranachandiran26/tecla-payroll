@@ -3,12 +3,12 @@ import { useState, useEffect, useRef } from 'react';
 import GuestLayout from '../../Layouts/GuestLayout';
 import Button from '../../Components/ui/Button';
 
-export default function VerifyResetOtp({ email }) {
-  const otpLength = 6;
-  const [code, setCode] = useState(Array(otpLength).fill(''));
+export default function VerifyResetOtp({ email, otpLength = 6 }) {
+  const length = Number(otpLength);
+  const [code, setCode] = useState(Array(length).fill(''));
   const inputRefs = useRef([]);
 
-  const { post, processing, errors } = useForm({
+  const { data, setData, post, processing, errors } = useForm({
     code: '',
   });
 
@@ -19,8 +19,9 @@ export default function VerifyResetOtp({ email }) {
     const newCode = [...code];
     newCode[index] = value;
     setCode(newCode);
+    setData('code', newCode.join(''));
 
-    if (value && index < otpLength - 1) {
+    if (value && index < length - 1) {
       inputRefs.current[index + 1].focus();
     }
   };
@@ -33,12 +34,9 @@ export default function VerifyResetOtp({ email }) {
 
   const submit = (e) => {
     e.preventDefault();
-    const fullCode = code.join('');
-    if (fullCode.length !== otpLength) return;
+    if (data.code.length !== length) return;
     
-    post('/reset-password/verify-otp', {
-      data: { code: fullCode }
-    });
+    post(route('password.reset.verify.post'));
   };
 
   return (
@@ -80,7 +78,7 @@ export default function VerifyResetOtp({ email }) {
           ))}
         </div>
 
-        <Button type="submit" variant="primary" style={{ width: '100%', padding: '0.75rem' }} disabled={processing || code.join('').length !== otpLength}>
+        <Button type="submit" variant="primary" style={{ width: '100%', padding: '0.75rem' }} disabled={processing || code.join('').length !== length}>
           {processing ? 'Verifying...' : 'Verify Code'}
         </Button>
       </form>

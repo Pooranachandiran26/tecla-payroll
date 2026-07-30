@@ -1,17 +1,39 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
 import { CONTRACT_TYPES, BILLING_MODELS, CURRENCIES, INVOICE_CYCLES, PAYMENT_NET_TERMS, OT_BILLING_RULES } from '../constants/clientFormData';
+import { FileText, Globe } from 'lucide-react';
 
-export default function ContractSection({ formData, errors, onChange, hook }) {
+export default function ContractSection({ formData, errors, onChange, hook, gstSettings }) {
   const isIndia = formData.country === 'India';
   const showMarkup = formData.billingModel === 'markup';
   const showFixedCandidate = formData.billingModel === 'fixed_per_candidate';
   const showFixedMonthly = formData.billingModel === 'fixed_per_month';
   const showHourly = formData.billingModel === 'hourly';
 
+  const [gstMasterRates, setGstMasterRates] = useState(gstSettings?.gst_rates || []);
+
+  useEffect(() => {
+    if (gstSettings?.gst_rates && Array.isArray(gstSettings.gst_rates) && gstSettings.gst_rates.length > 0) {
+      setGstMasterRates(gstSettings.gst_rates);
+    } else {
+      axios.get(route('admin.settings.gst.show'))
+        .then(res => {
+          let rates = res.data?.gst_rates;
+          if (typeof rates === 'string') {
+            try { rates = JSON.parse(rates); } catch(e) {}
+          }
+          if (Array.isArray(rates) && rates.length > 0) {
+            setGstMasterRates(rates);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [gstSettings]);
+
   return (
     <>
       <div className="section-header">
-        <div className="section-icon">📄</div>
+        <div className="section-icon"><FileText size={18} /></div>
         <h3>Contract Terms &amp; Billing Configuration</h3>
       </div>
 
@@ -23,6 +45,7 @@ export default function ContractSection({ formData, errors, onChange, hook }) {
             <option value="">-- Select --</option>
             {CONTRACT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
           </select>
+          {errors.contractType && <div className={`field-msg ${errors.contractType?.type || 'error'} show`}>{errors.contractType?.msg || errors.contractType}</div>}
         </div>
         <div className="form-group">
           <label>Billing Model <span style={{ color: 'var(--status-danger)' }}>*</span></label>
@@ -31,6 +54,7 @@ export default function ContractSection({ formData, errors, onChange, hook }) {
             <option value="">-- Select --</option>
             {BILLING_MODELS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
           </select>
+          {errors.billingModel && <div className={`field-msg ${errors.billingModel?.type || 'error'} show`}>{errors.billingModel?.msg || errors.billingModel}</div>}
         </div>
       </div>
 
@@ -42,6 +66,7 @@ export default function ContractSection({ formData, errors, onChange, hook }) {
               <label>Markup / Commission Percentage (%) <span style={{ color: 'var(--status-danger)' }}>*</span></label>
               <input type="number" className="form-control" placeholder="e.g. 8.5" step="0.1" min="0" max="100"
                 value={formData.markupPct} onChange={e => onChange('markupPct', e.target.value)} />
+              {errors.markupPct && <div className={`field-msg ${errors.markupPct?.type || 'error'} show`}>{errors.markupPct?.msg || errors.markupPct}</div>}
               <div className="field-hint">Applied on total CTC. Invoice = CTC × (1 + markup%).</div>
             </div>
             <div className="form-group">
@@ -62,6 +87,7 @@ export default function ContractSection({ formData, errors, onChange, hook }) {
             <label>Fixed Fee Per Candidate (₹) <span style={{ color: 'var(--status-danger)' }}>*</span></label>
             <input type="number" className="form-control" placeholder="e.g. 1500" min="0"
               value={formData.fixedFeeCandidate} onChange={e => onChange('fixedFeeCandidate', e.target.value)} />
+            {errors.fixedFeeCandidate && <div className={`field-msg ${errors.fixedFeeCandidate?.type || 'error'} show`}>{errors.fixedFeeCandidate?.msg || errors.fixedFeeCandidate}</div>}
             <div className="field-hint">Charged per active candidate per billing cycle.</div>
           </div>
         </div>
@@ -116,6 +142,7 @@ export default function ContractSection({ formData, errors, onChange, hook }) {
           <label>Contract Start Date <span style={{ color: 'var(--status-danger)' }}>*</span></label>
           <input type="date" className={`form-control ${errors.contractStart ? 'invalid' : ''}`}
             value={formData.contractStart} onChange={e => onChange('contractStart', e.target.value)} />
+          {errors.contractStart && <div className={`field-msg ${errors.contractStart?.type || 'error'} show`}>{errors.contractStart?.msg || errors.contractStart}</div>}
         </div>
         <div className="form-group">
           <label>Contract End Date</label>
@@ -123,6 +150,7 @@ export default function ContractSection({ formData, errors, onChange, hook }) {
             value={formData.contractEnd}
             onChange={e => onChange('contractEnd', e.target.value)}
             onBlur={hook.validateContractDates} />
+          {errors.contractEnd && <div className={`field-msg ${errors.contractEnd?.type || 'error'} show`}>{errors.contractEnd?.msg || errors.contractEnd}</div>}
           <div className="field-hint">Leave blank for open-ended contracts.</div>
           {hook.hints.contractEnd && (
             <div className={`field-hint ${hook.hints.contractEnd.type === 'error' ? 'error' : hook.hints.contractEnd.type === 'success' ? 'success' : ''}`}>
@@ -131,31 +159,37 @@ export default function ContractSection({ formData, errors, onChange, hook }) {
           )}
         </div>
       </div>
-      <div className="form-group">
-        <label className="toggle-container" style={{ margin: 0 }}>
-          <input type="checkbox" className="toggle-input"
-            checked={formData.autoRenewal} onChange={e => onChange('autoRenewal', e.target.checked)} />
-          <span className="toggle-switch"></span>
-          <span style={{ fontSize: '0.875rem', fontWeight: 500, marginLeft: '0.75rem', display: 'inline-block', verticalAlign: 'middle' }}>Auto-Renewal (renew for same period if not terminated)</span>
-        </label>
-      </div>
-
       <div style={{ background: '#F8FAFC', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '1rem', marginTop: '1rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-          <label className="toggle-container" style={{ margin: 0 }}>
-            <input type="checkbox" className="toggle-input"
-              checked={formData.poRequired} onChange={e => onChange('poRequired', e.target.checked)} />
-            <span className="toggle-switch"></span>
-          </label>
-          <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>Purchase Order (PO) Required before invoicing</span>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem', alignItems: 'center' }}>
+          {/* Toggle 1: Auto Renewal */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <label className="toggle-container" style={{ margin: 0 }}>
+              <input type="checkbox" className="toggle-input"
+                checked={formData.autoRenewal} onChange={e => onChange('autoRenewal', e.target.checked)} />
+              <span className="toggle-switch"></span>
+            </label>
+            <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>Auto-Renewal (renew for same period if not terminated)</span>
+          </div>
+
+          {/* Toggle 2: PO Required */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <label className="toggle-container" style={{ margin: 0 }}>
+              <input type="checkbox" className="toggle-input"
+                checked={formData.poRequired} onChange={e => onChange('poRequired', e.target.checked)} />
+              <span className="toggle-switch"></span>
+            </label>
+            <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>Purchase Order (PO) Required before invoicing</span>
+          </div>
         </div>
+
         {formData.poRequired && (
-          <div className="form-row conditional-field">
+          <div className="form-row conditional-field" style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
             <div className="form-group">
               <label>PO Number <span style={{ color: 'var(--status-danger)' }}>*</span></label>
               <input type="text" className={`form-control ${errors.poNumber ? 'invalid' : ''}`}
                 placeholder="e.g. PO/2026/00142"
                 value={formData.poNumber} onChange={e => onChange('poNumber', e.target.value)} />
+              {errors.poNumber && <div className={`field-msg ${errors.poNumber?.type || 'error'} show`}>{errors.poNumber?.msg || errors.poNumber}</div>}
               <div className="field-hint">Invoice held as Draft until PO number is entered here.</div>
             </div>
             <div className="form-group">
@@ -220,9 +254,13 @@ export default function ContractSection({ formData, errors, onChange, hook }) {
           <div className="form-group">
             <label>GST Application Rate</label>
             <select className="form-control" value={formData.gstRate} onChange={e => hook.handleGSTRateChange(e.target.value)}>
-              <option value="18">18% (Standard Services)</option>
-              <option value="0">0% (SEZ / Export without payment of IGST)</option>
-              <option value="exempt">Exempt</option>
+              {gstMasterRates.map((r, idx) => (
+                <option key={idx} value={r.rate}>{r.label || `${r.rate}%`}</option>
+              ))}
+              {formData.gstRate && 
+               !gstMasterRates.some(r => String(r.rate) === String(formData.gstRate)) && (
+                <option value={formData.gstRate}>{formData.gstRate}% (Saved Rate)</option>
+              )}
             </select>
             {formData.gstRate === '0' && (
               <div className="form-group conditional-field" style={{ marginTop: '0.5rem' }}>
@@ -259,8 +297,9 @@ export default function ContractSection({ formData, errors, onChange, hook }) {
           </div>
         </div>
       ) : (
-        <div className="info-box">
-          🌐 <strong>International Billing:</strong> GST and Indian TDS rules are not applicable. Ensure Export of Services rules are followed for zero-rated invoicing.
+        <div className="info-box" style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+          <Globe size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
+          <div><strong>International Billing:</strong> GST and Indian TDS rules are not applicable. Ensure Export of Services rules are followed for zero-rated invoicing.</div>
         </div>
       )}
 

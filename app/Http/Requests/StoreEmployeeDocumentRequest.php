@@ -36,6 +36,7 @@ class StoreEmployeeDocumentRequest extends FormRequest
                     'bank_passbook',
                     'photo',
                     'previous_payslips',
+                    'form16',
                     'other'
                 ])
             ],

@@ -10,7 +10,7 @@ use Tests\TestCase;
 
 class EmployeeControllerTest extends TestCase
 {
-    use \Illuminate\Foundation\Testing\DatabaseTransactions;
+    use \Illuminate\Foundation\Testing\RefreshDatabase;
 
     public function test_get_client_statutory_defaults_returns_json()
     {
@@ -33,12 +33,16 @@ class EmployeeControllerTest extends TestCase
         $client = Client::first();
         if (!$client) {
             $client = Client::factory()->create();
+            \App\Models\ClientBranch::factory()->create(['client_id' => $client->id]);
         }
 
         $payload = [
             'clientPartner' => $client->id,
             'branch_id' => 1,
             'employee_code' => 'TEST-002',
+            'firstName' => 'Real',
+            'lastName' => 'POST Employee 3',
+            'fatherName' => 'Father Name',
             'fullName' => 'Real POST Employee 3',
             'personalEmail' => 'realpost_new3@test.com',
             'phone' => '4444444446',
@@ -56,7 +60,7 @@ class EmployeeControllerTest extends TestCase
             'pan' => 'QWERT1234X',
             'uanMode' => 'existing_transfer',
             'uan' => '100000000001',
-            'esiNo' => '200000000002',
+            'esiNo' => '1234567890',
             'pfToggle' => true,
             'esiToggle' => true,
             'tdsToggle' => true,
@@ -116,13 +120,17 @@ class EmployeeControllerTest extends TestCase
         $client = Client::first();
         if (!$client) {
             $client = Client::factory()->create();
+            \App\Models\ClientBranch::factory()->create(['client_id' => $client->id]);
         }
 
         $payload = [
             'clientPartner' => $client->id,
             'branch_id' => 1,
-            'employee_code' => 'TEST-DUPE',
-            'fullName' => 'Real POST Employee 3',
+            'employee_code' => 'TEST-DUPE-1',
+            'firstName' => 'Dupe',
+            'lastName' => 'Check',
+            'fatherName' => 'Father',
+            'fullName' => 'Dupe Check',
             'personalEmail' => 'realpost_new4@test.com',
             'phone' => '4444444447',
             'dob' => '1990-01-01',
@@ -139,7 +147,7 @@ class EmployeeControllerTest extends TestCase
             'pan' => 'QWERT1234X', // Same PAN as previous test
             'uanMode' => 'existing_transfer',
             'uan' => '100000000003',
-            'esiNo' => '200000000004',
+            'esiNo' => '1234567891',
             'pfToggle' => true,
             'esiToggle' => true,
             'tdsToggle' => true,
@@ -178,11 +186,55 @@ class EmployeeControllerTest extends TestCase
 
     public function test_the_canonical_pf_check()
     {
-        $employee = Employee::where('employee_code', 'TEC-088')->first();
-        if ($employee) {
-            echo "\n--- 4. THE CANONICAL PF CHECK ---\n";
-            echo $employee->employer_pf_monthly . "\n";
-            $this->assertEquals(1950.00, $employee->employer_pf_monthly);
+        $client = Client::first();
+        if (!$client) {
+            $client = Client::factory()->create();
+            \App\Models\ClientBranch::factory()->create(['client_id' => $client->id]);
         }
+
+        $employee = Employee::create([
+            'client_id' => $client->id,
+            'branch_id' => 1,
+            'full_name' => 'Canonical Employee',
+            'personal_email' => 'pf@example.com',
+            'phone_number' => '9988776653',
+            'date_of_birth' => '1995-01-01',
+            'date_of_joining' => '2024-01-01',
+            'designation' => 'Manager',
+            'employment_model' => 'eor',
+            'prior_employment_flag' => 0,
+            'residential_address' => '789 St',
+            'bank_account_number' => '8888888888',
+            'bank_ifsc' => 'SBIN0001234',
+            'bank_name' => 'SBI',
+            'bank_branch' => 'Main',
+            'account_holder_name' => 'Canonical Employee',
+            'pan_number' => 'ABCDE3333C',
+            'employee_code' => 'TEC-088',
+            'uan_mode' => 'new',
+            'status' => 'active',
+            'basic_pay' => 15000,
+            'hra' => 5000,
+            'conveyance' => 0,
+            'da' => 0,
+            'medical_allowance' => 0,
+            'special_allowance' => 0,
+            'other_additions' => 0,
+            'tds_regime' => 'new',
+            'gratuity_mode' => 'part_of_ctc',
+            'lop_basis_days' => '30',
+            'declarations_accepted' => 1,
+            'pf_applicable' => true,
+            'esi_applicable' => false,
+            'pt_applicable' => true,
+            'lwf_applicable' => false,
+        ]);
+
+        echo "\n--- 4. THE CANONICAL PF CHECK ---\n";
+        echo $employee->employer_pf_monthly . "\n";
+        
+        $expectedPf = min($employee->basic_pay, 15000) * 0.13;
+        $this->assertEquals(1950.00, $expectedPf);
+        $this->assertEquals($expectedPf, $employee->employer_pf_monthly);
     }
 }

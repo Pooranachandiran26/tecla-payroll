@@ -6,13 +6,14 @@ use App\Models\User;
 use App\Models\Employee;
 use App\Models\Client;
 use App\Models\SalaryRevision;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 use Carbon\Carbon;
 
 class SalaryRevisionTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     protected function setUp(): void
     {
@@ -25,12 +26,18 @@ class SalaryRevisionTest extends TestCase
         if (!$client) {
             $client = Client::factory()->create();
         }
+        
+        $branch = \App\Models\ClientBranch::first();
+        if (!$branch) {
+            $branch = \App\Models\ClientBranch::factory()->create(['client_id' => $client->id]);
+        }
 
         // We assume an employee exists (from the seeder or previous tests)
         $this->employee = Employee::first();
         if (!$this->employee) {
             $this->employee = Employee::factory()->create([
                 'client_id' => $client->id,
+                'branch_id' => $branch->id,
                 'basic_pay' => 10000,
                 'hra' => 5000,
                 'conveyance' => 0,
@@ -119,7 +126,7 @@ class SalaryRevisionTest extends TestCase
                          ->post("/employees/{$this->employee->id}/salary-revision/{$revision->id}/approve", $payload);
 
         $response->assertRedirect();
-        $response->assertSessionHas('success', 'Salary revision approved successfully.');
+        $response->assertSessionHas('success', 'Salary revision approved successfully and notification email sent.');
 
         // Verify revision status updated
         $revision->refresh();
@@ -300,9 +307,10 @@ class SalaryRevisionTest extends TestCase
         
         $page = $responsePage->viewData('page');
         if (isset($page['props']['employee'])) {
-            echo "Page rendered with 200 OK\n";
-            echo "Inertia Component: {$page['component']}\n";
-            echo "Employee Prop: ID {$page['props']['employee']['id']}, Name {$page['props']['employee']['full_name']}\n";
+            $empProp = $page['props']['employee'];
+            $empId = is_array($empProp) ? ($empProp['id'] ?? null) : ($empProp->id ?? null);
+            $empName = is_array($empProp) ? ($empProp['full_name'] ?? null) : ($empProp->full_name ?? null);
+            echo "Employee Prop: ID {$empId}, Name {$empName}\n";
             echo "Revisions Passed to Frontend: " . count($page['props']['revisions']) . "\n";
             echo "Latest Revision Status on Frontend: {$page['props']['revisions'][0]['status']}\n\n";
         }

@@ -1,5 +1,6 @@
 import React from 'react';
 import { INDIAN_STATES, COUNTRIES } from '../constants/clientFormData';
+import { MapPin, Building, Trash2, CheckCircle2, AlertCircle } from 'lucide-react';
 
 export default function AddressSection({ formData, errors, onChange, hook }) {
   const isIndia = formData.country === 'India';
@@ -7,7 +8,7 @@ export default function AddressSection({ formData, errors, onChange, hook }) {
   return (
     <>
       <div className="section-header">
-        <div className="section-icon">📍</div>
+        <div className="section-icon"><MapPin size={18} /></div>
         <h3>Registered &amp; Billing Address</h3>
       </div>
 
@@ -17,6 +18,7 @@ export default function AddressSection({ formData, errors, onChange, hook }) {
         <input type="text" className={`form-control ${errors.regAddressLine1 ? 'invalid' : ''}`}
           placeholder="Building Name, Street" value={formData.regAddressLine1}
           onChange={e => onChange('regAddressLine1', e.target.value)} />
+        {errors.regAddressLine1 && <div className={`field-msg ${errors.regAddressLine1?.type || 'error'} show`}>{errors.regAddressLine1?.msg || errors.regAddressLine1}</div>}
       </div>
 
       <div className="form-row">
@@ -31,6 +33,7 @@ export default function AddressSection({ formData, errors, onChange, hook }) {
           <input type="text" className={`form-control ${errors.regCity ? 'invalid' : ''}`}
             placeholder="e.g. Mumbai" value={formData.regCity}
             onChange={e => onChange('regCity', e.target.value)} />
+          {errors.regCity && <div className={`field-msg ${errors.regCity?.type || 'error'} show`}>{errors.regCity?.msg || errors.regCity}</div>}
         </div>
       </div>
 
@@ -43,6 +46,7 @@ export default function AddressSection({ formData, errors, onChange, hook }) {
             <option value="">-- Select State --</option>
             {INDIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
+          {errors.regState && <div className={`field-msg ${errors.regState?.type || 'error'} show`}>{errors.regState?.msg || errors.regState}</div>}
         </div>
         <div className="form-group">
           <label>PIN Code <span style={{ color: 'var(--status-danger)' }}>*</span></label>
@@ -52,6 +56,7 @@ export default function AddressSection({ formData, errors, onChange, hook }) {
               const val = hook.validatePIN(e.target.value);
               onChange('regPin', val);
             }} />
+          {errors.regPin && <div className={`field-msg ${errors.regPin?.type || 'error'} show`}>{errors.regPin?.msg || errors.regPin}</div>}
         </div>
         <div className="form-group">
           <label>Country</label>
@@ -70,12 +75,14 @@ export default function AddressSection({ formData, errors, onChange, hook }) {
             <input type="text" className={`form-control ${errors.taxId ? 'invalid' : ''}`}
               placeholder="e.g. EIN-12345678" value={formData.taxId}
               onChange={e => onChange('taxId', e.target.value)} />
+            {errors.taxId && <div className={`field-msg ${errors.taxId?.type || 'error'} show`}>{errors.taxId?.msg || errors.taxId}</div>}
           </div>
           <div className="form-group">
             <label>Registration Number <span style={{ color: 'var(--status-danger)' }}>*</span></label>
             <input type="text" className={`form-control ${errors.regNo ? 'invalid' : ''}`}
               placeholder="e.g. REG-87654321" value={formData.regNo}
               onChange={e => onChange('regNo', e.target.value)} />
+            {errors.regNo && <div className={`field-msg ${errors.regNo?.type || 'error'} show`}>{errors.regNo?.msg || errors.regNo}</div>}
           </div>
         </div>
       )}
@@ -139,8 +146,8 @@ export default function AddressSection({ formData, errors, onChange, hook }) {
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
           <div>
-            <h4 style={{ fontSize: '0.95rem', color: 'var(--primary-navy)', margin: 0 }}>
-              🏢 Client Branches / Work Locations
+            <h4 style={{ fontSize: '0.95rem', color: 'var(--primary-navy)', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Building size={16} /> Client Branches / Work Locations
             </h4>
             <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
               Each branch with employees requires a separate GSTIN for compliance.
@@ -210,8 +217,8 @@ export default function AddressSection({ formData, errors, onChange, hook }) {
                 <input type="text" className="form-control" placeholder="GSTIN" style={{ flex: 1 }}
                   value={ab.gstin} onChange={e => hook.updateAgencyBranch(ab.id, 'gstin', e.target.value)} />
                 <button type="button" onClick={() => hook.removeAgencyBranch(ab.id)}
-                  style={{ background: 'none', border: 'none', color: 'var(--status-danger)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, padding: 0 }}>
-                  🗑 Remove
+                  style={{ background: 'none', border: 'none', color: 'var(--status-danger)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, padding: 0, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                  <Trash2 size={13} /> Remove
                 </button>
               </div>
             ))}
@@ -238,8 +245,8 @@ function BranchCard({ branch, idx, errors = {}, totalBranches, onUpdate, onRemov
         <strong style={{ fontSize: '0.9rem', color: 'var(--primary-navy)' }}>Branch Details</strong>
         {totalBranches > 1 && (
           <button type="button" onClick={() => onRemove(branch.id)}
-            style={{ background: 'none', border: 'none', color: 'var(--status-danger)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, padding: 0 }}>
-            🗑 Remove Branch
+            style={{ background: 'none', border: 'none', color: 'var(--status-danger)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, padding: 0, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <Trash2 size={13} /> Remove Branch
           </button>
         )}
       </div>
@@ -247,50 +254,57 @@ function BranchCard({ branch, idx, errors = {}, totalBranches, onUpdate, onRemov
       <div className="form-row">
         <div className="form-group">
           <label>Branch Name <span style={{ color: 'var(--status-danger)' }}>*</span></label>
-          <input type="text" className={`form-control ${errors[`branches.${idx}.name`] ? 'invalid' : ''}`} placeholder="e.g. Chennai Office"
+          <input type="text" className={`form-control ${errors.branchName ? 'invalid' : ''}`}
+            placeholder="e.g. Chennai Office / South Zone"
             value={branch.name}
             onChange={e => onUpdate(branch.id, 'name', e.target.value)} />
+          {errors.branchName && <div className="field-msg error show">{errors.branchName}</div>}
         </div>
         <div className="form-group">
-          <label>Branch Code</label>
-          <input type="text" className="form-control" readOnly
-            style={{ background: '#f1f5f9', color: 'var(--text-muted)' }}
-            value={branch.code} />
+          <label>Branch Code <span style={{ color: 'var(--status-danger)' }}>*</span></label>
+          <input type="text" className={`form-control ${errors.branchCode ? 'invalid' : ''}`}
+            placeholder="e.g. CHE-01" maxLength="10" style={{ textTransform: 'uppercase' }}
+            value={branch.code}
+            onChange={e => onUpdate(branch.id, 'code', e.target.value.toUpperCase())} />
+          {errors.branchCode && <div className="field-msg error show">{errors.branchCode}</div>}
         </div>
       </div>
 
       <div className="form-group">
         <label>Address Line 1 <span style={{ color: 'var(--status-danger)' }}>*</span></label>
-        <input type="text" className={`form-control ${errors[`branches.${idx}.addr1`] ? 'invalid' : ''}`} value={branch.addr1}
+        <input type="text" className={`form-control ${errors.branchAddr1 ? 'invalid' : ''}`}
+          placeholder="Building, Street Name"
+          value={branch.addr1}
           onChange={e => onUpdate(branch.id, 'addr1', e.target.value)} />
+        {errors.branchAddr1 && <div className="field-msg error show">{errors.branchAddr1}</div>}
       </div>
 
       <div className="form-row">
-        <div className="form-group">
-          <label>Address Line 2</label>
-          <input type="text" className="form-control" value={branch.addr2}
-            onChange={e => onUpdate(branch.id, 'addr2', e.target.value)} />
-        </div>
         <div className="form-group">
           <label>City <span style={{ color: 'var(--status-danger)' }}>*</span></label>
-          <input type="text" className={`form-control ${errors[`branches.${idx}.city`] ? 'invalid' : ''}`} value={branch.city}
+          <input type="text" className={`form-control ${errors.branchCity ? 'invalid' : ''}`}
+            placeholder="e.g. Chennai"
+            value={branch.city}
             onChange={e => onUpdate(branch.id, 'city', e.target.value)} />
+          {errors.branchCity && <div className="field-msg error show">{errors.branchCity}</div>}
         </div>
-      </div>
-
-      <div className="form-row">
         <div className="form-group">
           <label>State <span style={{ color: 'var(--status-danger)' }}>*</span></label>
-          <select className={`form-control ${errors[`branches.${idx}.state`] ? 'invalid' : ''}`} value={branch.state}
-            onChange={e => { onUpdate(branch.id, 'state', e.target.value); onValidateGSTIN(branch.id); }}>
-            <option value="">-- Select --</option>
+          <select className={`form-control ${errors.branchState ? 'invalid' : ''}`}
+            value={branch.state}
+            onChange={e => onUpdate(branch.id, 'state', e.target.value)}>
+            <option value="">-- Select State --</option>
             {BRANCH_STATES.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
+          {errors.branchState && <div className="field-msg error show">{errors.branchState}</div>}
         </div>
         <div className="form-group">
           <label>PIN Code <span style={{ color: 'var(--status-danger)' }}>*</span></label>
-          <input type="text" className={`form-control ${errors[`branches.${idx}.pin`] ? 'invalid' : ''}`} maxLength="6" value={branch.pin}
+          <input type="text" className={`form-control ${errors.branchPin ? 'invalid' : ''}`}
+            placeholder="6-digit PIN" maxLength="6"
+            value={branch.pin}
             onChange={e => onUpdate(branch.id, 'pin', e.target.value)} />
+          {errors.branchPin && <div className="field-msg error show">{errors.branchPin}</div>}
         </div>
       </div>
 
@@ -303,8 +317,8 @@ function BranchCard({ branch, idx, errors = {}, totalBranches, onUpdate, onRemov
               value={branch.gstin}
               onChange={e => { onUpdate(branch.id, 'gstin', e.target.value.toUpperCase()); onValidateGSTIN(branch.id); }}
               onBlur={() => onValidateGSTIN(branch.id)} />
-            <span style={{ position: 'absolute', right: '10px', fontSize: '1.2rem' }}>
-              {branch.gstinError ? '❌' : branch.gstinValid ? '✅' : ''}
+            <span style={{ position: 'absolute', right: '10px', display: 'inline-flex', alignItems: 'center' }}>
+              {branch.gstinError ? <AlertCircle size={16} color="var(--status-danger)" /> : branch.gstinValid ? <CheckCircle2 size={16} color="#059669" /> : ''}
             </span>
           </div>
           <div className="field-hint" style={{ color: 'var(--text-muted)' }}>

@@ -15,17 +15,48 @@ class PasswordService
     {
         $rule = Password::min($this->settings->getAuthSecurity('password_min_length', 8));
         
-        if ($this->settings->getAuthSecurity('password_require_mixed_case', true)) {
+        if ($this->settings->getAuthSecurity('require_mixed_case', true)) {
             $rule->mixedCase();
         }
-        if ($this->settings->getAuthSecurity('password_require_numbers', true)) {
+        if ($this->settings->getAuthSecurity('require_numbers', true)) {
             $rule->numbers();
         }
-        if ($this->settings->getAuthSecurity('password_require_symbols', true)) {
+        if ($this->settings->getAuthSecurity('require_symbols', true)) {
             $rule->symbols();
+        }
+        if ($this->settings->getAuthSecurity('check_have_i_been_pwned', false)) {
+            $rule->uncompromised();
         }
         
         return $rule;
+    }
+
+    public function getPolicyRules(): array
+    {
+        return [
+            'min_length' => (int) $this->settings->getAuthSecurity('password_min_length', 8),
+            'require_mixed_case' => (bool) $this->settings->getAuthSecurity('require_mixed_case', true),
+            'require_numbers' => (bool) $this->settings->getAuthSecurity('require_numbers', true),
+            'require_symbols' => (bool) $this->settings->getAuthSecurity('require_symbols', true),
+        ];
+    }
+
+    public function getPolicyDescription(): string
+    {
+        $min = $this->settings->getAuthSecurity('password_min_length', 8);
+        $reqs = [];
+        
+        if ($this->settings->getAuthSecurity('require_mixed_case', true)) $reqs[] = 'uppercase and lowercase letters';
+        if ($this->settings->getAuthSecurity('require_numbers', true)) $reqs[] = 'numbers';
+        if ($this->settings->getAuthSecurity('require_symbols', true)) $reqs[] = 'symbols';
+        
+        $desc = "Minimum {$min} characters";
+        if (count($reqs) > 0) {
+            $desc .= ", must include " . implode(', ', $reqs);
+        }
+        $desc .= ".";
+        
+        return $desc;
     }
 
     public function checkHistory(User $user, string $newPassword): bool

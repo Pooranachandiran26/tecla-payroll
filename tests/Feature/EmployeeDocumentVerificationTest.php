@@ -12,17 +12,19 @@ use App\Models\EmployeeDocument;
 
 class EmployeeDocumentVerificationTest extends TestCase
 {
-    use \Illuminate\Foundation\Testing\DatabaseTransactions;
+    use \Illuminate\Foundation\Testing\RefreshDatabase;
 
     public function test_manager_receives_403_when_verifying_document()
     {
         $manager = User::factory()->create(['role' => 'manager']);
         $admin = User::factory()->create(['role' => 'admin']);
         
-        $employee = Employee::first();
-        if (!$employee) {
-            $this->markTestSkipped('No seeded employee available for test.');
-        }
+        $client = Client::factory()->create();
+        $branch = ClientBranch::factory()->create(['client_id' => $client->id]);
+        $employee = Employee::factory()->create([
+            'client_id' => $client->id,
+            'branch_id' => $branch->id,
+        ]);
 
         $documentId = \Illuminate\Support\Facades\DB::table('employee_documents')->insertGetId([
             'employee_id' => $employee->id,

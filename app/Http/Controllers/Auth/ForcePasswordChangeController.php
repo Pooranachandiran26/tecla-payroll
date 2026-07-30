@@ -15,7 +15,9 @@ class ForcePasswordChangeController extends Controller
 
     public function show()
     {
-        return Inertia::render('Auth/ForcePasswordChange');
+        return Inertia::render('Auth/ForcePasswordChange', [
+            'passwordPolicyRules' => $this->passwordService->getPolicyRules()
+        ]);
     }
 
     public function update(Request $request)

@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { router } from '@inertiajs/react';
+import useToast from '@/Hooks/useToast';
 import {
   PATTERNS, PIN_MAPPING, GST_STATE_CODES, ALLOWED_FILE_TYPES,
   MAX_FILE_SIZE, DOC_TYPE_LABELS, DOC_TYPE_ICONS, REQUIRED_DOC_TYPES,
@@ -10,9 +11,12 @@ import {
 //  useClientForm — All form state, validation & logic
 // ═══════════════════════════════════════════════════
 
-export default function useClientForm() {
+export default function useClientForm(defaultLopBasis = 'inherit', initialClient = null) {
   // ── Core state ───────────────────────────────────
-  const [formData, setFormData] = useState(getDefaultFormData());
+  const initialFormData = getDefaultFormData();
+  initialFormData.lopBasis = defaultLopBasis;
+  
+  const [formData, setFormData] = useState(initialFormData);
   const [errors, setErrors] = useState({});
   const [hints, setHints] = useState({});
   const [currentStep, setCurrentStep] = useState(1);
@@ -34,14 +38,14 @@ export default function useClientForm() {
     if (['contractType', 'billingModel', 'markupPct', 'markupBase', 'fixedFeeCandidate', 'fixedMonthlyRetainer', 'hourlyRate', 'standardHours', 'otBilling', 'otApproval', 'invoiceCycle', 'paymentTerms', 'contractStart', 'contractEnd', 'autoRenewal', 'poRequired', 'poNumber', 'poValue', 'poValidity', 'gstRate', 'lutRefNo', 'reverseCharge', 'tdsApplicableAgency', 'prefFormatPDF', 'prefFormatXLSX', 'invoiceFooterNotes', 'noticePeriod', 'creditLimit', 'latePenalty', 'billingCurrency'].includes(field)) return 4;
     if (['pfCeiling', 'pfApplicable', 'esiLimit', 'esiApplicable', 'ptState', 'ptApplicable', 'lwfFrequency', 'lwfApplicable', 'tdsRegime', 'tdsApplicable', 'gratuityMode', 'gratuityApplicable', 'bonusPct', 'bonusApplicable', 'lopBasis'].includes(field)) return 5;
     if (field === 'documents') return 6;
-    if (['portalAccess', 'portalEmail', 'portalAccessLevel', 'portalViewSalary', 'portalViewInvoices', 'portalViewPayslips', 'portalRaiseRequests', 'portal2fa', 'sessionTimeout', 'ipWhitelist', 'logoUrl'].includes(field)) return 7;
+    if (['portalAccess', 'portalEmail', 'portalAccessLevel', 'portalViewSalary', 'portalViewInvoices', 'portalViewPayslips', 'portalRaiseRequests', 'portal2fa', 'sessionTimeout', 'ipWhitelist', 'logoUrl', 'displayNameOverride', 'accentColor'].includes(field)) return 7;
     if (['attendanceCutoff', 'payrollLockDay', 'salaryCreditDay', 'invoiceDisputeDays', 'invoiceRaiseDay', 'payrollMonthConvention', 'cycleStartDay', 'cycleEndDay', 'accountManager', 'backupAccountManager', 'autoReminders', 'clientNotes'].includes(field)) return 8;
     return 1;
   };
 
-  const [toastMessage, setToastMessage] = useState(null);
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [editId, setEditId] = useState(null);
+  const { showToast: globalToast } = useToast();
+  const [isEditMode, setIsEditMode] = useState(!!initialClient);
+  const [editId, setEditId] = useState(initialClient ? initialClient.id : null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState('');
   const [pendingDocType, setPendingDocType] = useState('other');
@@ -79,10 +83,18 @@ export default function useClientForm() {
   }, []);
 
   // ── Toast helper ─────────────────────────────────
-  const showToast = useCallback((message) => {
-    setToastMessage(message);
-    setTimeout(() => setToastMessage(''), 3000);
-  }, []);
+  const showToast = useCallback((msgOrObj) => {
+    if (typeof msgOrObj === 'string') {
+      let type = 'success';
+      if (msgOrObj.includes('❌') || msgOrObj.includes('🚫') || msgOrObj.includes('🔴')) type = 'error';
+      else if (msgOrObj.includes('⚠️')) type = 'warning';
+      
+      const cleanMsg = msgOrObj.replace(/^[❌🚫🔴⚠️✅✓💡💻🔐⚙️📅🤝⭐💼🧾🔢📍🏢⚡👤👔📱💰📋📚📁✔️]\s*/, '');
+      globalToast({ message: cleanMsg, type });
+    } else {
+      globalToast(msgOrObj);
+    }
+  }, [globalToast]);
 
   // ── Mark section progress ────────────────────────
   const markProgress = useCallback((section) => {
@@ -151,7 +163,7 @@ export default function useClientForm() {
         setErrors(prev => { const n = { ...prev }; delete n.tan; return n; });
       } else {
         setHints(prev => ({ ...prev, tan: { text: '✗ Invalid TAN. Format: MUMD12345A (4 alpha + 5 digits + 1 alpha)', type: 'error' } }));
-        setErrors(prev => ({ ...prev, tan: true }));
+        setErrors(prev => ({ ...prev, tan: { msg: 'Invalid TAN format (e.g. MUMD12345A). Format: 4 letters + 5 digits + 1 letter.', type: 'error' } }));
       }
     } else {
       setHints(prev => ({ ...prev, tan: { text: 'Required for TDS deduction filing.', type: '' } }));
@@ -274,9 +286,9 @@ export default function useClientForm() {
 
   const getPFCeilingHint = useCallback(() => {
     if (parseFloat(formData.pfCeiling) > 15000) {
-      return { text: 'Voluntary PF — contributions computed on actual basic.', type: 'warning' };
+      return { text: '⚠️ Maximum allowed is ₹15,000. Raising above the statutory ceiling requires additional EPS-split configuration not yet available.', type: 'danger' };
     }
-    return { text: 'Standard EPFO statutory wage ceiling is ₹15,000.', type: '' };
+    return { text: 'Wage Ceiling Override (₹) — must be ₹15,000 or lower. Standard EPFO statutory ceiling is ₹15,000.', type: '' };
   }, [formData.pfCeiling]);
 
   const handleESILimit = useCallback((value) => {
@@ -506,7 +518,7 @@ export default function useClientForm() {
         docFormData.append('type', pendingDocType);
         docFormData.append('file', file);
         
-        router.post(`/clients/${editId}/documents`, docFormData, {
+        router.post(route('clients.documents.store', editId), docFormData, {
           preserveScroll: true,
           onSuccess: () => {
             showToast(`✅ ${file.name} uploaded successfully`);
@@ -594,12 +606,14 @@ export default function useClientForm() {
         { key: 'companyName', label: 'Company Name' },
         { key: 'companyType', label: 'Company Type' },
         { key: 'clientCode', label: 'Client Code' },
+        { key: 'workLocationsCount', label: 'Number of Work Locations' },
+        { key: 'clientStatus', label: 'Client Status' }
       );
       if (country === 'India') {
         if (compType !== 'govt' && compType !== 'trust') {
           requiredFields.push({ key: 'gstin', label: 'GSTIN' });
         }
-        requiredFields.push({ key: 'pan', label: 'PAN' });
+        requiredFields.push({ key: 'pan', label: 'PAN' }, { key: 'tan', label: 'TAN' });
       } else {
         requiredFields.push({ key: 'taxId', label: 'Tax ID' }, { key: 'regNo', label: 'Registration Number' });
       }
@@ -628,12 +642,17 @@ export default function useClientForm() {
       if (formData.poRequired) {
         requiredFields.push({ key: 'poNumber', label: 'PO Number' });
       }
+      if (formData.billingModel === 'markup') {
+        requiredFields.push({ key: 'markupPct', label: 'Markup Percentage' });
+      }
+      if (formData.billingModel === 'fixed_per_candidate') {
+        requiredFields.push({ key: 'fixedFeeCandidate', label: 'Fixed Fee Per Candidate' });
+      }
     }
-    // Steps 5-8 have no required fields for step validation
 
     let isValid = true;
     let newErrors = { ...errors };
-    let firstErrorKey = null;
+    let missingLabels = [];
 
     requiredFields.forEach(field => {
       let value;
@@ -644,56 +663,80 @@ export default function useClientForm() {
         value = formData[field.key];
       }
       if (!value || String(value).trim() === '') {
-        newErrors[field.key] = true;
+        newErrors[field.key] = { msg: `${field.label} is required.`, type: 'error' };
         isValid = false;
-        if (!firstErrorKey) firstErrorKey = field.key;
+        missingLabels.push(field.label);
       } else {
         delete newErrors[field.key];
       }
     });
 
-    // GSTIN pattern validation on step 1
     if (stepNum === 1 && country === 'India' && compType !== 'govt' && compType !== 'trust') {
       const gstin = (formData.gstin || '').toUpperCase();
       if (gstin && !PATTERNS.GSTIN.test(gstin)) {
-        newErrors.gstin = true;
+        newErrors.gstin = { msg: 'Invalid GSTIN format. Must be 15 alphanumeric characters.', type: 'error' };
         isValid = false;
-        if (!firstErrorKey) firstErrorKey = 'gstin';
+        if (!missingLabels.includes('GSTIN (Invalid format)')) {
+            missingLabels.push('GSTIN (Invalid format)');
+        }
+      }
+
+      const isTdsActive = formData.tdsApplicableAgency && formData.tdsApplicableAgency !== 'na';
+      const tan = (formData.tan || '').toUpperCase().trim();
+
+      if (isTdsActive && !tan) {
+        newErrors.tan = { msg: 'TAN is required when TDS deduction is applicable on agency invoices.', type: 'error' };
+        isValid = false;
+        missingLabels.push('TAN (Required for TDS)');
+      } else if (tan && !PATTERNS.TAN.test(tan)) {
+        newErrors.tan = { msg: 'Invalid TAN format (e.g. MUMD12345A). Format: 4 letters + 5 digits + 1 letter.', type: 'error' };
+        isValid = false;
+        missingLabels.push('TAN (Invalid format)');
       }
     }
 
-    // Branch GSTIN validation on step 2
-    if (stepNum === 2 && !checkAllBranchesGSTIN()) {
-      isValid = false;
+    if (stepNum === 2) {
+      if (formData.workLocationsCount > 1 && !checkAllBranchesGSTIN()) {
+        isValid = false;
+        missingLabels.push('Valid Branch GSTINs');
+      }
+      if (formData.workLocationsCount > 1 && clientBranches.length === 0) {
+        isValid = false;
+        missingLabels.push('At least one Branch (required for >1 locations)');
+      }
     }
 
     setErrors(newErrors);
 
     if (!isValid) {
+      const msg = `Missing required fields: ${missingLabels.join(', ')}`;
       if (isTabNavigation) {
-        showToast(`❌ You can't navigate to this tab without completing these required fields.`);
+        showToast({ message: `Cannot navigate: ${msg}`, type: 'error' });
       } else {
-        showToast(`❌ Section ${stepNum} has missing/invalid required fields.`);
+        showToast({ message: msg, type: 'error' });
       }
     }
 
     return isValid;
-  }, [formData, errors, checkAllBranchesGSTIN, showToast]);
+  }, [formData, errors, checkAllBranchesGSTIN, showToast, clientBranches.length]);
 
   const goToStep = useCallback((stepNum) => {
+    // SUGGESTION: implement real-time validation observer for sectionProgress instead of only checking on forward nav
     if (stepNum > currentStep) {
       for (let s = currentStep; s < stepNum; s++) {
         if (!validateStep(s, true)) return;
+        markProgress(s);
       }
     }
     setCurrentStep(stepNum);
-  }, [currentStep, validateStep]);
+  }, [currentStep, validateStep, markProgress]);
 
   const nextStep = useCallback(() => {
     if (validateStep(currentStep) && currentStep < 8) {
+      markProgress(currentStep);
       setCurrentStep(prev => prev + 1);
     }
-  }, [currentStep, validateStep]);
+  }, [currentStep, validateStep, markProgress]);
 
   const prevStep = useCallback(() => {
     if (currentStep > 1) setCurrentStep(prev => prev - 1);
@@ -747,9 +790,9 @@ export default function useClientForm() {
         gstType: b.gstType, pocName: b.pocName, pocEmail: b.pocEmail,
         pocPhone: b.pocPhone, isPrimary: b.isPrimary,
       })),
-      poc1: { ...formData.poc1, preferences: Object.entries(formData.poc1.prefs).filter(([, v]) => v).map(([k]) => k === 'wa' ? 'WhatsApp' : k === 'sms' ? 'SMS' : 'Email') },
-      poc2: { ...formData.poc2, preferences: Object.entries(formData.poc2.prefs).filter(([, v]) => v).map(([k]) => k === 'wa' ? 'WhatsApp' : k === 'sms' ? 'SMS' : 'Email') },
-      poc3: { ...formData.poc3, preferences: Object.entries(formData.poc3.prefs).filter(([, v]) => v).map(([k]) => k === 'wa' ? 'WhatsApp' : k === 'sms' ? 'SMS' : 'Email') },
+      poc1: { ...formData.poc1, preferences: Object.entries(formData.poc1?.prefs || {}).filter(([, v]) => v).map(([k]) => k === 'wa' ? 'WhatsApp' : k === 'sms' ? 'SMS' : 'Email') },
+      poc2: { ...formData.poc2, preferences: Object.entries(formData.poc2?.prefs || {}).filter(([, v]) => v).map(([k]) => k === 'wa' ? 'WhatsApp' : k === 'sms' ? 'SMS' : 'Email') },
+      poc3: { ...formData.poc3, preferences: Object.entries(formData.poc3?.prefs || {}).filter(([, v]) => v).map(([k]) => k === 'wa' ? 'WhatsApp' : k === 'sms' ? 'SMS' : 'Email') },
       extraContacts: extraContacts.filter(c => c.name && c.email).map(c => ({ ...c })),
       contractType: formData.contractType,
       billingModel: formData.billingModel,
@@ -780,7 +823,10 @@ export default function useClientForm() {
       prefFormatXLSX: formData.prefFormatXLSX,
       invoiceFooterNotes: formData.invoiceFooterNotes,
       pfCeiling: parseFloat(formData.pfCeiling || '15000'),
+      employeePfWageBasis: formData.employeePfWageBasis || 'ceiling',
+      employerPfWageBasis: formData.employerPfWageBasis || 'ceiling',
       pfApplicable: formData.pfApplicable,
+      edliExempted: formData.edliExempted,
       esiLimit: parseFloat(formData.esiLimit || '21000'),
       esiApplicable: formData.esiApplicable,
       ptState: formData.ptState,
@@ -795,6 +841,10 @@ export default function useClientForm() {
       bonusApplicable: formData.bonusApplicable,
       bonusRate: parseFloat(formData.bonusPct || '8.33'),
       statutoryBonusApplicable: formData.bonusApplicable,
+      healthInsuranceEnabled: formData.healthInsuranceEnabled !== false,
+      health_insurance_enabled: formData.healthInsuranceEnabled !== false,
+      weekly_off_pattern: formData.weeklyOffPattern || 'sat,sun',
+      weeklyOffPattern: formData.weeklyOffPattern || 'sat,sun',
       lopBasis: formData.lopBasis,
       portalAccess: formData.portalAccess,
       portalEmail: formData.portalEmail,
@@ -807,6 +857,8 @@ export default function useClientForm() {
       sessionTimeout: parseInt(formData.sessionTimeout || '60'),
       ipWhitelist: formData.ipWhitelist,
       logoUrl: formData.logoUrl,
+      displayNameOverride: formData.displayNameOverride,
+      accentColor: formData.accentColor,
       invoiceRaiseDay: formData.invoiceRaiseDay,
       payrollMonthConvention: formData.payrollMonthConvention,
       cycleStartDay: parseInt(formData.cycleStartDay || '1'),
@@ -828,13 +880,27 @@ export default function useClientForm() {
     };
   }, [formData, editId, clientBranches, extraContacts, uploadedDocs]);
 
+  const getDraftKey = useCallback(() => {
+    return isEditMode && editId ? `tecla_client_draft_edit_${editId}` : `tecla_client_draft_create`;
+  }, [isEditMode, editId]);
+
   const saveDraft = useCallback((isAuto = false) => {
-    const code = formData.clientCode || 'temp';
-    const payload = getFormPayload();
-    localStorage.setItem(`tecla_client_draft_${code}`, JSON.stringify(payload));
+    const key = getDraftKey();
+    const draftPayload = {
+      _draftVersion: 2,
+      formData: { ...formData },
+      clientBranches: [...clientBranches],
+      extraContacts: [...extraContacts],
+      agencyBranches: [...agencyBranches],
+      stateRegistrations: [...stateRegistrations],
+      sectionProgress: { ...sectionProgress },
+      currentStep,
+      savedAt: new Date().toISOString(),
+    };
+    localStorage.setItem(key, JSON.stringify(draftPayload));
     if (!isAuto) showToast('💾 Draft saved successfully!');
     return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  }, [formData.clientCode, getFormPayload, showToast]);
+  }, [getDraftKey, formData, clientBranches, extraContacts, agencyBranches, stateRegistrations, sectionProgress, currentStep, showToast]);
 
   const errorKeyMap = useCallback((laravelErrors) => {
     const mapped = {};
@@ -872,7 +938,6 @@ export default function useClientForm() {
         else if (index === 2) mappedKey = `poc3.${field}`;
         else mappedKey = `extraContacts[${index - 3}].${field}`;
       } else if (key.startsWith('branches.')) {
-        // branches.0.gstin -> branches.0.gstin or let's use brackets for array
         const parts = key.split('.');
         const index = parseInt(parts[1]);
         const field = parts.slice(2).join('.');
@@ -890,12 +955,16 @@ export default function useClientForm() {
 
         mappedKey = `branches.${index}.${branchField}`;
       }
-      mapped[mappedKey] = laravelErrors[key];
+      const rawVal = laravelErrors[key];
+      const msgText = Array.isArray(rawVal) ? rawVal[0] : (typeof rawVal === 'object' && rawVal?.msg ? rawVal.msg : String(rawVal));
+      mapped[mappedKey] = { msg: msgText, type: 'error' };
     });
     return mapped;
   }, []);
 
   const submitForm = useCallback(() => {
+    if (isSubmitting) return;
+
     const payload = getFormPayload();
 
     setIsSubmitting(true);
@@ -914,8 +983,12 @@ export default function useClientForm() {
 
     const handleSuccess = (page) => {
       setIsSubmitting(false);
-      setSubmitSuccess('✅ Client saved & activated successfully!');
-      localStorage.removeItem(`tecla_client_draft_${payload.code || 'temp'}`);
+      showToast('✅ Client saved & activated successfully!');
+      Object.keys(localStorage).forEach(k => {
+        if (k.startsWith('tecla_client_draft_')) {
+          localStorage.removeItem(k);
+        }
+      });
     };
 
     const handleError = (errors) => {
@@ -951,16 +1024,16 @@ export default function useClientForm() {
     };
 
     if (isEditMode && editId) {
-      router.put(`/clients/${editId}`, payload, {
+      router.put(route('clients.update', editId), payload, {
         onSuccess: handleSuccess,
         onError: handleError,
-        preserveScroll: true
+        preserveScroll: false
       });
     } else {
-      router.post('/clients', payload, {
+      router.post(route('clients.store'), payload, {
         onSuccess: handleSuccess,
         onError: handleError,
-        preserveScroll: true
+        preserveScroll: false
       });
     }
     return true;
@@ -1031,20 +1104,28 @@ export default function useClientForm() {
       prefFormatXLSX: client.invoice_format_xlsx || false,
       invoiceFooterNotes: client.invoice_footer_notes || '',
       pfCeiling: client.pf_ceiling || 15000,
+      employeePfWageBasis: client.employee_pf_wage_basis || 'ceiling',
+      employerPfWageBasis: client.employer_pf_wage_basis || 'ceiling',
       pfApplicable: client.pf_applicable !== undefined ? client.pf_applicable : true,
+      edliExempted: client.edli_exempted !== undefined ? Boolean(client.edli_exempted) : false,
       esiLimit: client.esi_limit || 21000,
       esiApplicable: client.esi_applicable !== undefined ? client.esi_applicable : true,
       ptState: client.pt_state || 'auto',
       ptApplicable: client.pt_applicable !== undefined ? client.pt_applicable : true,
-      lwfFrequency: client.lwf_frequency || 'biannual',
+      lwfFrequency: client.lwf_frequency || (client.registered_state === 'Maharashtra' || client.pt_state === 'MH' ? 'biannual' : 'annual'),
       lwfApplicable: client.lwf_applicable !== undefined ? client.lwf_applicable : false,
       tdsRegime: client.tds_regime || 'new',
       tdsApplicable: client.tds_applicable !== undefined ? client.tds_applicable : true,
-      gratuityMode: client.default_gratuity_mode || 'ctc_included',
+      gratuityMode: (function(m) {
+        const map = { payable_on_separation: 'over_ctc', over_and_above: 'over_ctc', not_applicable: 'na' };
+        return map[m] || m || 'ctc_included';
+      })(client.default_gratuity_mode),
       gratuityApplicable: true, // Not in DB, default true
       bonusPct: client.bonus_rate_percentage || 8.33,
       bonusApplicable: client.statutory_bonus_applicable !== undefined ? client.statutory_bonus_applicable : false,
-      lopBasis: client.lop_basis_days || 'inherit',
+      healthInsuranceEnabled: client.health_insurance_enabled !== undefined ? Boolean(client.health_insurance_enabled) : true,
+      weeklyOffPattern: client.weekly_off_pattern || client.weeklyOffPattern || 'sat,sun',
+      lopBasis: '30',
       portalAccess: client.client_portal_enabled || false,
       portalEmail: client.primary_poc_email || '',
       portalAccessLevel: client.portal_access_level || 'view_only',
@@ -1055,7 +1136,9 @@ export default function useClientForm() {
       portal2fa: client.portal_require_2fa !== undefined ? client.portal_require_2fa : true,
       sessionTimeout: client.portal_session_timeout || 60,
       ipWhitelist: client.portal_ip_whitelist || '',
-      logoUrl: client.logo_url || '',
+      logoUrl: client.logo_path || client.logo_url || '',
+      displayNameOverride: client.display_name_override || '',
+      accentColor: client.accent_color || '#1F3864',
       invoiceRaiseDay: client.invoice_raise_day || 'Same as Payroll Lock Day',
       payrollMonthConvention: client.payroll_convention || 'calendar',
       cycleStartDay: client.custom_cycle_start_day || 1,
@@ -1079,6 +1162,7 @@ export default function useClientForm() {
       
       client.contacts.forEach(c => {
         const contactData = {
+          id: c.id,
           name: c.full_name || '',
           designation: c.designation || '',
           email: c.email || '',
@@ -1087,9 +1171,9 @@ export default function useClientForm() {
           ccInvoice: c.cc_on_invoice !== undefined ? !!c.cc_on_invoice : false,
           onboardingKits: c.receive_onboarding_kits !== undefined ? !!c.receive_onboarding_kits : false,
           prefs: {
-            email: c.preference_email !== undefined ? !!c.preference_email : true,
-            sms: c.preference_sms !== undefined ? !!c.preference_sms : false,
-            wa: c.preference_whatsapp !== undefined ? !!c.preference_whatsapp : false
+            email: c.preference_email !== undefined ? !!c.preference_email : (Array.isArray(c.communication_preferences) ? c.communication_preferences.includes('Email') : true),
+            sms: c.preference_sms !== undefined ? !!c.preference_sms : (Array.isArray(c.communication_preferences) ? c.communication_preferences.includes('SMS') : false),
+            wa: c.preference_whatsapp !== undefined ? !!c.preference_whatsapp : (Array.isArray(c.communication_preferences) ? (c.communication_preferences.includes('WhatsApp') || c.communication_preferences.includes('wa')) : false)
           }
         };
 
@@ -1153,33 +1237,90 @@ export default function useClientForm() {
   // ═══ INITIALIZATION ═══════════════════════════════
 
   useEffect(() => {
-    // If not in edit mode, set up demo data or load draft
+    // If not in edit mode, load draft if one exists for this exact key
     if (!isEditMode) {
-      const codeKey = formData.clientCode || 'temp';
-      const draftStr = localStorage.getItem(`tecla_client_draft_${codeKey}`);
+      const key = getDraftKey();
+      const draftStr = localStorage.getItem(key);
 
       if (draftStr) {
         try {
-          const draftData = JSON.parse(draftStr);
-          setFormData(prev => ({ ...prev, ...draftData }));
-          // Note: contacts and branches from draft need special handling if we want full recovery,
-          // but for now, basic recovery is fine.
-          showToast('ℹ️ Loaded form from local draft.');
-        } catch (e) { console.error(e); }
-      } else {
-        DEMO_BRANCHES.forEach(b => addClientBranch(b));
+          const parsed = JSON.parse(draftStr);
+
+          if (parsed._draftVersion === 2 && parsed.formData) {
+            // ── Version 2 draft: raw formData was saved directly ──
+            const savedForm = parsed.formData;
+
+            // Normalise lopBasis
+            if (savedForm.lopBasis === 'inherit' || savedForm.lopBasis === '') {
+              savedForm.lopBasis = defaultLopBasis;
+            } else if (savedForm.lopBasis === '26_days') {
+              savedForm.lopBasis = '26';
+            } else if (savedForm.lopBasis === '30_days') {
+              savedForm.lopBasis = '30';
+            }
+
+            setFormData(prev => ({ ...prev, ...savedForm }));
+
+            // Restore client branches
+            if (Array.isArray(parsed.clientBranches)) {
+              setClientBranches(parsed.clientBranches);
+            }
+
+            // Restore extra contacts
+            if (Array.isArray(parsed.extraContacts)) {
+              setExtraContacts(parsed.extraContacts);
+            }
+
+            // Restore agency branches
+            if (Array.isArray(parsed.agencyBranches)) {
+              setAgencyBranches(parsed.agencyBranches);
+            }
+
+            // Restore state registrations
+            if (Array.isArray(parsed.stateRegistrations)) {
+              setStateRegistrations(parsed.stateRegistrations);
+            }
+
+            // Restore section progress
+            if (parsed.sectionProgress && typeof parsed.sectionProgress === 'object') {
+              setSectionProgress(parsed.sectionProgress);
+            }
+
+            // Restore step position
+            if (parsed.currentStep >= 1 && parsed.currentStep <= 8) {
+              setCurrentStep(parsed.currentStep);
+            }
+
+            showToast('ℹ️ Loaded form from local draft.');
+          }
+        } catch (e) { console.error('Draft restore error:', e); }
       }
     }
-  }, [isEditMode]);
+  }, [isEditMode, getDraftKey]);
 
-  // ═══ RETURN ═══════════════════════════════════════
+  const clearDraft = useCallback(() => {
+    Object.keys(localStorage).forEach(k => {
+      if (k.startsWith('tecla_client_draft_')) {
+        localStorage.removeItem(k);
+      }
+    });
+    const fresh = getDefaultFormData();
+    fresh.lopBasis = defaultLopBasis;
+    setFormData(fresh);
+    setClientBranches([]);
+    setExtraContacts([]);
+    setAgencyBranches([]);
+    setStateRegistrations([{ state: 'MH', ptRegNo: '', lwfRegNo: '' }]);
+    setSectionProgress({ 1: false, 2: false, 3: false, 4: false, 5: false, 6: false, 7: false, 8: false });
+    setCurrentStep(1);
+    showToast('🗑️ Draft cleared and form reset.');
+  }, [defaultLopBasis, showToast]);
 
   return {
     // State
     formData, errors, hints, currentStep, sectionProgress,
-    uploadedDocs, extraContacts, clientBranches, agencyBranches,
-    stateRegistrations, toastMessage, isEditMode, pendingDocType,
-    fileInputRef, logoInputRef,
+    uploadedDocs, extraContacts, clientBranches, agencyBranches, stateRegistrations,
+    isEditMode, editId, pendingDocType, fileInputRef, logoInputRef,
 
     // Generic handlers
     handleInputChange, handlePocChange, handlePocPrefChange,
@@ -1188,7 +1329,6 @@ export default function useClientForm() {
     // Validators
     validateGSTIN, validatePAN, validateTAN, validateCIN, validatePIN,
     validateEmail, validatePhone, validateContractDates, validateStep,
-    validateBranchGSTIN, checkAllBranchesGSTIN, crossCheckPANGSTIN,
 
     // Field-specific handlers
     autoGenerateCode, handleCompanyType, handleCountryChange,
@@ -1226,7 +1366,7 @@ export default function useClientForm() {
     completionPct, completionCount,
 
     // Form actions
-    saveDraft, submitForm, getFormPayload, loadClientData,
+    saveDraft, clearDraft, submitForm, getFormPayload, loadClientData,
     isSubmitting, submitSuccess,
   };
 }

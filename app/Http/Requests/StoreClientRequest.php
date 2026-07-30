@@ -33,6 +33,8 @@ class StoreClientRequest extends FormRequest
             'cin_number' => $this->cin,
             'incorporation_date' => $this->incorporationDate,
             'logo_path' => $this->logoUrl,
+            'display_name_override' => $this->displayNameOverride,
+            'accent_color' => $this->accentColor,
             
             // Address
             'registered_address_line_1' => $this->regAddressLine1,
@@ -67,14 +69,27 @@ class StoreClientRequest extends FormRequest
             
             // Statutory
             'pt_state' => $this->ptState,
-            'default_gratuity_mode' => $this->gratuityMode ?: 'ctc_included',
+            'default_gratuity_mode' => (function($mode) {
+                $map = ['payable_on_separation' => 'over_ctc', 'over_and_above' => 'over_ctc', 'over_ctc' => 'over_ctc', 'ctc_included' => 'ctc_included', 'part_of_ctc' => 'ctc_included', 'not_applicable' => 'na', 'na' => 'na'];
+                return $map[$mode] ?? ($mode ?: 'ctc_included');
+            })($this->gratuityMode),
             'gratuity_applicable' => $this->gratuityApplicable ? 1 : 0,
             'statutory_bonus_applicable' => $this->statutoryBonusApplicable ? 1 : 0,
+            'health_insurance_enabled' => $this->has('healthInsuranceEnabled')
+                ? ($this->boolean('healthInsuranceEnabled') ? 1 : 0)
+                : ($this->has('health_insurance_enabled')
+                    ? ($this->boolean('health_insurance_enabled') ? 1 : 0)
+                    : 1),
             'bonus_rate_percentage' => $this->bonusRate ?? 8.33,
             'pf_ceiling' => $this->pfCeiling ?? 15000,
+            'employee_pf_wage_basis' => $this->employeePfWageBasis ?? $this->employee_pf_wage_basis ?? 'ceiling',
+            'employer_pf_wage_basis' => $this->employerPfWageBasis ?? $this->employer_pf_wage_basis ?? 'ceiling',
             'pf_applicable' => $this->pfApplicable ? 1 : 0,
+            'edli_exempted' => $this->edliExempted ? 1 : 0,
             'esi_limit' => $this->esiLimit ?? 21000,
             'esi_applicable' => $this->esiApplicable ? 1 : 0,
+            'pf_establishment_code' => $this->pfEstablishmentCode,
+            'esi_code_number' => $this->esiCodeNumber,
             'lwf_frequency' => $this->lwfFrequency,
             'lwf_applicable' => $this->lwfApplicable ? 1 : 0,
             'tds_regime' => $this->tdsRegime,
@@ -100,7 +115,8 @@ class StoreClientRequest extends FormRequest
             'invoice_dispute_window_days' => $this->invoiceDisputeDays,
             'invoice_raise_day' => $this->invoiceRaiseDay,
             'payroll_convention' => $this->payrollMonthConvention,
-            'lop_basis_days' => $this->lopBasis ?: '26',
+            'lop_basis_days' => '30',
+            'weekly_off_pattern' => $this->weeklyOffPattern ?: $this->weekly_off_pattern ?: 'sat,sun',
             'auto_reminders' => $this->autoReminders ? 1 : 0,
             'client_notes' => $this->clientNotes,
 
@@ -120,6 +136,11 @@ class StoreClientRequest extends FormRequest
                 'designation' => $this->poc1['designation'] ?? null,
                 'email' => $this->poc1['email'] ?? null,
                 'phone' => $this->poc1['phone'] ?? null,
+                'is_whatsapp_same' => isset($this->poc1['whatsappSame']) ? (bool)$this->poc1['whatsappSame'] : true,
+                'preference_email' => isset($this->poc1['prefs']['email']) ? (bool)$this->poc1['prefs']['email'] : true,
+                'preference_sms' => isset($this->poc1['prefs']['sms']) ? (bool)$this->poc1['prefs']['sms'] : false,
+                'preference_whatsapp' => isset($this->poc1['prefs']['wa']) ? (bool)$this->poc1['prefs']['wa'] : false,
+                'communication_preferences' => $this->poc1['preferences'] ?? ['Email'],
             ];
         }
         if ($this->has('poc2') && (isset($this->poc2['name']) || isset($this->poc2['email']))) {
@@ -130,6 +151,12 @@ class StoreClientRequest extends FormRequest
                 'designation' => $this->poc2['designation'] ?? null,
                 'email' => $this->poc2['email'] ?? null,
                 'phone' => $this->poc2['phone'] ?? null,
+                'is_whatsapp_same' => isset($this->poc2['whatsappSame']) ? (bool)$this->poc2['whatsappSame'] : true,
+                'cc_on_invoice' => isset($this->poc2['ccInvoice']) ? (bool)$this->poc2['ccInvoice'] : false,
+                'preference_email' => isset($this->poc2['prefs']['email']) ? (bool)$this->poc2['prefs']['email'] : true,
+                'preference_sms' => isset($this->poc2['prefs']['sms']) ? (bool)$this->poc2['prefs']['sms'] : false,
+                'preference_whatsapp' => isset($this->poc2['prefs']['wa']) ? (bool)$this->poc2['prefs']['wa'] : false,
+                'communication_preferences' => $this->poc2['preferences'] ?? ['Email'],
             ];
         }
         if ($this->has('poc3') && (isset($this->poc3['name']) || isset($this->poc3['email']))) {
@@ -140,6 +167,12 @@ class StoreClientRequest extends FormRequest
                 'designation' => $this->poc3['designation'] ?? null,
                 'email' => $this->poc3['email'] ?? null,
                 'phone' => $this->poc3['phone'] ?? null,
+                'is_whatsapp_same' => isset($this->poc3['whatsappSame']) ? (bool)$this->poc3['whatsappSame'] : true,
+                'receive_onboarding_kits' => isset($this->poc3['onboardingKits']) ? (bool)$this->poc3['onboardingKits'] : false,
+                'preference_email' => isset($this->poc3['prefs']['email']) ? (bool)$this->poc3['prefs']['email'] : true,
+                'preference_sms' => isset($this->poc3['prefs']['sms']) ? (bool)$this->poc3['prefs']['sms'] : false,
+                'preference_whatsapp' => isset($this->poc3['prefs']['wa']) ? (bool)$this->poc3['prefs']['wa'] : false,
+                'communication_preferences' => $this->poc3['preferences'] ?? ['Email'],
             ];
         }
         if ($this->has('extraContacts') && is_array($this->extraContacts)) {
@@ -152,6 +185,11 @@ class StoreClientRequest extends FormRequest
                     'designation' => $extra['designation'] ?? null,
                     'email' => $extra['email'] ?? null,
                     'phone' => $extra['phone'] ?? null,
+                    'is_whatsapp_same' => isset($extra['whatsappSame']) ? (bool)$extra['whatsappSame'] : true,
+                    'preference_email' => isset($extra['prefs']['email']) ? (bool)$extra['prefs']['email'] : true,
+                    'preference_sms' => isset($extra['prefs']['sms']) ? (bool)$extra['prefs']['sms'] : false,
+                    'preference_whatsapp' => isset($extra['prefs']['wa']) ? (bool)$extra['prefs']['wa'] : false,
+                    'communication_preferences' => $extra['preferences'] ?? ['Email'],
                 ];
             }
         }
@@ -215,6 +253,8 @@ class StoreClientRequest extends FormRequest
             'cin_number' => 'nullable|string|max:50',
             'incorporation_date' => 'nullable|date',
             'logo_path' => 'nullable|string',
+            'display_name_override' => 'nullable|string|max:255',
+            'accent_color' => ['nullable', 'string', 'regex:/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/'],
             'trust_registration_number' => 'nullable|string|max:100',
             
             // Step 2
@@ -228,7 +268,7 @@ class StoreClientRequest extends FormRequest
             'registration_number' => 'nullable|string|max:100',
             
             // Step 4
-            'contract_type' => 'required|in:agency,eor,hybrid,consulting',
+            'contract_type' => 'required|in:agency,eor',
             'billing_model' => 'required|in:markup,fixed_per_candidate,fixed_per_month,lumpsum,hourly',
             'contract_start_date' => 'required|date',
             'contract_end_date' => 'nullable|date|after:contract_start_date',
@@ -251,11 +291,17 @@ class StoreClientRequest extends FormRequest
             'default_gratuity_mode' => 'nullable|string',
             'gratuity_applicable' => 'nullable|boolean',
             'statutory_bonus_applicable' => 'nullable|boolean',
+            'health_insurance_enabled' => 'nullable|boolean',
             'bonus_rate_percentage' => 'nullable|numeric|min:0|max:100',
-            'pf_ceiling' => 'nullable|numeric|min:0',
+            'pf_ceiling' => 'nullable|numeric|min:0|max:15000',
+            'employee_pf_wage_basis' => 'nullable|string|in:ceiling,actual_basic_da',
+            'employer_pf_wage_basis' => 'nullable|string|in:ceiling,actual_basic_da',
             'pf_applicable' => 'nullable|boolean',
+            'edli_exempted' => 'nullable|boolean',
             'esi_limit' => 'nullable|numeric|min:0',
             'esi_applicable' => 'nullable|boolean',
+            'pf_establishment_code' => 'nullable|string|max:255',
+            'esi_code_number' => 'nullable|string|max:255',
             'lwf_frequency' => 'nullable|string',
             'lwf_applicable' => 'nullable|boolean',
             'tds_regime' => 'nullable|string',
@@ -281,7 +327,8 @@ class StoreClientRequest extends FormRequest
             'invoice_dispute_window_days' => 'nullable|integer|min:0|max:180',
             'invoice_raise_day' => 'nullable|string',
             'payroll_convention' => 'nullable|string',
-            'lop_basis_days' => 'nullable|string',
+            'lop_basis_days' => 'nullable|integer|min:15|max:31',
+            'weekly_off_pattern' => ['nullable', 'string', 'regex:/^(mon|tue|wed|thu|fri|sat|sun)(,(mon|tue|wed|thu|fri|sat|sun)){0,6}$/i'],
             'auto_reminders' => 'nullable|boolean',
             'client_notes' => 'nullable|string',
             
@@ -302,6 +349,13 @@ class StoreClientRequest extends FormRequest
             'contacts.*.designation' => 'nullable|string',
             'contacts.*.email' => 'required|email',
             'contacts.*.phone' => ['required', 'regex:/^[6-9][0-9]{9}$/'],
+            'contacts.*.is_whatsapp_same' => 'nullable|boolean',
+            'contacts.*.cc_on_invoice' => 'nullable|boolean',
+            'contacts.*.receive_onboarding_kits' => 'nullable|boolean',
+            'contacts.*.preference_email' => 'nullable|boolean',
+            'contacts.*.preference_sms' => 'nullable|boolean',
+            'contacts.*.preference_whatsapp' => 'nullable|boolean',
+            'contacts.*.communication_preferences' => 'nullable|array',
 
             // Branches
             'branches' => 'nullable|array',

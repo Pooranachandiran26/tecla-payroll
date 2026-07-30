@@ -7,6 +7,7 @@ import ConfirmDialog from '../../Components/ui/ConfirmDialog';
 import Input from '../../Components/ui/Input';
 import useToast from '../../Hooks/useToast';
 import { usePage } from '@inertiajs/react';
+import { Plus, Search, Filter, Building2, Users, FileText, CheckCircle2, AlertTriangle, RotateCcw } from 'lucide-react';
 
 export default function ClientsList({ clients, stats = {} }) {
   const { auth } = usePage().props;
@@ -27,7 +28,7 @@ export default function ClientsList({ clients, stats = {} }) {
 
   const handleDeactivate = () => {
     if (!deactivateClient) return;
-    router.post(`/clients/${deactivateClient.id}/deactivate`, {}, {
+    router.post(route('clients.deactivate', deactivateClient.id), {}, {
       onSuccess: () => {
         setDeactivateClient(null);
         showToast({ type: 'success', title: 'Success', message: 'Client deactivated successfully.' });
@@ -39,7 +40,7 @@ export default function ClientsList({ clients, stats = {} }) {
   };
 
   const handleRestore = (clientId) => {
-    router.post(`/clients/${clientId}/restore`, {}, {
+    router.post(route('clients.restore', clientId), {}, {
       onSuccess: () => {
         showToast({ type: 'success', title: 'Success', message: 'Client restored successfully.' });
       },
@@ -59,7 +60,7 @@ export default function ClientsList({ clients, stats = {} }) {
       return;
     }
 
-    router.delete(`/clients/${deleteDialog.client.id}`, {
+    router.delete(route('clients.destroy', deleteDialog.client.id), {
       data: {
         confirm_text: deleteDialog.confirmText,
         reason: deleteDialog.reason
@@ -88,7 +89,7 @@ export default function ClientsList({ clients, stats = {} }) {
           params[key] = filters[key];
         }
       });
-      router.get('/clients', params, { preserveState: true, replace: true });
+      router.get(route('clients.index'), params, { preserveState: true, replace: true });
     }, 400);
     return () => clearTimeout(timer);
   }, [filters]);
@@ -134,23 +135,27 @@ export default function ClientsList({ clients, stats = {} }) {
   const meta = clients.meta || {};
 
   return (
-    <RoleGuard allowedRoles={['admin', 'manager']}>
+    <RoleGuard allowedRoles={['admin', 'manager']} moduleKey="clients">
       <AuthenticatedLayout>
         <Head title="Clients List" />
         <div className="legacy-react-wrapper">
-          <div className="flex-row-between">
+          <div className="mb-6 flex justify-between items-end flex-wrap gap-4">
             <div>
-              <h2>Clients Directory</h2>
-              <p style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>
-                Manage all client profiles, contracts, and view high-level payroll metrics.
+              <h2 className="text-2xl font-bold text-[#1F3864] mb-1">Clients Directory</h2>
+              <p className="text-gray-500 text-[0.9rem]">
+                Manage all client organization profiles, contract terms, branch locations, and statutory settings.
               </p>
             </div>
-            <Link href="/clients/create" className="btn btn-primary">➕ Add New Client</Link>
+            <Link href={route('clients.create')} prefetch className="btn btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              <Plus size={16} /> Add New Client
+            </Link>
           </div>
 
           {/* Advanced Filters Row */}
           <div className="card" style={{ padding: "1rem", marginBottom: "1.5rem", display: "flex", gap: "1rem", alignItems: "center", flexWrap: "wrap" }}>
-            <div style={{ fontSize: "0.85rem", fontWeight: "600", color: "var(--primary-navy)" }}>Filters:</div>
+            <div style={{ fontSize: "0.85rem", fontWeight: "600", color: "var(--primary-navy)", display: "flex", alignItems: "center", gap: "5px" }}>
+              <Filter size={15} /> Filters:
+            </div>
 
             <div style={{ flex: "1", minWidth: "200px" }}>
               <input type="text" name="search" className="form-control" placeholder="Search by Client Name, Code, GSTIN or PAN..."
@@ -162,7 +167,6 @@ export default function ClientsList({ clients, stats = {} }) {
                 <option value="">All Contract Types</option>
                 <option value="agency">Agency / Staffing</option>
                 <option value="eor">EOR / Pass-through</option>
-                <option value="hybrid">Hybrid</option>
               </select>
             </div>
 
@@ -213,7 +217,9 @@ export default function ClientsList({ clients, stats = {} }) {
               </label>
             </div>
 
-            <button className="btn btn-secondary" style={{ padding: "0.4rem 1rem", border: "none", color: "var(--text-muted)" }} onClick={clearFilters}>Clear Filters</button>
+            <button className="btn btn-secondary" style={{ padding: "0.4rem 1rem", border: "none", color: "var(--text-muted)", display: "inline-flex", alignItems: 'center', gap: '5px' }} onClick={clearFilters}>
+              <RotateCcw size={13} /> Clear Filters
+            </button>
           </div>
 
           {/* Summary Stats Bar */}
@@ -239,6 +245,7 @@ export default function ClientsList({ clients, stats = {} }) {
                 <thead>
                   <tr>
                     <th>Client Details</th>
+                    <th>GSTIN</th>
                     <th>Contract & Billing</th>
                     <th>Onboarding</th>
                     <th>Client Since</th>
@@ -252,7 +259,7 @@ export default function ClientsList({ clients, stats = {} }) {
                 <tbody>
                   {dataList.length === 0 ? (
                     <tr>
-                      <td colSpan="9" style={{ textAlign: "center", padding: "3rem", color: "var(--text-muted)" }}>
+                      <td colSpan="10" style={{ textAlign: "center", padding: "3rem", color: "var(--text-muted)" }}>
                         No clients match your filters. <button onClick={clearFilters} style={{ background: 'none', border: 'none', color: 'var(--primary-blue)', cursor: 'pointer', textDecoration: 'underline' }}>Clear Filters</button>
                       </td>
                     </tr>
@@ -260,20 +267,21 @@ export default function ClientsList({ clients, stats = {} }) {
                     dataList.map(c => (
                       <tr key={c.id} style={c.status === 'suspended' ? { borderLeft: '3px solid var(--status-warning)', opacity: 0.85 } : {}}>
                         <td>
-                          <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-                            <div className="client-avatar">{c.company_name?.charAt(0) || 'C'}</div>
-                            <div>
-                              <Link href={`/clients/${c.id}`} className="client-name">{c.company_name}</Link>
-                              <div className="client-meta">
-                                <span>{c.client_code}</span>
-                                {c.gstin && <span> • GST: {c.gstin}</span>}
-                              </div>
+                          <div>
+                            <Link href={route('clients.show', c.id)} prefetch className="client-name">{c.company_name}</Link>
+                            <div className="client-meta">
+                              <span>{c.client_code}</span>
                             </div>
                           </div>
                         </td>
                         <td>
+                          <code style={{ fontSize: '0.78rem', backgroundColor: '#f1f5f9', color: '#334155', padding: '0.25rem 0.5rem', borderRadius: '4px', border: '1px solid #cbd5e1', fontWeight: 600 }}>
+                            {c.decrypted_gstin || c.gstin || '—'}
+                          </code>
+                        </td>
+                        <td>
                           <div style={{ fontSize: "0.85rem", fontWeight: "600" }}>
-                            {c.contract_type === 'agency' ? 'Agency Staffing' : c.contract_type === 'eor' ? 'Pass-through EOR' : 'Hybrid'}
+                            {c.contract_type === 'agency' ? 'Agency Staffing' : 'Pass-through EOR'}
                           </div>
                           <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
                             {c.billing_model === 'fixed_fee' 
@@ -322,11 +330,13 @@ export default function ClientsList({ clients, stats = {} }) {
                             onChange={(e) => {
                               const val = e.target.value;
                               e.target.value = ""; 
-                              if (val === 'view') router.visit(`/clients/${c.id}`);
-                              else if (val === 'edit') router.visit(`/clients/${c.id}/edit`);
+                              if (val === 'view') router.visit(route('clients.show', c.id));
+                              else if (val === 'edit') router.visit(route('clients.edit', c.id));
                               else if (val === 'deactivate') setDeactivateClient(c);
                               else if (val === 'restore') handleRestore(c.id);
                               else if (val === 'delete') setDeleteDialog({ client: c, confirmText: '', reason: '' });
+                              else if (val === 'onboard') router.visit(route('employees.create', { client_id: c.id }));
+                              else if (val === 'invoice') router.visit(route('invoices.generate', { client_id: c.id }));
                               else if (val) alert("Coming soon: This feature is pending the next phase.");
                             }}
                           >
@@ -416,6 +426,7 @@ export default function ClientsList({ clients, stats = {} }) {
               label="Type 'DELETE' to confirm" 
               value={deleteDialog.confirmText} 
               onChange={e => setDeleteDialog(prev => ({ ...prev, confirmText: e.target.value }))}
+              onPaste={e => e.preventDefault()}
               placeholder="DELETE"
             />
             <div>

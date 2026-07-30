@@ -1,29 +1,32 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, router } from '@inertiajs/react';
+import { 
+  ArrowLeft, 
+  Landmark, 
+  Lock, 
+  Settings, 
+  Info, 
+  AlertOctagon, 
+  User, 
+  IndianRupee, 
+  Scale, 
+  AlertTriangle, 
+  Save, 
+  Shield,
+  X 
+} from 'lucide-react';
 import './EmployeeForm.css';
 import RoleGuard from '../../Components/RoleGuard.jsx';
 import axios from 'axios';
 import useToast from '../../Hooks/useToast';
-const EXISTING_PHONES = { '9999988888': 'Priya Mehta (TEC-045)', '8888877777': 'Rohit Kapoor (TEC-072)' };
-const EXISTING_PANS = { 'ZZZZZ9999Z': 'Neha Patil (TEC-121)', 'YYYYY8888Y': 'Suresh Kumar (TEC-033)', 'XXXXX7777X': 'Divya Rao (TEC-056)' };
-const IFSC_LOOKUP = {
-  'HDFC': { bank: 'HDFC Bank', branch: 'Andheri East, Mumbai' },
-  'ICIC': { bank: 'ICICI Bank', branch: 'Connaught Place, Delhi' },
-  'SBIN': { bank: 'State Bank of India', branch: 'Fort, Mumbai' },
-  'KKBK': { bank: 'Kotak Mahindra Bank', branch: 'Bandra West, Mumbai' },
-  'UTIB': { bank: 'Axis Bank', branch: 'Nariman Point, Mumbai' },
-  'PUNB': { bank: 'Punjab National Bank', branch: 'Chandni Chowk, Delhi' }
-};
 
-const ORIG_VALUES = {
-  fullName: 'Aarav Sharma', phone: '9876543210', email: 'aarav.sharma@gmail.com', designation: 'Senior Developer'
-};
 
 export default function EmployeeForm({ clients = [], errors: serverErrors, employee = null }) {
   const [formMode, setFormMode] = useState('add');
   const [empId, setEmpId] = useState(employee ? employee.data?.id || employee.id : null);
   const { showToast } = useToast();
+  const emp = employee ? (employee.data || employee) : null;
 
   const maxDobDate = useMemo(() => {
     const d = new Date();
@@ -32,18 +35,32 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
   }, []);
 
   const [formData, setFormData] = useState(() => {
-    const emp = employee ? (employee.data || employee) : null;
+    let clientIdParam = '';
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      clientIdParam = urlParams.get('client_id') || '';
+    }
+    
     return {
+      firstName: emp?.first_name || (emp?.full_name ? emp.full_name.split(' ')[0] : ''),
+      lastName: emp?.last_name || (emp?.full_name ? emp.full_name.split(' ').slice(1).join(' ') : ''),
+      fatherName: emp?.father_name || '',
+      motherName: emp?.mother_name || '',
+      spouseName: emp?.spouse_name || '',
       fullName: emp?.full_name || '',
+      gender: emp?.gender || '',
+      bloodGroup: emp?.blood_group || '',
+      maritalStatus: emp?.marital_status || '',
       dob: emp?.date_of_birth || '',
       personalEmail: emp?.personal_email || '',
       phone: emp?.phone_number || '',
       emergencyContact: emp?.emergency_contact_phone || '',
-      clientPartner: emp?.client_id || '',
+      clientPartner: emp?.client_id || clientIdParam || '',
       designation: emp?.designation || '',
       doj: emp?.date_of_joining || '',
+      attendanceTrackingStartDate: emp?.attendance_tracking_start_date || '',
       empType: emp?.employment_model || 'eor',
-      priorEmploymentFlag: emp ? emp.prior_employment_flag === 1 : true,
+      priorEmploymentFlag: emp ? Boolean(emp.prior_employment_flag) : true,
       address: emp?.residential_address || '',
       accountNo: emp?.bank_account_number || '',
       accountNoConfirm: emp?.bank_account_number || '',
@@ -55,33 +72,49 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       aadhaar: emp?.aadhaar_number || '',
       uanMode: emp?.uan_mode || 'new',
       uan: emp?.uan_number || '',
+      esiMode: emp?.esi_mode || 'new',
       esiNo: emp?.esic_number || '',
-      basicSal: emp?.basic_pay || 0,
-      hraSal: emp?.hra || 0,
-      conveyanceSal: emp?.conveyance || 0,
-      daSal: emp?.da || 0,
-      medicalSal: emp?.medical_allowance || 0,
-      specialSal: emp?.special_allowance || 0,
-      otherSal: emp?.other_additions || 0,
-      ptDeduction: emp?.pt_deduction_override || 0,
-      pfToggle: emp ? emp.pf_applicable === 1 : true,
-      esiToggle: emp ? emp.esi_applicable === 1 : true,
-      tdsToggle: emp ? emp.tds_applicable === 1 : true,
-      ptToggle: emp ? emp.pt_applicable === 1 : true,
-      lwfToggle: emp ? emp.lwf_applicable === 1 : true,
-      bonusToggle: emp ? emp.bonus_toggle === 1 : true,
+      basicSal: emp?.basic_pay ?? '',
+      hraSal: emp?.hra ?? '',
+      conveyanceSal: emp?.conveyance ?? '',
+      daSal: emp?.da ?? '',
+      medicalSal: emp?.medical_allowance ?? '',
+      specialSal: emp?.special_allowance ?? '',
+      otherSal: emp?.other_additions ?? '',
+      ptDeduction: emp?.pt_deduction_override ?? '',
+      pfToggle: emp ? Boolean(emp.pf_applicable) : true,
+      epsToggle: emp ? (emp.eps_applicable !== undefined ? Boolean(emp.eps_applicable) : true) : true,
+      esiToggle: emp ? Boolean(emp.esi_applicable) : true,
+      tdsToggle: emp ? Boolean(emp.tds_applicable) : true,
+      ptToggle: emp ? Boolean(emp.pt_applicable) : true,
+      lwfToggle: emp ? Boolean(emp.lwf_applicable) : true,
+      bonusToggle: emp ? Boolean(emp.bonus_toggle) : true,
       taxRegime: emp?.tds_regime || 'new',
-      declarations: emp ? (emp.declarations_accepted === 1 ? 'yes' : 'no') : 'yes',
+      declarations: emp ? (Boolean(emp.declarations_accepted) ? 'yes' : 'no') : 'yes',
       gratuityMode: emp?.gratuity_mode || 'part_of_ctc',
-      lopBasis: emp?.lop_basis_days || '30'
+      lopBasis: emp?.lop_basis_days || '26',
+      weeklyOffPattern: emp?.weekly_off_pattern || emp?.weeklyOffPattern || '',
+      weekly_off_pattern: emp?.weekly_off_pattern || emp?.weeklyOffPattern || '',
+      emergencyContactName: emp?.emergency_contact_name || '',
+      prevEmployerName: emp?.previous_employer_name || '',
+      prevEmployerUAN: emp?.previous_employer_uan || '',
+      probationEndDate: emp?.probation_end_date || '',
+      reportingManagerId: emp?.reporting_manager_id || '',
+      noticePeriodDays: emp?.notice_period_days ?? '',
+      esiPeriodEnd: emp?.esi_contribution_period_end || '',
+      insuranceProvider: emp?.health_insurance_provider || '',
+      insurancePolicyNo: emp?.health_insurance_policy_no || '',
+      insuranceSumInsured: emp?.health_insurance_sum_insured ?? '',
+      jointDeclarationStatus: emp?.joint_declaration_status || 'not_required',
     };
   });
 
   const [overrides, setOverrides] = useState({
-    pf: false, esi: false, tds: false, pt: false, lwf: false, bonus: false, gratuity: false, lop: false
+    pf: false, esi: false, tds: false, pt: false, lwf: false, bonus: false, gratuity: false, lop: false, noticePeriod: false, weeklyOff: emp ? Boolean(emp.weekly_off_pattern || emp.weeklyOffPattern) : false
   });
 
   const [errors, setErrors] = useState({});
+  const [processing, setProcessing] = useState(false);
   const [blockingErrors, setBlockingErrors] = useState(new Set());
   
   const [phoneDupChoiceVisible, setPhoneDupChoiceVisible] = useState(false);
@@ -91,8 +124,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
   const [pendingEmpType, setPendingEmpType] = useState('');
   const [previousEmpType, setPreviousEmpType] = useState('eor');
   
-  const [aadhaarMasked, setAadhaarMasked] = useState('••••••••7890');
-  const [aadhaarRaw, setAadhaarRaw] = useState('');
+
   const [isAadhaarFocused, setIsAadhaarFocused] = useState(false);
 
   // Computed values
@@ -111,7 +143,9 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
   useEffect(() => {
     const timer = setTimeout(async () => {
       try {
+        const selectedClientId = formData.clientPartner || (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('client_id') : null);
         const payload = {
+          client_id: selectedClientId,
           basic_pay: formData.basicSal || 0,
           hra: formData.hraSal || 0,
           conveyance: formData.conveyanceSal || 0,
@@ -120,10 +154,15 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
           special_allowance: formData.specialSal || 0,
           other_additions: formData.otherSal || 0,
           pf_applicable: formData.pfToggle,
+          eps_applicable: formData.epsToggle,
           esi_applicable: formData.esiToggle,
-          pt_deduction_override: formData.ptDeduction
+          pt_applicable: formData.ptToggle,
+          lwf_applicable: formData.lwfToggle,
+          pt_deduction_override: formData.ptDeduction,
+          gender: formData.gender,
+          date_of_birth: formData.dob
         };
-        const res = await axios.post('/employees/calculate-preview', payload);
+        const res = await axios.post(route('employees.calculate-preview'), payload);
         if (res.status === 200) {
           setPreviewCalculations(res.data);
         }
@@ -133,13 +172,26 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
     }, 500);
     return () => clearTimeout(timer);
   }, [
+    formData.clientPartner, formData.gender, formData.dob,
     formData.basicSal, formData.hraSal, formData.conveyanceSal, 
     formData.daSal, formData.medicalSal, formData.specialSal, 
-    formData.otherSal, formData.pfToggle, formData.esiToggle, 
-    formData.ptDeduction
+    formData.otherSal, formData.pfToggle, formData.epsToggle, formData.esiToggle, 
+    formData.ptToggle, formData.lwfToggle, formData.ptDeduction
   ]);
 
   const [activeClientDefaults, setActiveClientDefaults] = useState(null);
+  const [clientActiveEmployees, setClientActiveEmployees] = useState([]);
+
+  // Fetch active employees for Reporting Manager dropdown
+  useEffect(() => {
+    if (!formData.clientPartner) {
+      setClientActiveEmployees([]);
+      return;
+    }
+    axios.get(route('clients.activeEmployees', formData.clientPartner))
+      .then(res => setClientActiveEmployees(res.data || []))
+      .catch(() => setClientActiveEmployees([]));
+  }, [formData.clientPartner]);
 
   // Sync logic on client change
   useEffect(() => {
@@ -147,40 +199,68 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       setActiveClientDefaults(null);
       return;
     }
-    axios.get(`/clients/${formData.clientPartner}/statutory-defaults`)
+    axios.get(route('clients.statutoryDefaults', formData.clientPartner))
       .then(res => {
         const d = res.data;
         setActiveClientDefaults(d);
-        setFormData(prev => {
-          const next = { ...prev };
-          if (!overrides.pf) next.pfToggle = d.pfApplicable;
-          if (!overrides.esi) next.esiToggle = d.esiApplicable;
-          if (!overrides.tds) next.taxRegime = d.tdsRegime;
-          if (!overrides.pt) next.ptToggle = d.ptApplicable;
-          if (!overrides.lwf) next.lwfToggle = d.lwfApplicable;
-          if (!overrides.bonus) next.bonusToggle = d.statutoryBonusApplicable;
-          if (!overrides.gratuity) {
-            if (d.gratuityMode === 'na') {
-               next.gratuityMode = 'part_of_ctc';
-            } else if (d.gratuityMode === 'ctc_included') {
-               next.gratuityMode = 'part_of_ctc';
-            } else if (d.gratuityMode === 'over_ctc') {
-               next.gratuityMode = 'over_and_above';
-            } else {
-               next.gratuityMode = d.gratuityMode;
+
+        const clientLop = d.lopBasisDays !== undefined && d.lopBasisDays !== null && d.lopBasisDays !== '' 
+          ? String(d.lopBasisDays).replace(/\D/g, '') 
+          : '26';
+        const clientNotice = d.noticePeriodDays !== undefined && d.noticePeriodDays !== null && d.noticePeriodDays !== ''
+          ? String(d.noticePeriodDays)
+          : '30';
+
+        // Only apply client statutory defaults when adding a new employee.
+        // When editing an existing employee, retain their saved statutory profile and calculate override badges.
+        if (!employee) {
+          setFormData(prev => {
+            const next = { ...prev };
+            if (d.contractType) {
+              next.empType = d.contractType === 'agency' ? 'agency_contract' : 'eor';
             }
-          }
-          if (!overrides.lop) {
-               // inherit resolves to '26' globally
-               let rawLop = String(d.lopBasisDays || '');
-               if (rawLop.includes('30')) next.lopBasis = '30';
-               else next.lopBasis = '26';
+            if (!overrides.pf) next.pfToggle = d.pfApplicable;
+            if (!overrides.esi) next.esiToggle = d.esiApplicable;
+            if (!overrides.tds) next.taxRegime = d.tdsRegime;
+            if (!overrides.pt) next.ptToggle = d.ptApplicable;
+            if (!overrides.lwf) next.lwfToggle = d.lwfApplicable;
+            if (!overrides.bonus) next.bonusToggle = d.statutoryBonusApplicable;
+            if (!overrides.gratuity) {
+              if (d.gratuityMode === 'na' || d.gratuityMode === 'ctc_included') {
+                 next.gratuityMode = 'part_of_ctc';
+              } else if (d.gratuityMode === 'over_ctc') {
+                 next.gratuityMode = 'over_and_above';
+              } else {
+                 next.gratuityMode = d.gratuityMode;
+              }
             }
-          return next;
-        });
+            if (!overrides.lop) {
+                 next.lopBasis = clientLop;
+            }
+            if (!overrides.noticePeriod) {
+                 next.noticePeriodDays = clientNotice;
+            }
+            return next;
+          });
+        } else {
+          // In edit mode: dynamically evaluate if saved LOP / notice period differ from client defaults
+          setOverrides(prev => {
+            const currentLop = formData.lopBasis ? String(formData.lopBasis).replace(/\D/g, '') : '';
+            const currentNotice = formData.noticePeriodDays !== undefined && formData.noticePeriodDays !== null && formData.noticePeriodDays !== '' ? String(formData.noticePeriodDays) : '';
+            
+            const isLopOverridden = currentLop !== '' && currentLop !== clientLop;
+            const isNoticeOverridden = currentNotice !== '' && currentNotice !== clientNotice;
+
+            return {
+              ...prev,
+              lop: isLopOverridden,
+              noticePeriod: isNoticeOverridden,
+            };
+          });
+        }
       })
       .catch(err => console.error("Failed to fetch statutory defaults:", err));
-  }, [formData.clientPartner, overrides]);
+  }, [formData.clientPartner, employee]);
 
   // Helper for errors
   const setErrorMsg = (field, msg, type = 'error') => {
@@ -202,6 +282,31 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
     });
   };
 
+  const calculateProbationEndDate = (monthsToAdd) => {
+    if (!formData.doj) {
+      setErrorMsg('doj', 'Please select Date of Joining first to calculate Probation End Date.', 'error');
+      setErrorMsg('probationEndDate', 'Please select Date of Joining first to use month presets.', 'error');
+      return;
+    }
+    clearErrorMsg('probationEndDate');
+
+    const parts = formData.doj.split('-');
+    if (parts.length !== 3) return;
+    
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10);
+    const day = parseInt(parts[2], 10);
+    if (!year || !month || !day) return;
+
+    const targetDate = new Date(year, month - 1 + parseInt(monthsToAdd, 10), day);
+    const yyyy = targetDate.getFullYear();
+    const mm = String(targetDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(targetDate.getDate()).padStart(2, '0');
+    
+    const formattedDate = `${yyyy}-${mm}-${dd}`;
+    handleInputChange('probationEndDate', formattedDate);
+  };
+
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     clearErrorMsg(field);
@@ -216,25 +321,24 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
     setFormMode(mode);
     
     if (mode === 'edit-active') {
-      addBlocker('Date of Joining is locked — payroll already processed');
-      setErrorMsg('doj', 'Cannot change Date of Joining after payroll has been processed for this employee.', 'error');
+      // Just a visual indicator that some fields are locked. Do not block form submission.
+      setErrorMsg('doj', 'Date of Joining is locked as payroll history exists.', 'warn');
     }
   }, []);
 
   // Sync logic on client change is now handled above.
 
   // Validations
-  const validateFullName = () => {
-    if (!formData.fullName) return;
-    if (formMode !== 'add' && formData.fullName !== ORIG_VALUES.fullName) {
+  const validateNameFields = () => {
+    const currentFull = `${formData.firstName || ''} ${formData.lastName || ''}`.trim();
+    const originalName = employee ? (employee.data?.full_name || employee.full_name) : null;
+    if (formMode !== 'add' && originalName && currentFull !== originalName) {
       setNameChangeUploadVisible(true);
-      // In a real scenario we'd check file upload state here, simplifying for mockup:
       addBlocker('Name change requires supporting document upload'); 
     } else {
       setNameChangeUploadVisible(false);
       removeBlocker('Name change requires supporting document upload');
     }
-
   };
 
   const validateAgeAtJoining = () => {
@@ -251,7 +355,30 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
     }
   };
 
-  const validatePersonalEmail = () => {
+  const checkLiveUniqueness = async (field, value) => {
+    if (!value) return;
+    try {
+      const res = await axios.get(route('employees.check-unique'), {
+        params: {
+          field,
+          value,
+          ignore_id: !isAdd ? empId : null
+        }
+      });
+      const fieldKey = field === 'personal_email' ? 'personalEmail' : 'phone';
+      const labelStr = field === 'personal_email' ? 'Personal email' : 'Phone number';
+      if (res.data && res.data.available === false) {
+        setErrorMsg(fieldKey, `⛔ ${res.data.message}`, 'error');
+        addBlocker(`${labelStr} is already registered`);
+      } else {
+        removeBlocker(`${labelStr} is already registered`);
+      }
+    } catch (e) {
+      // Ignore network errors in live check UX helper
+    }
+  };
+
+  const validatePersonalEmail = async () => {
     if (!formData.personalEmail) {
       setErrorMsg('personalEmail', '⛔ Personal email is required.', 'error');
       addBlocker('Personal email is required and must be valid');
@@ -263,9 +390,10 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       return;
     }
     removeBlocker('Personal email is required and must be valid');
+    await checkLiveUniqueness('personal_email', formData.personalEmail);
   };
 
-  const validatePhone = () => {
+  const validatePhone = async () => {
     setPhoneDupChoiceVisible(false);
     removeBlocker('Phone number must be exactly 10 digits');
     if (!formData.phone || !/^\d{10}$/.test(formData.phone)) {
@@ -273,21 +401,17 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       addBlocker('Phone number must be exactly 10 digits');
       return;
     }
-    if (formMode !== 'add' && formData.phone === ORIG_VALUES.phone) return;
-    
-    if (EXISTING_PHONES[formData.phone]) {
-      setErrorMsg('phone', `⚠ This number is already linked to ${EXISTING_PHONES[formData.phone]}. Continue anyway?`, 'warn');
-      setPhoneDupChoiceVisible(true);
-    }
+    clearErrorMsg('phone');
+    await checkLiveUniqueness('phone_number', formData.phone);
   };
 
   const acceptDuplicatePhone = () => {
     setPhoneDupChoiceVisible(false);
-    setErrorMsg('phone', '✓ Acknowledged — duplicate number accepted.', 'info');
+    clearErrorMsg('phone');
   };
 
   const rejectDuplicatePhone = () => {
-    handleInputChange('phone', ORIG_VALUES.phone);
+    handleInputChange('phone', '');
     setPhoneDupChoiceVisible(false);
   };
 
@@ -330,7 +454,6 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
 
   const validatePAN = () => {
     removeBlocker('PAN format is invalid');
-    removeBlocker('PAN is already registered to another employee');
     if (!formData.pan) return;
     
     if (!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(formData.pan.toUpperCase())) {
@@ -338,12 +461,9 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       addBlocker('PAN format is invalid');
       return;
     }
-    if (EXISTING_PANS[formData.pan.toUpperCase()]) {
-      setErrorMsg('pan', `⛔ This PAN is already registered to ${EXISTING_PANS[formData.pan.toUpperCase()]}. Cannot create duplicate record.`, 'error');
-      addBlocker('PAN is already registered to another employee');
-      return;
-    }
-    validateFullName();
+    // Real duplicate PAN checks happen server-side via SHA-256 hash uniqueness.
+    clearErrorMsg('pan');
+    validateNameFields();
   };
 
   const validateBasicPct = () => {
@@ -362,13 +482,18 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       if (formMode !== 'add' && formData.esiToggle) {
         setErrorMsg('esiWarning', `ℹ Gross salary now exceeds ESI threshold (₹${limit}). ESI contribution continues until end of period.`, 'warn');
       } else {
-        handleInputChange('esiToggle', false);
+        if (!overrides.esi) {
+          handleInputChange('esiToggle', false);
+        }
         setErrorMsg('esiWarning', `⚠ Gross salary exceeds ESI threshold (₹${limit}) — ESI does not apply.`, 'error');
       }
     } else {
       clearErrorMsg('esiWarning');
+      if (grossCTC > 0 && !overrides.esi) {
+        handleInputChange('esiToggle', true);
+      }
     }
-  }, [grossCTC, formData.esiToggle, activeClientDefaults, formMode]);
+  }, [grossCTC, activeClientDefaults, formMode]);
 
   // Handlers
   const handleEmpTypeChange = (e) => {
@@ -390,6 +515,9 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
 
   const handleFormSubmit = async (e) => {
     e.preventDefault();
+    if (processing) return;
+    setProcessing(true);
+    
     validatePersonalEmail();
     validatePhone();
     validatePAN();
@@ -399,6 +527,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
     validateAgeAtJoining();
 
     if (blockingErrors.size > 0) {
+      setProcessing(false);
       showToast({ 
         type: 'error', 
         title: 'Cannot Save Employee', 
@@ -409,29 +538,39 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
     }
     
     const errorKeyMap = {
-      'client_id': 'clientPartner', 'full_name': 'fullName', 'personal_email': 'personalEmail',
+      'client_id': 'clientPartner', 'first_name': 'firstName', 'last_name': 'lastName', 'father_name': 'fatherName', 'mother_name': 'motherName', 'spouse_name': 'spouseName', 'full_name': 'fullName', 'personal_email': 'personalEmail',
       'phone_number': 'phone', 'emergency_contact_phone': 'emergencyContact', 'date_of_birth': 'dob',
-      'date_of_joining': 'doj', 'employment_model': 'empType', 'prior_employment_flag': 'priorEmploymentFlag',
+      'date_of_joining': 'doj', 'attendance_tracking_start_date': 'attendanceTrackingStartDate', 'employment_model': 'empType', 'prior_employment_flag': 'priorEmploymentFlag',
       'residential_address': 'address', 'bank_account_number': 'accountNo', 'bank_ifsc': 'ifsc',
       'bank_name': 'bankName', 'bank_branch': 'bankBranch', 'account_holder_name': 'accountHolder',
+      'gender': 'gender', 'blood_group': 'bloodGroup', 'marital_status': 'maritalStatus',
       'pan_number': 'pan', 'aadhaar_number': 'aadhaar', 'uan_mode': 'uanMode', 'uan_number': 'uan',
-      'esic_number': 'esiNo', 'basic_pay': 'basicSal', 'hra': 'hraSal', 'conveyance': 'conveyanceSal',
+      'esi_mode': 'esiMode', 'esic_number': 'esiNo', 'basic_pay': 'basicSal', 'hra': 'hraSal', 'conveyance': 'conveyanceSal',
       'da': 'daSal', 'medical_allowance': 'medicalSal', 'special_allowance': 'specialSal',
       'other_additions': 'otherSal', 'pt_deduction_override': 'ptDeduction', 'tds_regime': 'taxRegime',
       'gratuity_mode': 'gratuityMode', 'lop_basis_days': 'lopBasis',
+      'emergency_contact_name': 'emergencyContactName', 'previous_employer_name': 'prevEmployerName',
+      'previous_employer_uan': 'prevEmployerUAN', 'probation_end_date': 'probationEndDate',
+      'reporting_manager_id': 'reportingManagerId', 'notice_period_days': 'noticePeriodDays',
+      'esi_contribution_period_end': 'esiPeriodEnd', 'designation': 'designation', 'branch_id': 'branch_id',
+      'health_insurance_provider': 'insuranceProvider', 'health_insurance_policy_no': 'insurancePolicyNo', 'health_insurance_sum_insured': 'insuranceSumInsured',
+      'joint_declaration_status': 'jointDeclarationStatus',
     };
     
-    const url = isAdd ? '/employees' : `/employees/${empId}`;
+    const url = isAdd ? route('employees.store') : route('employees.update', empId);
     const method = isAdd ? 'post' : 'put';
     
     router[method](url, formData, {
+      onFinish: () => setProcessing(false),
       onError: (serverErrors) => {
+        setProcessing(false);
         const mappedErrors = {};
         const errorMessages = [];
         Object.keys(serverErrors).forEach(key => {
           const frontendKey = errorKeyMap[key] || key;
-          mappedErrors[frontendKey] = { msg: serverErrors[key], type: 'error' };
-          errorMessages.push(serverErrors[key]);
+          const msgText = Array.isArray(serverErrors[key]) ? serverErrors[key][0] : String(serverErrors[key]);
+          mappedErrors[frontendKey] = { msg: msgText, type: 'error' };
+          errorMessages.push(msgText);
         });
         setErrors(prev => ({ ...prev, ...mappedErrors }));
         showToast({ type: 'error', title: 'Validation Failed', message: errorMessages.join(' | ') });
@@ -445,24 +584,26 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
   };
 
   return (
-    <RoleGuard allowedRoles={['admin', 'manager']}>
+    <RoleGuard allowedRoles={['admin', 'manager']} moduleKey="candidates">
       <AuthenticatedLayout>
         <Head title={isAdd ? "Add New Employee" : `Edit Employee (${isActive ? 'Active' : 'Onboarding'})`} />
         
         <div className="legacy-react-wrapper">
-          <div style={{ marginBottom: "1.5rem" }}>
-            <Link href="/employees" style={{ fontSize: "0.85rem", fontWeight: "600" }}>← Back to Employees Directory</Link>
-            <h2 id="form-page-title" style={{ marginTop: "0.5rem" }}>
+          <div className="mb-6">
+            <Link href={route('employees.index')} className="text-[0.85rem] font-semibold text-[#1F3864] hover:underline inline-flex items-center gap-1">
+              ← Back to Employees Directory
+            </Link>
+            <h2 id="form-page-title" className="text-2xl font-bold text-[#1F3864] mt-2 mb-1">
               {isAdd ? 'Add New Employee' : `Edit Employee — ${isActive ? 'Active' : 'Onboarding'}`}
             </h2>
-            <p id="form-page-subtitle" style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>
-              {isActive ? 'Salary, bank details and Date of Joining are locked. Use the dedicated flows to change those.' : 'Configure personal profile, sensitive banking, custom salary breakdown, and statutory overrides.'}
+            <p id="form-page-subtitle" className="text-gray-500 text-sm">
+              {isActive ? 'Salary, bank details and Date of Joining are locked. Use dedicated flows to change those.' : 'Configure personal profile, sensitive banking, custom salary breakdown, and statutory overrides.'}
             </p>
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 340px", gap: "2rem", alignItems: "start" }}>
             <div className="card">
-              <form id="emp-form" onSubmit={handleFormSubmit}>
+              <form id="emp-form" onSubmit={handleFormSubmit} noValidate>
                 
                 {/* 1. PERSONAL DETAILS */}
                 <h3 style={{ borderBottom: "1px solid var(--border-color)", paddingBottom: "0.5rem", marginBottom: "1.25rem", fontSize: "1.05rem" }}>
@@ -471,12 +612,63 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Full Name</label>
-                    <input type="text" className={`form-control ${errors.fullName ? `is-${errors.fullName.type}` : ''}`} value={formData.fullName}
-                      onChange={e => { handleInputChange('fullName', e.target.value); handleInputChange('accountHolder', e.target.value); }}
-                      onBlur={validateFullName} />
-                    {errors.fullName && <div className={`field-msg ${errors.fullName.type} show`}>{errors.fullName.msg}</div>}
-                    
+                    <label>First Name <span style={{ color: "var(--status-danger)" }}>*</span></label>
+                    <input type="text" className={`form-control ${errors.firstName ? `is-${errors.firstName.type || 'error'}` : ''}`} value={formData.firstName}
+                      onChange={e => {
+                        const newFirst = e.target.value;
+                        handleInputChange('firstName', newFirst);
+                        const newFull = `${newFirst} ${formData.lastName || ''}`.trim();
+                        handleInputChange('fullName', newFull);
+                        handleInputChange('accountHolder', newFull);
+                      }}
+                      onBlur={validateNameFields} required />
+                    {errors.firstName && <div className={`field-msg ${errors.firstName.type || 'error'} show`}>{errors.firstName.msg}</div>}
+                  </div>
+
+                  <div className="form-group">
+                    <label>Last Name <span style={{ color: "var(--status-danger)" }}>*</span></label>
+                    <input type="text" className={`form-control ${errors.lastName ? `is-${errors.lastName.type || 'error'}` : ''}`} value={formData.lastName}
+                      onChange={e => {
+                        const newLast = e.target.value;
+                        handleInputChange('lastName', newLast);
+                        const newFull = `${formData.firstName || ''} ${newLast}`.trim();
+                        handleInputChange('fullName', newFull);
+                        handleInputChange('accountHolder', newFull);
+                      }}
+                      onBlur={validateNameFields} required />
+                    {errors.lastName && <div className={`field-msg ${errors.lastName.type || 'error'} show`}>{errors.lastName.msg}</div>}
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Marital Status</label>
+                    <select className="form-control" value={formData.maritalStatus} onChange={e => handleInputChange('maritalStatus', e.target.value)}>
+                      <option value="">-- Select --</option>
+                      <option value="single">Single</option>
+                      <option value="married">Married</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+
+                  {isAdd && (
+                    <div className="form-group">
+                      <label>Employee Code</label>
+                      <input type="text" className="form-control read-only-field" value="TEC-089 (auto-assigned on save)" readOnly />
+                      <div className="field-msg info show" style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                        <Lock size={12} /> Auto-generated on save. Cannot be manually set.
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Father's Name <span style={{ color: "var(--status-danger)" }}>*</span></label>
+                    <input type="text" className={`form-control ${errors.fatherName ? `is-${errors.fatherName.type || 'error'}` : ''}`} value={formData.fatherName}
+                      onChange={e => handleInputChange('fatherName', e.target.value)} required />
+                    {errors.fatherName && <div className={`field-msg ${errors.fatherName.type || 'error'} show`}>{errors.fatherName.msg}</div>}
+
                     {nameChangeUploadVisible && (
                       <div style={{ marginTop: "0.75rem", padding: "0.75rem 1rem", background: "var(--status-warning-bg)", borderLeft: "3px solid var(--status-warning)", borderRadius: "var(--radius-sm)" }}>
                         <div style={{ fontSize: "0.85rem", color: "var(--status-warning)", fontWeight: "600", marginBottom: "0.5rem" }}>
@@ -487,11 +679,19 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                     )}
                   </div>
                   
-                  {isAdd && (
+                  {formData.maritalStatus === 'married' ? (
                     <div className="form-group">
-                      <label>Employee Code</label>
-                      <input type="text" className="form-control read-only-field" value="TEC-089 (auto-assigned on save)" readOnly />
-                      <div className="field-msg info show">🔒 Auto-generated on save. Cannot be manually set.</div>
+                      <label>Wife / Spouse Name</label>
+                      <input type="text" className={`form-control ${errors.spouseName ? `is-${errors.spouseName.type || 'error'}` : ''}`} value={formData.spouseName}
+                        onChange={e => handleInputChange('spouseName', e.target.value)} placeholder="Enter wife / spouse name" />
+                      {errors.spouseName && <div className={`field-msg ${errors.spouseName.type || 'error'} show`}>{errors.spouseName.msg}</div>}
+                    </div>
+                  ) : (
+                    <div className="form-group">
+                      <label>Mother's Name</label>
+                      <input type="text" className={`form-control ${errors.motherName ? `is-${errors.motherName.type || 'error'}` : ''}`} value={formData.motherName}
+                        onChange={e => handleInputChange('motherName', e.target.value)} placeholder="Enter mother's name" />
+                      {errors.motherName && <div className={`field-msg ${errors.motherName.type || 'error'} show`}>{errors.motherName.msg}</div>}
                     </div>
                   )}
                 </div>
@@ -499,18 +699,47 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                 <div className="form-row">
                   {isAdd && (
                     <div className="form-group">
-                      <label>Date of Birth</label>
-                      <input type="date" max={maxDobDate} className={`form-control ${errors.dob ? `is-${errors.dob.type}` : ''}`} value={formData.dob}
-                        onChange={e => { handleInputChange('dob', e.target.value); validateAgeAtJoining(); }} />
-                      {errors.dob && <div className={`field-msg ${errors.dob.type} show`}>{errors.dob.msg}</div>}
+                      <label>Date of Birth <span style={{ color: "var(--status-danger)" }}>*</span></label>
+                      <input type="date" max={maxDobDate} className={`form-control ${errors.dob ? `is-${errors.dob.type || 'error'}` : ''}`} value={formData.dob}
+                        onChange={e => { handleInputChange('dob', e.target.value); validateAgeAtJoining(); }} required />
+                      {errors.dob && <div className={`field-msg ${errors.dob.type || 'error'} show`}>{errors.dob.msg}</div>}
                     </div>
                   )}
+
+                  <div className="form-group">
+                    <label>Gender</label>
+                    <select className="form-control" value={formData.gender} onChange={e => handleInputChange('gender', e.target.value)}>
+                      <option value="">-- Select --</option>
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Blood Group</label>
+                    <select className="form-control" value={formData.bloodGroup} onChange={e => handleInputChange('bloodGroup', e.target.value)}>
+                      <option value="">-- Select --</option>
+                      <option value="A+">A+</option>
+                      <option value="A-">A-</option>
+                      <option value="B+">B+</option>
+                      <option value="B-">B-</option>
+                      <option value="AB+">AB+</option>
+                      <option value="AB-">AB-</option>
+                      <option value="O+">O+</option>
+                      <option value="O-">O-</option>
+                      <option value="Unknown">Unknown</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="form-row">
                   <div className="form-group">
                     <label>Personal Email <span style={{ color: "var(--status-danger)" }}>*</span></label>
-                    <input type="email" className={`form-control ${errors.personalEmail ? `is-${errors.personalEmail.type}` : ''}`} value={formData.personalEmail}
-                      onChange={e => handleInputChange('personalEmail', e.target.value)} onBlur={validatePersonalEmail} />
-                    {errors.personalEmail && <div className={`field-msg ${errors.personalEmail.type} show`}>{errors.personalEmail.msg}</div>}
-                    {!isAdd && formData.personalEmail !== ORIG_VALUES.email && (
+                    <input type="email" className={`form-control ${errors.personalEmail ? `is-${errors.personalEmail.type || 'error'}` : ''}`} value={formData.personalEmail}
+                      onChange={e => handleInputChange('personalEmail', e.target.value)} onBlur={validatePersonalEmail} required />
+                    {errors.personalEmail && <div className={`field-msg ${errors.personalEmail.type || 'error'} show`}>{errors.personalEmail.msg}</div>}
+                    {!isAdd && employee && formData.personalEmail !== (employee.data?.personal_email || employee.personal_email) && (
                       <div style={{ marginTop: "0.4rem", fontSize: "0.8rem", color: "#64748B", fontStyle: "italic" }}>
                         A notification will be sent to the previous email address confirming this change.
                       </div>
@@ -521,9 +750,9 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                 <div className="form-row">
                   <div className="form-group">
                     <label>Phone Number <span style={{ color: "var(--status-danger)" }}>*</span></label>
-                    <input type="text" className={`form-control ${errors.phone ? `is-${errors.phone.type}` : ''}`} value={formData.phone} maxLength="10"
-                      onChange={e => handleInputChange('phone', e.target.value)} onBlur={validatePhone} />
-                    {errors.phone && <div className={`field-msg ${errors.phone.type} show`}>{errors.phone.msg}</div>}
+                    <input type="text" className={`form-control ${errors.phone ? `is-${errors.phone.type || 'error'}` : ''}`} value={formData.phone} maxLength="10"
+                      onChange={e => handleInputChange('phone', e.target.value)} onBlur={validatePhone} required />
+                    {errors.phone && <div className={`field-msg ${errors.phone.type || 'error'} show`}>{errors.phone.msg}</div>}
                     {phoneDupChoiceVisible && (
                       <div className="inline-choice" style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
                         <button type="button" className="btn btn-primary btn-xs" onClick={acceptDuplicatePhone}>Yes, Continue</button>
@@ -531,6 +760,14 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                       </div>
                     )}
                   </div>
+                  <div className="form-group">
+                    <label>Emergency Contact Name</label>
+                    <input type="text" className="form-control" value={formData.emergencyContactName}
+                      onChange={e => handleInputChange('emergencyContactName', e.target.value)} placeholder="Name of emergency contact" />
+                  </div>
+                </div>
+
+                <div className="form-row">
                   <div className="form-group">
                     <label>Emergency Contact Number</label>
                     <input type="text" className="form-control" value={formData.emergencyContact} maxLength="10"
@@ -541,8 +778,8 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                 <div className="form-row">
                   {isAdd && (
                     <div className="form-group">
-                      <label>Client Partner</label>
-                      <select className="form-control" value={formData.clientPartner} onChange={e => handleInputChange('clientPartner', e.target.value)} disabled={isActive}>
+                      <label>Client Partner <span style={{ color: "var(--status-danger)" }}>*</span></label>
+                      <select className="form-control" value={formData.clientPartner} onChange={e => handleInputChange('clientPartner', e.target.value)} disabled={isActive} required>
                         <option value="">-- Select Client --</option>
                         {clients && clients.map(c => (
                           <option key={c.id} value={c.id}>{c.company_name}</option>
@@ -551,89 +788,201 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                     </div>
                   )}
                   <div className="form-group">
-                    <label>Designation</label>
+                    <label>Designation <span style={{ color: "var(--status-danger)" }}>*</span></label>
                     <input type="text" className="form-control" value={formData.designation} onChange={e => handleInputChange('designation', e.target.value)} required />
                   </div>
                 </div>
 
-                {isAdd && (
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label>Date of Joining</label>
-                      <input type="date" className={`form-control ${isActive ? 'read-only-field' : ''} ${errors.doj ? `is-${errors.doj.type}` : ''}`} value={formData.doj}
-                        onChange={e => { handleInputChange('doj', e.target.value); validateAgeAtJoining(); }} readOnly={isActive} />
-                      {errors.doj && <div className={`field-msg ${errors.doj.type} show`}>{errors.doj.msg}</div>}
-                    </div>
-                    <div className="form-group">
-                      <label>Employment Model</label>
-                      <select className="form-control" value={formData.empType} onChange={handleEmpTypeChange} disabled={isActive && formData.empType === 'internal'}>
-                        <option value="eor">Pass-through EOR</option>
-                        <option value="contract">Agency Contract</option>
-                        <option value="internal">Internal Staff</option>
-                      </select>
-                      {formData.empType === 'eor' && <div style={{ marginTop: "0.5rem", padding: "0.75rem", background: "#F8FAFC", borderLeft: "3px solid var(--primary-navy)", borderRadius: "var(--radius-sm)", fontSize: "0.8rem" }}>PF, ESI, and PT are filed under client registration.</div>}
-                      {formData.empType === 'contract' && <div style={{ marginTop: "0.5rem", padding: "0.75rem", background: "#F8FAFC", borderLeft: "3px solid var(--primary-navy)", borderRadius: "var(--radius-sm)", fontSize: "0.8rem" }}>PF, ESI, and PT are filed under Tecla Media registration.</div>}
-                    </div>
-                  </div>
-                )}
 
                 <div className="form-row">
-                  {isAdd && (
+                  <div className="form-group">
+                      <label>Date of Joining <span style={{ color: "var(--status-danger)" }}>*</span></label>
+                      <input type="date" className={`form-control ${isActive ? 'read-only-field' : ''} ${errors.doj ? `is-${errors.doj.type || 'error'}` : ''}`} value={formData.doj}
+                        onChange={e => { handleInputChange('doj', e.target.value); validateAgeAtJoining(); }} readOnly={isActive} required />
+                      {errors.doj && <div className={`field-msg ${errors.doj.type || 'error'} show`}>{errors.doj.msg}</div>}
+                    </div>
+                    <div className="form-group">
+                      <label>Employment Model {activeClientDefaults?.contractType && !employee && <span className="badge badge-neutral">Auto-set from Client</span>}</label>
+                      <select className="form-control" value={formData.empType} onChange={handleEmpTypeChange} disabled={!employee && !!activeClientDefaults?.contractType}>
+                        <option value="eor">Pass-through EOR</option>
+                        <option value="agency_contract">Agency Contract</option>
+                      </select>
+                      {formData.empType === 'eor' && <div style={{ marginTop: "0.5rem", padding: "0.75rem", background: "#F8FAFC", borderLeft: "3px solid var(--primary-navy)", borderRadius: "var(--radius-sm)", fontSize: "0.8rem" }}>PF, ESI, and PT are filed under client registration.</div>}
+                      {formData.empType === 'agency_contract' && <div style={{ marginTop: "0.5rem", padding: "0.75rem", background: "#F8FAFC", borderLeft: "3px solid var(--primary-navy)", borderRadius: "var(--radius-sm)", fontSize: "0.8rem" }}>PF, ESI, and PT are filed under Tecla Agency registration.</div>}
+                    </div>
+                  </div>
+
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>
+                        Attendance Tracking Start Date{' '}
+                        <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: "normal" }}>
+                          (Leave blank unless employee joined before adopting this payroll software)
+                        </span>
+                      </label>
+                      <input
+                        type="date"
+                        className={`form-control ${errors.attendanceTrackingStartDate ? `is-${errors.attendanceTrackingStartDate.type || 'error'}` : ''}`}
+                        value={formData.attendanceTrackingStartDate}
+                        onChange={e => handleInputChange('attendanceTrackingStartDate', e.target.value)}
+                        min={formData.doj || undefined}
+                      />
+                      {errors.attendanceTrackingStartDate && (
+                        <div className={`field-msg ${errors.attendanceTrackingStartDate.type || 'error'} show`}>
+                          {errors.attendanceTrackingStartDate.msg}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="form-row">
                     <div className="form-group" style={{ flex: 1 }}>
                       <label>Prior Employment Flag <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>(Required for Previous Employer KYC docs)</span></label>
                       <div style={{ marginTop: "0.5rem" }}>
                         <label className="toggle-container">
-                          <input type="checkbox" className="toggle-input" checked={formData.priorEmploymentFlag} onChange={e => handleInputChange('priorEmploymentFlag', e.target.checked)} disabled={isActive} />
-                          <span className="toggle-switch"></span>
-                          <span style={{ fontWeight: "600", color: "var(--primary-navy)" }}>{formData.priorEmploymentFlag ? 'Yes' : 'No'}</span>
+                           <input type="checkbox" className="toggle-input" checked={formData.priorEmploymentFlag} onChange={e => handleInputChange('priorEmploymentFlag', e.target.checked)} disabled={isActive} />
+                           <span className="toggle-switch"></span>
+                           <span style={{ fontWeight: "600", color: "var(--primary-navy)" }}>{formData.priorEmploymentFlag ? 'Yes' : 'No'}</span>
                         </label>
                       </div>
                     </div>
-                  )}
                   <div className="form-group" style={{ flex: 1 }}>
-                    <label>Residential Address</label>
-                    <input type="text" className="form-control" value={formData.address} onChange={e => handleInputChange('address', e.target.value)} />
+                    <label>Residential Address <span style={{ color: "var(--status-danger)" }}>*</span></label>
+                    <input type="text" className="form-control" value={formData.address} onChange={e => handleInputChange('address', e.target.value)} required />
                   </div>
                 </div>
 
-                {isAdd && (
-                  <>
+                <div className="form-row">
+                  <div className="form-group">
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                      <label style={{ margin: 0 }}>Probation End Date</label>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                        <span style={{ fontSize: '0.7rem', color: '#64748B', fontWeight: '600', marginRight: '0.15rem' }}>Months:</span>
+                        {[2, 4, 6, 12].map(m => (
+                          <button
+                            key={m}
+                            type="button"
+                            onClick={() => calculateProbationEndDate(m)}
+                            style={{
+                              padding: '0.15rem 0.45rem',
+                              fontSize: '0.75rem',
+                              fontWeight: '700',
+                              borderRadius: '0.25rem',
+                              border: '1px solid #CBD5E1',
+                              backgroundColor: '#F8FAFC',
+                              color: '#1F3864',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease-in-out'
+                            }}
+                            title={`Calculate +${m} months from Date of Joining (${formData.doj || 'Today'})`}
+                            onMouseEnter={e => {
+                              e.currentTarget.style.backgroundColor = '#1F3864';
+                              e.currentTarget.style.color = '#FFFFFF';
+                              e.currentTarget.style.borderColor = '#1F3864';
+                            }}
+                            onMouseLeave={e => {
+                              e.currentTarget.style.backgroundColor = '#F8FAFC';
+                              e.currentTarget.style.color = '#1F3864';
+                              e.currentTarget.style.borderColor = '#CBD5E1';
+                            }}
+                          >
+                            {m}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <input type="date" className={`form-control ${errors.probationEndDate ? `is-${errors.probationEndDate.type || 'error'}` : ''}`} value={formData.probationEndDate}
+                      onChange={e => handleInputChange('probationEndDate', e.target.value)} />
+                    {errors.probationEndDate && <div className={`field-msg ${errors.probationEndDate.type || 'error'} show`}>{errors.probationEndDate.msg}</div>}
+                  </div>
+                  <div className="form-group">
+                    <label>Reporting Manager</label>
+                    <select className={`form-control ${errors.reportingManagerId ? `is-${errors.reportingManagerId.type || 'error'}` : ''}`} value={formData.reportingManagerId}
+                      onChange={e => handleInputChange('reportingManagerId', e.target.value)}>
+                      <option value="">-- None --</option>
+                      {clientActiveEmployees.map(emp => (
+                        <option key={emp.id} value={emp.id}>{emp.full_name} ({emp.employee_code})</option>
+                      ))}
+                    </select>
+                    {errors.reportingManagerId && <div className={`field-msg ${errors.reportingManagerId.type || 'error'} show`}>{errors.reportingManagerId.msg}</div>}
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                      Notice Period (Days)
+                      <span className={`badge ${overrides.noticePeriod ? 'badge-gold' : 'badge-neutral'}`}>{overrides.noticePeriod ? 'Overridden' : 'Inherited'}</span>
+                    </label>
+                    <input type="number" className={`form-control ${errors.noticePeriodDays ? `is-${errors.noticePeriodDays.type || 'error'}` : ''}`} value={formData.noticePeriodDays} min="0"
+                      onChange={e => {
+                        const val = e.target.value;
+                        handleInputChange('noticePeriodDays', val);
+                        const clientNotice = activeClientDefaults?.noticePeriodDays !== undefined && activeClientDefaults?.noticePeriodDays !== null && activeClientDefaults?.noticePeriodDays !== ''
+                          ? String(activeClientDefaults.noticePeriodDays)
+                          : '30';
+                        const isOverridden = val !== '' && String(val) !== clientNotice;
+                        setOverrides(prev => ({ ...prev, noticePeriod: isOverridden }));
+                      }} placeholder="e.g. 30" />
+                    {errors.noticePeriodDays && <div className={`field-msg ${errors.noticePeriodDays.type || 'error'} show`}>{errors.noticePeriodDays.msg}</div>}
+                  </div>
+                </div>
+
+                {formData.priorEmploymentFlag && (
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Previous Employer Name</label>
+                      <input type="text" className="form-control" value={formData.prevEmployerName}
+                        onChange={e => handleInputChange('prevEmployerName', e.target.value)} placeholder="Previous company name" />
+                    </div>
+                    <div className="form-group">
+                      <label>Previous Employer UAN</label>
+                      <input type="text" className="form-control" value={formData.prevEmployerUAN}
+                        onChange={e => handleInputChange('prevEmployerUAN', e.target.value)} placeholder="Previous UAN (if available)" />
+                    </div>
+                  </div>
+                )}
+
+
                 {/* 2. BANK DETAILS */}
                 <h3 style={{ borderBottom: "1px solid var(--border-color)", paddingBottom: "0.5rem", marginTop: "2rem", marginBottom: "0.75rem", fontSize: "1.05rem" }}>
                   Secure Disbursement Details
                 </h3>
 
-                <div className="section-banner info">
-                  🏦 <strong>Bank details can only be set here during initial employee creation.</strong>
-                  Once the employee is <em>Active</em>, bank changes must go through the Bank Change Requests approval flow.
+                <div className="section-banner info" style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                  <Landmark size={18} className="shrink-0 text-blue-600" />
+                  <span>
+                    <strong>Bank details can only be set here during initial employee creation.</strong> Once the employee is <em>Active</em>, bank changes must go through the Bank Change Requests approval flow.
+                  </span>
                 </div>
 
                 {isActive ? (
                   <div style={{ marginBottom: "1.5rem", padding: "0.75rem 1rem", background: "#F8FAFC", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", fontSize: "0.85rem", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                    <span style={{ fontWeight: "500", color: "var(--text-main)" }}>🔒 Locked — use <Link href="/bank-change-requests" style={{ color: "var(--primary-navy)", fontWeight: "600", textDecoration: "underline" }}>Bank Change Requests</Link> to update</span>
+                    <Lock size={14} className="shrink-0 text-slate-500" />
+                    <span style={{ fontWeight: "500", color: "var(--text-main)" }}>Locked — use <Link href={route('employees.bank-change-requests')} style={{ color: "var(--primary-navy)", fontWeight: "600", textDecoration: "underline" }}>Bank Change Requests</Link> to update</span>
                   </div>
                 ) : (
                   <div>
                     <div className="form-row">
                       <div className="form-group">
                         <label>Account Number <span style={{ color: "var(--status-danger)" }}>*</span></label>
-                        <input type="text" className={`form-control ${errors.accountNo ? `is-${errors.accountNo.type}` : ''}`} value={formData.accountNo}
-                          onChange={e => handleInputChange('accountNo', e.target.value)} onBlur={validateAccountMatch} />
+                        <input type="text" className={`form-control ${errors.accountNo ? `is-${errors.accountNo.type || 'error'}` : ''}`} value={formData.accountNo}
+                          onChange={e => handleInputChange('accountNo', e.target.value)} onBlur={validateAccountMatch} required />
                       </div>
-                      <div className="form-group">
+                      <div className="form-group" style={{ marginBottom: "0" }}>
                         <label>Confirm Account Number <span style={{ color: "var(--status-danger)" }}>*</span></label>
-                        <input type="text" className={`form-control ${errors.accountNoConfirm ? `is-${errors.accountNoConfirm.type}` : ''}`} value={formData.accountNoConfirm}
-                          onChange={e => handleInputChange('accountNoConfirm', e.target.value)} onBlur={validateAccountMatch} />
-                        {errors.accountNoConfirm && <div className={`field-msg ${errors.accountNoConfirm.type} show`}>{errors.accountNoConfirm.msg}</div>}
+                        <input type="text" className={`form-control ${errors.accountNoConfirm ? `is-${errors.accountNoConfirm.type || 'error'}` : ''}`} value={formData.accountNoConfirm}
+                          onChange={e => handleInputChange('accountNoConfirm', e.target.value)} onBlur={validateAccountMatch} required />
+                        {errors.accountNoConfirm && <div className={`field-msg ${errors.accountNoConfirm.type || 'error'} show`}>{errors.accountNoConfirm.msg}</div>}
                       </div>
                     </div>
 
                     <div className="form-row">
-                      <div className="form-group">
+                      <div className="form-group" style={{ marginBottom: "0" }}>
                         <label>IFSC Code <span style={{ color: "var(--status-danger)" }}>*</span></label>
-                        <input type="text" className={`form-control ${errors.ifsc ? `is-${errors.ifsc.type}` : ''}`} value={formData.ifsc}
-                          onChange={e => handleInputChange('ifsc', e.target.value.toUpperCase())} onBlur={validateIFSC} />
-                        {errors.ifsc && <div className={`field-msg ${errors.ifsc.type} show`}>{errors.ifsc.msg}</div>}
+                        <input type="text" className={`form-control ${errors.ifsc ? `is-${errors.ifsc.type || 'error'}` : ''}`} value={formData.ifsc}
+                          onChange={e => handleInputChange('ifsc', e.target.value.toUpperCase())} onBlur={validateIFSC} required />
+                        {errors.ifsc && <div className={`field-msg ${errors.ifsc.type || 'error'} show`}>{errors.ifsc.msg}</div>}
                       </div>
                       <div className="form-group">
                         <label>Bank Name</label>
@@ -647,8 +996,8 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                         <input type="text" className="form-control read-only-field" value={formData.bankBranch} readOnly />
                       </div>
                       <div className="form-group">
-                        <label>Account Holder Name</label>
-                        <input type="text" className="form-control" value={formData.accountHolder} onChange={e => handleInputChange('accountHolder', e.target.value)} />
+                        <label>Account Holder Name <span style={{ color: "var(--status-danger)" }}>*</span></label>
+                        <input type="text" className="form-control" value={formData.accountHolder} onChange={e => handleInputChange('accountHolder', e.target.value)} required />
                       </div>
                     </div>
                   </div>
@@ -661,51 +1010,30 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Permanent Account Number (PAN)</label>
-                    <input type="text" className={`form-control ${errors.pan ? `is-${errors.pan.type}` : ''}`} value={formData.pan}
-                      onChange={e => handleInputChange('pan', e.target.value.toUpperCase())} onBlur={validatePAN} />
-                    {errors.pan && <div className={`field-msg ${errors.pan.type} show`}>{errors.pan.msg}</div>}
+                    <label>Permanent Account Number (PAN) <span style={{ color: "var(--status-danger)" }}>*</span></label>
+                    <input type="text" className={`form-control ${errors.pan ? `is-${errors.pan.type || 'error'}` : ''}`} value={formData.pan}
+                      onChange={e => handleInputChange('pan', e.target.value.toUpperCase())} onBlur={validatePAN} required />
+                    {errors.pan && <div className={`field-msg ${errors.pan.type || 'error'} show`}>{errors.pan.msg}</div>}
                     <small style={{ color: "var(--text-muted)", display: "block", marginTop: "4px" }}>Note: Name on PAN must exactly match the Full Name entered above to avoid statutory rejection.</small>
                   </div>
                   <div className="form-group">
                     <label>Aadhaar Number</label>
                     <input type="text" className="form-control" 
-                      value={isAadhaarFocused ? aadhaarRaw : ''}
+                      value={isAadhaarFocused ? formData.aadhaar : ''}
                       placeholder={isAadhaarFocused ? "12-digit Aadhaar" : "Click to reveal/edit"}
                       onFocus={() => setIsAadhaarFocused(true)} 
                       onBlur={() => setIsAadhaarFocused(false)} 
                       onChange={e => {
                         const val = e.target.value.replace(/\D/g, '');
-                        setAadhaarRaw(val);
-                        setAadhaarMasked(val ? `••••••••${val.slice(-4)}` : '');
+                        handleInputChange('aadhaar', val);
                       }} 
+                      maxLength="12"
                     />
-                    {!isAadhaarFocused && aadhaarMasked && <div style={{ fontFamily: "monospace", letterSpacing: "0.1em", fontSize: "0.875rem", color: "var(--text-muted)", marginTop: "0.25rem" }}>{aadhaarMasked}</div>}
+                    {!isAadhaarFocused && formData.aadhaar && <div style={{ fontFamily: "monospace", letterSpacing: "0.1em", fontSize: "0.875rem", color: "var(--text-muted)", marginTop: "0.25rem" }}>{`••••••••${formData.aadhaar.slice(-4)}`}</div>}
                   </div>
                 </div>
 
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Provident Fund UAN</label>
-                    <div style={{ display: "flex", gap: "1.5rem", marginBottom: "0.5rem" }}>
-                      <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontWeight: "normal" }}>
-                        <input type="radio" name="uanMode" checked={formData.uanMode === 'existing_transfer'} onChange={() => handleInputChange('uanMode', 'existing_transfer')} /> Has Prior PF
-                      </label>
-                      <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontWeight: "normal" }}>
-                        <input type="radio" name="uanMode" checked={formData.uanMode === 'new'} onChange={() => handleInputChange('uanMode', 'new')} /> Generate New UAN
-                      </label>
-                    </div>
-                    <input type="text" className={`form-control ${formData.uanMode === 'new' ? 'read-only-field' : ''}`} value={formData.uanMode === 'new' ? '' : formData.uan} 
-                      onChange={e => handleInputChange('uan', e.target.value)} disabled={formData.uanMode === 'new'} placeholder="Universal Account Number" />
-                    {formData.uanMode === 'new' && <div className="field-msg warn show">⚡ Duplicate UANs require manual EPFO merge if past history exists.</div>}
-                  </div>
-                  {formData.esiToggle && (
-                    <div className="form-group">
-                      <label>ESI IP Number</label>
-                      <input type="text" className="form-control" value={formData.esiNo} onChange={e => handleInputChange('esiNo', e.target.value)} />
-                    </div>
-                  )}
-                </div>
+
 
                 {/* 4. SALARY STRUCTURE */}
                 <h3 style={{ borderBottom: "1px solid var(--border-color)", paddingBottom: "0.5rem", marginTop: "2rem", marginBottom: "1.25rem", fontSize: "1.05rem" }}>
@@ -714,7 +1042,8 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
 
                 {isActive ? (
                   <div style={{ marginBottom: "1.5rem", padding: "0.75rem 1rem", background: "#F8FAFC", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", fontSize: "0.85rem", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                    <span style={{ fontWeight: "500", color: "var(--text-main)" }}>🔒 Locked — use <Link href={`/employees/${empId}/salary-revision`} style={{ color: "var(--primary-navy)", fontWeight: "600", textDecoration: "underline" }}>Revise Salary</Link> to update</span>
+                    <Lock size={14} className="shrink-0 text-slate-500" />
+                    <span style={{ fontWeight: "500", color: "var(--text-main)" }}>Locked — use <Link href={route('employees.salary-revision.create', empId)} style={{ color: "var(--primary-navy)", fontWeight: "600", textDecoration: "underline" }}>Revise Salary</Link> to update</span>
                   </div>
                 ) : (
                   <div>
@@ -722,37 +1051,37 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                     <div className="form-row">
                       <div className="form-group">
                         <label>1. Basic Pay (₹)</label>
-                        <input type="number" className={`form-control ${errors.basicSal ? `is-${errors.basicSal.type}` : ''}`} value={formData.basicSal}
-                          onChange={e => handleInputChange('basicSal', e.target.value)} onBlur={validateBasicPct} />
-                        {errors.basicSal && <div className={`field-msg ${errors.basicSal.type} show`}>{errors.basicSal.msg}</div>}
+                        <input type="number" className={`form-control ${errors.basicSal ? `is-${errors.basicSal.type || 'error'}` : ''}`} value={formData.basicSal}
+                          onChange={e => handleInputChange('basicSal', e.target.value)} onWheel={e => e.target.blur()} onBlur={validateBasicPct} min="0" required />
+                        {errors.basicSal && <div className={`field-msg ${errors.basicSal.type || 'error'} show`}>{errors.basicSal.msg}</div>}
                       </div>
                       <div className="form-group">
                         <label>2. HRA (₹)</label>
-                        <input type="number" className="form-control" value={formData.hraSal} onChange={e => handleInputChange('hraSal', e.target.value)} />
+                        <input type="number" className="form-control" value={formData.hraSal} onChange={e => handleInputChange('hraSal', e.target.value)} onWheel={e => e.target.blur()} min="0" required />
                       </div>
                       <div className="form-group">
                         <label>3. Conveyance (₹)</label>
-                        <input type="number" className="form-control" value={formData.conveyanceSal} onChange={e => handleInputChange('conveyanceSal', e.target.value)} />
+                        <input type="number" className="form-control" value={formData.conveyanceSal} onChange={e => handleInputChange('conveyanceSal', e.target.value)} onWheel={e => e.target.blur()} />
                       </div>
                     </div>
                     <div className="form-row">
                       <div className="form-group">
                         <label>4. DA (₹)</label>
-                        <input type="number" className="form-control" value={formData.daSal} onChange={e => handleInputChange('daSal', e.target.value)} />
+                        <input type="number" className="form-control" value={formData.daSal} onChange={e => handleInputChange('daSal', e.target.value)} onWheel={e => e.target.blur()} />
                       </div>
                       <div className="form-group">
                         <label>5. Medical (₹)</label>
-                        <input type="number" className="form-control" value={formData.medicalSal} onChange={e => handleInputChange('medicalSal', e.target.value)} />
+                        <input type="number" className="form-control" value={formData.medicalSal} onChange={e => handleInputChange('medicalSal', e.target.value)} onWheel={e => e.target.blur()} />
                       </div>
                       <div className="form-group">
                         <label>6. Special (₹)</label>
-                        <input type="number" className="form-control" value={formData.specialSal} onChange={e => handleInputChange('specialSal', e.target.value)} />
+                        <input type="number" className="form-control" value={formData.specialSal} onChange={e => handleInputChange('specialSal', e.target.value)} onWheel={e => e.target.blur()} />
                       </div>
                     </div>
                     <div className="form-row">
                       <div className="form-group">
                         <label>7. Other Additions (₹)</label>
-                        <input type="number" className="form-control" value={formData.otherSal} onChange={e => handleInputChange('otherSal', e.target.value)} />
+                        <input type="number" className="form-control" value={formData.otherSal} onChange={e => handleInputChange('otherSal', e.target.value)} onWheel={e => e.target.blur()} />
                       </div>
                     </div>
 
@@ -773,8 +1102,8 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                 <h3 style={{ borderBottom: "1px solid var(--border-color)", paddingBottom: "0.5rem", marginTop: "2rem", marginBottom: "0.5rem", fontSize: "1.05rem" }}>
                   Statutory Applicability for This Employee
                 </h3>
-                <p style={{ color: "var(--text-muted)", fontSize: "0.75rem", marginBottom: "1.25rem" }}>
-                  ⚙️ <span style={{ fontWeight: "500", color: "var(--primary-navy)" }}>Defaults inherited from client...</span> Toggling any setting creates an override.
+                <p style={{ color: "var(--text-muted)", fontSize: "0.75rem", marginBottom: "1.25rem", display: "flex", alignItems: "center", gap: "4px" }}>
+                  <Settings size={14} className="shrink-0 text-[#1F3864]" /> <span style={{ fontWeight: "500", color: "var(--primary-navy)" }}>Defaults inherited from client...</span> Toggling any setting creates an override.
                 </p>
 
                 <div style={{ display: "flex", flexDirection: "column", gap: "1rem", backgroundColor: "#F8FAFC", padding: "1rem", borderRadius: "var(--radius-md)", border: "1px solid var(--border-color)", marginBottom: "1.5rem" }}>
@@ -795,6 +1124,75 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                       </label>
                     </div>
                   </div>
+                  {formData.pfToggle && (
+                    <div style={{ backgroundColor: "#FFFFFF", padding: "1rem", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", marginTop: "0.5rem" }}>
+                      <div className="form-row">
+                        <div className="form-group" style={{ marginBottom: "0" }}>
+                          <label>UAN Mode <span style={{ color: "var(--status-danger)" }}>*</span></label>
+                          <select className={`form-control ${errors.uanMode ? 'is-invalid' : ''}`} value={formData.uanMode} onChange={e => handleInputChange('uanMode', e.target.value)}>
+                            <option value="new">Pending / New Registration</option>
+                            <option value="existing_transfer">Existing UAN</option>
+                          </select>
+                          {errors.uanMode && <div className={`field-msg ${errors.uanMode.type || 'error'} show`}>{errors.uanMode.msg || errors.uanMode}</div>}
+                          <small style={{ color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "4px", marginTop: "4px" }}>
+                            <Info size={13} className="shrink-0 text-blue-600" />
+                            <span>
+                              {formData.uanMode === 'new' 
+                                ? 'Select for first-time employees. EPFO portal auto-generates 12-digit UAN upon ECR upload.' 
+                                : 'Mandatory 12-digit UAN number from previous employer.'}
+                            </span>
+                          </small>
+                        </div>
+                        {formData.uanMode === 'existing_transfer' && (
+                          <div className="form-group" style={{ marginBottom: "0" }}>
+                            <label>UAN Number <span style={{ color: "var(--status-danger)" }}>*</span></label>
+                            <input type="text" className={`form-control ${errors.uan ? 'is-invalid' : ''}`} value={formData.uan} onChange={e => handleInputChange('uan', e.target.value)} placeholder="12-digit UAN" maxLength="12" />
+                            {errors.uan && <div className={`field-msg ${errors.uan.type || 'error'} show`}>{errors.uan.msg || errors.uan}</div>}
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ marginTop: "0.75rem", paddingTop: "0.75rem", borderTop: "1px dashed var(--border-color)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <div>
+                          <strong style={{ fontSize: "0.85rem", color: "var(--primary-navy)" }}>EPS Contribution (Employees' Pension Scheme)</strong>
+                          <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "2px", maxWidth: "600px" }}>
+                            Splits 12% Employer PF into 8.33% EPS (capped ₹1,249.50) + 3.67% EPF (₹550.50). Uncheck ONLY if employee first joined EPF post-Sept 2014 with Basic Pay &gt; ₹15,000. (Note: Employees aged 58+ automatically cutoff to ₹0 EPS).
+                          </div>
+                        </div>
+                        <label className="toggle-container" style={{ flexShrink: 0, marginLeft: "1rem" }}>
+                          <input type="checkbox" className="toggle-input" checked={formData.epsToggle} onChange={e => handleInputChange('epsToggle', e.target.checked)} />
+                          <span className="toggle-switch"></span>
+                        </label>
+                      </div>
+
+                      {/* Para 26(6) Joint Declaration Status — Shown whenever client uses Actual Basic+DA on either side */}
+                      {(
+                        activeClientDefaults?.employeePfWageBasis === 'actual_basic_da' || 
+                        activeClientDefaults?.employerPfWageBasis === 'actual_basic_da' || 
+                        activeClientDefaults?.employee_pf_wage_basis === 'actual_basic_da' || 
+                        activeClientDefaults?.employer_pf_wage_basis === 'actual_basic_da' ||
+                        clients.find(c => String(c.id) === String(formData.clientPartner))?.employee_pf_wage_basis === 'actual_basic_da' ||
+                        clients.find(c => String(c.id) === String(formData.clientPartner))?.employer_pf_wage_basis === 'actual_basic_da'
+                      ) && (
+                        <div style={{ marginTop: "0.75rem", paddingTop: "0.75rem", borderTop: "1px dashed var(--border-color)" }}>
+                          <div className="form-group" style={{ marginBottom: "0" }}>
+                            <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "var(--primary-navy)" }}>
+                              EPF Scheme Para 26(6) Joint Declaration Status
+                            </label>
+                            <select className={`form-control ${errors.joint_declaration_status ? 'is-invalid' : ''}`} value={formData.jointDeclarationStatus} onChange={e => { handleInputChange('jointDeclarationStatus', e.target.value); handleInputChange('joint_declaration_status', e.target.value); }}>
+                              <option value="not_required">Not Required (&le; ₹15,000 or Ceiling Base)</option>
+                              <option value="pending">Pending Attestation</option>
+                              <option value="submitted">Submitted to EPFO</option>
+                              <option value="approved">Approved by RPFC</option>
+                            </select>
+                            {errors.joint_declaration_status && <div className="field-msg error show">{errors.joint_declaration_status.msg || errors.joint_declaration_status}</div>}
+                            <small style={{ color: "var(--text-muted)", display: "block", marginTop: "4px" }}>
+                              Required whenever candidate earns Basic+DA &gt; ₹15,000/mo and employer or candidate contributes on Actual Basic+DA.
+                            </small>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <hr style={{ border: "0", borderTop: "1px solid var(--border-color)" }} />
 
                   {/* ESI Toggle */}
@@ -817,6 +1215,73 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                       </label>
                     </div>
                   </div>
+                  {formData.esiToggle ? (
+                    <div style={{ backgroundColor: "#FFFFFF", padding: "1rem", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", marginTop: "0.5rem" }}>
+                      <div className="form-row">
+                        <div className="form-group" style={{ marginBottom: "0.75rem" }}>
+                          <label>ESI Mode <span style={{ color: "var(--status-danger)" }}>*</span></label>
+                          <select className={`form-control ${errors.esiMode ? 'is-invalid' : ''}`} value={formData.esiMode} onChange={e => handleInputChange('esiMode', e.target.value)}>
+                            <option value="new">Pending / New Registration</option>
+                            <option value="existing_transfer">Existing IP Number</option>
+                          </select>
+                          {errors.esiMode && <div className={`field-msg ${errors.esiMode.type || 'error'} show`}>{errors.esiMode.msg || errors.esiMode}</div>}
+                          <small style={{ color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "4px", marginTop: "4px" }}>
+                            <Info size={13} className="shrink-0 text-blue-600" />
+                            <span>
+                              {formData.esiMode === 'new' 
+                                ? 'Select for first-time workers. ESIC portal auto-generates 10-digit IP number upon registration upload.' 
+                                : 'Mandatory 10-digit ESIC IP number from previous employer.'}
+                            </span>
+                          </small>
+                        </div>
+                        {formData.esiMode === 'existing_transfer' && (
+                          <div className="form-group" style={{ marginBottom: "0.75rem" }}>
+                            <label>ESIC IP Number <span style={{ color: "var(--status-danger)" }}>*</span></label>
+                            <input type="text" className={`form-control ${errors.esiNo ? 'is-invalid' : ''}`} value={formData.esiNo} onChange={e => handleInputChange('esiNo', e.target.value)} placeholder="10-digit ESIC Number" maxLength="10" />
+                            {errors.esiNo && <div className={`field-msg ${errors.esiNo.type || 'error'} show`}>{errors.esiNo.msg || errors.esiNo}</div>}
+                          </div>
+                        )}
+                      </div>
+                      {!isAdd && (
+                        <div className="form-group" style={{ marginBottom: "0" }}>
+                          <label>ESI Contribution Period End</label>
+                          <input type="date" className={`form-control ${errors.esiPeriodEnd ? `is-${errors.esiPeriodEnd.type || 'error'}` : ''}`} value={formData.esiPeriodEnd}
+                            onChange={e => handleInputChange('esiPeriodEnd', e.target.value)} />
+                          {errors.esiPeriodEnd && <div className={`field-msg ${errors.esiPeriodEnd.type || 'error'} show`}>{errors.esiPeriodEnd.msg}</div>}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    (Boolean(formData.insuranceProvider || formData.insurancePolicyNo || formData.insuranceSumInsured) || (activeClientDefaults?.healthInsuranceEnabled !== false && activeClientDefaults?.health_insurance_enabled !== false)) ? (
+                      <div style={{ backgroundColor: "#FFFFFF", padding: "1rem", borderRadius: "var(--radius-sm)", border: "1px solid #CBD5E1", marginTop: "0.5rem" }}>
+                        <div style={{ fontSize: "0.8rem", color: "#1E293B", fontWeight: "600", marginBottom: "0.75rem", display: "flex", alignItems: "center", gap: "6px" }}>
+                          <Shield size={16} className="text-blue-600" />
+                          <span>Group Medical Insurance (Non-ESI Employee Coverage)</span>
+                        </div>
+                        <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "0.75rem" }}>
+                          This employee is not covered under statutory ESI. Capture their commercial Group Medical Insurance policy details below (optional).
+                        </p>
+                        <div className="form-row">
+                          <div className="form-group" style={{ marginBottom: "0.5rem" }}>
+                            <label>Insurance Provider / TPA</label>
+                            <input type="text" className="form-control" placeholder="e.g. Star Health, HDFC ERGO, Niva Bupa" value={formData.insuranceProvider} onChange={e => handleInputChange('insuranceProvider', e.target.value)} />
+                          </div>
+                          <div className="form-group" style={{ marginBottom: "0.5rem" }}>
+                            <label>Policy / Card Number</label>
+                            <input type="text" className="form-control" placeholder="e.g. GMI-2026-98745" value={formData.insurancePolicyNo} onChange={e => handleInputChange('insurancePolicyNo', e.target.value)} />
+                          </div>
+                          <div className="form-group" style={{ marginBottom: "0.5rem" }}>
+                            <label>Sum Insured (₹)</label>
+                            <input type="number" className="form-control" placeholder="e.g. 500000" value={formData.insuranceSumInsured} onChange={e => handleInputChange('insuranceSumInsured', e.target.value)} min="0" />
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ backgroundColor: "#F8FAFC", padding: "0.75rem 1rem", borderRadius: "var(--radius-sm)", border: "1px solid #E2E8F0", marginTop: "0.5rem", fontSize: "0.75rem", color: "#64748B" }}>
+                        <strong>Establishment Policy:</strong> This client establishment does not provide commercial Group Medical Insurance for employees above the ESI ceiling (&gt; ₹21,000/mo).
+                      </div>
+                    )
+                  )}
                   <hr style={{ border: "0", borderTop: "1px solid var(--border-color)" }} />
 
                   {/* TDS Toggle */}
@@ -843,6 +1308,14 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                               <option value="new">New Tax Regime</option>
                               <option value="employee_choice">Employee Choice</option>
                             </select>
+                            <small style={{ color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "4px", marginTop: "4px" }}>
+                              <Info size={13} className="shrink-0 text-blue-600" />
+                              <span>
+                                {formData.taxRegime === 'new' 
+                                  ? 'New Regime (Default for FY26-27): ₹75,000 Standard Deduction, zero tax up to ₹12L (Sec 87A rebate).' 
+                                  : 'Old Regime: ₹50,000 Standard Deduction, 80C, 80D, 24b & HRA exemptions applicable.'}
+                              </span>
+                            </small>
                           </div>
                           <div className="form-group" style={{ marginBottom: "0" }}>
                             <label>Investment Declarations?</label>
@@ -856,6 +1329,143 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                     )}
                   </div>
 
+                  <hr style={{ border: "0", borderTop: "1px solid var(--border-color)" }} />
+
+                  {/* PT Toggle */}
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                          <strong style={{ fontSize: "0.85rem" }}>Professional Tax (PT)</strong>
+                          <span className={`badge ${overrides.pt ? 'badge-gold' : 'badge-neutral'}`}>{overrides.pt ? 'Overridden' : 'Inherited'}</span>
+                        </div>
+                        <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>State-specific Professional Tax deduction. Toggle off for exempt employees.</span>
+                      </div>
+                      <label className="toggle-container">
+                        <input type="checkbox" className="toggle-input" checked={formData.ptToggle} onChange={e => { handleInputChange('ptToggle', e.target.checked); toggleOverride('pt'); }} />
+                        <span className="toggle-switch"></span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <hr style={{ border: "0", borderTop: "1px solid var(--border-color)" }} />
+
+                  {/* LWF Toggle */}
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                          <strong style={{ fontSize: "0.85rem" }}>Labour Welfare Fund (LWF)</strong>
+                          <span className={`badge ${overrides.lwf ? 'badge-gold' : 'badge-neutral'}`}>{overrides.lwf ? 'Overridden' : 'Inherited'}</span>
+                        </div>
+                        <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>State Labour Welfare Fund contribution. Toggle off for exempt employees.</span>
+                      </div>
+                      <label className="toggle-container">
+                        <input type="checkbox" className="toggle-input" checked={formData.lwfToggle} onChange={e => { handleInputChange('lwfToggle', e.target.checked); toggleOverride('lwf'); }} />
+                        <span className="toggle-switch"></span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* LOP Divisor Basis */}
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                          <strong style={{ fontSize: "0.85rem" }}>Loss of Pay (LOP) Divisor Basis (Days)</strong>
+                          <span className="badge badge-neutral">Standard</span>
+                        </div>
+                        <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Denominator used for daily wage calculation (Basic / 30). Standard fixed monthly divisor.</span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", background: "#F1F5F9", border: "1px solid #CBD5E1", padding: "0.35rem 0.75rem", borderRadius: "6px", fontWeight: "bold", color: "var(--primary-navy)", fontSize: "0.85rem", whiteSpace: "nowrap" }}>
+                        <Lock size={13} /> Strictly 30 Days
+                      </div>
+                    </div>
+                  </div>
+
+                  <hr style={{ border: "0", borderTop: "1px solid var(--border-color)" }} />
+
+                  {/* Override Weekly Off Pattern */}
+                  <div>
+                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem" }}>
+                      <div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                          <strong style={{ fontSize: "0.85rem" }}>Override Weekly Off Pattern</strong>
+                          <span className={`badge ${overrides.weeklyOff ? 'badge-gold' : 'badge-neutral'}`}>
+                            {overrides.weeklyOff ? 'Overridden' : 'Inherited'}
+                          </span>
+                        </div>
+                        <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", display: "block" }}>
+                          Leave blank to inherit client default.
+                        </span>
+                        <div style={{ fontSize: "0.72rem", color: "var(--primary-navy)", fontWeight: "500", marginTop: "2px" }}>
+                          Client Default: {activeClientDefaults?.weeklyOffPattern || activeClientDefaults?.weekly_off_pattern || clients.find(c => String(c.id) === String(formData.clientPartner))?.weekly_off_pattern || 'sat,sun'}
+                        </div>
+                      </div>
+
+                      <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem", alignItems: "flex-end" }}>
+                        <div style={{ display: "flex", gap: "0.25rem" }}>
+                          {[
+                            { id: 'mon', label: 'M' },
+                            { id: 'tue', label: 'T' },
+                            { id: 'wed', label: 'W' },
+                            { id: 'thu', label: 'T' },
+                            { id: 'fri', label: 'F' },
+                            { id: 'sat', label: 'S' },
+                            { id: 'sun', label: 'S' }
+                          ].map(d => {
+                            const currentVal = formData.weeklyOffPattern || formData.weekly_off_pattern || '';
+                            const currentArr = currentVal ? currentVal.split(',').map(s => s.trim().toLowerCase()) : [];
+                            const isSelected = currentArr.includes(d.id);
+                            return (
+                              <button
+                                type="button"
+                                key={d.id}
+                                className="day-pill"
+                                style={{
+                                  width: '26px',
+                                  height: '26px',
+                                  borderRadius: '50%',
+                                  fontSize: '0.72rem',
+                                  fontWeight: '600',
+                                  border: isSelected ? '1px solid var(--primary-navy)' : '1px solid #CBD5E1',
+                                  backgroundColor: isSelected ? 'var(--primary-navy)' : '#F8FAFC',
+                                  color: isSelected ? '#FFFFFF' : '#475569',
+                                  cursor: 'pointer'
+                                }}
+                                onClick={() => {
+                                  let nextArr = isSelected ? currentArr.filter(x => x !== d.id) : [...currentArr, d.id];
+                                  const dayOrder = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+                                  nextArr.sort((a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b));
+                                  const val = nextArr.join(',');
+                                  handleInputChange('weeklyOffPattern', val);
+                                  handleInputChange('weekly_off_pattern', val);
+                                  setOverrides(prev => ({ ...prev, weeklyOff: Boolean(val) }));
+                                }}
+                              >
+                                {d.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        {(formData.weeklyOffPattern || formData.weekly_off_pattern) ? (
+                          <button
+                            type="button"
+                            className="btn btn-link btn-xs"
+                            style={{ fontSize: "0.7rem", color: "var(--status-danger)", padding: 0 }}
+                            onClick={() => {
+                              handleInputChange('weeklyOffPattern', '');
+                              handleInputChange('weekly_off_pattern', '');
+                              setOverrides(prev => ({ ...prev, weeklyOff: false }));
+                            }}
+                          >
+                            Reset to Client Default
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+
                   </div>
                   
                     <div style={{ backgroundColor: "#F8FAFC", border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)", padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem", marginBottom: "2rem" }}>
@@ -866,18 +1476,86 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                       
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", color: "var(--text-muted)" }}>
                         <span>Estimated Employee Deductions (PF, ESI, PT):</span>
-                        <span>- ₹{previewCalculations ? (previewCalculations.employee_pf_monthly + previewCalculations.employee_esi_monthly + previewCalculations.pt_monthly)?.toLocaleString('en-IN') : '0'}</span>
+                        <span style={{ fontWeight: "600", color: "#991B1B" }}>- ₹{previewCalculations ? (previewCalculations.employee_pf_monthly + previewCalculations.employee_esi_monthly + previewCalculations.pt_monthly)?.toLocaleString('en-IN') : '0'}</span>
                       </div>
+
+                      {previewCalculations && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem", background: "#FFF5F5", padding: "0.75rem", borderRadius: "6px", border: "1px solid #FED7D7", fontSize: "0.78rem" }}>
+                          <div style={{ fontWeight: "700", color: "#9B2C2C", marginBottom: "0.15rem" }}>Employee Deductions Breakdown:</div>
+                          
+                          <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: "0.5rem" }}>
+                            <span>• Employee PF Contribution (12%):</span>
+                            <strong>₹{(previewCalculations.employee_pf_monthly || 0).toLocaleString('en-IN')}</strong>
+                          </div>
+
+                          <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: "0.5rem" }}>
+                            <span>• Employee ESI Contribution (0.75%):</span>
+                            <strong>{previewCalculations.employee_esi_monthly > 0 ? `₹${(previewCalculations.employee_esi_monthly || 0).toLocaleString('en-IN')}` : '₹0.00 (Exempt / Not Applicable)'}</strong>
+                          </div>
+
+                          <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: "0.5rem" }}>
+                            <span>• Professional Tax (PT):</span>
+                            <strong>₹{(previewCalculations.pt_monthly || 0).toLocaleString('en-IN')}</strong>
+                          </div>
+
+                          <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px dashed #FEB2B2", paddingTop: "0.35rem", marginTop: "0.15rem", fontWeight: "700", color: "#742A2A" }}>
+                            <span>Total Employee Deductions:</span>
+                            <span>- ₹{(previewCalculations.employee_pf_monthly + previewCalculations.employee_esi_monthly + previewCalculations.pt_monthly).toLocaleString('en-IN')}</span>
+                          </div>
+                        </div>
+                      )}
 
                       <div style={{ backgroundColor: "var(--primary-navy)", color: "white", padding: "1rem", borderRadius: "var(--radius-sm)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <span style={{ fontWeight: "500" }}>Estimated Net Take Home:</span>
                         <span style={{ fontSize: "1.5rem", fontWeight: "bold", color: "var(--accent-gold)" }}>₹{previewCalculations ? previewCalculations.net_take_home_monthly?.toLocaleString('en-IN') : grossCTC.toLocaleString('en-IN')}</span>
                       </div>
 
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", color: "var(--text-muted)", marginTop: "0.5rem" }}>
-                        <span>Estimated Employer Contributions:</span>
-                        <span>+ ₹{previewCalculations ? (previewCalculations.employer_pf_monthly + previewCalculations.employer_esi_monthly)?.toLocaleString('en-IN') : '0'}</span>
-                      </div>
+                      {previewCalculations && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem", background: "#F8FAFC", padding: "0.75rem", borderRadius: "6px", border: "1px solid var(--border-color)", fontSize: "0.78rem" }}>
+                          <div style={{ fontWeight: "700", color: "#334155", marginBottom: "0.15rem" }}>Employer Contributions & Accruals Breakdown:</div>
+                          <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: "0.5rem" }}>
+                            <span>• Employer EPF (3.67% / Remainder):</span>
+                            <strong>₹{(previewCalculations.employer_epf_monthly || 0).toLocaleString('en-IN')}</strong>
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: "0.5rem" }}>
+                            <span>• Employer EPS Pension (8.33% - Capped ₹1,249.50):</span>
+                            <strong>{previewCalculations.employer_eps_monthly > 0 ? `₹${(previewCalculations.employer_eps_monthly || 0).toLocaleString('en-IN')}` : '₹0.00 (EPS Excluded / Age 58+)'}</strong>
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: "0.5rem" }}>
+                            <span>• EDLI (0.5%):</span>
+                            <strong>{previewCalculations.edli_monthly === 0 ? '₹0.00 (Exempted)' : `₹${(previewCalculations.edli_monthly || 0).toLocaleString('en-IN')}`}</strong>
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: "0.5rem" }}>
+                            <span>• EPF Admin Charges (0.5%):</span>
+                            <strong>₹{(previewCalculations.epf_admin_monthly || 0).toLocaleString('en-IN')}</strong>
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px dashed #CBD5E1", paddingTop: "0.35rem", marginTop: "0.15rem", fontWeight: "700", color: "#1E293B" }}>
+                            <span>Total Employer PF & EPFO Charges:</span>
+                            <span style={{ color: "#1F3864" }}>₹{((previewCalculations.employer_epf_monthly || 0) + (previewCalculations.employer_eps_monthly || 0) + (previewCalculations.edli_monthly || 0) + (previewCalculations.epf_admin_monthly || 0)).toLocaleString('en-IN')}</span>
+                          </div>
+
+                          {previewCalculations.employer_esi_monthly > 0 && (
+                            <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: "0.5rem", marginTop: "0.15rem" }}>
+                              <span>• Employer ESI Contribution (3.25%):</span>
+                              <strong>₹{(previewCalculations.employer_esi_monthly || 0).toLocaleString('en-IN')}</strong>
+                            </div>
+                          )}
+
+                          {previewCalculations.gratuity_accrual_monthly > 0 && (
+                            <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: "0.5rem", marginTop: "0.15rem", color: "#0F766E" }}>
+                              <span>• Monthly Gratuity Accrual (15 days/yr = ~4.81% of Basic+DA):</span>
+                              <strong>+ ₹{(previewCalculations.gratuity_accrual_monthly || 0).toLocaleString('en-IN')}</strong>
+                            </div>
+                          )}
+
+                          {previewCalculations.bonus_accrual_monthly > 0 && (
+                            <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: "0.5rem", marginTop: "0.15rem", color: "#B45309" }}>
+                              <span>• Monthly Statutory Bonus Accrual:</span>
+                              <strong>+ ₹{(previewCalculations.bonus_accrual_monthly || 0).toLocaleString('en-IN')}</strong>
+                            </div>
+                          )}
+                        </div>
+                      )}
 
                       <div style={{ borderTop: "2px dashed var(--border-color)", paddingTop: "1rem", display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "0.5rem" }}>
                         <span style={{ fontWeight: "bold", color: "var(--text-color)", fontSize: "1.1rem" }}>Estimated Cost to Company (CTC):</span>
@@ -888,66 +1566,163 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                         * Final Net Pay and CTC may vary slightly based on monthly attendance and finalized tax declarations.
                       </div>
                     </div>
-                  </>
-                )}
+
                 
                 {!isAdd && (
                   <div id="edit-footer-note" style={{ marginTop: "1.5rem", paddingTop: "1rem", borderTop: "1px solid var(--border-color)", textAlign: "center", fontSize: "0.85rem", color: "var(--text-muted)" }}>
-                    Looking to update bank details, salary, or statutory settings? Go to: <Link href="/bank-change-requests" style={{ color: "var(--primary-navy)", fontWeight: "600", textDecoration: "underline" }}>Bank Change Requests</Link> · <Link href={`/employees/${empId}/salary-revision`} style={{ color: "var(--primary-navy)", fontWeight: "600", textDecoration: "underline" }}>Revise Salary</Link>
+                    Looking to update bank details, salary, or statutory settings? Go to: <Link href={route('employees.bank-change-requests')} style={{ color: "var(--primary-navy)", fontWeight: "600", textDecoration: "underline" }}>Bank Change Requests</Link> · <Link href={route('employees.salary-revision.create', empId)} style={{ color: "var(--primary-navy)", fontWeight: "600", textDecoration: "underline" }}>Revise Salary</Link>
                   </div>
                 )}
 
                 {/* Validation Summary */}
                 {blockingErrors.size > 0 && (
                   <div className="card" style={{ marginTop: "1rem", border: "1px solid var(--status-danger)", backgroundColor: "var(--status-danger-bg)" }}>
-                    <h4 style={{ color: "var(--status-danger)", marginBottom: "0.75rem" }}>⛔ Blocking Errors</h4>
+                    <h4 style={{ color: "var(--status-danger)", marginBottom: "0.75rem", display: "flex", alignItems: "center", gap: "6px" }}>
+                      <AlertOctagon size={18} /> Blocking Errors
+                    </h4>
                     <ul style={{ fontSize: "0.82rem", color: "var(--status-danger)", paddingLeft: "1.1rem", margin: "0", lineHeight: "1.8" }}>
                       {[...blockingErrors].map(err => <li key={err}>{err}</li>)}
                     </ul>
                   </div>
                 )}
 
+                {isAdd && (
+                  <div style={{
+                    marginTop: "1.5rem",
+                    marginBottom: "1rem",
+                    background: "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)",
+                    border: "1px solid #7dd3fc",
+                    borderLeft: "5px solid #0284c7",
+                    borderRadius: "10px",
+                    padding: "1.1rem 1.3rem",
+                    boxShadow: "0 4px 14px rgba(2, 132, 199, 0.09)",
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: "1rem"
+                  }}>
+                    <div style={{
+                      background: "linear-gradient(135deg, #0284c7 0%, #0369a1 100%)",
+                      color: "#ffffff",
+                      borderRadius: "8px",
+                      padding: "0.55rem",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                      boxShadow: "0 2px 8px rgba(2, 132, 199, 0.3)"
+                    }}>
+                      <Info size={22} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{
+                        fontSize: "0.93rem",
+                        fontWeight: "700",
+                        color: "#0369a1",
+                        marginBottom: "0.3rem",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.55rem"
+                      }}>
+                        Onboarding Status Notice
+                        <span style={{
+                          fontSize: "0.7rem",
+                          fontWeight: "700",
+                          backgroundColor: "#ffffff",
+                          color: "#0284c7",
+                          padding: "0.15rem 0.6rem",
+                          borderRadius: "12px",
+                          border: "1px solid #7dd3fc",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.5px"
+                        }}>
+                          Initial State
+                        </span>
+                      </div>
+                      <p style={{
+                        margin: 0,
+                        fontSize: "0.875rem",
+                        color: "#0c4a6e",
+                        lineHeight: "1.55"
+                      }}>
+                        <strong>Note:</strong> New employees automatically start in <span style={{ color: "#0284c7", fontWeight: "700", background: "#ffffff", padding: "0.1rem 0.45rem", borderRadius: "5px", border: "1px solid #7dd3fc" }}>Onboarding</span> status. Upload and get all required documents verified to activate them under their assigned client.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 <div style={{ display: "flex", gap: "1rem", justifyContent: "flex-end", marginTop: "2rem" }}>
-                  <Link href="/employees" className="btn btn-secondary">Cancel</Link>
-                  <button type="submit" className="btn btn-primary" onClick={() => {
+                  <Link href={route('employees.index')} className="btn btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                    <X size={15} /> Cancel
+                  </Link>
+                  <button type="submit" className="btn btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }} disabled={processing} onClick={() => {
                     if (blockingErrors.size > 0) {
                       showToast({ type: 'error', title: 'Cannot Save Employee', message: Array.from(blockingErrors).join(' | ') });
                     }
                   }}>
-                    Save Employee Configuration
+                    <Save size={15} /> {processing ? 'Saving...' : 'Save Employee Configuration'}
                   </button>
                 </div>
               </form>
             </div>
             
             {/* Right Side Notes Panel */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-              <div className="card" style={{ padding: "1.25rem", background: "#f8faff", border: "1px solid #d0dfff" }}>
-                <h4 style={{ margin: "0 0 0.5rem 0", fontSize: "0.95rem", color: "var(--primary-color)", display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                  <span style={{ fontSize: "1.1rem" }}>👤</span> Personal Details
+            <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem", position: "sticky", top: "1.5rem", alignSelf: "start", maxHeight: "calc(100vh - 3rem)", overflowY: "auto", paddingRight: "0.25rem" }}>
+              <div className="card" style={{ padding: "1.25rem", background: "linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)", border: "1px solid #cbd5e1", borderRadius: "10px", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
+                <h4 style={{ margin: "0 0 0.6rem 0", fontSize: "0.95rem", color: "#1e293b", fontWeight: "700", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <span style={{ padding: "0.35rem", borderRadius: "6px", background: "#e2e8f0", color: "#1e293b", display: "inline-flex" }}>
+                    <User size={16} />
+                  </span>
+                  Personal &amp; Employment Profile
                 </h4>
-                <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)", lineHeight: "1.5" }}>Ensure the PAN matches the Full Name perfectly. Phone numbers and Emails are checked for duplicates against our database.</p>
+                <p style={{ margin: 0, fontSize: "0.83rem", color: "#475569", lineHeight: "1.6" }}>
+                  • <strong>PAN Name Matching:</strong> Ensure Full Name matches PAN card exactly for statutory filing.<br/>
+                  • <strong>Uniqueness Checks:</strong> Emails, Phone numbers, PAN, and Bank Accounts are checked for duplicate entries.<br/>
+                  • <strong>Filing Entity:</strong> EOR uses Client code; Agency Contract uses Tecla Media code.
+                </p>
               </div>
               
-              <div className="card" style={{ padding: "1.25rem", background: "#f8faff", border: "1px solid #d0dfff" }}>
-                <h4 style={{ margin: "0 0 0.5rem 0", fontSize: "0.95rem", color: "var(--primary-color)", display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                  <span style={{ fontSize: "1.1rem" }}>🏦</span> Banking Info
+              <div className="card" style={{ padding: "1.25rem", background: "linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)", border: "1px solid #cbd5e1", borderRadius: "10px", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
+                <h4 style={{ margin: "0 0 0.6rem 0", fontSize: "0.95rem", color: "#1e293b", fontWeight: "700", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <span style={{ padding: "0.35rem", borderRadius: "6px", background: "#e2e8f0", color: "#1e293b", display: "inline-flex" }}>
+                    <Landmark size={16} />
+                  </span>
+                  Banking Security Info
                 </h4>
-                <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)", lineHeight: "1.5" }}>The IFSC code automatically fetches the correct Branch and Bank Name directly via the Razorpay API. Double check the account number.</p>
+                <p style={{ margin: 0, fontSize: "0.83rem", color: "#475569", lineHeight: "1.6" }}>
+                  • <strong>Live Razorpay Verification:</strong> Valid IFSC codes auto-fetch Bank Name and Branch.<br/>
+                  • <strong>Data Encryption:</strong> Account numbers are encrypted in DB with SHA-256 hash duplication protection.<br/>
+                  • <strong>Lock Rule:</strong> Bank info can only be set during onboarding; active employees must use Bank Change Requests.
+                </p>
               </div>
               
-              <div className="card" style={{ padding: "1.25rem", background: "#f8faff", border: "1px solid #d0dfff" }}>
-                <h4 style={{ margin: "0 0 0.5rem 0", fontSize: "0.95rem", color: "var(--primary-color)", display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                  <span style={{ fontSize: "1.1rem" }}>💰</span> Salary Structure
+              <div className="card" style={{ padding: "1.25rem", background: "linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)", border: "1px solid #cbd5e1", borderRadius: "10px", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
+                <h4 style={{ margin: "0 0 0.6rem 0", fontSize: "0.95rem", color: "#1e293b", fontWeight: "700", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <span style={{ padding: "0.35rem", borderRadius: "6px", background: "#e2e8f0", color: "#1e293b", display: "inline-flex" }}>
+                    <IndianRupee size={16} />
+                  </span>
+                  Salary &amp; Deductions Cap
                 </h4>
-                <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)", lineHeight: "1.5" }}>By law, Basic Pay should ideally be 50% or more of the CTC. The preview calculates exact Employer Contributions dynamically.</p>
+                <p style={{ margin: 0, fontSize: "0.83rem", color: "#475569", lineHeight: "1.6" }}>
+                  • <strong>Wage Code Rule:</strong> Basic Pay should be 50%+ of CTC.<br/>
+                  • <strong>50% Deduction Cap:</strong> Total deductions (PF + ESI + PT + TDS + Loan EMI) are legally capped at 50% gross salary to protect employee take-home pay.
+                </p>
               </div>
               
-              <div className="card" style={{ padding: "1.25rem", background: "#f8faff", border: "1px solid #d0dfff" }}>
-                <h4 style={{ margin: "0 0 0.5rem 0", fontSize: "0.95rem", color: "var(--primary-color)", display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                  <span style={{ fontSize: "1.1rem" }}>⚖️</span> Statutory Compliance
+              <div className="card" style={{ padding: "1.25rem", background: "linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)", border: "1px solid #cbd5e1", borderRadius: "10px", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
+                <h4 style={{ margin: "0 0 0.6rem 0", fontSize: "0.95rem", color: "#1e293b", fontWeight: "700", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <span style={{ padding: "0.35rem", borderRadius: "6px", background: "#e2e8f0", color: "#1e293b", display: "inline-flex" }}>
+                    <Scale size={16} />
+                  </span>
+                  Statutory Rules &amp; PF Compliance
                 </h4>
-                <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)", lineHeight: "1.5" }}>PF wage ceiling is inherited from the client. ESI is disabled automatically if Gross exceeds ₹21,000. PT override bypasses state slabs.</p>
+                <p style={{ margin: 0, fontSize: "0.83rem", color: "#475569", lineHeight: "1.6" }}>
+                  • <strong>PF &amp; ESI Modes:</strong> Select <em>"Pending / New Registration"</em> for first-time workers (EPFO/ESIC portals auto-issue numbers upon upload).<br/>
+                  • <strong>EPF Wage Basis:</strong> Inherited from Client defaults (Statutory Ceiling ₹15k vs Actual Basic+DA).<br/>
+                  • <strong>Para 26(6) Joint Declaration:</strong> Required whenever Actual Basic+DA contribution is active &amp; candidate earns Basic+DA &gt; ₹15,000.<br/>
+                  • <strong>Statutory Caps:</strong> EPS (8.33% = max ₹1,249.50), EDLI (0.5% = max ₹75), and Admin (0.5% = max ₹75) stay capped at ₹15,000 base regardless of employer EPF wage basis.<br/>
+                  • <strong>ESI Limit:</strong> Auto-disables if Gross exceeds ₹21,000.<br/>
+                  • <strong>TDS Slabs:</strong> FY26-27 New Regime tax-free up to ₹12L net taxable income.
+                </p>
               </div>
             </div>
           </div>
@@ -957,7 +1732,9 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
             <div className="modal-overlay active">
               <div className="modal-box" style={{ width: "440px" }}>
                 <div className="modal-header">
-                  <h3>⚠ Confirm Employment Type Change</h3>
+                  <h3 style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <AlertTriangle size={18} className="shrink-0 text-amber-600" /> Confirm Employment Type Change
+                  </h3>
                   <button className="modal-close" onClick={() => setShowEmpTypeModal(false)}>×</button>
                 </div>
                 <div>

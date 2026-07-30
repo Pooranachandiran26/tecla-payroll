@@ -22,6 +22,7 @@ class BranchSynthesisTest extends TestCase
     public function test_single_location_client_auto_generates_head_office_branch()
     {
         $payload = [
+            'locationsCount' => 1,
             'name' => 'Single Loc Co',
             'code' => 'SL001',
             'type' => 'pvt_ltd',
@@ -111,7 +112,7 @@ class BranchSynthesisTest extends TestCase
             ],
             'branches' => [
                 [
-                    'id' => $synthesizedBranchId,
+                    'id' => (string)$synthesizedBranchId,
                     'name' => 'Head Office',
                     'addr1' => 'Old Address', // It should stay 'Old Address' because it's static
                     'city' => 'Pune',

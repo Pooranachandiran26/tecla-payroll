@@ -1,22 +1,86 @@
-import { Link, usePage } from '@inertiajs/react';
-import { adminNav, clientNav, candidateNav, subNavs, getActiveCategory } from '../Constants/navigation';
+import { Link, usePage, router } from '@inertiajs/react';
+import { adminNav, clientNav, candidateNav, subNavs, getActiveCategory, getPathname } from '../Constants/navigation';
 import { Bell, User, LogOut, Menu } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import ToastContainer from '../Components/ui/Toast';
 import { useRole } from '../Contexts/RoleContext.jsx';
+import useToast from '../Hooks/useToast';
+import NotificationPanel from '../Components/NotificationPanel';
 
-export default function AuthenticatedLayout({ children }) {
-  const { url } = usePage();
+
+export default function AuthenticatedLayout({ children, hideSubNav = false }) {
+  const { url, component } = usePage();
+  const isErrorPage = component === 'Error' || hideSubNav;
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
-  // Use auth from usePage().props
-  const { auth } = usePage().props;
+  // Use auth, branding, flash, and pendingQueryCount from usePage().props
+  const { auth, branding, flash, notificationCount } = usePage().props;
+  const unreadCount = Number(notificationCount || 0);
+
+  const { showToast } = useToast();
   const role = auth?.user?.role || 'guest';
   const userName = auth?.user?.name || 'User';
+
+  const handleFlash = useCallback((flashObj) => {
+    if (flashObj?.success) {
+      showToast({ type: 'success', message: flashObj.success });
+    }
+    if (flashObj?.error) {
+      showToast({ type: 'error', message: flashObj.error });
+    }
+    if (flashObj?.warning) {
+      showToast({ type: 'warning', message: flashObj.warning });
+    }
+    if (flashObj?.info) {
+      showToast({ type: 'info', message: flashObj.info });
+    }
+  }, [showToast]);
+
+  useEffect(() => {
+    handleFlash(flash);
+  }, []);
+
+  useEffect(() => {
+    const preventWheelChange = (e) => {
+      if (document.activeElement && document.activeElement.type === 'number') {
+        document.activeElement.blur();
+      }
+    };
+    window.addEventListener('wheel', preventWheelChange, { passive: true });
+    return () => {
+      window.removeEventListener('wheel', preventWheelChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    const removeListener = router.on('success', (event) => {
+      const latestFlash = event.detail.page?.props?.flash;
+      if (latestFlash) {
+        handleFlash(latestFlash);
+      }
+    });
+
+    return () => {
+      removeListener();
+    };
+  }, [handleFlash]);
   
-  const navLinks = role === 'client' ? clientNav
+  const userPermissions = auth?.user?.module_permissions;
+
+  const rawNavLinks = (role === 'client' ? clientNav
     : role === 'employee' ? candidateNav
-    : adminNav;
+    : adminNav) || [];
+
+  const safeRawLinks = Array.isArray(rawNavLinks) ? rawNavLinks : [];
+
+  const navLinks = safeRawLinks.filter(item => {
+    if (!item) return false;
+    if (role === 'admin') return true;
+    if (role === 'manager' && Array.isArray(userPermissions) && userPermissions.length > 0) {
+      return userPermissions.includes(item.key);
+    }
+    return true;
+  });
 
   const activeCategory = getActiveCategory(url, role);
   
@@ -38,10 +102,16 @@ export default function AuthenticatedLayout({ children }) {
               <Menu size={24} />
             </button>
             <div className="brand-logo">
-              <svg width="24" height="24" viewBox="0 0 24 24">
-                <path d="M12 2L2 22h20L12 2zm0 6l5 10H7l5-10z"/>
-              </svg>
-              Tecla Payroll
+              {branding?.logo_url ? (
+                <img src={branding.logo_url} alt="Agency Logo" style={{ maxHeight: '32px', maxWidth: '140px', objectFit: 'contain' }} />
+              ) : (
+                <>
+                  <svg width="24" height="24" viewBox="0 0 24 24">
+                    <path d="M12 2L2 22h20L12 2zm0 6l5 10H7l5-10z"/>
+                  </svg>
+                  Tecla Payroll
+                </>
+              )}
             </div>
           </div>
 
@@ -50,6 +120,7 @@ export default function AuthenticatedLayout({ children }) {
               <Link
                 key={link.key}
                 href={link.url}
+                prefetch
                 className={activeCategory === link.key ? 'active' : ''}
               >
                 {link.name}
@@ -58,10 +129,11 @@ export default function AuthenticatedLayout({ children }) {
           </nav>
 
           <div className="user-actions">
-            <button className="notif-bell">
-              <Bell size={20} />
-              <span className="notif-badge">3</span>
-            </button>
+            {/* Notification Bell — fully wired via NotificationPanel */}
+            {(role === 'admin' || role === 'manager') && (
+              <NotificationPanel unreadCount={unreadCount} />
+            )}
+
             
             <div className="user-profile-menu" style={{ position: 'relative', cursor: 'pointer' }} onClick={() => setDropdownOpen(!dropdownOpen)}>
               <div className="avatar" title={userName}>
@@ -74,8 +146,8 @@ export default function AuthenticatedLayout({ children }) {
 
               {dropdownOpen && (
                 <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '0.5rem', background: 'white', borderRadius: '4px', boxShadow: '0 2px 10px rgba(0,0,0,0.1)', minWidth: '150px', zIndex: 100 }}>
-                  <Link href="/account/sessions" style={{ display: 'block', padding: '0.5rem 1rem', color: '#333', textDecoration: 'none', borderBottom: '1px solid #eee' }}>My Sessions</Link>
-                  <Link href="/logout" method="post" as="button" style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.5rem 1rem', color: '#dc2626', textDecoration: 'none', background: 'none', border: 'none', cursor: 'pointer' }}>Sign Out</Link>
+                  <Link href={route('account.sessions')} style={{ display: 'block', padding: '0.5rem 1rem', color: '#333', textDecoration: 'none', borderBottom: '1px solid #eee' }}>My Sessions</Link>
+                  <Link href={route('logout')} method="post" as="button" style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.5rem 1rem', color: '#dc2626', textDecoration: 'none', background: 'none', border: 'none', cursor: 'pointer' }}>Sign Out</Link>
                 </div>
               )}
             </div>
@@ -83,22 +155,28 @@ export default function AuthenticatedLayout({ children }) {
         </div>
 
         {/* Secondary Sub-Nav Row */}
-        {subNavItems && (
+        {!isErrorPage && subNavItems && (
           <div className="nav-row-secondary">
             <ul className="sub-nav-tabs">
               {subNavItems.map((item, index) => {
                 let isActive = false;
-                  if (url === item.url) {
+                const itemPath = getPathname(item.url);
+                const currentPath = getPathname(url);
+                
+                if (currentPath === itemPath) {
+                  isActive = true;
+                } else if (itemPath !== '/' && itemPath !== '' && currentPath.startsWith(itemPath + '/')) {
+                  const betterMatch = subNavItems.find(other => {
+                    const otherPath = getPathname(other.url);
+                    return currentPath.startsWith(otherPath) && otherPath.length > itemPath.length;
+                  });
+                  if (!betterMatch) {
                     isActive = true;
-                  } else if (item.url !== '/' && url.startsWith(item.url + '/')) {
-                    const betterMatch = subNavItems.find(other => url.startsWith(other.url) && other.url.length > item.url.length);
-                    if (!betterMatch) {
-                      isActive = true;
-                    }
                   }
+                }
                 return (
                   <li key={index}>
-                    <Link href={item.url} className={isActive ? 'active' : ''}>
+                    <Link href={item.url} prefetch className={isActive ? 'active' : ''}>
                       {item.name}
                     </Link>
                   </li>

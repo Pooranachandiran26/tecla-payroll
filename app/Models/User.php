@@ -7,6 +7,7 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
 
 class User extends Authenticatable
 {
@@ -23,6 +24,7 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'module_permissions',
         'employee_id',
         'client_id',
         'status',
@@ -35,6 +37,7 @@ class User extends Authenticatable
         'last_login_ip',
         'invitation_token',
         'invitation_expires_at',
+        'suspended_reason',
     ];
 
     /**
@@ -63,12 +66,27 @@ class User extends Authenticatable
             'last_login_at' => 'datetime',
             'invitation_expires_at' => 'datetime',
             'must_change_password' => 'boolean',
+            'module_permissions' => 'array',
         ];
+    }
+
+    public function hasModulePermission(string $moduleKey): bool
+    {
+        if ($this->role === 'admin') {
+            return true;
+        }
+
+        if (empty($this->module_permissions)) {
+            return true;
+        }
+
+        return in_array($moduleKey, $this->module_permissions);
     }
 
     // Relationships
     public function employee() { return $this->belongsTo(Employee::class); }
     public function client() { return $this->belongsTo(Client::class); }
+    public function managedClients() { return $this->belongsToMany(Client::class, 'client_user'); }
     public function otpCodes() { return $this->hasMany(OtpCode::class); }
     public function passwordHistories() { return $this->hasMany(PasswordHistory::class); }
     public function auditLogs() { return $this->hasMany(AuditLog::class); }
@@ -76,7 +94,46 @@ class User extends Authenticatable
     // Helpers
     public function isAdmin() { return $this->role === 'admin'; }
     public function isManager() { return $this->role === 'manager'; }
-    public function isLocked() { return $this->status === 'locked' || ($this->locked_until && $this->locked_until->isFuture()); }
+    public function isLocked() { return in_array($this->status, ['locked', 'suspended']) || ($this->locked_until && $this->locked_until->isFuture()); }
+
+    public function getManagedClientIds(): array
+    {
+        if ($this->role === 'admin') {
+            return Client::pluck('id')->toArray();
+        }
+
+        if ($this->role === 'manager') {
+            $amClientIds = Client::where('account_manager_id', $this->id)
+                ->orWhere('backup_account_manager_id', $this->id)
+                ->pluck('id');
+
+            $pivotClientIds = DB::table('client_user')
+                ->where('user_id', $this->id)
+                ->pluck('client_id');
+
+            return $amClientIds->merge($pivotClientIds)->unique()->filter()->values()->toArray();
+        }
+
+        if ($this->role === 'client' && $this->client_id) {
+            return [(int)$this->client_id];
+        }
+
+        return [];
+    }
+
+    public function isManagerForClient($clientId): bool
+    {
+        if ($this->role === 'admin') {
+            return true;
+        }
+
+        if ($this->role === 'manager') {
+            return in_array((int)$clientId, $this->getManagedClientIds());
+        }
+
+        return false;
+    }
+
     public function incrementFailedAttempts() {
         $this->increment('failed_login_attempts');
     }

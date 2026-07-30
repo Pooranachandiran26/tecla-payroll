@@ -1,90 +1,151 @@
-import React from 'react';
+import React, { useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, Link } from '@inertiajs/react';
-
+import { Head, Link, router } from '@inertiajs/react';
 import RoleGuard from '../../Components/RoleGuard.jsx';
-export default function ClientAttendanceApproval() {
-    return (
-        <RoleGuard allowedRoles={['admin', 'manager', 'client']}>
-    <AuthenticatedLayout>
-            <Head title="Client Attendance Approval" />
-            
-      <div style={{ marginBottom: '1.5rem' }}>
-        <a href="/clients-list" style={{ fontSize: '0.85rem', fontWeight: '600' }}>← Back to Clients Directory</a>
-        
-        <div className="flex-row-between" style={{ marginTop: '1rem' }}>
-          <div>
-            <h2 id="approval-header-title">Timesheet Attendance Approvals</h2>
-            <p id="approval-header-desc" style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Verify monthly employee timesheet counts prior to signing off for invoice generation.</p>
+import Pagination from '../../Components/ui/Pagination';
+import { Search, Building2 } from 'lucide-react';
+
+export default function ClientAttendanceApproval({ client = {}, attendanceRecords = {}, filters = {} }) {
+  const [searchTerm, setSearchTerm] = useState(filters.search || '');
+  const safeRecords = attendanceRecords.data || [];
+  const safeClient = client || {};
+
+  const handleSearch = () => {
+    router.get(route('client.attendance'), { search: searchTerm }, { preserveState: true, preserveScroll: true });
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
+  };
+
+  return (
+    <RoleGuard allowedRoles={['admin', 'manager', 'client']}>
+      <AuthenticatedLayout>
+        <Head title={safeClient.company_name ? `${safeClient.company_name} — Attendance Verification` : "Attendance Approvals"} />
+
+        <div style={{ marginBottom: '1.5rem' }}>
+          <div className="flex-row-between" style={{ marginTop: '0.5rem' }}>
+            <div>
+              <h2 style={{ fontSize: '1.4rem', fontWeight: 700, color: '#1E293B', margin: 0 }}>
+                Biometric Timesheet & Attendance Verification
+              </h2>
+              <p style={{ color: '#64748B', fontSize: '0.88rem', marginTop: '3px' }}>
+                Review daily punch logs and verification status for personnel at <strong>{safeClient.company_name || 'your company'}</strong>.
+              </p>
+            </div>
+
+            {safeClient.client_code && (
+              <div style={{ fontSize: '0.85rem', backgroundColor: '#FFFFFF', padding: '0.45rem 0.9rem', borderRadius: '6px', border: '1px solid #CBD5E1', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Building2 size={16} color="#1E40AF" />
+                <span>Code:</span>
+                <span style={{ fontWeight: '700', color: '#1E40AF', fontFamily: 'monospace' }}>{safeClient.client_code}</span>
+              </div>
+            )}
           </div>
         </div>
-      </div>
 
-      
-      <div className="card" style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-        <div>
-          <h3 className="card-title">Billing Cycle: May 2026</h3>
-          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Accumulated from daily biometric punch logs (May 01 - May 25, 2026)</p>
-          <div style={{ fontSize: '0.85rem', fontWeight: '500' }}>
-            Status: <span className="badge badge-warning" id="client-batch-status">Awaiting Your Approval</span>
+        {/* Filters Toolbar */}
+        <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem', flexWrap: 'wrap', backgroundColor: '#FFFFFF', padding: '1rem', borderRadius: '8px', border: '1px solid #E2E8F0', alignItems: 'center' }}>
+          <div style={{ flex: '1', minWidth: '240px', position: 'relative' }}>
+            <label style={{ fontSize: '0.75rem', fontWeight: 600, display: 'block', marginBottom: '0.35rem', color: '#475569' }}>Search Employee</label>
+            <div style={{ position: 'relative' }}>
+              <Search size={15} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#94A3B8' }} />
+              <input
+                type="text"
+                placeholder="Search employee by name or code..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyPress={handleKeyPress}
+                style={{ width: '100%', paddingLeft: '32px', paddingRight: '12px', paddingTop: '6px', paddingBottom: '6px', fontSize: '0.85rem', border: '1px solid #CBD5E1', borderRadius: '6px' }}
+              />
+            </div>
+          </div>
+
+          <div style={{ marginTop: '1.25rem' }}>
+            <button
+              onClick={handleSearch}
+              className="btn btn-navy"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '0.45rem 1rem' }}
+            >
+              <Search size={14} /> Filter Logs
+            </button>
           </div>
         </div>
-        <div id="approval-status-action" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-          <button className="btn btn-danger" >Reject Batch</button>
-          <button className="btn btn-primary" >Approve timesheet batch</button>
-        </div>
-      </div>
 
-      
-      <div className="grid-cols-4" style={{ marginBottom: '1.5rem' }} id="attendance-summary-grid">
-        
-      </div>
+        {/* Attendance Records Table */}
+        <div className="card" style={{ backgroundColor: '#FFFFFF', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+          <div className="table-responsive">
+            <table className="data-table" style={{ width: '100%' }}>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Emp Code</th>
+                  <th>Employee Name</th>
+                  <th>In Time</th>
+                  <th>Out Time</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {safeRecords && safeRecords.length > 0 ? (
+                  safeRecords.map((rec) => (
+                    <tr key={rec.id}>
+                      <td style={{ fontWeight: 600, fontSize: '0.82rem', color: '#1E293B' }}>
+                        {rec.attendance_date}
+                      </td>
+                      <td style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: '0.82rem', color: '#1E40AF' }}>
+                        {rec.employee?.employee_code || '—'}
+                      </td>
+                      <td style={{ fontWeight: 600, color: '#1E293B' }}>
+                        {rec.employee ? (rec.employee.full_name || `${rec.employee.first_name || ''} ${rec.employee.last_name || ''}`.trim() || '—') : '—'}
+                      </td>
+                      <td style={{ fontFamily: 'monospace', fontSize: '0.82rem', color: '#047857' }}>
+                        {rec.clock_in ? rec.clock_in : '—'}
+                      </td>
+                      <td style={{ fontFamily: 'monospace', fontSize: '0.82rem', color: '#DC2626' }}>
+                        {rec.clock_out ? rec.clock_out : '—'}
+                      </td>
+                      <td>
+                        <span className={`badge badge-${rec.status === 'present' ? 'success' : (rec.status === 'absent' ? 'danger' : 'warning')}`}>
+                          {rec.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: 'center', padding: '2.5rem', color: '#64748B', fontSize: '0.88rem' }}>
+                      No attendance log records found for this period.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
 
-      
-      <div id="attendance-alert-container" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1.5rem' }}></div>
-
-      
-      <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem', flexWrap: 'wrap', background: 'white', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', alignItems: 'center' }}>
-        <div style={{ flex: '1', minWidth: '200px' }}>
-          <label style={{ fontSize: '0.75rem', fontWeight: '600', display: 'block', marginBottom: '0.25rem' }}>Search Employee</label>
-          <input type="text" id="att-search" className="form-control" placeholder="Search by name or code..." style={{ padding: '0.4rem 0.75rem', width: '100%' }} oninput="filterAttendance()" />
+          {/* Pagination */}
+          {attendanceRecords && attendanceRecords.total > 0 && (
+            <div style={{ padding: '1rem 1.25rem', borderTop: '1px solid #F1F5F9', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <div style={{ fontSize: '0.82rem', color: '#64748B' }}>
+                Showing <strong>{attendanceRecords.from || 0}</strong> to <strong>{attendanceRecords.to || 0}</strong> of <strong>{attendanceRecords.total}</strong> attendance records
+              </div>
+              <Pagination
+                currentPage={attendanceRecords.current_page}
+                totalPages={attendanceRecords.last_page}
+                totalItems={attendanceRecords.total}
+                itemsPerPage={attendanceRecords.per_page}
+                onPageChange={(page) => {
+                  const params = new URLSearchParams(window.location.search);
+                  params.set('page', page);
+                  window.location.search = params.toString();
+                }}
+              />
+            </div>
+          )}
         </div>
-        <div style={{ width: '200px' }}>
-          <label style={{ fontSize: '0.75rem', fontWeight: '600', display: 'block', marginBottom: '0.25rem' }}>Attendance Status</label>
-          <select id="att-filter-status" className="form-control" style={{ padding: '0.4rem 0.75rem', height: 'auto' }} >
-            <option value="all">All Employees</option>
-            <option value="lop">Has Loss of Pay (LOP)</option>
-            <option value="leave">Has Approved Leaves</option>
-            <option value="full">100% Attendance</option>
-          </select>
-        </div>
-      </div>
-
-      
-      <div className="card">
-        <div className="table-responsive">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Emp Code</th>
-                <th>Employee Name</th>
-                <th>Designation Role</th>
-                <th>Total Working Days</th>
-                <th>Days Logged (Present)</th>
-                <th>Loss of Pay (LOP) Days</th>
-                <th>Approved Leaves</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="attendance-table-body">
-              
-            </tbody>
-          </table>
-        </div>
-      </div>
-    
-        </AuthenticatedLayout>
+      </AuthenticatedLayout>
     </RoleGuard>
-    );
+  );
 }

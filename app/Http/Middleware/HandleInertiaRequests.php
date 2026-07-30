@@ -37,6 +37,10 @@ class HandleInertiaRequests extends Middleware
     {
         $settings = app(\App\Services\SettingsService::class);
         
+        // Build branding props (with safe fallback for empty values)
+        $logoPath = \App\Services\SettingsService::get('branding.logo_path', '');
+        $faviconPath = \App\Services\SettingsService::get('branding.favicon_path', '');
+        
         return [
             ...parent::share($request),
             'auth' => [
@@ -51,7 +55,24 @@ class HandleInertiaRequests extends Middleware
             'authConfig' => [
                 'idle_timeout_minutes' => $settings->getAuthSecurity('idle_timeout_minutes', 15),
                 'session_lifetime' => config('session.lifetime'),
-            ]
+            ],
+            'branding' => [
+                'logo_url' => $logoPath ? \Illuminate\Support\Facades\Storage::disk('public')->url($logoPath) . '?v=' . time() : '',
+                'favicon_url' => $faviconPath ? \Illuminate\Support\Facades\Storage::disk('public')->url($faviconPath) . '?v=' . time() : '',
+                'primary_color' => \App\Services\SettingsService::get('branding.primary_color', '#1e3a8a'),
+                'theme_mode_default' => \App\Services\SettingsService::get('branding.theme_mode_default', 'system'),
+            ],
+            'flash' => [
+                'success' => fn () => $request->session()->get('success'),
+                'error' => fn () => $request->session()->get('error'),
+                'warning' => fn () => $request->session()->get('warning'),
+                'info' => fn () => $request->session()->get('info'),
+            ],
+            // notificationCount: unread in-app notifications for Admin/Manager only (v1 scope boundary).
+            // Employees and Clients intentionally receive 0 — they are excluded from in-app notifications.
+            'notificationCount' => fn () => ($request->user() && in_array($request->user()->role, ['admin', 'manager']))
+                ? \App\Models\AppNotification::where('user_id', $request->user()->id)->whereNull('read_at')->count()
+                : 0,
         ];
     }
 }

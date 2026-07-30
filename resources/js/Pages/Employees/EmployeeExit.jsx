@@ -117,7 +117,7 @@ export default function EmployeeExit({ employee: rawEmployee, initialExitData })
         tds_amount: tdsAmount || 0,
         adhoc_adjustments: adhocs
       };
-      const res = await axios.post(`/employees/${employee.id}/exit/preview-settlement`, payload);
+      const res = await axios.post(route('employees.exit.preview', employee.id), payload);
       setSettlementPreview(res.data);
     } catch (e) {
       console.error(e);
@@ -147,7 +147,14 @@ export default function EmployeeExit({ employee: rawEmployee, initialExitData })
           payload = { last_working_day: lwd, notice_shortfall_days: noticeShortfallDays, notice_amount_type: noticeAmountType };
           break;
         case 3:
-          payload = clearances;
+          payload = {
+            clearance_laptop: clearances.laptop,
+            clearance_idcard: clearances.idcard,
+            clearance_manager: clearances.manager,
+            clearance_itaccess: clearances.itaccess,
+            clearance_handover: clearances.handover,
+            clearance_client: clearances.client,
+          };
           break;
         case 4:
           payload = { interview_reason: interviewReason, would_recommend: recommend, star_rating: starRating };
@@ -162,7 +169,7 @@ export default function EmployeeExit({ employee: rawEmployee, initialExitData })
           break;
       }
       
-      const res = await axios.post(`/employees/${employee.id}/exit/stage/${stageNum}`, payload);
+      const res = await axios.post(route('employees.exit.stage', { id: employee.id, stage: stageNum }), payload);
       
       if (extraData.submitForApproval) {
           setSettlementStatus('pending_approval');
@@ -194,7 +201,7 @@ export default function EmployeeExit({ employee: rawEmployee, initialExitData })
 
   const approveSettlement = async () => {
     try {
-      await axios.post(`/employees/${employee.id}/exit/approve`);
+      await axios.post(route('employees.exit.approve', employee.id));
       setSettlementStatus('approved');
       showToast({ message: 'Settlement Approved', type: 'success' });
       const nextStage = 6;
@@ -207,7 +214,7 @@ export default function EmployeeExit({ employee: rawEmployee, initialExitData })
 
   const executeExit = async () => {
     try {
-      await axios.post(`/employees/${employee.id}/exit/confirm`);
+      await axios.post(route('employees.exit.confirm', employee.id));
       setConfirmExitModalOpen(false);
       showToast({ message: 'Employee Exit Confirmed', type: 'success' });
       setHighestStageReached(7);
@@ -232,7 +239,7 @@ export default function EmployeeExit({ employee: rawEmployee, initialExitData })
 
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <Link href={`/employees/${employee.id}`} className="text-[0.85rem] font-semibold text-[#1F3864] hover:underline">
+          <Link href={route('employees.show', employee.id)} className="text-[0.85rem] font-semibold text-[#1F3864] hover:underline">
             ← Back to {employee.full_name}'s Profile
           </Link>
           <h2 className="text-2xl font-bold text-[#1F3864] mt-2 mb-1">Employee Exit & Full & Final Workflow</h2>
@@ -625,7 +632,7 @@ export default function EmployeeExit({ employee: rawEmployee, initialExitData })
                 {settlementPreview.gratuity_amount > 0 && (
                   <tr>
                     <td><strong>Statutory Gratuity Payout</strong></td>
-                    <td>Eligible (>= 4 Years, 240 Days)</td>
+                    <td>Eligible (&gt;= 4 Years, 240 Days)</td>
                     <td className="text-right amount-pos">+₹{Number(settlementPreview.gratuity_amount).toLocaleString('en-IN')}</td>
                   </tr>
                 )}
@@ -787,7 +794,7 @@ export default function EmployeeExit({ employee: rawEmployee, initialExitData })
         <p className="mb-6">Are you sure you want to cancel? Any unsaved changes in this wizard will be lost, and the employee will remain active.</p>
         <div className="flex justify-end gap-3">
           <Button variant="secondary" onClick={() => setCancelModalOpen(false)}>No, Keep Working</Button>
-          <Link href={`/employees/${employee.id}`} className="btn btn-danger">Yes, Cancel Process</Link>
+          <Link href={route('employees.show', employee.id)} className="btn btn-danger">Yes, Cancel Process</Link>
         </div>
       </Modal>
 

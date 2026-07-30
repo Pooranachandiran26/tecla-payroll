@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import { usePage, router } from '@inertiajs/react';
 import { REQUIRED_DOC_TYPES, DOC_TYPE_LABELS, DOC_TYPE_ICONS } from '../constants/clientFormData';
+import { FolderOpen, ClipboardList, UploadCloud, Download, CheckCircle2, XCircle, Trash2, FileCheck, Square } from 'lucide-react';
 
 export default function DocumentsSection({ formData, hook }) {
   const fileInputRef = useRef(null);
@@ -43,20 +44,23 @@ export default function DocumentsSection({ formData, hook }) {
     const reason = status === 'rejected' ? prompt("Enter rejection reason:") : null;
     if (status === 'rejected' && !reason) return;
     
-    router.put(`/clients/${hook.editId}/documents/${docDbId}/verify`, { status, reason }, { preserveScroll: true });
+    router.put(route('clients.documents.verify', { client: hook.editId, document: docDbId }), { status, reason }, { preserveScroll: true });
   };
 
   return (
     <>
       <div className="section-header">
-        <div className="section-icon">📁</div>
+        <div className="section-icon"><FolderOpen size={18} /></div>
         <h3>Compliance Documents</h3>
         <span className="section-badge">REQUIRED FOR ACTIVATION</span>
       </div>
 
-      <div className="info-box" style={{ marginBottom: '1rem' }}>
-        📋 Upload all required compliance documents. Supported formats: <strong>PDF, JPG, PNG, XLSX</strong>. Max size per file: <strong>10 MB</strong>.
-        Documents are encrypted and stored securely.
+      <div className="info-box" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+        <ClipboardList size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
+        <div>
+          Upload all required compliance documents. Supported formats: <strong>PDF, JPG, PNG, XLSX</strong>. Max size per file: <strong>10 MB</strong>.
+          Documents are encrypted and stored securely.
+        </div>
       </div>
 
       {/* Quick upload buttons */}
@@ -76,7 +80,9 @@ export default function DocumentsSection({ formData, hook }) {
         onDrop={handleDrop}
         onClick={() => handleDocClick('other')}
       >
-        <div className="upload-icon">☁️</div>
+        <div className="upload-icon" style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.5rem' }}>
+          <UploadCloud size={32} color="var(--primary-blue)" />
+        </div>
         <p><strong>Drag &amp; drop files here</strong></p>
         <p>or click to browse from your computer</p>
         <p style={{ marginTop: '0.5rem', fontSize: '0.72rem', color: '#94A3B8' }}>PDF, JPG, PNG, XLSX — Max 10 MB per file</p>
@@ -115,23 +121,27 @@ export default function DocumentsSection({ formData, hook }) {
             
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               {doc.dbId && (
-                <a href={`/clients/${hook.editId}/documents/${doc.dbId}/download`} target="_blank" rel="noreferrer"
-                  style={{ fontSize: '0.8rem', color: 'var(--primary-blue)', textDecoration: 'none', fontWeight: 600 }}>
-                  ⬇️ Download
+                <a href={route('clients.documents.download', { client: hook.editId, document: doc.dbId })} target="_blank" rel="noreferrer"
+                  style={{ fontSize: '0.8rem', color: 'var(--primary-blue)', textDecoration: 'none', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                  <Download size={13} /> Download
                 </a>
               )}
               
               {doc.dbId && canVerify && doc.verification_status === 'pending' && (
                 <>
-                  <button type="button" onClick={() => handleVerify(doc.dbId, 'verified')} style={{ background: 'none', border: 'none', color: '#03543F', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>✅ Verify</button>
-                  <button type="button" onClick={() => handleVerify(doc.dbId, 'rejected')} style={{ background: 'none', border: 'none', color: '#9B1C1C', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>❌ Reject</button>
+                  <button type="button" onClick={() => handleVerify(doc.dbId, 'verified')} style={{ background: 'none', border: 'none', color: '#03543F', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <CheckCircle2 size={13} /> Verify
+                  </button>
+                  <button type="button" onClick={() => handleVerify(doc.dbId, 'rejected')} style={{ background: 'none', border: 'none', color: '#9B1C1C', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <XCircle size={13} /> Reject
+                  </button>
                 </>
               )}
 
               {!doc.dbId && (
                 <button type="button" onClick={() => hook.removeDoc(doc.id)}
-                  style={{ background: 'none', border: 'none', color: 'var(--status-danger)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>
-                  🗑 Remove
+                  style={{ background: 'none', border: 'none', color: 'var(--status-danger)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                  <Trash2 size={13} /> Remove
                 </button>
               )}
             </div>
@@ -146,13 +156,15 @@ export default function DocumentsSection({ formData, hook }) {
 
       {/* Required documents checklist */}
       <div style={{ marginTop: '1.5rem', background: '#F8FAFC', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '0.75rem' }}>
-        <div style={{ fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.75rem', color: 'var(--primary-navy)' }}>📌 Required Documents Checklist</div>
+        <div style={{ fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.75rem', color: 'var(--primary-navy)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <FileCheck size={16} /> Required Documents Checklist
+        </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
           {REQUIRED_DOC_TYPES.filter(t => t !== 'other').map(type => {
             const isUploaded = hook.uploadedDocs.some(d => d.type === type);
             return (
               <div key={type} className={`checklist-item ${isUploaded ? 'done' : ''}`} style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span className="check-icon">{isUploaded ? '✅' : '⬜'}</span>
+                <span className="check-icon">{isUploaded ? <CheckCircle2 size={15} color="#059669" /> : <Square size={15} color="#94A3B8" />}</span>
                 <span style={{ textDecoration: isUploaded ? 'line-through' : 'none', color: isUploaded ? 'var(--text-muted)' : 'inherit' }}>
                   {DOC_TYPE_LABELS[type]}
                   {type === 'tan_doc' && <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginLeft: '0.25rem' }}>(Optional)</span>}
