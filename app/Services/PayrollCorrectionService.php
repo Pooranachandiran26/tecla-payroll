@@ -133,6 +133,8 @@ class PayrollCorrectionService
             'client_id' => $employee->client_id,
             'pf_applicable' => (bool)$employee->pf_applicable,
             'eps_applicable' => (bool)$employee->eps_applicable,
+            'employee_pf_wage_basis' => $employee->employee_pf_wage_basis,
+            'employer_pf_wage_basis' => $employee->employer_pf_wage_basis,
             'date_of_birth' => $employee->date_of_birth,
             'esi_applicable' => $isEsiActive,
             'esi_limit' => $grossTotal > 21000 ? 99999999.00 : 21000.00,
