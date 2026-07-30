@@ -517,6 +517,29 @@ const renderDocumentRows = () => {
                   </div>
 
                   <div style={{"display":"flex","justifyContent":"space-between","alignItems":"center","marginTop":"0.25rem"}}>
+                    <span style={{"fontSize":"0.85rem","fontWeight":"500"}}>Employee PF Basis:</span>
+                    <span className={`badge ${employee.employee_pf_wage_basis === 'actual_basic_da' ? 'badge-gold' : 'badge-neutral'}`}>
+                      {employee.employee_pf_wage_basis === 'actual_basic_da' ? 'Actual Basic + DA (Para 26(6))' : 'Statutory Ceiling (₹15,000 Max)'}
+                    </span>
+                  </div>
+
+                  <div style={{"display":"flex","justifyContent":"space-between","alignItems":"center","marginTop":"0.25rem"}}>
+                    <span style={{"fontSize":"0.85rem","fontWeight":"500"}}>Employer PF Basis:</span>
+                    <span className={`badge ${employee.employer_pf_wage_basis === 'actual_basic_da' ? 'badge-gold' : 'badge-neutral'}`}>
+                      {employee.employer_pf_wage_basis === 'actual_basic_da' ? 'Actual Basic + DA (Para 26(6))' : 'Statutory Ceiling (₹15,000 Max)'}
+                    </span>
+                  </div>
+
+                  {(employee.employee_pf_wage_basis === 'actual_basic_da' || employee.employer_pf_wage_basis === 'actual_basic_da') && (
+                    <div style={{"display":"flex","justifyContent":"space-between","alignItems":"center","marginTop":"0.25rem"}}>
+                      <span style={{"fontSize":"0.85rem","fontWeight":"500"}}>Joint Declaration Status:</span>
+                      <span className={`badge ${employee.joint_declaration_status === 'approved' ? 'badge-success' : employee.joint_declaration_status === 'submitted' ? 'badge-info' : employee.joint_declaration_status === 'pending' ? 'badge-warning' : 'badge-neutral'}`}>
+                        {employee.joint_declaration_status === 'approved' ? 'Approved by RPFC' : employee.joint_declaration_status === 'submitted' ? 'Submitted to EPFO' : employee.joint_declaration_status === 'pending' ? 'Pending Attestation' : 'Not Required'}
+                      </span>
+                    </div>
+                  )}
+
+                  <div style={{"display":"flex","justifyContent":"space-between","alignItems":"center","marginTop":"0.25rem"}}>
                     <span style={{"fontSize":"0.85rem","fontWeight":"500"}}>Pension Scheme (EPS):</span>
                     {(() => {
                       const dob = employee.date_of_birth;
@@ -533,12 +556,12 @@ const renderDocumentRows = () => {
                   </div>
 
                   <div style={{"display":"flex","justifyContent":"space-between","alignItems":"center","marginTop":"0.25rem"}}>
-                    <span style={{"fontSize":"0.85rem","fontWeight":"500"}}>Employer EPF:</span>
+                    <span style={{"fontSize":"0.85rem","fontWeight":"500"}}>Employer EPF (3.67% / Remainder):</span>
                     <strong style={{"fontSize":"0.85rem","color":"var(--primary-navy)"}}>₹{Number(employee.employer_epf_monthly || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
                   </div>
 
                   <div style={{"display":"flex","justifyContent":"space-between","alignItems":"center","marginTop":"0.25rem"}}>
-                    <span style={{"fontSize":"0.85rem","fontWeight":"500"}}>Employer EPS:</span>
+                    <span style={{"fontSize":"0.85rem","fontWeight":"500"}}>Employer EPS Pension:</span>
                     {(() => {
                       const dob = employee.date_of_birth;
                       const age = dob ? Math.floor((new Date() - new Date(dob)) / (365.25 * 24 * 60 * 60 * 1000)) : 0;
@@ -550,6 +573,16 @@ const renderDocumentRows = () => {
                       }
                       return <strong style={{"fontSize":"0.85rem","color":"var(--primary-navy)"}}>₹{Number(employee.employer_eps_monthly || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>;
                     })()}
+                  </div>
+
+                  <div style={{"display":"flex","justifyContent":"space-between","alignItems":"center","marginTop":"0.25rem"}}>
+                    <span style={{"fontSize":"0.85rem","fontWeight":"500"}}>EDLI (0.5% Insurance):</span>
+                    <strong>{employee.edli_monthly > 0 ? `₹${Number(employee.edli_monthly).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '₹0.00 (Exempted)'}</strong>
+                  </div>
+
+                  <div style={{"display":"flex","justifyContent":"space-between","alignItems":"center","marginTop":"0.25rem"}}>
+                    <span style={{"fontSize":"0.85rem","fontWeight":"500"}}>EPF Admin Charges (0.5%):</span>
+                    <strong>₹{Number(employee.epf_admin_monthly || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
                   </div>
 
                   <hr style={{"border":"0","borderTop":"1px solid var(--border-color)"}} />

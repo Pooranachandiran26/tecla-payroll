@@ -11,15 +11,17 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('invoice_additional_fees', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('invoice_id')->constrained('invoices')->onDelete('cascade');
-            $table->string('fee_type')->default('sourcing_fee'); // sourcing_fee, absorption_fee, other
-            $table->string('fee_name');
-            $table->decimal('amount', 14, 2);
-            $table->text('remarks')->nullable();
-            $table->timestamps();
-        });
+        if (!Schema::hasTable('invoice_additional_fees')) {
+            Schema::create('invoice_additional_fees', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('invoice_id')->constrained('invoices')->onDelete('cascade');
+                $table->string('fee_type')->default('sourcing_fee'); // sourcing_fee, absorption_fee, other
+                $table->string('fee_name');
+                $table->decimal('amount', 14, 2);
+                $table->text('remarks')->nullable();
+                $table->timestamps();
+            });
+        }
 
         Schema::table('invoices', function (Blueprint $table) {
             if (!Schema::hasColumn('invoices', 'cgst_amount')) {

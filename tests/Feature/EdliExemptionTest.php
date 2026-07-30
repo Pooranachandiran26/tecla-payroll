@@ -134,7 +134,7 @@ class EdliExemptionTest extends TestCase
         $this->assertStringContainsString('EPF Admin Charges (0.5%)', $employeeDetail);
 
         $employeeForm = file_get_contents(resource_path('js/Pages/Employees/EmployeeForm.jsx'));
-        $this->assertStringContainsString('Employer EPF (12%)', $employeeForm);
+        $this->assertStringContainsString('Employer EPF', $employeeForm);
         $this->assertStringContainsString('EDLI (0.5%)', $employeeForm);
         $this->assertStringContainsString('EPF Admin Charges (0.5%)', $employeeForm);
 

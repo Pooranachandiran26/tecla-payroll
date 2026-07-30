@@ -66,14 +66,23 @@ class SalaryCalculationService
             if ($pfCeiling <= 0) {
                 $pfCeiling = self::PF_WAGE_CEILING;
             }
-            $pfBase = min($basic, $pfCeiling);
-            $employeePf = $pfBase * 0.12;
+
+            $basicDa = $basic + $da;
+
+            $empWageBasis = data_get($employeeData, 'employee_pf_wage_basis', $client->employee_pf_wage_basis ?? 'ceiling');
+            $emprWageBasis = data_get($employeeData, 'employer_pf_wage_basis', $client->employer_pf_wage_basis ?? 'ceiling');
+
+            $employeePfWage = ($empWageBasis === 'actual_basic_da') ? $basicDa : min($basicDa, $pfCeiling);
+            $employerPfWage = ($emprWageBasis === 'actual_basic_da') ? $basicDa : min($basicDa, $pfCeiling);
+
+            $employeePf = $employeePfWage * 0.12;
+            $employerEpfTotal = $employerPfWage * 0.12;
 
             $isEdliExempt = $client ? (bool)$client->edli_exempted : (bool)data_get($employeeData, 'edli_exempted', false);
 
-            $employerEpfTotal = $pfBase * 0.12;
-            $edli = $isEdliExempt ? 0.00 : ($pfBase * 0.005);
-            $epfAdmin = $pfBase * 0.005;
+            $cappedPfWage = min($basicDa, self::PF_WAGE_CEILING);
+            $edli = $isEdliExempt ? 0.00 : ($cappedPfWage * 0.005);
+            $epfAdmin = $cappedPfWage * 0.005;
             $employerPf = $employerEpfTotal + $edli + $epfAdmin;
 
             // Evaluate EPS Eligibility & Age 58 Cutoff
@@ -86,12 +95,12 @@ class SalaryCalculationService
             $isEpsEligible = $epsApplicable && !$isOver58;
 
             if ($isEpsEligible) {
-                $epsBase = min($basic, self::EPS_WAGE_CEILING);
+                $epsBase = min($basicDa, self::EPS_WAGE_CEILING);
                 $employerEps = round($epsBase * (8.33 / 100), 2); // 1249.50 for 15k base
-                $employerEpf = round($employerEpfTotal - $employerEps, 2); // 550.50 for 15k base
+                $employerEpf = round($employerEpfTotal - $employerEps, 2);
             } else {
                 $employerEps = 0.00;
-                $employerEpf = round($employerEpfTotal, 2); // 1800.00 for 15k base
+                $employerEpf = round($employerEpfTotal, 2);
             }
         }
 
