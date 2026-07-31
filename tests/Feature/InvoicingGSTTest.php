@@ -451,8 +451,9 @@ class InvoicingGSTTest extends TestCase
         $invoice = Invoice::where('payroll_run_id', $run->id)->first();
         $this->assertNotNull($invoice);
 
-        // gross_salary_passthrough should ONLY include empMH
-        $this->assertEquals(round($calcMH['gross_total'], 2), (float) $invoice->gross_salary_passthrough);
+        // gross_salary_passthrough should ONLY include empMH's full CTC
+        $expectedPassthrough = round($calcMH['gross_total'] + ($calcMH['employer_statutory_cost'] ?? 0), 2);
+        $this->assertEquals($expectedPassthrough, (float) $invoice->gross_salary_passthrough);
 
         // Invoice line items should NOT include the excluded employee
         $lineItems = InvoiceLineItem::where('invoice_id', $invoice->id)->get();

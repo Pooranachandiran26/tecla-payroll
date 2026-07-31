@@ -106,13 +106,11 @@ class PayrollCorrectionService
             foreach ($components as $key => $column) {
                 $currentVal = (float)($employee->$column ?? 0);
 
-                if ($correctedLopDays == 0) {
-                    $proRatedComponents[$key] = $isMidMonthHire
-                        ? round($currentVal * min(1.0, $correctedPaidDays / $calendarDays), 2)
-                        : round($currentVal, 2);
+                if ($isMidMonthHire) {
+                    $proRatedComponents[$key] = round($currentVal * min(1.0, $correctedPaidDays / $calendarDays), 2);
                 } else {
-                    if ($isMidMonthHire) {
-                        $proRatedComponents[$key] = round($currentVal * ($correctedPaidDays / $lopBasisDays), 2);
+                    if ($correctedLopDays == 0) {
+                        $proRatedComponents[$key] = round($currentVal, 2);
                     } else {
                         $componentLopDeduction = round($currentVal * ($correctedLopDays / $lopBasisDays), 2);
                         $proRatedComponents[$key] = max(0.00, round($currentVal - $componentLopDeduction, 2));

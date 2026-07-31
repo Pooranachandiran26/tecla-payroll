@@ -140,13 +140,15 @@ class MonthlyPayrollCalculator
             foreach ($components as $key => $column) {
                 $currentVal = (float)($employee->$column ?? 0);
 
-                if ($lopDays == 0) {
-                    $proRatedComponents[$key] = $isMidMonthHire
-                        ? round($currentVal * ($paidDays / $calendarDays), 2)
-                        : round($currentVal, 2);
+                if ($isMidMonthHire) {
+                    $proRatedComponents[$key] = round($currentVal * ($paidDays / $calendarDays), 2);
                 } else {
-                    $componentLopDeduction = round($currentVal * ($lopDays / $lopBasisDays), 2);
-                    $proRatedComponents[$key] = max(0.00, round($currentVal - $componentLopDeduction, 2));
+                    if ($lopDays == 0) {
+                        $proRatedComponents[$key] = round($currentVal, 2);
+                    } else {
+                        $componentLopDeduction = round($currentVal * ($lopDays / $lopBasisDays), 2);
+                        $proRatedComponents[$key] = max(0.00, round($currentVal - $componentLopDeduction, 2));
+                    }
                 }
             }
             $salaryRevisionApplied = false;
