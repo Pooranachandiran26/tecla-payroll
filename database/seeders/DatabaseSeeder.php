@@ -24,6 +24,7 @@ class DatabaseSeeder extends Seeder
 
         $this->call([
             PtSlabSeeder::class,
+            TenClientsSeeder::class,
             ClientSeeder::class,
             EmployeeSeeder::class,
             AuthSecuritySettingsSeeder::class,
