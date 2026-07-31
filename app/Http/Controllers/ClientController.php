@@ -680,6 +680,12 @@ class ClientController extends Controller
 
         return response()->json([
             'contractType' => $client->contract_type,
+            'branches' => $client->branches->map(fn($b) => [
+                'id' => $b->id,
+                'name' => $b->branch_name,
+                'state' => $b->state,
+                'is_head_office' => (bool)$b->is_head_office
+            ]),
             'pfApplicable' => (bool)$client->pf_applicable,
             'pfCeiling' => $client->pf_ceiling,
             'esiApplicable' => (bool)$client->esi_applicable,
