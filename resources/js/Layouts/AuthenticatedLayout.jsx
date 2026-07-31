@@ -6,14 +6,12 @@ import ToastContainer from '../Components/ui/Toast';
 import { useRole } from '../Contexts/RoleContext.jsx';
 import useToast from '../Hooks/useToast';
 import NotificationPanel from '../Components/NotificationPanel';
-import ChangePasswordModal from '../Components/ChangePasswordModal';
 
 
 export default function AuthenticatedLayout({ children, hideSubNav = false }) {
   const { url, component } = usePage();
   const isErrorPage = component === 'Error' || hideSubNav;
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
   
   // Use auth, branding, flash, and pendingQueryCount from usePage().props
   const { auth, branding, flash, notificationCount } = usePage().props;
@@ -95,7 +93,7 @@ export default function AuthenticatedLayout({ children, hideSubNav = false }) {
     <div className="app-container">
       <header className="app-header">
         {/* Primary Nav Row */}
-        <div className={`nav-row-primary ${branding?.navbar_style === 'glassmorphism' ? 'glassmorphism' : ''}`}>
+        <div className="nav-row-primary">
           <div className="brand-section">
             <button 
               className="hamburger-btn"
@@ -111,7 +109,7 @@ export default function AuthenticatedLayout({ children, hideSubNav = false }) {
                   <svg width="24" height="24" viewBox="0 0 24 24">
                     <path d="M12 2L2 22h20L12 2zm0 6l5 10H7l5-10z"/>
                   </svg>
-                  <span>{branding?.agency_display_name || 'Tecla Payroll'}</span>
+                  Tecla Payroll
                 </>
               )}
             </div>
@@ -147,31 +145,14 @@ export default function AuthenticatedLayout({ children, hideSubNav = false }) {
               </div>
 
               {dropdownOpen && (
-                <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '0.5rem', background: 'white', borderRadius: '4px', boxShadow: '0 2px 10px rgba(0,0,0,0.1)', minWidth: '160px', zIndex: 100 }}>
-                  <Link href={route('account.profile')} style={{ display: 'block', padding: '0.5rem 1rem', color: '#333', textDecoration: 'none', borderBottom: '1px solid #eee', fontSize: '0.85rem', fontWeight: 600 }}>My Profile</Link>
-                  <Link href={route('account.sessions')} style={{ display: 'block', padding: '0.5rem 1rem', color: '#333', textDecoration: 'none', borderBottom: '1px solid #eee', fontSize: '0.85rem' }}>My Sessions</Link>
-                  <button 
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDropdownOpen(false);
-                      setShowPasswordModal(true);
-                    }} 
-                    style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.5rem 1rem', color: '#333', textDecoration: 'none', background: 'none', border: 'none', borderBottom: '1px solid #eee', cursor: 'pointer', fontSize: '0.85rem' }}
-                  >
-                    Change Password
-                  </button>
-                  <Link href={route('logout')} method="post" as="button" style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.5rem 1rem', color: '#dc2626', textDecoration: 'none', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.85rem' }}>Sign Out</Link>
+                <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '0.5rem', background: 'white', borderRadius: '4px', boxShadow: '0 2px 10px rgba(0,0,0,0.1)', minWidth: '150px', zIndex: 100 }}>
+                  <Link href={route('account.sessions')} style={{ display: 'block', padding: '0.5rem 1rem', color: '#333', textDecoration: 'none', borderBottom: '1px solid #eee' }}>My Sessions</Link>
+                  <Link href={route('logout')} method="post" as="button" style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.5rem 1rem', color: '#dc2626', textDecoration: 'none', background: 'none', border: 'none', cursor: 'pointer' }}>Sign Out</Link>
                 </div>
               )}
             </div>
           </div>
         </div>
-
-        <ChangePasswordModal 
-          isOpen={showPasswordModal} 
-          onClose={() => setShowPasswordModal(false)} 
-        />
 
         {/* Secondary Sub-Nav Row */}
         {!isErrorPage && subNavItems && (
@@ -209,14 +190,6 @@ export default function AuthenticatedLayout({ children, hideSubNav = false }) {
       <main className="main-content">
         {children}
       </main>
-
-      {branding?.enable_footer_notice !== false && (
-        <footer className="app-footer">
-          <div className="footer-container">
-            <p>{branding?.footer_copyright_text || '© 2026 Tecla Payroll. All Rights Reserved.'}</p>
-          </div>
-        </footer>
-      )}
 
       <ToastContainer />
     </div>

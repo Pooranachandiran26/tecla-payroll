@@ -45,6 +45,7 @@ class UpdateEmployeeRequest extends FormRequest
         // Ensure default fallback values for boolean toggles if missing
         $this->merge([
             'client_id' => $this->clientPartner,
+            'branch_id' => $this->branchId ?: $this->branch_id,
             'first_name' => $firstName,
             'last_name' => $lastName,
             'father_name' => $fatherName,
@@ -117,6 +118,7 @@ class UpdateEmployeeRequest extends FormRequest
 
         return [
             'client_id' => 'required|exists:clients,id',
+            'branch_id' => 'nullable|exists:client_branches,id',
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
             'father_name' => 'required|string|max:255',
