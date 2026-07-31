@@ -78,7 +78,7 @@ class InvoiceController extends Controller
         try {
             $this->validatePoRequirements($invoice);
         } catch (\InvalidArgumentException $e) {
-            if ($request->wantsJson()) {
+            if ($request->expectsJson() && !$request->header('X-Inertia')) {
                 return response()->json(['error' => $e->getMessage()], 422);
             }
             return redirect()->back()->withErrors(['error' => $e->getMessage()]);
@@ -86,14 +86,14 @@ class InvoiceController extends Controller
 
         $invoice->update(['status' => 'finalized']);
 
-        if ($request->wantsJson()) {
+        if ($request->expectsJson() && !$request->header('X-Inertia')) {
             return response()->json([
                 'message' => 'Invoice finalized successfully.',
                 'invoice' => $invoice->fresh(['client', 'branch']),
             ]);
         }
 
-        return redirect()->back()->with('success', 'Invoice finalized successfully.');
+        return redirect()->back()->with('success', "Invoice {$invoice->invoice_number} finalized successfully.");
     }
 
     /**
@@ -107,7 +107,7 @@ class InvoiceController extends Controller
         // 1. DRAFT-STATUS GUARD FIRST
         if ($invoice->status === 'draft') {
             $msg = 'Cannot send invoice in draft status. Invoice must be finalized or raised first.';
-            if ($request->wantsJson()) {
+            if ($request->expectsJson() && !$request->header('X-Inertia')) {
                 return response()->json(['error' => $msg], 422);
             }
             return redirect()->back()->withErrors(['error' => $msg]);
@@ -117,7 +117,7 @@ class InvoiceController extends Controller
         try {
             $this->validatePoRequirements($invoice);
         } catch (\InvalidArgumentException $e) {
-            if ($request->wantsJson()) {
+            if ($request->expectsJson() && !$request->header('X-Inertia')) {
                 return response()->json(['error' => $e->getMessage()], 422);
             }
             return redirect()->back()->withErrors(['error' => $e->getMessage()]);
@@ -132,7 +132,7 @@ class InvoiceController extends Controller
 
         if (empty($primaryEmail)) {
             $msg = "Cannot send invoice: Client '{$client->company_name}' has no primary contact email configured. Please add a primary contact with a valid email address first.";
-            if ($request->wantsJson()) {
+            if ($request->expectsJson() && !$request->header('X-Inertia')) {
                 return response()->json(['error' => $msg], 422);
             }
             return redirect()->back()->withErrors(['error' => $msg]);
@@ -185,7 +185,7 @@ class InvoiceController extends Controller
         );
 
         // 8. RETURN RESPONSE
-        if ($request->wantsJson()) {
+        if ($request->expectsJson() && !$request->header('X-Inertia')) {
             return response()->json([
                 'message' => "Invoice {$invoice->invoice_number} sent successfully to {$primaryEmail}.",
                 'invoice' => $invoice->fresh(['client', 'branch', 'sentBy']),
@@ -275,7 +275,7 @@ class InvoiceController extends Controller
             return response()->json([
                 'success' => 'Additional fee added successfully.',
                 'fee' => $fee,
-                'invoice' => $invoice->fresh(['additionalFees']),
+                'invoice' => $invoice->fresh(['client', 'branch', 'additionalFees']),
             ]);
         }
 
@@ -306,7 +306,7 @@ class InvoiceController extends Controller
         if ($request->wantsJson()) {
             return response()->json([
                 'success' => 'Additional fee deleted successfully.',
-                'invoice' => $invoice->fresh(['additionalFees']),
+                'invoice' => $invoice->fresh(['client', 'branch', 'additionalFees']),
             ]);
         }
 
