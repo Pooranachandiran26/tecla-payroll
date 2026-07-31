@@ -170,8 +170,6 @@ class MonthlyPayrollCalculator
             'employee_pf_wage_basis' => $employee->employee_pf_wage_basis,
             'employer_pf_wage_basis' => $employee->employer_pf_wage_basis,
             'esi_applicable' => $isEsiActive,
-            // If ESI is active but gross > 21000, bypass the limit check by setting a huge limit
-            'esi_limit' => $grossTotal > 21000 ? 99999999.00 : 21000.00,
             'pt_applicable' => false, // We handle PT calculation separately below
             'pt_deduction_override' => 0.00,
         ]);
@@ -452,8 +450,8 @@ class MonthlyPayrollCalculator
             if ($firstRunItem) {
                 $wasEsiActiveAtStart = $firstRunItem->employee_esi > 0;
             } else {
-                // If there's no history in this period, we assume they entered period active.
-                $wasEsiActiveAtStart = true;
+                // If there's no history in this period, ESI is active at start ONLY if initial gross <= 21000
+                $wasEsiActiveAtStart = ($grossTotal <= 21000);
             }
         }
 
