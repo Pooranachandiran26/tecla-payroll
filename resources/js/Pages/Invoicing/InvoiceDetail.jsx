@@ -272,22 +272,22 @@ export default function InvoiceDetail({ invoice: initialInvoice, lineItems: pagi
                                     {lineItemsList.length > 0 ? (
                                         lineItemsList.map((item) => {
                                             const emp = item.employee || {};
-                                            const gross = parseFloat(item.gross_pay || 0);
-                                            const stat = (
+                                            const gross = item.actual_gross !== undefined ? parseFloat(item.actual_gross) : parseFloat(item.gross_pay || 0);
+                                            const stat = item.employer_statutory_total !== undefined ? parseFloat(item.employer_statutory_total) : (
                                                 parseFloat(item.employer_pf || 0) +
                                                 parseFloat(item.employer_esi || 0) +
                                                 parseFloat(item.employer_lwf || 0)
                                             );
-                                            const totalCtc = gross + stat;
+                                            const totalCtc = item.line_ctc !== undefined ? parseFloat(item.line_ctc) : (gross + stat);
                                             return (
                                                 <tr key={item.id}>
                                                     <td className="font-mono text-xs">{emp.employee_code || '—'}</td>
                                                     <td style={{ fontWeight: 600, color: 'var(--primary-navy)' }}>
                                                         {emp.full_name || 'Employee'}
                                                     </td>
-                                                    <td>{formatRupee(gross)}</td>
-                                                    <td>{formatRupee(stat)}</td>
-                                                    <td style={{ fontWeight: 700, color: '#1e293b' }}>
+                                                    <td style={{ fontWeight: 500, color: '#334155' }}>{formatRupee(gross)}</td>
+                                                    <td style={{ fontWeight: 600, color: '#059669' }}>{formatRupee(stat)}</td>
+                                                    <td style={{ fontWeight: 700, color: 'var(--primary-navy)' }}>
                                                         {formatRupee(totalCtc)}
                                                     </td>
                                                 </tr>

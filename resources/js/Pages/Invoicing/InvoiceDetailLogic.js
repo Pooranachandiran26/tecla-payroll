@@ -37,17 +37,17 @@ export const calculateLineItemsSummary = (lineItems = []) => {
     let totalLineCtc = 0;
 
     lineItems.forEach(item => {
-        totalGross += parseFloat(item.gross_pay || 0);
-        totalEmployerStatutory += (
+        const gross = item.actual_gross !== undefined ? parseFloat(item.actual_gross) : parseFloat(item.gross_pay || 0);
+        const stat = item.employer_statutory_total !== undefined ? parseFloat(item.employer_statutory_total) : (
             parseFloat(item.employer_pf || 0) +
             parseFloat(item.employer_esi || 0) +
             parseFloat(item.employer_lwf || 0)
         );
-        totalLineCtc += parseFloat(item.gross_pay || 0) + (
-            parseFloat(item.employer_pf || 0) +
-            parseFloat(item.employer_esi || 0) +
-            parseFloat(item.employer_lwf || 0)
-        );
+        const lineCtc = item.line_ctc !== undefined ? parseFloat(item.line_ctc) : (gross + stat);
+
+        totalGross += gross;
+        totalEmployerStatutory += stat;
+        totalLineCtc += lineCtc;
     });
 
     return {
