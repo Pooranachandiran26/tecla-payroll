@@ -208,7 +208,11 @@ Route::middleware(['auth', 'active'])->group(function () {
 
             // Reports Module (Gated by module:reports)
             Route::middleware('module:reports')->group(function () {
-                Route::get('/reports', fn() => Inertia::render('Reports/ReportsAnalytics'))->name('reports.index');
+                Route::get('/reports', fn() => redirect('/admin/reports/payroll_register'))->name('reports.index');
+                Route::get('/admin/reports', [\App\Http\Controllers\Admin\AdminReportController::class, 'index'])->name('admin.reports.index');
+                Route::get('/admin/reports/{reportKey}', [\App\Http\Controllers\Admin\AdminReportController::class, 'show'])->name('admin.reports.show');
+                Route::get('/admin/reports/{reportKey}/export', [\App\Http\Controllers\Admin\AdminReportController::class, 'export'])->name('admin.reports.export');
+                Route::get('/admin/reports/{reportKey}/pdf', [\App\Http\Controllers\Admin\AdminReportController::class, 'pdf'])->name('admin.reports.pdf');
             });
 
             Route::get('/admin/employee-queries', [\App\Http\Controllers\EmployeeQueryController::class, 'adminIndex'])->name('admin.employee-queries.index');

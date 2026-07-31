@@ -145,9 +145,10 @@ export default function AuthenticatedLayout({ children, hideSubNav = false }) {
               </div>
 
               {dropdownOpen && (
-                <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '0.5rem', background: 'white', borderRadius: '4px', boxShadow: '0 2px 10px rgba(0,0,0,0.1)', minWidth: '150px', zIndex: 100 }}>
-                  <Link href={route('account.sessions')} style={{ display: 'block', padding: '0.5rem 1rem', color: '#333', textDecoration: 'none', borderBottom: '1px solid #eee' }}>My Sessions</Link>
-                  <Link href={route('logout')} method="post" as="button" style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.5rem 1rem', color: '#dc2626', textDecoration: 'none', background: 'none', border: 'none', cursor: 'pointer' }}>Sign Out</Link>
+                <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '0.5rem', background: 'white', borderRadius: '6px', boxShadow: '0 4px 15px rgba(0,0,0,0.12)', minWidth: '180px', zIndex: 100, overflow: 'hidden' }}>
+                  <Link href="/account/profile" style={{ display: 'block', padding: '0.625rem 1rem', color: '#1e293b', textDecoration: 'none', borderBottom: '1px solid #f1f5f9', fontWeight: 500, fontSize: '0.85rem' }}>My Profile & Security</Link>
+                  <Link href={route('account.sessions')} style={{ display: 'block', padding: '0.625rem 1rem', color: '#1e293b', textDecoration: 'none', borderBottom: '1px solid #f1f5f9', fontWeight: 500, fontSize: '0.85rem' }}>Active Sessions</Link>
+                  <Link href={route('logout')} method="post" as="button" style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.625rem 1rem', color: '#dc2626', textDecoration: 'none', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' }}>Sign Out</Link>
                 </div>
               )}
             </div>

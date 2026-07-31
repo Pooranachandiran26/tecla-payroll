@@ -69,6 +69,16 @@ class PayrollRun extends Model
         return $this->belongsTo(Client::class);
     }
 
+    public function processedBy()
+    {
+        return $this->belongsTo(User::class, 'processed_by');
+    }
+
+    public function approvedBy()
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
     public function items()
     {
         return $this->hasMany(PayrollRunItem::class);

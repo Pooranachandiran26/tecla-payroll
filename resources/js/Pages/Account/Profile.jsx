@@ -1,218 +1,364 @@
 import React, { useState } from 'react';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, useForm } from '@inertiajs/react';
-import { User, Mail, Phone, ShieldCheck, Key, Laptop, Calendar, CheckCircle, Save } from 'lucide-react';
-import ChangePasswordModal from '@/Components/ChangePasswordModal';
+import AuthenticatedLayout from '../../Layouts/AuthenticatedLayout';
+import { User, Lock, ShieldCheck, Mail, Key, CheckCircle, AlertCircle } from 'lucide-react';
 
-export default function AccountProfile({ profileUser }) {
-    const [showPasswordModal, setShowPasswordModal] = useState(false);
+export default function Profile({ profileUser }) {
+  // Profile Information Form
+  const {
+    data: profileData,
+    setData: setProfileData,
+    put: putProfile,
+    processing: profileProcessing,
+    errors: profileErrors,
+    reset: resetProfile,
+  } = useForm({
+    name: profileUser?.name || '',
+    email: profileUser?.email || '',
+  });
 
-    const { data, setData, put, processing, errors } = useForm({
-        name: profileUser.name || '',
-        email: profileUser.email || '',
-        phone: profileUser.phone || '',
+  // Change Password Form
+  const {
+    data: passwordData,
+    setData: setPasswordData,
+    post: postPassword,
+    processing: passwordProcessing,
+    errors: passwordErrors,
+    reset: resetPassword,
+  } = useForm({
+    current_password: '',
+    password: '',
+    password_confirmation: '',
+  });
+
+  const handleProfileSubmit = (e) => {
+    e.preventDefault();
+    putProfile(route('account.profile.update'), {
+      preserveScroll: true,
     });
+  };
 
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        put(route('account.profile.update'));
-    };
+  const handlePasswordSubmit = (e) => {
+    e.preventDefault();
+    postPassword(route('account.password.update'), {
+      preserveScroll: true,
+      onSuccess: () => resetPassword(),
+    });
+  };
 
-    return (
-        <AuthenticatedLayout>
-            <Head title="My Profile" />
+  // Simple password strength calculator
+  const getPasswordStrength = (pwd) => {
+    if (!pwd) return { score: 0, label: '', color: '#cbd5e1' };
+    let score = 0;
+    if (pwd.length >= 8) score += 1;
+    if (/[A-Z]/.test(pwd)) score += 1;
+    if (/[0-9]/.test(pwd)) score += 1;
+    if (/[^A-Za-z0-9]/.test(pwd)) score += 1;
 
-            <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '1.5rem 1rem' }}>
-                {/* Header Banner */}
-                <div style={{
-                    background: 'linear-gradient(135deg, var(--primary-navy, #1F3864) 0%, #2a4b87 100%)',
-                    borderRadius: '12px',
-                    padding: '2rem',
-                    color: '#FFFFFF',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    flexWrap: 'wrap',
-                    gap: '1.5rem',
-                    boxShadow: '0 10px 25px -5px rgba(31, 56, 100, 0.25)',
-                    marginBottom: '2rem',
-                }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
-                        <div style={{
-                            width: '72px',
-                            height: '72px',
-                            borderRadius: '50%',
-                            backgroundColor: 'var(--accent-gold, #B8860B)',
-                            color: '#FFFFFF',
-                            fontSize: '2rem',
-                            fontWeight: 800,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-                            border: '3px solid rgba(255,255,255,0.3)',
-                        }}>
-                            {profileUser.name.charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <h1 style={{ margin: 0, fontSize: '1.6rem', fontWeight: 800, color: '#FFFFFF' }}>{profileUser.name}</h1>
-                                <span style={{
-                                    fontSize: '0.72rem',
-                                    fontWeight: 700,
-                                    textTransform: 'uppercase',
-                                    padding: '3px 10px',
-                                    borderRadius: '12px',
-                                    backgroundColor: 'rgba(255,255,255,0.2)',
-                                    color: '#FFFFFF',
-                                    letterSpacing: '0.5px',
-                                }}>
-                                    {profileUser.role}
-                                </span>
-                            </div>
-                            <p style={{ margin: '4px 0 0', color: 'rgba(255,255,255,0.9)', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <Mail size={14} /> {profileUser.email}
-                            </p>
-                        </div>
+    if (score <= 1) return { score: 25, label: 'Weak', color: '#ef4444' };
+    if (score === 2) return { score: 50, label: 'Fair', color: '#f59e0b' };
+    if (score === 3) return { score: 75, label: 'Good', color: '#3b82f6' };
+    return { score: 100, label: 'Strong', color: '#22c55e' };
+  };
+
+  const strength = getPasswordStrength(passwordData.password);
+
+  return (
+    <AuthenticatedLayout>
+      <Head title="My Profile & Security" />
+
+      <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '1.5rem' }}>
+        {/* Page Title */}
+        <div style={{ marginBottom: '2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <User size={28} color="#2563eb" />
+              My Profile & Security
+            </h1>
+            <p style={{ color: '#64748b', fontSize: '0.9rem', marginTop: '0.25rem' }}>
+              Manage your account credentials, contact information, and security preferences.
+            </p>
+          </div>
+          <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.375rem',
+            padding: '0.375rem 0.875rem',
+            borderRadius: '9999px',
+            backgroundColor: '#eff6ff',
+            color: '#1d4ed8',
+            fontWeight: 600,
+            fontSize: '0.825rem',
+            border: '1px solid #bfdbfe'
+          }}>
+            <ShieldCheck size={16} />
+            {profileUser.role?.toUpperCase()} ACCOUNT
+          </span>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(440px, 1fr))', gap: '1.5rem' }}>
+          
+          {/* Card 1: Profile Information */}
+          <div style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '12px',
+            boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.02)',
+            border: '1px solid #e2e8f0',
+            padding: '1.75rem',
+            display: 'flex',
+            flexDirection: 'column',
+            justify: 'space-between'
+          }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', paddingBottom: '1rem', borderBottom: '1px solid #f1f5f9', marginBottom: '1.25rem' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '10px', backgroundColor: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563eb' }}>
+                  <User size={22} />
+                </div>
+                <div>
+                  <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#1e293b', margin: 0 }}>Profile Details</h2>
+                  <p style={{ fontSize: '0.8rem', color: '#64748b', margin: 0 }}>Update your account display name and email address.</p>
+                </div>
+              </div>
+
+              <form onSubmit={handleProfileSubmit}>
+                {/* Full Name */}
+                <div style={{ marginBottom: '1.25rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '0.375rem' }}>
+                    Full Name
+                  </label>
+                  <input
+                    type="text"
+                    value={profileData.name}
+                    onChange={(e) => setProfileData('name', e.target.value)}
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '0.625rem 0.875rem',
+                      borderRadius: '8px',
+                      border: profileErrors.name ? '1px solid #ef4444' : '1px solid #cbd5e1',
+                      fontSize: '0.9rem',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                  {profileErrors.name && (
+                    <div style={{ color: '#ef4444', fontSize: '0.8rem', marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <AlertCircle size={14} /> {profileErrors.name}
                     </div>
+                  )}
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
-                    {/* Left Column: Editable Profile Card */}
-                    <div className="card" style={{ padding: '1.75rem', borderRadius: '12px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1.25rem', borderBottom: '1px solid #E2E8F0', paddingBottom: '0.75rem' }}>
-                            <User size={18} style={{ color: 'var(--primary-navy, #1F3864)' }} />
-                            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#1E293B' }}>Personal Details</h3>
-                        </div>
-
-                        <form onSubmit={handleSubmit}>
-                            <div style={{ marginBottom: '1.25rem' }}>
-                                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>
-                                    Full Name
-                                </label>
-                                <input
-                                    type="text"
-                                    className="form-control"
-                                    value={data.name}
-                                    onChange={e => setData('name', e.target.value)}
-                                    placeholder="Your Full Name"
-                                    style={{ width: '100%', padding: '0.6rem 0.75rem' }}
-                                />
-                                {errors.name && <span style={{ fontSize: '0.75rem', color: '#EF4444', marginTop: '4px', display: 'block' }}>{errors.name}</span>}
-                            </div>
-
-                            <div style={{ marginBottom: '1.25rem' }}>
-                                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>
-                                    Email Address
-                                </label>
-                                <input
-                                    type="email"
-                                    className="form-control"
-                                    value={data.email}
-                                    onChange={e => setData('email', e.target.value)}
-                                    placeholder="name@company.com"
-                                    style={{ width: '100%', padding: '0.6rem 0.75rem' }}
-                                />
-                                {errors.email && <span style={{ fontSize: '0.75rem', color: '#EF4444', marginTop: '4px', display: 'block' }}>{errors.email}</span>}
-                            </div>
-
-                            <div style={{ marginBottom: '1.5rem' }}>
-                                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>
-                                    Mobile Phone Number
-                                </label>
-                                <input
-                                    type="text"
-                                    className="form-control"
-                                    value={data.phone}
-                                    onChange={e => setData('phone', e.target.value)}
-                                    placeholder="+91 98765 43210"
-                                    style={{ width: '100%', padding: '0.6rem 0.75rem' }}
-                                />
-                                {errors.phone && <span style={{ fontSize: '0.75rem', color: '#EF4444', marginTop: '4px', display: 'block' }}>{errors.phone}</span>}
-                            </div>
-
-                            <button
-                                type="submit"
-                                disabled={processing}
-                                className="btn btn-primary"
-                                style={{
-                                    width: '100%',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '8px',
-                                    padding: '0.65rem 1.25rem',
-                                    fontWeight: 600,
-                                }}
-                            >
-                                <Save size={16} />
-                                {processing ? 'Saving Changes...' : 'Save Profile Changes'}
-                            </button>
-                        </form>
+                {/* Email Address */}
+                <div style={{ marginBottom: '1.25rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '0.375rem' }}>
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    value={profileData.email}
+                    onChange={(e) => setProfileData('email', e.target.value)}
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '0.625rem 0.875rem',
+                      borderRadius: '8px',
+                      border: profileErrors.email ? '1px solid #ef4444' : '1px solid #cbd5e1',
+                      fontSize: '0.9rem',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                  {profileErrors.email && (
+                    <div style={{ color: '#ef4444', fontSize: '0.8rem', marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <AlertCircle size={14} /> {profileErrors.email}
                     </div>
-
-                    {/* Right Column: Account Security & Metadata Card */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                        <div className="card" style={{ padding: '1.75rem', borderRadius: '12px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1.25rem', borderBottom: '1px solid #E2E8F0', paddingBottom: '0.75rem' }}>
-                                <ShieldCheck size={18} style={{ color: 'var(--primary-navy, #1F3864)' }} />
-                                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#1E293B' }}>Account Information</h3>
-                            </div>
-
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '0.75rem', borderBottom: '1px dashed #F1F5F9' }}>
-                                    <span style={{ fontSize: '0.85rem', color: '#64748B', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                        <CheckCircle size={14} style={{ color: '#16A34A' }} /> System Status
-                                    </span>
-                                    <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#16A34A', background: '#F0FDF4', padding: '2px 10px', borderRadius: '10px', textTransform: 'capitalize' }}>
-                                        {profileUser.status || 'Active'}
-                                    </span>
-                                </div>
-
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '0.75rem', borderBottom: '1px dashed #F1F5F9' }}>
-                                    <span style={{ fontSize: '0.85rem', color: '#64748B', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                        <Calendar size={14} /> Member Since
-                                    </span>
-                                    <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>
-                                        {profileUser.created_at || 'Recently'}
-                                    </span>
-                                </div>
-
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span style={{ fontSize: '0.85rem', color: '#64748B', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                        <Laptop size={14} /> Active Device Sessions
-                                    </span>
-                                    <a
-                                        href={route('account.sessions')}
-                                        style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--primary-navy, #1F3864)', textDecoration: 'none' }}
-                                    >
-                                        Manage Sessions →
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Quick Security Actions */}
-                        <div className="card" style={{ padding: '1.5rem', borderRadius: '12px', background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
-                            <h4 style={{ margin: '0 0 6px', fontSize: '0.95rem', fontWeight: 700, color: '#1E293B' }}>Security & Credentials</h4>
-                            <p style={{ margin: '0 0 1rem', fontSize: '0.8rem', color: '#64748B' }}>Ensure your account credentials remain safe and up to date.</p>
-                            
-                            <button
-                                onClick={() => setShowPasswordModal(true)}
-                                className="btn btn-secondary"
-                                style={{ width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.85rem' }}
-                            >
-                                <Key size={15} /> Update Account Password
-                            </button>
-                        </div>
-                    </div>
+                  )}
                 </div>
+
+                {/* Metadata */}
+                <div style={{ backgroundColor: '#f8fafc', padding: '0.875rem 1rem', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '1.5rem', fontSize: '0.825rem', color: '#475569' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.375rem' }}>
+                    <span>Account Status:</span>
+                    <strong style={{ color: '#166534', textTransform: 'capitalize' }}>● {profileUser.status}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.375rem' }}>
+                    <span>Email Verification:</span>
+                    <strong style={{ color: '#1e3a8a' }}>{profileUser.email_verified_at}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Member Since:</span>
+                    <strong>{profileUser.created_at}</strong>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={profileProcessing}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem 1rem',
+                    backgroundColor: '#2563eb',
+                    color: '#ffffff',
+                    fontWeight: 600,
+                    fontSize: '0.9rem',
+                    borderRadius: '8px',
+                    border: 'none',
+                    cursor: profileProcessing ? 'not-allowed' : 'pointer',
+                    opacity: profileProcessing ? 0.7 : 1,
+                    transition: 'background-color 0.15s ease'
+                  }}
+                >
+                  {profileProcessing ? 'Saving Changes...' : 'Save Profile Details'}
+                </button>
+              </form>
             </div>
+          </div>
 
-            <ChangePasswordModal
-                isOpen={showPasswordModal}
-                onClose={() => setShowPasswordModal(false)}
-            />
-        </AuthenticatedLayout>
-    );
+          {/* Card 2: Security & Password Update */}
+          <div style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '12px',
+            boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.02)',
+            border: '1px solid #e2e8f0',
+            padding: '1.75rem',
+            display: 'flex',
+            flexDirection: 'column',
+            justify: 'space-between'
+          }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', paddingBottom: '1rem', borderBottom: '1px solid #f1f5f9', marginBottom: '1.25rem' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '10px', backgroundColor: '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d97706' }}>
+                  <Key size={22} />
+                </div>
+                <div>
+                  <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#1e293b', margin: 0 }}>Change Password</h2>
+                  <p style={{ fontSize: '0.8rem', color: '#64748b', margin: 0 }}>Ensure your account uses a strong, unique password.</p>
+                </div>
+              </div>
+
+              <form onSubmit={handlePasswordSubmit}>
+                {/* Current Password */}
+                <div style={{ marginBottom: '1.25rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '0.375rem' }}>
+                    Current Password
+                  </label>
+                  <input
+                    type="password"
+                    value={passwordData.current_password}
+                    onChange={(e) => setPasswordData('current_password', e.target.value)}
+                    required
+                    placeholder="••••••••"
+                    style={{
+                      width: '100%',
+                      padding: '0.625rem 0.875rem',
+                      borderRadius: '8px',
+                      border: passwordErrors.current_password ? '1px solid #ef4444' : '1px solid #cbd5e1',
+                      fontSize: '0.9rem',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                  {passwordErrors.current_password && (
+                    <div style={{ color: '#ef4444', fontSize: '0.8rem', marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <AlertCircle size={14} /> {passwordErrors.current_password}
+                    </div>
+                  )}
+                </div>
+
+                {/* New Password */}
+                <div style={{ marginBottom: '1.25rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '0.375rem' }}>
+                    New Password
+                  </label>
+                  <input
+                    type="password"
+                    value={passwordData.password}
+                    onChange={(e) => setPasswordData('password', e.target.value)}
+                    required
+                    placeholder="Minimum 8 characters with letters & numbers"
+                    style={{
+                      width: '100%',
+                      padding: '0.625rem 0.875rem',
+                      borderRadius: '8px',
+                      border: passwordErrors.password ? '1px solid #ef4444' : '1px solid #cbd5e1',
+                      fontSize: '0.9rem',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                  
+                  {/* Password Strength Indicator */}
+                  {passwordData.password && (
+                    <div style={{ marginTop: '0.5rem' }}>
+                      <div style={{ height: '4px', width: '100%', backgroundColor: '#e2e8f0', borderRadius: '2px', overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${strength.score}%`, backgroundColor: strength.color, transition: 'all 0.3s ease' }} />
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: strength.color, fontWeight: 600, marginTop: '0.25rem' }}>
+                        Strength: {strength.label}
+                      </div>
+                    </div>
+                  )}
+
+                  {passwordErrors.password && (
+                    <div style={{ color: '#ef4444', fontSize: '0.8rem', marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <AlertCircle size={14} /> {passwordErrors.password}
+                    </div>
+                  )}
+                </div>
+
+                {/* Confirm New Password */}
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '0.375rem' }}>
+                    Confirm New Password
+                  </label>
+                  <input
+                    type="password"
+                    value={passwordData.password_confirmation}
+                    onChange={(e) => setPasswordData('password_confirmation', e.target.value)}
+                    required
+                    placeholder="Repeat new password"
+                    style={{
+                      width: '100%',
+                      padding: '0.625rem 0.875rem',
+                      borderRadius: '8px',
+                      border: passwordErrors.password_confirmation ? '1px solid #ef4444' : '1px solid #cbd5e1',
+                      fontSize: '0.9rem',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                  {passwordErrors.password_confirmation && (
+                    <div style={{ color: '#ef4444', fontSize: '0.8rem', marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <AlertCircle size={14} /> {passwordErrors.password_confirmation}
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={passwordProcessing}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem 1rem',
+                    backgroundColor: '#d97706',
+                    color: '#ffffff',
+                    fontWeight: 600,
+                    fontSize: '0.9rem',
+                    borderRadius: '8px',
+                    border: 'none',
+                    cursor: passwordProcessing ? 'not-allowed' : 'pointer',
+                    opacity: passwordProcessing ? 0.7 : 1,
+                    transition: 'background-color 0.15s ease'
+                  }}
+                >
+                  {passwordProcessing ? 'Updating Password...' : 'Update Password'}
+                </button>
+              </form>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </AuthenticatedLayout>
+  );
 }

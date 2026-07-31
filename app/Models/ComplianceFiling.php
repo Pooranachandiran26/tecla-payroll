@@ -32,4 +32,9 @@ class ComplianceFiling extends Model
     {
         return $this->belongsTo(User::class, 'filed_by');
     }
+
+    public function filedBy()
+    {
+        return $this->filer();
+    }
 }
