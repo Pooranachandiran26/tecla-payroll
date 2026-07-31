@@ -57,7 +57,8 @@ export default function InvoicesList({ invoices, filters: serverFilters = {} }) 
             const invNum = (inv.invoice_number || '').toLowerCase();
             const clientName = (inv.client?.company_name || '').toLowerCase();
             const branchName = (inv.branch?.branch_name || inv.place_of_supply_state || '').toLowerCase();
-            if (!invNum.includes(term) && !clientName.includes(term) && !branchName.includes(term)) {
+            const gstin = (inv.branch_gstin || inv.branch?.gstin || inv.client?.decrypted_gstin || inv.client?.gstin || '').toLowerCase();
+            if (!invNum.includes(term) && !clientName.includes(term) && !branchName.includes(term) && !gstin.includes(term)) {
                 return false;
             }
         }
@@ -109,7 +110,7 @@ export default function InvoicesList({ invoices, filters: serverFilters = {} }) 
                                 type="text"
                                 name="search"
                                 className="form-control"
-                                placeholder="Search by Invoice No, Client Partner, Branch..."
+                                placeholder="Search by Invoice No, Client Partner, GSTIN, Branch..."
                                 style={{ padding: '0.4rem 0.75rem' }}
                                 value={filters.search}
                                 onChange={handleFilterChange}
@@ -183,6 +184,7 @@ export default function InvoicesList({ invoices, filters: serverFilters = {} }) 
                                         <th>Invoice No</th>
                                         <th>Client Partner</th>
                                         <th>Branch Location</th>
+                                        <th>GSTIN</th>
                                         <th>Pass-Through CTC (₹)</th>
                                         <th>Due Date</th>
                                         {role !== 'manager' && (
@@ -199,6 +201,7 @@ export default function InvoicesList({ invoices, filters: serverFilters = {} }) 
                                     {filteredInvoices && filteredInvoices.length > 0 ? (
                                         filteredInvoices.map((inv) => {
                                             const feesList = inv.additional_fees || inv.additionalFees || [];
+                                            const resolvedGstin = inv.branch_gstin || inv.branch?.gstin || inv.client?.decrypted_gstin || inv.client?.gstin || '—';
                                             return (
                                                 <tr key={inv.id}>
                                                     <td>
@@ -221,6 +224,9 @@ export default function InvoicesList({ invoices, filters: serverFilters = {} }) 
                                                     </td>
                                                     <td>
                                                         {inv.branch ? inv.branch.branch_name : (inv.place_of_supply_state || '—')}
+                                                    </td>
+                                                    <td style={{ fontFamily: 'monospace', fontSize: '0.8rem', fontWeight: 600, color: '#334155' }}>
+                                                        {resolvedGstin}
                                                     </td>
                                                     <td style={{ fontWeight: 700, color: '#334155' }}>
                                                         {formatRupee(inv.gross_salary_passthrough)}
@@ -331,7 +337,7 @@ export default function InvoicesList({ invoices, filters: serverFilters = {} }) 
                                         })
                                     ) : (
                                         <tr>
-                                            <td colSpan="11" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
+                                            <td colSpan="12" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
                                                 No billing invoices match the selected filter parameters.
                                             </td>
                                         </tr>
