@@ -91,7 +91,8 @@ class InvoiceGenerationService
             $lineItemData = [];
             foreach ($branchItems as $item) {
                 $itemGross = (float) $item->gross_total;
-                $branchGross += $itemGross;
+                $itemCtc = $itemGross + (float) data_get($item, 'employer_pf', 0) + (float) data_get($item, 'employer_esi', 0) + (float) data_get($item, 'employer_lwf', 0);
+                $branchGross += $itemCtc;
 
                 // Calculate per-item agency fee based on billing model
                 $itemFee = $this->calculateItemAgencyFee($client, $item);
@@ -99,9 +100,9 @@ class InvoiceGenerationService
 
                 $lineItemData[] = [
                     'employee_id' => $item->employee_id,
-                    'gross_pay' => round($itemGross, 2),
+                    'gross_pay' => round($itemCtc, 2),
                     'agency_fee' => round($itemFee, 2),
-                    'line_total' => round($itemGross + $itemFee, 2),
+                    'line_total' => round($itemCtc + $itemFee, 2),
                 ];
             }
 

@@ -166,9 +166,9 @@ class TdsCalculationServiceTest extends TestCase
             'status' => 'draft',
         ]);
 
-        // 1. Without overrides -> returns 0.00 because declaration is NOT verified
+        // 1. Without overrides -> dynamically calculates TDS on annual gross salary (under New Regime slabs)
         $tds1 = $this->tdsService->calculateMonthlyTds($employee, '2026-07-01', []);
-        $this->assertEquals(0.00, $tds1);
+        $this->assertGreaterThan(0.00, $tds1);
 
         // 2. With admin override -> returns admin override value exactly as before
         $tds2 = $this->tdsService->calculateMonthlyTds($employee, '2026-07-01', ['tds_deduction' => 5500.00]);

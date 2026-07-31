@@ -284,7 +284,7 @@
     <div style="margin-top: 4px; padding: 5px 10px; background-color: #f8fafc; border: 1px dashed #cbd5e1; font-size: 9px; text-align: right;">
         <span style="color: #64748b;">Est. Client TDS Deduction ({{ number_format($tdsRate, 2) }}%): -₹{{ number_format($estTds, 2) }}</span>
         &nbsp;&nbsp;|&nbsp;&nbsp;
-        <strong style="color: #0f172a;">Est. Net Cash Receivable: ₹{{ number_format($netReceivable, 2) }}</strong>
+        <strong style="color: #0f172a;">Est. Net Cash Received in Bank (Post TDS): ₹{{ number_format($netReceivable, 2) }}</strong>
     </div>
     @endif
 

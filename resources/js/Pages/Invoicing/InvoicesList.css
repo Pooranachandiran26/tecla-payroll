@@ -1,0 +1,138 @@
+/* InvoicesList.css - Scoped styles for Client Invoices Registry */
+
+.invoices-list-wrapper {
+  width: 100%;
+}
+
+/* Page Header */
+.invoices-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.invoices-header h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1F3864;
+  margin-bottom: 0.25rem;
+}
+
+.invoices-header p {
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+/* Filters Card */
+.invoices-filters-card {
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.invoices-filters-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--primary-navy, #1F3864);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* Summary Stats Card */
+.invoices-stats-card {
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  border-left: 4px solid var(--primary-navy, #1F3864);
+  background-color: var(--bg-light, #F8FAFC);
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--primary-navy, #1F3864);
+}
+
+.invoices-stats-card .stat-divider {
+  color: var(--border-color, #E2E8F0);
+}
+
+.invoices-stats-card .stat-highlight {
+  color: var(--accent-gold, #D97706);
+}
+
+.invoices-stats-card .stat-success {
+  color: var(--status-success, #16A34A);
+}
+
+.invoices-stats-card .stat-danger {
+  color: var(--status-danger, #DC2626);
+}
+
+/* Table Enhancements */
+.invoice-number-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.invoice-number-cell .number {
+  font-weight: 700;
+  color: var(--primary-navy, #1F3864);
+  font-size: 0.925rem;
+}
+
+.invoice-number-cell .warning-tag {
+  font-size: 0.75rem;
+  color: #D97706;
+  font-weight: 5rem;
+}
+
+.invoice-number-cell .fee-tag {
+  font-size: 0.75rem;
+  color: #2563EB;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* Due Date Cell */
+.invoice-due-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.invoice-due-cell .due-date {
+  font-weight: 500;
+  color: #334155;
+}
+
+.invoice-due-cell .dispute-date {
+  font-size: 0.75rem;
+  color: #94A3B8;
+}
+
+/* Actions Container */
+.invoice-actions-group {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.sent-meta-text {
+  font-size: 0.65rem;
+  color: #047857;
+  font-weight: 500;
+  margin-top: 0.25rem;
+  text-align: center;
+}
