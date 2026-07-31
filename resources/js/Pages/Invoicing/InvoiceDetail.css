@@ -1,0 +1,110 @@
+/* InvoiceDetail.css - Scoped styles for Invoice Detail / View Page */
+
+.invoice-detail-wrapper {
+  width: 100%;
+}
+
+.invoice-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.invoice-detail-header h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1F3864;
+  margin-bottom: 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.invoice-detail-header p {
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.invoice-detail-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* Info Cards Grid */
+.invoice-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.invoice-card-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1F3864;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.invoice-meta-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  font-size: 0.875rem;
+}
+
+.invoice-meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.invoice-meta-row .label {
+  color: #64748b;
+  font-weight: 500;
+}
+
+.invoice-meta-row .value {
+  font-weight: 600;
+  color: #1e293b;
+  text-align: right;
+}
+
+.invoice-meta-row .value.highlight {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #1F3864;
+}
+
+/* Financial Breakdown Table */
+.financial-summary-box {
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 1rem;
+  border: 1px solid #e2e8f0;
+}
+
+.financial-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.4rem 0;
+  font-size: 0.875rem;
+}
+
+.financial-row.total {
+  border-top: 2px solid #cbd5e1;
+  margin-top: 0.5rem;
+  padding-top: 0.65rem;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #1F3864;
+}

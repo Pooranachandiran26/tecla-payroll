@@ -77,7 +77,7 @@ class MarginReconciliationService
         $payrollEmployerStatutory = round($payrollEmployerStatutory, 2);
 
         // ── CHECK A: Invoice Line Total vs Payroll + Expected Fee ──
-        $payrollSideLineTotal = round($payrollGrossTotal + $payrollExpectedServiceFee, 2);
+        $payrollSideLineTotal = round($payrollGrossTotal + $payrollEmployerStatutory + $payrollExpectedServiceFee, 2);
         $checkA = abs($invoiceLineTotal - $payrollSideLineTotal) < 0.02;
 
         // ── CHECK B: Agency Margin Invoice Side vs Payroll Side ──

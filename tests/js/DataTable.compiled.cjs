@@ -24,7 +24,7 @@ __export(DataTable_exports, {
 module.exports = __toCommonJS(DataTable_exports);
 
 // resources/js/Utils/formatters.js
-var classNames = (...classes) => classes.filter(Boolean).join(" ");
+var classNames = (...classes) => (Array.isArray(classes) ? classes : []).filter(Boolean).join(" ");
 
 // resources/js/Components/ui/DataTable/DataTable.jsx
 function DataTable({ columns = [], data = [], keyField = "id", className = "" }) {

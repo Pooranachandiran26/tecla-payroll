@@ -93,7 +93,7 @@ export default function AuthenticatedLayout({ children, hideSubNav = false }) {
     <div className="app-container">
       <header className="app-header">
         {/* Primary Nav Row */}
-        <div className="nav-row-primary">
+        <div className={`nav-row-primary ${branding?.navbar_style === 'glassmorphism' ? 'glassmorphism' : ''}`}>
           <div className="brand-section">
             <button 
               className="hamburger-btn"
@@ -109,7 +109,7 @@ export default function AuthenticatedLayout({ children, hideSubNav = false }) {
                   <svg width="24" height="24" viewBox="0 0 24 24">
                     <path d="M12 2L2 22h20L12 2zm0 6l5 10H7l5-10z"/>
                   </svg>
-                  Tecla Payroll
+                  <span>{branding?.agency_display_name || 'Tecla Payroll'}</span>
                 </>
               )}
             </div>
@@ -190,6 +190,14 @@ export default function AuthenticatedLayout({ children, hideSubNav = false }) {
       <main className="main-content">
         {children}
       </main>
+
+      {branding?.enable_footer_notice !== false && (
+        <footer className="app-footer">
+          <div className="footer-container">
+            <p>{branding?.footer_copyright_text || '© 2026 Tecla Payroll. All Rights Reserved.'}</p>
+          </div>
+        </footer>
+      )}
 
       <ToastContainer />
     </div>

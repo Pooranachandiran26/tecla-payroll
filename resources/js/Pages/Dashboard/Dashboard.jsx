@@ -498,7 +498,7 @@ export default function Dashboard({
             </div>
 
             {/* Quick Palette */}
-            <Card title="Module Operations Palette">
+            <Card title="Quick Action Palette">
               <div className="grid grid-cols-1 gap-2 text-xs font-semibold">
                 <Link 
                   href={route('employees.create')} 
@@ -557,6 +557,217 @@ export default function Dashboard({
               </div>
             </Card>
 
+          </div>
+
+          {/* Section: Dedicated Payroll Sub-Modules & Operations Suite */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-200">
+              <div>
+                <div className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 rounded-full mb-1">
+                  <Sparkles className="w-3 h-3 text-indigo-600" />
+                  <span>End-to-End Payroll Engine</span>
+                </div>
+                <h2 className="text-lg font-bold text-[#1F3864]">Payroll Operations & Sub-Modules Command Suite</h2>
+                <p className="text-xs text-slate-500">Direct access to timesheets, processing engines, batch locks, payslip generation, statutory compliance, and reconciliation.</p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Link 
+                  href={route('payroll.live-monitor')} 
+                  className="px-3.5 py-2 bg-[#1F3864] hover:bg-[#162746] text-white text-xs font-bold rounded-lg shadow-sm transition-all flex items-center gap-1.5 shrink-0"
+                >
+                  <IndianRupee className="w-3.5 h-3.5 text-amber-300" /> Open Live Payroll Hub
+                </Link>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+
+              {/* Module 1: Live Punch Monitor */}
+              <Link 
+                href={route('payroll.live-monitor')} 
+                className="p-4 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-white hover:border-indigo-400 hover:shadow-md transition-all group flex flex-col justify-between space-y-3"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 flex items-center justify-center font-bold">
+                    <Clock className="w-5 h-5" />
+                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-200">
+                    Live Feed
+                  </span>
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 group-hover:text-indigo-700 transition-colors">1. Live Punch Monitor</h4>
+                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">Real-time biometric punch logs, active shift monitoring & check-ins.</p>
+                </div>
+                <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-xs font-semibold text-indigo-700">
+                  <span>Monitor Punches</span>
+                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </Link>
+
+              {/* Module 2: Timesheet Import */}
+              <Link 
+                href={route('payroll.attendance-upload')} 
+                className="p-4 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-white hover:border-blue-400 hover:shadow-md transition-all group flex flex-col justify-between space-y-3"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 flex items-center justify-center font-bold">
+                    <FileSpreadsheet className="w-5 h-5" />
+                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full border border-blue-200">
+                    Import
+                  </span>
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 group-hover:text-blue-700 transition-colors">2. Timesheet Import</h4>
+                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">Upload monthly Excel/CSV timesheets & validate biometric records.</p>
+                </div>
+                <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-xs font-semibold text-blue-700">
+                  <span>Upload File</span>
+                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </Link>
+
+              {/* Module 3: Attendance Review */}
+              <Link 
+                href={route('payroll.attendance-review')} 
+                className="p-4 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-white hover:border-purple-400 hover:shadow-md transition-all group flex flex-col justify-between space-y-3"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="w-10 h-10 rounded-xl bg-purple-50 border border-purple-200 text-purple-700 flex items-center justify-center font-bold">
+                    <ShieldCheck className="w-5 h-5" />
+                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full border border-purple-200">
+                    Audit
+                  </span>
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 group-hover:text-purple-700 transition-colors">3. Attendance Verification</h4>
+                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">Audit LOP shortfall days & verify candidate processing eligibility.</p>
+                </div>
+                <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-xs font-semibold text-purple-700">
+                  <span>Verify Eligibility</span>
+                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </Link>
+
+              {/* Module 4: Run Payroll Processing */}
+              <Link 
+                href={route('payroll.processing')} 
+                className="p-4 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-white hover:border-amber-400 hover:shadow-md transition-all group flex flex-col justify-between space-y-3"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center font-bold">
+                    <IndianRupee className="w-5 h-5" />
+                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full border border-amber-300 font-bold">
+                    Calculator
+                  </span>
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 group-hover:text-amber-700 transition-colors">4. Run Payroll Processing</h4>
+                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">Gross-to-net engine, statutory deductions & draft batch creation.</p>
+                </div>
+                <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-xs font-semibold text-amber-800">
+                  <span>Run Calculator</span>
+                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </Link>
+
+              {/* Module 5: Payroll Approval & Lock */}
+              <Link 
+                href={route('payroll.approval')} 
+                className="p-4 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-white hover:border-emerald-400 hover:shadow-md transition-all group flex flex-col justify-between space-y-3"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center font-bold">
+                    <CheckCircle2 className="w-5 h-5" />
+                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-200">
+                    Executive
+                  </span>
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 group-hover:text-emerald-700 transition-colors">5. Approval & Batch Lock</h4>
+                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">Variance analysis, executive batch lock & invoice generation.</p>
+                </div>
+                <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-xs font-semibold text-emerald-700">
+                  <span>Approve & Lock</span>
+                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </Link>
+
+              {/* Module 6: Payslips & PDF Release */}
+              <Link 
+                href={route('payroll.payslips')} 
+                className="p-4 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-white hover:border-indigo-400 hover:shadow-md transition-all group flex flex-col justify-between space-y-3"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 flex items-center justify-center font-bold">
+                    <CreditCard className="w-5 h-5" />
+                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full border border-indigo-200">
+                    Disbursement
+                  </span>
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 group-hover:text-indigo-700 transition-colors">6. Payslips & PDF Release</h4>
+                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">Single & bulk PDF generation, email release & staff portal publish.</p>
+                </div>
+                <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-xs font-semibold text-indigo-700">
+                  <span>Release Payslips</span>
+                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </Link>
+
+              {/* Module 7: Statutory Compliance */}
+              <Link 
+                href={route('compliance.index')} 
+                className="p-4 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-white hover:border-purple-400 hover:shadow-md transition-all group flex flex-col justify-between space-y-3"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="w-10 h-10 rounded-xl bg-purple-50 border border-purple-200 text-purple-700 flex items-center justify-center font-bold">
+                    <ShieldCheck className="w-5 h-5" />
+                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full border border-purple-200">
+                    Statutory
+                  </span>
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 group-hover:text-purple-700 transition-colors">7. Statutory Compliance</h4>
+                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">PF ECR returns, ESIC, Professional Tax slabs & Statutory Bonus.</p>
+                </div>
+                <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-xs font-semibold text-purple-700">
+                  <span>View Compliance</span>
+                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </Link>
+
+              {/* Module 8: Payroll Analytics & Reports */}
+              <Link 
+                href={route('reports.index')} 
+                className="p-4 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-white hover:border-slate-400 hover:shadow-md transition-all group flex flex-col justify-between space-y-3"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-300 text-slate-700 flex items-center justify-center font-bold">
+                    <TrendingUp className="w-5 h-5" />
+                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider bg-slate-200 text-slate-800 px-2 py-0.5 rounded-full border border-slate-300">
+                    Analytics
+                  </span>
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 group-hover:text-slate-700 transition-colors">8. Analytics & Reports</h4>
+                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">Monthly CTC cost variance, client invoice audit & exportable reports.</p>
+                </div>
+                <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-xs font-semibold text-slate-700">
+                  <span>View Analytics</span>
+                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </Link>
+
+            </div>
           </div>
 
           {/* Section 2: Statutory Liabilities & Document Verification Health */}

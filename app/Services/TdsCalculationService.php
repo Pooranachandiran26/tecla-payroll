@@ -244,19 +244,15 @@ class TdsCalculationService
 
         $financialYear = $this->determineFinancialYear($payrollMonth);
 
-        // 3. Fallback check: Search for ACTIVE VERIFIED declaration
-        $verifiedDeclaration = EmployeeTaxDeclaration::where('employee_id', $employee->id)
+        // 3. Search for declaration (use verified declaration for Chapter VI-A/HRA deductions, else calculate on gross salary)
+        $declaration = EmployeeTaxDeclaration::where('employee_id', $employee->id)
             ->where('financial_year', $financialYear)
-            ->where('status', 'verified')
             ->first();
 
-        if (!$verifiedDeclaration) {
-            // NO verified declaration -> Fallback to 0.00 exactly as before
-            return 0.00;
-        }
+        $effectiveDeclaration = ($declaration && $declaration->status === 'verified') ? $declaration : null;
 
-        // 4. Active verified declaration exists -> calculate dynamic TDS
-        $annualTaxResult = $this->calculateAnnualTax($employee, $financialYear, $verifiedDeclaration);
+        // 4. Calculate dynamic annual tax under regime & deductions
+        $annualTaxResult = $this->calculateAnnualTax($employee, $financialYear, $effectiveDeclaration);
         $netAnnualTax = $annualTaxResult['net_tax_payable'];
 
         if ($netAnnualTax <= 0) {
