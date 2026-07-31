@@ -366,8 +366,8 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
 
                             <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
                                 {/* Primary Action Card (Authorization Lock & Payslip Release - TOP Priority) */}
-                                <div className="card" style={{ border: "2px solid #1F3864" }}>
-                                    <h3 className="card-title" style={{ marginBottom: "0.35rem", color: "#1F3864" }}>Authorization &amp; Release Lock</h3>
+                                <div className="card">
+                                    <h3 className="card-title" style={{ marginBottom: "0.35rem" }}>Authorization &amp; Release Lock</h3>
                                     <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "1rem" }}>
                                         Approving and locking this run generates branch invoices, performs reconciliation, and enables official payslips.
                                     </p>
