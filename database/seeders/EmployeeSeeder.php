@@ -77,12 +77,24 @@ class EmployeeSeeder extends Seeder
                 $gender = $faker->randomElement(['male', 'female']);
                 
                 // Base salary structure
-                $baseMultiplier = rand(2, 8); // 20k to 80k base
-                $basicPay = $baseMultiplier * 10000;
-                $hra = $basicPay * 0.40;
-                $conveyance = 1600;
-                $medical = 1250;
-                $special = rand(1000, 5000);
+                // 25% of employees (every 4th employee) get salary <= 21k for ESI coverage testing
+                if ($i % 4 === 0) {
+                    $basicPay = rand(10000, 11500);
+                    $hra = $basicPay * 0.40;
+                    $conveyance = 1600;
+                    $medical = 1250;
+                    $special = rand(500, 1000);
+                } else {
+                    $baseMultiplier = rand(2, 8); // 20k to 80k base
+                    $basicPay = $baseMultiplier * 10000;
+                    $hra = $basicPay * 0.40;
+                    $conveyance = 1600;
+                    $medical = 1250;
+                    $special = rand(1000, 5000);
+                }
+                
+                $estimatedGross = $basicPay + $hra + $conveyance + $medical + $special;
+                $isEsiApplicable = ($estimatedGross <= 21000) && (bool)($client->esi_applicable ?? true);
                 
                 // Prepare data for SalaryCalculationService
                 $calcData = [
@@ -97,7 +109,7 @@ class EmployeeSeeder extends Seeder
                     'date_of_birth' => $faker->dateTimeBetween('-40 years', '-22 years')->format('Y-m-d'),
                     'pf_applicable' => true,
                     'eps_applicable' => true,
-                    'esi_applicable' => true,
+                    'esi_applicable' => $isEsiApplicable,
                     'pt_applicable' => true,
                     'gender' => $gender,
                 ];
@@ -126,7 +138,7 @@ class EmployeeSeeder extends Seeder
                     'designation' => $faker->jobTitle,
                     'employment_model' => $client->contract_type === 'eor' ? 'eor' : 'agency_contract',
                     'employment_type' => 'permanent',
-                    'status' => ($i < 4) ? 'onboarding' : 'active',
+                    'status' => 'active',
                     'gender' => $gender,
                     'blood_group' => $faker->randomElement(['A+', 'O+', 'B+', 'AB+', 'A-', 'O-', 'B-', 'AB-']),
                     'marital_status' => $faker->randomElement(['single', 'married']),
@@ -176,7 +188,7 @@ class EmployeeSeeder extends Seeder
                     // Statutory 
                     'pf_applicable' => $client->pf_applicable ?? true,
                     'eps_applicable' => true,
-                    'esi_applicable' => $client->esi_applicable ?? true,
+                    'esi_applicable' => $isEsiApplicable,
                     'pt_applicable' => true,
                     'lwf_applicable' => $client->lwf_applicable ?? true,
                     'tds_applicable' => $client->tds_applicable ?? true,
@@ -198,18 +210,42 @@ class EmployeeSeeder extends Seeder
                     'status' => 'active',
                 ]);
 
-                if ($i >= 4) {
-                    $docs = ['pan_card', 'aadhaar_card', 'bank_passbook', 'offer_letter', 'photo'];
-                    foreach ($docs as $doc) {
-                        \App\Models\EmployeeDocument::create([
-                            'employee_id' => $employee->id,
-                            'document_type' => $doc,
-                            'file_path' => 'employee_documents/dummy_' . $doc . '_' . $employee->id . '.pdf',
-                            'status' => 'verified',
-                            'verified_at' => now()
-                        ]);
+                $docs = [
+                    'pan_card', 'aadhaar_card', 'bank_passbook', 'offer_letter', 'photo',
+                    'educational_certificate', 'relieving_letter', 'previous_payslips', 'form16'
+                ];
+                foreach ($docs as $doc) {
+                    \App\Models\EmployeeDocument::create([
+                        'employee_id' => $employee->id,
+                        'document_type' => $doc,
+                        'file_path' => 'employee_documents/dummy_' . $doc . '_' . $employee->id . '.pdf',
+                        'status' => 'verified',
+                        'verified_at' => now()
+                    ]);
+                }
+
+                // Seed Attendance Records for July 2026 & June 2026
+                $attendanceData = [];
+                foreach (['2026-06', '2026-07'] as $monthStr) {
+                    $start = Carbon::parse($monthStr . '-01');
+                    $end = $start->copy()->endOfMonth();
+                    for ($d = $start->copy(); $d->lte($end); $d->addDay()) {
+                        if (!$d->isSunday()) {
+                            $attendanceData[] = [
+                                'employee_id' => $employee->id,
+                                'attendance_date' => $d->toDateString(),
+                                'punch_in_time' => $d->toDateString() . ' 09:00:00',
+                                'punch_out_time' => $d->toDateString() . ' 18:00:00',
+                                'hours_worked' => 9.00,
+                                'status' => 'present',
+                                'source' => 'uploaded',
+                                'created_at' => now(),
+                                'updated_at' => now(),
+                            ];
+                        }
                     }
                 }
+                DB::table('attendance_records')->insert($attendanceData);
             }
         }
     }
