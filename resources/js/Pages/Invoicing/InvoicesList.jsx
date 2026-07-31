@@ -5,7 +5,7 @@ import Badge from '../../Components/ui/Badge';
 import RoleGuard from '../../Components/RoleGuard.jsx';
 import Pagination from '../../Components/ui/Pagination';
 import AddInvoiceFeeModal from '../../Components/AddInvoiceFeeModal';
-import { Download, Plus, Tag, Filter, RotateCcw, Search, FileText } from 'lucide-react';
+import { Eye, Download, Plus, Tag, Filter, RotateCcw, Search, FileText } from 'lucide-react';
 import './InvoicesList.css';
 import { formatRupee, formatDate, getStatusBadgeType, calculateSummaryStats } from './InvoicesListLogic';
 
@@ -49,7 +49,7 @@ export default function InvoicesList({ invoices, filters: serverFilters = {} }) 
         setSelectedFeeInvoice(updatedInvoice);
     };
 
-    // Filter invoices locally if needed or query server
+    // Filter invoices locally or from server
     const rawData = invoices?.data || [];
     const filteredInvoices = rawData.filter(inv => {
         if (filters.search) {
@@ -175,26 +175,23 @@ export default function InvoicesList({ invoices, filters: serverFilters = {} }) 
                         <span>Grand Total: <strong>{formatRupee(stats.grandTotal)}</strong></span>
                     </div>
 
-                    {/* Invoices Data Table Card */}
-                    <div className="card" style={{ padding: '0' }}>
-                        <div className="table-responsive">
-                            <table className="data-table">
+                    {/* Invoices Data Table Card (Single Screen Fit, No Horizontal Scroll) */}
+                    <div className="card invoices-table-card" style={{ padding: '0' }}>
+                        <div className="invoices-table-container">
+                            <table className="data-table invoices-table">
                                 <thead>
                                     <tr>
                                         <th>Invoice No</th>
-                                        <th>Client Partner</th>
-                                        <th>Branch Location</th>
-                                        <th>GSTIN</th>
-                                        <th>Pass-Through CTC (₹)</th>
-                                        <th>Due Date</th>
+                                        <th>Client & Branch</th>
+                                        <th>Pass-Through (₹)</th>
                                         {role !== 'manager' && (
-                                            <th>Agency Service Fee</th>
+                                            <th>Agency Fee</th>
                                         )}
-                                        <th>GST Amount (₹)</th>
-                                        <th>Grand Total (₹)</th>
+                                        <th>GST Amount</th>
+                                        <th>Grand Total</th>
+                                        <th>Due Date</th>
                                         <th>Status</th>
-                                        <th>GST Type</th>
-                                        <th style={{ textAlign: 'center' }}>Actions</th>
+                                        <th className="actions-col">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -202,6 +199,7 @@ export default function InvoicesList({ invoices, filters: serverFilters = {} }) 
                                         filteredInvoices.map((inv) => {
                                             const feesList = inv.additional_fees || inv.additionalFees || [];
                                             const resolvedGstin = inv.branch_gstin || inv.branch?.gstin || inv.client?.decrypted_gstin || inv.client?.gstin || '—';
+                                            const branchName = inv.branch?.branch_name || inv.place_of_supply_state || 'HQ';
                                             return (
                                                 <tr key={inv.id}>
                                                     <td>
@@ -209,37 +207,28 @@ export default function InvoicesList({ invoices, filters: serverFilters = {} }) 
                                                             <span className="number">{inv.invoice_number}</span>
                                                             {inv.warning_notes && (
                                                                 <div className="warning-tag" title={inv.warning_notes}>
-                                                                    ⚠️ Credit Limit Warning
+                                                                    ⚠️ Credit Warning
                                                                 </div>
                                                             )}
                                                             {feesList.length > 0 && (
                                                                 <div className="fee-tag">
-                                                                    <Tag size={12} /> {feesList.length} Addl Fee(s)
+                                                                    <Tag size={11} /> {feesList.length} Addl Fee
                                                                 </div>
                                                             )}
                                                         </div>
                                                     </td>
-                                                    <td style={{ fontWeight: 600, color: 'var(--primary-navy)' }}>
-                                                        {inv.client ? inv.client.company_name : 'Unknown Client'}
-                                                    </td>
                                                     <td>
-                                                        {inv.branch ? inv.branch.branch_name : (inv.place_of_supply_state || '—')}
-                                                    </td>
-                                                    <td style={{ fontFamily: 'monospace', fontSize: '0.8rem', fontWeight: 600, color: '#334155' }}>
-                                                        {resolvedGstin}
+                                                        <div className="client-branch-cell">
+                                                            <span className="company-name">{inv.client ? inv.client.company_name : 'Unknown Client'}</span>
+                                                            <span className="branch-meta">
+                                                                <span>{branchName}</span>
+                                                                <span>•</span>
+                                                                <span className="gstin-code">{resolvedGstin}</span>
+                                                            </span>
+                                                        </div>
                                                     </td>
                                                     <td style={{ fontWeight: 700, color: '#334155' }}>
                                                         {formatRupee(inv.gross_salary_passthrough)}
-                                                    </td>
-                                                    <td>
-                                                        <div className="invoice-due-cell">
-                                                            <span className="due-date">{inv.due_date ? formatDate(inv.due_date) : '—'}</span>
-                                                            {inv.dispute_window_expires_at && (
-                                                                <span className="dispute-date">
-                                                                    Dispute Closes: {formatDate(inv.dispute_window_expires_at)}
-                                                                </span>
-                                                            )}
-                                                        </div>
                                                     </td>
                                                     {role !== 'manager' && (
                                                         <td style={{ fontWeight: 600, color: '#059669' }}>
@@ -253,6 +242,16 @@ export default function InvoicesList({ invoices, filters: serverFilters = {} }) 
                                                         {formatRupee(inv.grand_total || 0)}
                                                     </td>
                                                     <td>
+                                                        <div className="invoice-due-cell">
+                                                            <span className="due-date">{inv.due_date ? formatDate(inv.due_date) : '—'}</span>
+                                                            {inv.dispute_window_expires_at && (
+                                                                <span className="dispute-date">
+                                                                    Dispute Closes: {formatDate(inv.dispute_window_expires_at)}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    <td>
                                                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                                                             <Badge type={getStatusBadgeType(inv.status)}>
                                                                 {inv.status === 'draft' && 'Draft'}
@@ -262,28 +261,40 @@ export default function InvoicesList({ invoices, filters: serverFilters = {} }) 
                                                                 {inv.status === 'paid' && 'Paid'}
                                                                 {inv.status === 'overdue' && 'Overdue'}
                                                             </Badge>
-                                                            {inv.status === 'overdue' && parseFloat(inv.late_penalty_amount) > 0 && (
-                                                                <span className="text-xs text-red-500 font-semibold" title="Late payment penalty accumulated">
-                                                                    +{formatRupee(inv.late_penalty_amount)}
-                                                                </span>
-                                                            )}
                                                         </div>
                                                     </td>
-                                                    <td style={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
-                                                        {inv.gst_type === 'cgst_sgst' ? 'CGST + SGST (Intrastate)' : 'IGST (Interstate)'}
-                                                    </td>
-                                                    <td style={{ textAlign: 'center' }}>
+                                                    <td className="actions-col">
                                                         <div className="invoice-actions-group">
+                                                            {/* Dedicated View Page Button */}
+                                                            <Link
+                                                                href={route('invoices.show', inv.id)}
+                                                                className="invoice-action-btn view-btn"
+                                                                title="View Full Invoice Details"
+                                                            >
+                                                                <Eye size={13} /> View
+                                                            </Link>
+
+                                                            {/* PDF Download Button */}
+                                                            <a
+                                                                href={route('invoices.download', inv.id)}
+                                                                target="_blank"
+                                                                rel="noreferrer"
+                                                                className="invoice-action-btn pdf-btn"
+                                                                title="Download Tax Invoice PDF"
+                                                            >
+                                                                <Download size={13} /> PDF
+                                                            </a>
+
+                                                            {/* Draft Status Actions */}
                                                             {inv.status === 'draft' && (
                                                                 <>
                                                                     <button
                                                                         type="button"
                                                                         onClick={() => setSelectedFeeInvoice(inv)}
-                                                                        className="btn btn-sm btn-secondary"
-                                                                        style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                                                        className="invoice-action-btn secondary"
                                                                         title="Manage Additional Fees"
                                                                     >
-                                                                        <Plus size={13} /> Add Fee
+                                                                        <Plus size={13} /> Fee
                                                                     </button>
                                                                     <button
                                                                         type="button"
@@ -292,24 +303,15 @@ export default function InvoicesList({ invoices, filters: serverFilters = {} }) 
                                                                                 router.post(route('invoices.finalize', inv.id), {}, { preserveScroll: true });
                                                                             }
                                                                         }}
-                                                                        className="btn btn-sm"
-                                                                        style={{ backgroundColor: '#D97706', color: '#fff', padding: '0.25rem 0.6rem', fontSize: '0.75rem' }}
+                                                                        className="invoice-action-btn warning"
                                                                         title="Finalize & Issue Tax Invoice"
                                                                     >
                                                                         Finalize
                                                                     </button>
                                                                 </>
                                                             )}
-                                                            <a
-                                                                href={route('invoices.download', inv.id)}
-                                                                target="_blank"
-                                                                rel="noreferrer"
-                                                                className="btn btn-sm btn-primary"
-                                                                style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                                                                title="Download Tax Invoice PDF"
-                                                            >
-                                                                <Download size={13} /> PDF
-                                                            </a>
+
+                                                            {/* Email Action for Issued Invoices */}
                                                             {inv.status !== 'draft' && (
                                                                 <button
                                                                     type="button"
@@ -318,26 +320,20 @@ export default function InvoicesList({ invoices, filters: serverFilters = {} }) 
                                                                             router.post(route('invoices.send-email', inv.id), {}, { preserveScroll: true });
                                                                         }
                                                                     }}
-                                                                    className="btn btn-sm"
-                                                                    style={{ backgroundColor: '#059669', color: '#fff', padding: '0.25rem 0.6rem', fontSize: '0.75rem' }}
+                                                                    className="invoice-action-btn success"
                                                                     title={inv.sent_at ? `Sent on ${new Date(inv.sent_at).toLocaleDateString()} (${inv.send_count}x)` : 'Send Tax Invoice Email'}
                                                                 >
-                                                                    {inv.sent_at ? 'Resend Email' : 'Send Email'}
+                                                                    {inv.sent_at ? 'Resend' : 'Send'}
                                                                 </button>
                                                             )}
                                                         </div>
-                                                        {inv.sent_at && (
-                                                            <div className="sent-meta-text">
-                                                                ✉️ Sent {new Date(inv.sent_at).toLocaleDateString()} ({inv.send_count}x)
-                                                            </div>
-                                                        )}
                                                     </td>
                                                 </tr>
                                             );
                                         })
                                     ) : (
                                         <tr>
-                                            <td colSpan="12" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
+                                            <td colSpan="9" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
                                                 No billing invoices match the selected filter parameters.
                                             </td>
                                         </tr>

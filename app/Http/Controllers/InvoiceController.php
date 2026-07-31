@@ -52,6 +52,59 @@ class InvoiceController extends Controller
     }
 
     /**
+     * Show single invoice details page with backend paginated line items (limit 15).
+     */
+    public function show(Request $request, $id)
+    {
+        $invoice = Invoice::with([
+            'client.contacts',
+            'branch',
+            'additionalFees',
+            'sentBy'
+        ])->findOrFail($id);
+
+        $lineItems = $invoice->lineItems()
+            ->with('employee')
+            ->paginate(15)
+            ->withQueryString();
+
+        $targetRunId = $invoice->payroll_run_id;
+        if ($targetRunId && $lineItems->count() > 0) {
+            $empIds = collect($lineItems->items())->pluck('employee_id')->filter();
+            $runItems = \Illuminate\Support\Facades\DB::table('payroll_run_items')
+                ->where('payroll_run_id', $targetRunId)
+                ->whereIn('employee_id', $empIds)
+                ->get()
+                ->keyBy('employee_id');
+
+            $lineItems->through(function ($item) use ($runItems) {
+                $ri = $runItems->get($item->employee_id);
+                if ($ri) {
+                    $item->actual_gross = (float) $ri->gross_total;
+                    $item->employer_pf = (float) $ri->employer_pf;
+                    $item->employer_esi = (float) $ri->employer_esi;
+                    $item->employer_lwf = (float) $ri->employer_lwf;
+                    $item->employer_statutory_total = (float)$ri->employer_pf + (float)$ri->employer_esi + (float)$ri->employer_lwf;
+                    $item->line_ctc = $item->actual_gross + $item->employer_statutory_total;
+                } else {
+                    $item->actual_gross = (float) $item->gross_pay;
+                    $item->employer_pf = 0.00;
+                    $item->employer_esi = 0.00;
+                    $item->employer_lwf = 0.00;
+                    $item->employer_statutory_total = 0.00;
+                    $item->line_ctc = (float) $item->gross_pay;
+                }
+                return $item;
+            });
+        }
+
+        return Inertia::render('Invoicing/InvoiceDetail', [
+            'invoice' => $invoice,
+            'lineItems' => $lineItems,
+        ]);
+    }
+
+    /**
      * Download or stream Tax Invoice PDF.
      */
     public function downloadPdf($id)
