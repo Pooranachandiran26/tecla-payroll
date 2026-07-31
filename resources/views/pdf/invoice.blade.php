@@ -5,8 +5,8 @@
     <title>Tax Invoice - {{ $invoice->invoice_number }}</title>
     <style>
         body {
-            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-            font-size: 11px;
+            font-family: DejaVu Sans, sans-serif;
+            font-size: 10px;
             color: #1e293b;
             margin: 0;
             padding: 15px;
@@ -145,7 +145,7 @@
         <tr>
             <td class="meta-box" style="margin-right: 2%;">
                 <div style="font-weight: bold; color: #1F3864; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin-bottom: 6px;">
-                    📌 BILLED TO (CLIENT DETAILS)
+                    BILLED TO (CLIENT DETAILS)
                 </div>
                 <div class="meta-val">{{ $billedToName }} ({{ $billedToCode }})</div>
                 <div style="margin-top: 3px; font-size: 9.5px; color: #334155;">
@@ -158,7 +158,7 @@
             <td style="width: 2%;"></td>
             <td class="meta-box">
                 <div style="font-weight: bold; color: #1F3864; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin-bottom: 6px;">
-                    🗓️ INVOICE METADATA
+                    INVOICE METADATA
                 </div>
                 <table style="width: 100%; font-size: 9.5px;" cellpadding="2">
                     <tr><td class="meta-label">Invoice Date:</td><td class="meta-val">{{ $formattedDate }}</td></tr>
@@ -293,7 +293,7 @@
         <tr>
             <td class="bank-box" style="margin-right: 2%;">
                 <div style="font-weight: bold; color: #1F3864; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px; margin-bottom: 5px;">
-                    🏦 BANK ACCOUNT DETAILS FOR REMITTANCE
+                    BANK ACCOUNT DETAILS FOR REMITTANCE
                 </div>
                 <div><strong>Bank Name:</strong> {{ $bankDetails['bank_name'] }}</div>
                 <div><strong>Account Number:</strong> {{ $bankDetails['account_number'] }}</div>
@@ -303,7 +303,7 @@
             <td style="width: 2%;"></td>
             <td class="bank-box">
                 <div style="font-weight: bold; color: #1F3864; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px; margin-bottom: 5px;">
-                    📋 PAYMENT TERMS & INSTRUCTIONS
+                    PAYMENT TERMS & INSTRUCTIONS
                 </div>
                 <div style="color: #475569; margin-bottom: 4px;">{{ $paymentInstructions }}</div>
                 <div style="white-space: pre-line; color: #64748b; font-size: 8.5px;">{{ $termsAndConditions }}</div>
