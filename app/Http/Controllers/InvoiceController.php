@@ -52,20 +52,25 @@ class InvoiceController extends Controller
     }
 
     /**
-     * Show single invoice details page.
+     * Show single invoice details page with backend paginated line items (limit 15).
      */
-    public function show($id)
+    public function show(Request $request, $id)
     {
         $invoice = Invoice::with([
             'client.contacts',
             'branch',
-            'lineItems.employee',
             'additionalFees',
             'sentBy'
         ])->findOrFail($id);
 
+        $lineItems = $invoice->lineItems()
+            ->with('employee')
+            ->paginate(15)
+            ->withQueryString();
+
         return Inertia::render('Invoicing/InvoiceDetail', [
             'invoice' => $invoice,
+            'lineItems' => $lineItems,
         ]);
     }
 

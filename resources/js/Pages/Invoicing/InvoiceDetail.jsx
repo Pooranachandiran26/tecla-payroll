@@ -3,12 +3,13 @@ import AuthenticatedLayout from '../../Layouts/AuthenticatedLayout';
 import { Head, usePage, router, Link } from '@inertiajs/react';
 import Badge from '../../Components/ui/Badge';
 import RoleGuard from '../../Components/RoleGuard.jsx';
+import Pagination from '../../Components/ui/Pagination';
 import AddInvoiceFeeModal from '../../Components/AddInvoiceFeeModal';
 import { ArrowLeft, Download, Plus, Send, Building, FileText, Calendar, DollarSign, Tag, Trash2, ShieldCheck } from 'lucide-react';
 import './InvoiceDetail.css';
 import { formatRupee, formatDate, getStatusBadgeType, calculateLineItemsSummary } from './InvoiceDetailLogic';
 
-export default function InvoiceDetail({ invoice: initialInvoice }) {
+export default function InvoiceDetail({ invoice: initialInvoice, lineItems: paginatedLineItems }) {
     const { auth, flash, errors } = usePage().props;
     const role = auth?.user?.role || 'manager';
     const [invoice, setInvoice] = useState(initialInvoice);
@@ -28,7 +29,6 @@ export default function InvoiceDetail({ invoice: initialInvoice }) {
             router.delete(route('invoices.fees.destroy', { id: invoice.id, feeId }), {
                 preserveScroll: true,
                 onSuccess: () => {
-                    // Refresh current page
                     router.reload();
                 }
             });
@@ -37,11 +37,15 @@ export default function InvoiceDetail({ invoice: initialInvoice }) {
 
     const client = invoice.client || {};
     const branch = invoice.branch || {};
-    const lineItems = invoice.line_items || invoice.lineItems || [];
     const additionalFees = invoice.additional_fees || invoice.additionalFees || [];
     const gstin = invoice.branch_gstin || branch.gstin || client.decrypted_gstin || client.gstin || '—';
 
-    const lineSummary = calculateLineItemsSummary(lineItems);
+    // Support both paginated object and plain array
+    const isPaginated = paginatedLineItems && Array.isArray(paginatedLineItems.data);
+    const lineItemsList = isPaginated ? paginatedLineItems.data : (invoice.line_items || invoice.lineItems || []);
+    const lineItemsTotal = isPaginated ? paginatedLineItems.total : lineItemsList.length;
+
+    const lineSummary = calculateLineItemsSummary(lineItemsList);
 
     return (
         <RoleGuard allowedRoles={['admin', 'manager']} moduleKey="payroll">
@@ -243,14 +247,14 @@ export default function InvoiceDetail({ invoice: initialInvoice }) {
                         </div>
                     </div>
 
-                    {/* Employee Line Items Table */}
+                    {/* Employee Line Items Table (Paginated 15 per page) */}
                     <div className="card mb-6" style={{ padding: 0 }}>
-                        <div className="p-4 border-b border-gray-100 flex justify-between items-center">
+                        <div className="p-4 border-b border-gray-100 flex justify-between items-center flex-wrap gap-2">
                             <h3 className="font-bold text-[#1F3864] text-base flex items-center gap-2">
-                                <Tag size={16} /> Employee Pass-Through Line Items ({lineItems.length})
+                                <Tag size={16} /> Employee Pass-Through Line Items ({lineItemsTotal})
                             </h3>
                             <span className="text-sm font-semibold text-slate-600">
-                                Total Line CTC: <strong>{formatRupee(lineSummary.totalLineCtc)}</strong>
+                                Page CTC Total: <strong>{formatRupee(lineSummary.totalLineCtc)}</strong>
                             </span>
                         </div>
                         <div className="table-responsive">
@@ -265,8 +269,8 @@ export default function InvoiceDetail({ invoice: initialInvoice }) {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {lineItems.length > 0 ? (
-                                        lineItems.map((item) => {
+                                    {lineItemsList.length > 0 ? (
+                                        lineItemsList.map((item) => {
                                             const emp = item.employee || {};
                                             const gross = parseFloat(item.gross_pay || 0);
                                             const stat = (
@@ -299,6 +303,26 @@ export default function InvoiceDetail({ invoice: initialInvoice }) {
                                 </tbody>
                             </table>
                         </div>
+
+                        {/* Backend Pagination (Limit 15) */}
+                        {isPaginated && paginatedLineItems.total > 0 && (
+                            <div className="px-6 py-4 border-t border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-4">
+                                <div className="text-sm text-gray-500">
+                                    Showing <strong>{paginatedLineItems.from || 0}</strong> to <strong>{paginatedLineItems.to || 0}</strong> of <strong>{paginatedLineItems.total}</strong> employee line items
+                                </div>
+                                {paginatedLineItems.last_page > 1 && (
+                                    <Pagination
+                                        currentPage={paginatedLineItems.current_page}
+                                        totalPages={paginatedLineItems.last_page}
+                                        totalItems={paginatedLineItems.total}
+                                        itemsPerPage={paginatedLineItems.per_page}
+                                        onPageChange={(page) => {
+                                            router.get(route('invoices.show', invoice.id), { page }, { preserveScroll: true, preserveState: true });
+                                        }}
+                                    />
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     {/* Additional Fees Table */}

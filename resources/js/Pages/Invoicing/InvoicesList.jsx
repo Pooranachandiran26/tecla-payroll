@@ -177,21 +177,21 @@ export default function InvoicesList({ invoices, filters: serverFilters = {} }) 
 
                     {/* Invoices Data Table Card (Single Screen Fit, No Horizontal Scroll) */}
                     <div className="card invoices-table-card" style={{ padding: '0' }}>
-                        <div className="w-full">
+                        <div className="invoices-table-container">
                             <table className="data-table invoices-table">
                                 <thead>
                                     <tr>
                                         <th>Invoice No</th>
                                         <th>Client & Branch</th>
-                                        <th>Pass-Through CTC (₹)</th>
+                                        <th>Pass-Through (₹)</th>
                                         {role !== 'manager' && (
-                                            <th>Agency Service Fee</th>
+                                            <th>Agency Fee</th>
                                         )}
-                                        <th>GST Amount (₹)</th>
-                                        <th>Grand Total (₹)</th>
+                                        <th>GST Amount</th>
+                                        <th>Grand Total</th>
                                         <th>Due Date</th>
                                         <th>Status</th>
-                                        <th style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>Actions</th>
+                                        <th className="actions-col">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -263,7 +263,7 @@ export default function InvoicesList({ invoices, filters: serverFilters = {} }) 
                                                             </Badge>
                                                         </div>
                                                     </td>
-                                                    <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                                                    <td className="actions-col">
                                                         <div className="invoice-actions-group">
                                                             {/* Dedicated View Page Button */}
                                                             <Link
