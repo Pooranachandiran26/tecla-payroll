@@ -220,3 +220,21 @@
     .doc-card:hover { border-color: var(--primary-navy); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
     .doc-card h4 { font-size: 1.05rem; color: var(--primary-navy); margin-bottom: 0.5rem; font-weight: 700; }
     .doc-card p { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1.25rem; line-height: 1.4; }
+
+    /* Field helper notes */
+    .field-note {
+      font-size: 0.775rem;
+      color: #64748B;
+      margin-top: 0.35rem;
+      line-height: 1.5;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.3rem;
+    }
+    .field-note::before {
+      content: 'ℹ';
+      font-size: 0.75rem;
+      color: #93C5FD;
+      flex-shrink: 0;
+      margin-top: 0.05rem;
+    }

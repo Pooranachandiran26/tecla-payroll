@@ -16,15 +16,19 @@ class FullAndFinalCalculationService
         $lopBasisDays = (int) $employee->lop_basis_days ?: 30; // 26 or 30
 
         $calculations = [
-            'pending_salary_amount' => 0,
-            'leave_encashment_amount' => 0,
-            'bonus_amount' => 0,
-            'gratuity_amount' => 0,
-            'notice_amount' => 0,
-            'loan_recovery_amount' => 0,
-            'tds_amount' => 0,
-            'net_settlement_amount' => 0,
-            'adhoc_adjustments' => $inputs['adhoc_adjustments'] ?? [],
+            'pending_salary_amount'       => 0,
+            'leave_encashment_amount'     => 0,
+            'bonus_amount'               => 0,
+            'statutory_bonus_amount'     => 0,   // auto-computed — Payment of Bonus Act 1965
+            'statutory_bonus_eligible'   => false,
+            'gratuity_amount'            => 0,
+            'gratuity_forfeiture_risk'   => false, // Sec 4(6) advisory — never auto-zeroed
+            'notice_amount'              => 0,
+            'loan_recovery_amount'       => 0,
+            'tds_amount'                 => 0,
+            'pt_shortfall_recovery'      => 0,
+            'net_settlement_amount'      => 0,
+            'adhoc_adjustments'          => $inputs['adhoc_adjustments'] ?? [],
         ];
 
         // 1. Pro-rated Pending Salary
@@ -78,6 +82,53 @@ class FullAndFinalCalculationService
 
                 $calculations['gratuity_amount'] = round(($baseSalary / 26) * 15 * $gratuityYears, 2);
             }
+
+            // Sec 4(6) Gratuity Forfeiture Advisory — NEVER auto-zero; requires admin confirmation
+            // Forfeiture is legally permissible ONLY for riotous/violent conduct or offenses involving moral turpitude.
+            // We surface a warning banner when exit_type = Termination + reason = Conduct / Policy Violation.
+            $exitType       = $inputs['exit_type']       ?? '';
+            $reasonCategory = $inputs['reason_category'] ?? '';
+            if (
+                strtolower($exitType) === 'termination' &&
+                strtolower($reasonCategory) === 'conduct / policy violation'
+            ) {
+                $calculations['gratuity_forfeiture_risk'] = true;
+            }
+        }
+
+        // 4b. Statutory Bonus Auto-Computation (Payment of Bonus Act 1965, Sec 10 & 12)
+        // Eligibility: basic_pay <= 21,000 (Sec 2(13)) AND client has statutory_bonus_applicable = true
+        // Calculation base: min(basic_pay, max(7000, state_min_wage)) (Sec 12)
+        // Rate: client.bonus_rate_percentage (8.33% min, 20% max)
+        // Pro-rated for partial year: (months_worked / 12) × annual_bonus
+        $client = \Illuminate\Support\Facades\DB::table('clients')->where('id', $employee->client_id)->first();
+        $bonusApplicable = $client ? (bool)($client->statutory_bonus_applicable ?? false) : false;
+        $bonusRatePct    = $client ? (float)($client->bonus_rate_percentage ?? 8.33) : 8.33;
+        $basic           = (float)$employee->basic_pay;
+
+        if ($bonusApplicable && $basic <= 21000.00) {
+            $calcCeiling  = max(7000.00, 0); // state_min_wage not stored per employee; using Act default 7000
+            $bonusBase    = min($basic, $calcCeiling);
+            $monthlyBonus = $bonusBase * ($bonusRatePct / 100);
+
+            // Pro-rate for months of service in this financial year (Apr–Mar)
+            if (!empty($employee->date_of_joining) && !empty($inputs['last_working_day'])) {
+                $lwd = Carbon::parse($inputs['last_working_day']);
+                $doj = Carbon::parse($employee->date_of_joining);
+                // FY start = April 1 of current FY
+                $fyStart = $lwd->month >= 4
+                    ? Carbon::create($lwd->year, 4, 1)
+                    : Carbon::create($lwd->year - 1, 4, 1);
+                $serviceFrom  = $doj->greaterThan($fyStart) ? $doj : $fyStart;
+                $monthsWorked = (int) ceil($serviceFrom->diffInMonths($lwd) + 1);
+                $monthsWorked = min(12, max(1, $monthsWorked));
+                $annualBonus  = $monthlyBonus * $monthsWorked;
+            } else {
+                $annualBonus = $monthlyBonus * 12;
+            }
+
+            $calculations['statutory_bonus_amount']   = round($annualBonus, 2);
+            $calculations['statutory_bonus_eligible'] = true;
         }
 
         // 5. PT Shortfall Recovery for Half-Yearly States (e.g. Tamil Nadu)

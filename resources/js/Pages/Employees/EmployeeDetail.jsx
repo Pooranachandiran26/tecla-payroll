@@ -171,40 +171,40 @@ const renderDocumentRows = () => {
         <a href={route('employees.index')} style={{"fontSize":"0.85rem","fontWeight":"600", display: 'inline-flex', alignItems: 'center', gap: '5px'}}>
           <ArrowLeft size={14} /> Back to Employees Directory
         </a>
-        <div className="flex-row-between" style={{"marginTop":"0.5rem","marginBottom":"0"}}>
-          <div style={{"display":"flex","alignItems":"center","gap":"1rem"}}>
-            <h2 id="page-emp-name">{employee.full_name || 'Employee Profile'}</h2>
-            <span className={`badge badge-${employee.status === 'active' ? 'success' : 'warning'}`}>{employee.status ? (employee.status.charAt(0).toUpperCase() + employee.status.slice(1)) : 'Active'}</span>
+        <div className="flex-row-between" style={{ marginTop: '0.5rem', marginBottom: '0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'nowrap' }}>
+            <h2 id="page-emp-name" style={{ margin: 0, whiteSpace: 'nowrap', fontSize: '1.5rem', fontWeight: 800 }}>{employee.full_name || 'Employee Profile'}</h2>
+            <span className={`badge badge-${employee.status === 'active' ? 'success' : 'warning'}`} style={{ whiteSpace: 'nowrap' }}>{employee.status ? (employee.status.charAt(0).toUpperCase() + employee.status.slice(1)) : 'Active'}</span>
             {employee.status === 'onboarding' && (
-                <span style={{"fontSize":"0.85rem","color":"var(--text-muted)","fontStyle":"italic"}}>
-                  {employee.documents_verified_count || 0}/{employee.documents_required_count || 5} documents verified — {(employee.documents_required_count || 5) - (employee.documents_verified_count || 0)} remaining to activate.
+                <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontStyle: 'italic', whiteSpace: 'nowrap' }}>
+                  {employee.documents_verified_count || 0}/{employee.documents_required_count || 5} docs verified — {(employee.documents_required_count || 5) - (employee.documents_verified_count || 0)} remaining.
                 </span>
             )}
           </div>
-          <div style={{"display":"flex","gap":"0.75rem"}}>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
             {employee.personal_email && !employee.has_logged_in && (
                 <button 
                     onClick={() => setResendInviteDialogOpen(true)} 
                     className="btn" 
-                    style={{"backgroundColor":"white","color":"var(--primary-navy)","border":"1px solid var(--primary-navy)", display: 'inline-flex', alignItems: 'center', gap: '5px'}}
+                    style={{ backgroundColor: 'white', color: 'var(--primary-navy)', border: '1px solid var(--primary-navy)', display: 'inline-flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}
                 >
                     <Mail size={15} /> Resend Invite
                 </button>
             )}
-            <a href={route('employees.salary-revision.create', employee.id)} className="btn btn-navy" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+            <a href={route('employees.salary-revision.create', employee.id)} className="btn btn-navy" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}>
               <TrendingUp size={15} /> Revise Salary
             </a>
-            <a href={route('employees.exit.show', { id: employee.id, stage: 1 })} className="btn btn-danger" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+            <a href={route('employees.exit.show', { id: employee.id, stage: 1 })} className="btn btn-danger" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}>
               <LogOut size={15} /> Initiate Exit Process
             </a>
-            <Link href={route('employees.edit', employee.id)} className="btn btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+            <Link href={route('employees.edit', employee.id)} className="btn btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}>
               <Edit size={15} /> Edit Profile
             </Link>
             
             {employee.status === 'suspended' ? (
               <button 
                   className="btn btn-primary" 
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}
                   onClick={() => setReactivateDialogOpen(true)}
               >
                   <Play size={15} /> Reactivate
@@ -212,7 +212,7 @@ const renderDocumentRows = () => {
             ) : (
               <button 
                   className="btn btn-warning" 
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}
                   onClick={() => setSuspendDialogOpen(true)}
               >
                   <Pause size={15} /> Suspend
@@ -222,7 +222,7 @@ const renderDocumentRows = () => {
             {auth.user.role === 'admin' && (
               <button 
                 className="btn btn-danger" 
-                style={{ backgroundColor: 'var(--status-danger)', color: 'white', borderColor: 'var(--status-danger)', display: 'inline-flex', alignItems: 'center', gap: '5px' }} 
+                style={{ backgroundColor: 'var(--status-danger)', color: 'white', borderColor: 'var(--status-danger)', display: 'inline-flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }} 
                 onClick={() => setDeleteDialog({ isOpen: true, confirmText: '', reason: '' })}
               >
                 <Trash2 size={15} /> Delete

@@ -703,17 +703,25 @@
   }
   .tab-headers {
     display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
     border-bottom: 1px solid var(--border-color);
     list-style: none;
-    gap: 1.5rem;
+    gap: 1rem;
+    padding-bottom: 2px;
+    scrollbar-width: thin;
   }
   .tab-headers li {
-    padding: 0.5rem 0.75rem;
+    padding: 0.6rem 0.75rem;
     cursor: pointer;
     font-weight: 500;
     color: var(--text-muted);
     border-bottom: 2px solid transparent;
-    font-size: 0.95rem;
+    font-size: 0.88rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
   }
   .tab-headers li:hover {
     color: var(--primary-navy);
