@@ -253,8 +253,16 @@ export default function InvoiceDetail({ invoice: initialInvoice, lineItems: pagi
                             <h3 className="font-bold text-[#1F3864] text-base flex items-center gap-2">
                                 <Tag size={16} /> Employee Pass-Through Line Items ({lineItemsTotal})
                             </h3>
-                            <span className="text-sm font-semibold text-slate-600">
-                                Page CTC Total: <strong>{formatRupee(lineSummary.totalLineCtc)}</strong>
+                            <span className="text-sm font-medium text-slate-600">
+                                {isPaginated && lineItemsList.length < lineItemsTotal 
+                                    ? `Page Total (${lineItemsList.length} of ${lineItemsTotal} items): `
+                                    : 'Pass-Through CTC Subtotal: '} 
+                                <strong className="text-[#1F3864]">{formatRupee(lineSummary.totalLineCtc)}</strong>
+                                {isPaginated && lineItemsList.length < lineItemsTotal && (
+                                    <span className="text-xs text-slate-500 font-normal ml-2">
+                                        (Full Invoice Pass-Through: <strong>{formatRupee(invoice.gross_salary_passthrough)}</strong>)
+                                    </span>
+                                )}
                             </span>
                         </div>
                         <div className="table-responsive">

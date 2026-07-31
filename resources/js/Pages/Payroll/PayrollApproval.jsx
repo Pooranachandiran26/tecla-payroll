@@ -185,23 +185,33 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
                     )}
                 </div>
 
-                <div className="card" style={{ padding: "1rem", marginBottom: "1.5rem" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: cycleInfo ? "1rem" : 0 }}>
-                        <label style={{ fontWeight: 500, marginBottom: 0 }}>Select Client Batch:</label>
-                        <select className="form-control" style={{ width: "300px" }} value={clientId} onChange={e => handleClientChange(e.target.value)}>
-                            {clients.map(c => (
-                                <option key={c.id} value={c.id}>{c.company_name}</option>
-                            ))}
-                        </select>
-                        <select className="form-control" style={{ width: "150px" }} value={month} onChange={e => handleMonthChange(e.target.value)}>
-                            {getMonthOptions().map(opt => (
-                                <option key={opt.value} value={opt.value}>{opt.label}</option>
-                            ))}
-                        </select>
+                <div className="card" style={{ padding: "0.85rem 1rem", marginBottom: "1rem" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "1rem" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                            <label style={{ fontWeight: 600, marginBottom: 0, color: "var(--primary-navy)" }}>Select Client Batch:</label>
+                            <select className="form-control" style={{ width: "280px" }} value={clientId} onChange={e => handleClientChange(e.target.value)}>
+                                {clients.map(c => (
+                                    <option key={c.id} value={c.id}>{c.company_name}</option>
+                                ))}
+                            </select>
+                            <select className="form-control" style={{ width: "150px" }} value={month} onChange={e => handleMonthChange(e.target.value)}>
+                                {getMonthOptions().map(opt => (
+                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Pre-Flight Badge Inline */}
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.85rem" }}>
+                            <span style={{ fontWeight: 500, color: "var(--text-muted)" }}>✈️ Pre-Flight Gates:</span>
+                            <span className={`badge ${preflight && preflight.some(f => f.type === 'red') ? 'badge-danger' : 'badge-success'}`}>
+                                {preflight && preflight.some(f => f.type === 'red') ? 'Blockers Found' : 'All Clear'}
+                            </span>
+                        </div>
                     </div>
 
                     {cycleInfo && (
-                        <div className="cycle-info-row" style={{ display: "flex", gap: "1.5rem", borderTop: "1px solid var(--border-color)", paddingTop: "0.75rem", fontSize: "0.85rem", color: "var(--text-muted)", flexWrap: "wrap" }}>
+                        <div className="cycle-info-row" style={{ display: "flex", gap: "1.5rem", borderTop: "1px solid var(--border-color)", paddingTop: "0.5rem", marginTop: "0.6rem", fontSize: "0.82rem", color: "var(--text-muted)", flexWrap: "wrap" }}>
                             <span>📅 Cycle Ends: <strong>{cycleInfo.cycle_end_date}</strong></span>
                             {cycleInfo.target_lock_date && (
                                 <span>🔒 Target Lock Date: <strong>{cycleInfo.target_lock_date}</strong></span>
@@ -211,68 +221,80 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
                             )}
                         </div>
                     )}
-                </div>
 
-                {/* Pre-Flight Validation Gates (Timing & blocker checks) */}
-                <div className="card" style={{ marginBottom: "1.5rem" }}>
-                    <div className="card-header" style={{ backgroundColor: "#F8FAFC", borderBottom: "1px solid var(--border-color)" }}>
-                        <h3 className="card-title" style={{ margin: 0, fontSize: "1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                            <span>✈️ Pre-Flight Validation Gates</span>
-                            <span className={`badge ${preflight && preflight.some(f => f.type === 'red') ? 'badge-danger' : 'badge-success'}`}>
-                                {preflight && preflight.some(f => f.type === 'red') ? 'Blockers Found' : 'All Clear'}
-                            </span>
-                        </h3>
-                    </div>
-                    <div style={{ padding: "1rem" }}>
-                        {preflight && preflight.length > 0 ? (
-                            preflight.map((f, i) => (
-                                <div key={i} className={`preflight-item status-${f.type}`}>
-                                    <div className="preflight-icon">
+                    {/* Pre-Flight Warning Messages compact list */}
+                    {preflight && preflight.length > 0 && (
+                        <div style={{ borderTop: "1px dashed var(--border-color)", paddingTop: "0.5rem", marginTop: "0.5rem" }}>
+                            {preflight.map((f, i) => (
+                                <div key={i} className={`preflight-item status-${f.type}`} style={{ padding: "0.3rem 0.6rem", margin: "0.2rem 0", fontSize: "0.8rem" }}>
+                                    <div className="preflight-icon" style={{ fontSize: "0.85rem" }}>
                                         {f.type === 'red' ? '❌' : f.type === 'info' ? 'ℹ️' : '⚠️'}
                                     </div>
                                     <div className="preflight-content">
                                         <strong>{f.type === 'red' ? 'BLOCKER' : f.type === 'info' ? 'INFO' : 'WARNING'}:</strong> {f.msg}
                                     </div>
                                 </div>
-                            ))
-                        ) : (
-                            <div className="preflight-item status-green">
-                                <div className="preflight-icon">✅</div>
-                                <div className="preflight-content">
-                                    <strong>ALL CLEAR:</strong> No blockers or warnings found for this client and month.
-                                </div>
-                            </div>
-                        )}
-                    </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
-                {run ? (
+                {run ? (() => {
+                    const clientData = run.client || clients.find(c => c.id === clientId) || {};
+                    const grossEarnings = parseFloat(run.total_gross_earnings || 0);
+                    const employerCost = parseFloat(run.total_employer_statutory_cost || 0);
+
+                    let contractModelText = 'Fixed Per Candidate';
+                    let agencyMargin = 0;
+                    let invoicedAmount = 0;
+
+                    if (clientData.billing_model === 'percentage_markup') {
+                        const rate = parseFloat(clientData.markup_value || 8.5);
+                        const isCtc = clientData.markup_applied_on === 'ctc';
+                        contractModelText = `${rate}% Markup on ${isCtc ? 'Gross CTC' : 'Gross Salary'}`;
+                        const baseForMarkup = isCtc ? (grossEarnings + employerCost) : grossEarnings;
+                        agencyMargin = Math.round(baseForMarkup * (rate / 100) * 100) / 100;
+                        invoicedAmount = Math.round((grossEarnings + employerCost + agencyMargin) * 100) / 100;
+                    } else if (clientData.billing_model === 'fixed_per_month' || clientData.billing_model === 'lumpsum' || clientData.billing_model === 'fixed_monthly_retainer') {
+                        const fixedFee = parseFloat(clientData.fixed_fee_amount || 0);
+                        contractModelText = `Fixed Retainer (₹${fixedFee.toLocaleString()})`;
+                        agencyMargin = fixedFee;
+                        invoicedAmount = Math.round((grossEarnings + employerCost + agencyMargin) * 100) / 100;
+                    } else {
+                        const perCandFee = parseFloat(clientData.fixed_fee_amount || 1600);
+                        const activeCount = parseInt(run.total_employees_processed || 0);
+                        contractModelText = `Fixed Fee (₹${perCandFee.toLocaleString()} / candidate)`;
+                        agencyMargin = perCandFee * activeCount;
+                        invoicedAmount = Math.round((grossEarnings + employerCost + agencyMargin) * 100) / 100;
+                    }
+
+                    return (
                     <>
-                        <div className="grid-cols-4" style={{ marginBottom: "1.5rem" }}>
-                            <div className="card metric-card">
+                        <div className="grid-cols-4" style={{ marginBottom: "1rem" }}>
+                            <div className="card metric-card" style={{ padding: "0.85rem 1rem" }}>
                                 <span className="metric-label">Processed Employees</span>
-                                <span className="metric-value">{run.total_employees_processed}</span>
+                                <span className="metric-value" style={{ fontSize: "1.4rem" }}>{run.total_employees_processed}</span>
                                 <span className="metric-trend text-muted">Active in Roster</span>
                             </div>
-                            <div className="card metric-card">
+                            <div className="card metric-card" style={{ padding: "0.85rem 1rem" }}>
                                 <span className="metric-label">Total Gross Earnings</span>
-                                <span className="metric-value">₹{parseFloat(run.total_gross_earnings).toLocaleString()}</span>
+                                <span className="metric-value" style={{ fontSize: "1.4rem" }}>₹{parseFloat(run.total_gross_earnings).toLocaleString()}</span>
                                 <span className="metric-trend text-muted">Sum of gross pays</span>
                             </div>
-                            <div className="card metric-card">
+                            <div className="card metric-card" style={{ padding: "0.85rem 1rem" }}>
                                 <span className="metric-label">Total Net Disbursement</span>
-                                <span className="metric-value" style={{ color: "var(--primary-navy)" }}>₹{parseFloat(run.total_net_disbursement).toLocaleString()}</span>
+                                <span className="metric-value" style={{ color: "var(--primary-navy)", fontSize: "1.4rem" }}>₹{parseFloat(run.total_net_disbursement).toLocaleString()}</span>
                                 <span className="metric-trend text-muted">Amount sent to bank</span>
                             </div>
-                            <div className="card metric-card">
+                            <div className="card metric-card" style={{ padding: "0.85rem 1rem" }}>
                                 <span className="metric-label">Employer Statutory Cost</span>
-                                <span className="metric-value" style={{ color: "var(--status-warning)" }}>₹{parseFloat(run.total_employer_statutory_cost).toLocaleString()}</span>
+                                <span className="metric-value" style={{ color: "var(--status-warning)", fontSize: "1.4rem" }}>₹{parseFloat(run.total_employer_statutory_cost).toLocaleString()}</span>
                                 <span className="metric-trend text-muted">Er PF + Er ESI + Er LWF</span>
                             </div>
                         </div>
 
                         <div className="grid-layout">
-                            <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+                            <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
                                 <div className="card">
                                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-color)", paddingBottom: "0.5rem", marginBottom: "1rem" }}>
                                         <h3 className="card-title" style={{ margin: 0 }}>Employee Totals & Full Breakdown</h3>
@@ -281,44 +303,36 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
 
                                     {showBreakdown && (
                                         <div style={{ marginBottom: "1.5rem" }}>
-                                            <div className="table-scroll-wrapper">
-                                                <table className="data-table extended-table">
+                                            <div className="table-responsive">
+                                                <table className="data-table" style={{ fontSize: "0.8rem" }}>
                                                     <thead>
                                                         <tr>
                                                             <th>Emp Code</th>
                                                             <th>Employee Name</th>
-                                                            <th>Paid Days</th>
-                                                            <th>Gross</th>
-                                                            <th>Unpaid LOP (Info)</th>
-                                                            <th>PF</th>
-                                                            <th>ESI</th>
-                                                            <th>PT</th>
-                                                            <th>TDS</th>
-                                                            <th>Loan EMI</th>
-                                                            <th>Net Pay</th>
-                                                            <th style={{ color: "#047857", background: "#ECFDF5" }}>CTC (Er Cost)</th>
+                                                            <th>Gross Salary (₹)</th>
+                                                            <th>Net Pay (₹)</th>
+                                                            <th>Total Deductions (₹)</th>
+                                                            <th>Employer Cost (₹)</th>
+                                                            <th>Total Line CTC (₹)</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
-                                                        {activeItems.map(r => {
-                                                            const ctcVal = parseFloat(r.ctc_display ?? (parseFloat(r.gross_total || 0) + parseFloat(r.employer_pf || 0) + parseFloat(r.employer_esi || 0) + parseFloat(r.employer_lwf || 0)));
+                                                        {items.map((item) => {
+                                                            const gross = parseFloat(item.gross_total || 0);
+                                                            const net = parseFloat(item.net_pay || 0);
+                                                            const deduct = parseFloat(item.employee_pf || 0) + parseFloat(item.employee_esi || 0) + parseFloat(item.professional_tax || 0) + parseFloat(item.tds_deduction || 0);
+                                                            const erCost = parseFloat(item.employer_pf || 0) + parseFloat(item.employer_esi || 0) + parseFloat(item.employer_lwf || 0);
+                                                            const ctcVal = gross + erCost;
+
                                                             return (
-                                                                <tr key={r.id}>
-                                                                    <td>{r.employee_code}</td>
-                                                                    <td><strong>{r.full_name}</strong></td>
-                                                                    <td>{parseFloat(r.paid_days).toFixed(1)} days</td>
-                                                                    <td>₹{parseFloat(r.gross_total).toLocaleString()}</td>
-                                                                    <td style={{ background: "#F8FAFC" }}>₹{parseFloat(r.lop_deduction).toLocaleString()}</td>
-                                                                    <td>₹{parseFloat(r.employee_pf).toLocaleString()}</td>
-                                                                    <td>₹{parseFloat(r.employee_esi).toLocaleString()}</td>
-                                                                    <td>₹{parseFloat(r.professional_tax).toLocaleString()}</td>
-                                                                    <td>₹{parseFloat(r.tds_deduction).toLocaleString()}</td>
-                                                                    <td>₹{parseFloat(r.loan_emi_deduction).toLocaleString()}</td>
-                                                                    <td style={{ color: "var(--primary-navy)" }}><strong>₹{parseFloat(r.net_pay).toLocaleString()}</strong></td>
-                                                                    <td style={{ color: ctcVal < 0 ? "#DC2626" : "#047857", background: ctcVal < 0 ? "#FEF2F2" : "#ECFDF5", fontWeight: "bold" }}>
-                                                                        {ctcVal < 0 ? `-₹${Math.abs(ctcVal).toLocaleString()}` : `₹${ctcVal.toLocaleString()}`}
-                                                                        {ctcVal < 0 && <span style={{ fontSize: "0.7em", display: "block", color: "#DC2626", fontWeight: "normal" }}>(Delta Reduction)</span>}
-                                                                    </td>
+                                                                <tr key={item.id}>
+                                                                    <td className="font-mono text-xs">{item.employee_code || item.employee?.employee_code}</td>
+                                                                    <td style={{ fontWeight: 600 }}>{item.employee_name || item.employee?.full_name}</td>
+                                                                    <td>₹{gross.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                                                    <td style={{ fontWeight: 600, color: '#047857' }}>₹{net.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                                                    <td style={{ color: '#DC2626' }}>₹{deduct.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                                                    <td style={{ color: '#D97706' }}>₹{erCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                                                    <td style={{ fontWeight: 700, color: '#1F3864' }}>₹{ctcVal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                                                                 </tr>
                                                             );
                                                         })}
@@ -331,15 +345,15 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
                                     <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", fontSize: "0.9rem" }}>
                                         <div style={{ display: "flex", justifyContent: "space-between" }}>
                                             <span style={{ color: "var(--text-muted)" }}>Consolidated Gross Earnings:</span>
-                                            <span style={{ fontWeight: 600 }}>₹{parseFloat(run.total_gross_earnings).toLocaleString()}</span>
+                                            <span style={{ fontWeight: 600 }}>₹{parseFloat(run.total_gross_earnings).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                         </div>
                                         <div style={{ display: "flex", justifyContent: "space-between" }}>
                                             <span style={{ color: "var(--text-muted)" }}>Employer Statutory Costs (PF + ESI + LWF):</span>
-                                            <span style={{ fontWeight: 600 }}>₹{parseFloat(run.total_employer_statutory_cost).toLocaleString()}</span>
+                                            <span style={{ fontWeight: 600 }}>₹{parseFloat(run.total_employer_statutory_cost).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                         </div>
                                         <div style={{ display: "flex", justifyContent: "space-between" }}>
                                             <span style={{ color: "#047857", fontWeight: 600 }}>Consolidated Run CTC (Gross + Employer Costs):</span>
-                                            <span style={{ color: "#047857", fontWeight: 700 }}>₹{(parseFloat(run.total_gross_earnings) + parseFloat(run.total_employer_statutory_cost)).toLocaleString()}</span>
+                                            <span style={{ color: "#047857", fontWeight: 700 }}>₹{(parseFloat(run.total_gross_earnings) + parseFloat(run.total_employer_statutory_cost)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                         </div>
                                         <hr style={{ border: 0, borderTop: "1px solid var(--border-color)" }} />
                                         <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "bold", fontSize: "1rem" }}>
@@ -350,24 +364,25 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
                                 </div>
                             </div>
 
-                            <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+                            <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+                                {/* Primary Action Card (Authorization Lock & Payslip Release - TOP Priority) */}
                                 <div className="card">
-                                    <h3 className="card-title" style={{ marginBottom: "0.5rem" }}>Authorization Lock</h3>
-                                    <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "1.25rem" }}>
-                                        Approving and locking this run generates branch invoices, performs reconciliation, and sends automatic salary summary review emails.
+                                    <h3 className="card-title" style={{ marginBottom: "0.35rem" }}>Authorization &amp; Release Lock</h3>
+                                    <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "1rem" }}>
+                                        Approving and locking this run generates branch invoices, performs reconciliation, and enables official payslips.
                                     </p>
                                     
                                     <div>
                                         <button 
                                             className="btn btn-primary" 
-                                            style={{ width: "100%", padding: "0.6rem" }} 
+                                            style={{ width: "100%", padding: "0.75rem", fontSize: "0.95rem", fontWeight: 700, backgroundColor: run.status === 'locked' ? '#D97706' : '#1F3864' }} 
                                             onClick={handleApproveAndLock} 
                                             disabled={role !== 'admin' || run.status === 'locked'}
                                         >
                                             {run.status === 'locked' 
                                                 ? (pendingSupplementaryRuns.length > 0 
                                                     ? `✓ Parent Locked — ${pendingSupplementaryRuns.length} Supplementary Pending` 
-                                                    : '✓ Locked and Finalized') 
+                                                    : '✓ Batch Locked & Finalized') 
                                                 : '✓ Approve & Lock Batch'}
                                         </button>
 
@@ -436,7 +451,7 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
 
                                         {run.status === 'locked' && (
                                             <div style={{ marginTop: "1rem", paddingTop: "1rem", borderTop: "1px solid var(--border-color)" }}>
-                                                <h4 style={{ fontSize: "0.9rem", color: "var(--primary-navy)", marginBottom: "0.5rem" }}>Stage 2: Official Payslips Release</h4>
+                                                <h4 style={{ fontSize: "0.9rem", color: "var(--primary-navy)", marginBottom: "0.5rem", fontWeight: 700 }}>Stage 2: Official Payslips Release</h4>
                                                 
                                                 {run.payslip_released_at ? (
                                                     <div style={{ backgroundColor: "#ECFDF5", border: "1px solid #A7F3D0", padding: "0.75rem", borderRadius: "var(--radius-sm)", marginBottom: "0.75rem" }}>
@@ -455,7 +470,7 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
 
                                                 <button 
                                                     className="btn btn-success" 
-                                                    style={{ width: "100%", padding: "0.6rem", backgroundColor: "#059669", borderColor: "#059669", color: "#ffffff" }}
+                                                    style={{ width: "100%", padding: "0.6rem", backgroundColor: "#059669", borderColor: "#059669", color: "#ffffff", fontWeight: 600 }}
                                                     onClick={() => {
                                                         router.post(route('payroll.run.release-payslips', run.id), {}, {
                                                             onSuccess: () => showToast({ type: 'success', title: 'Success', message: 'Official payslips released and emailed successfully.' }),
@@ -487,7 +502,7 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
                                             </div>
                                         )}
 
-                                        <Link href={route('payroll.processing', { client_id: clientId, payroll_month: month })} className="btn btn-secondary" style={{ width: "100%", marginTop: "0.5rem", padding: "0.6rem", display: "block", textAlign: "center", boxSizing: "border-box" }}>
+                                        <Link href={route('payroll.processing', { client_id: clientId, payroll_month: month })} className="btn btn-secondary" style={{ width: "100%", marginTop: "0.5rem", padding: "0.5rem", display: "block", textAlign: "center", boxSizing: "border-box", fontSize: "0.85rem" }}>
                                             Return to Calculations
                                         </Link>
                                     </div>
@@ -500,10 +515,43 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
                                         </div>
                                     )}
                                 </div>
+
+                                {/* Agency Profit Margin Card (Below Primary Actions) */}
+                                <div className="card">
+                                    <h3 className="card-title" style={{ marginBottom: "0.25rem" }}>Agency Profit Margin</h3>
+                                    <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "1rem" }}>
+                                        Calculated as Invoiced Amount minus Gross Earnings and True Employer-Side Cost.
+                                    </p>
+
+                                    <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", fontSize: "0.85rem" }}>
+                                        <div style={{ display: "flex", justifyContent: "space-between" }}>
+                                            <span style={{ color: "var(--text-muted)" }}>Contract Model:</span>
+                                            <span style={{ fontWeight: 600 }}>{contractModelText}</span>
+                                        </div>
+                                        <div style={{ display: "flex", justifyContent: "space-between" }}>
+                                            <span>Invoiced to Client:</span>
+                                            <span style={{ fontWeight: 600 }}>₹{invoicedAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                        </div>
+                                        <div style={{ display: "flex", justifyContent: "space-between" }}>
+                                            <span style={{ color: "var(--status-danger)" }}>Less: Gross Earnings:</span>
+                                            <span style={{ fontWeight: 600, color: "var(--status-danger)" }}>-₹{grossEarnings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                        </div>
+                                        <div style={{ display: "flex", justifyContent: "space-between" }}>
+                                            <span style={{ color: "var(--status-danger)" }}>Less: Employer Cost:</span>
+                                            <span style={{ fontWeight: 600, color: "var(--status-danger)" }}>-₹{employerCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                        </div>
+                                        <hr style={{ border: 0, borderTop: "1px solid var(--border-color)" }} />
+                                        <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "bold", fontSize: "1.05rem" }}>
+                                            <span style={{ color: agencyMargin >= 0 ? "#059669" : "#DC2626" }}>True Agency Margin:</span>
+                                            <span style={{ color: agencyMargin >= 0 ? "#059669" : "#DC2626" }}>₹{agencyMargin.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </>
-                ) : (
+                    );
+                })() : (
                     <div className="card" style={{ padding: "3rem", textAlign: "center", color: "var(--text-muted)" }}>
                         No active draft payroll run exists for this month. Go back to <Link href={route('payroll.processing')} style={{ textDecoration: "underline", color: "var(--primary-blue)" }}>Payroll Processing</Link> to generate calculations first.
                     </div>
