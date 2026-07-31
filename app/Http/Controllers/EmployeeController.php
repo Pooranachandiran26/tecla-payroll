@@ -135,8 +135,16 @@ class EmployeeController extends Controller
                     $data['employee_code'] = 'TEC-' . str_pad($nextId, 3, '0', STR_PAD_LEFT);
                     $data['status'] = 'onboarding';
                     
-                    $clientBranch = \App\Models\ClientBranch::where('client_id', $data['client_id'])->first();
-                    $data['branch_id'] = $clientBranch ? $clientBranch->id : 1;
+                    if (!empty($data['branch_id'])) {
+                        $validBranch = \App\Models\ClientBranch::where('id', $data['branch_id'])->where('client_id', $data['client_id'])->first();
+                        if (!$validBranch) {
+                            $clientBranch = \App\Models\ClientBranch::where('client_id', $data['client_id'])->first();
+                            $data['branch_id'] = $clientBranch ? $clientBranch->id : 1;
+                        }
+                    } else {
+                        $clientBranch = \App\Models\ClientBranch::where('client_id', $data['client_id'])->first();
+                        $data['branch_id'] = $clientBranch ? $clientBranch->id : 1;
+                    }
 
                     return \App\Models\Employee::create($data);
                 } catch (\Illuminate\Database\QueryException $e) {

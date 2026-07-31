@@ -56,6 +56,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       phone: emp?.phone_number || '',
       emergencyContact: emp?.emergency_contact_phone || '',
       clientPartner: emp?.client_id || clientIdParam || '',
+      branchPartner: emp?.branch_id || emp?.branchId || '',
       designation: emp?.designation || '',
       doj: emp?.date_of_joining || '',
       attendanceTrackingStartDate: emp?.attendance_tracking_start_date || '',
@@ -218,6 +219,9 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
             const next = { ...prev };
             if (d.contractType) {
               next.empType = d.contractType === 'agency' ? 'agency_contract' : 'eor';
+            }
+            if (d.branches && d.branches.length > 0 && !next.branchPartner) {
+              next.branchPartner = d.branches[0].id;
             }
             if (!overrides.pf) next.pfToggle = d.pfApplicable;
             if (!overrides.esi) next.esiToggle = d.esiApplicable;
@@ -552,7 +556,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       'emergency_contact_name': 'emergencyContactName', 'previous_employer_name': 'prevEmployerName',
       'previous_employer_uan': 'prevEmployerUAN', 'probation_end_date': 'probationEndDate',
       'reporting_manager_id': 'reportingManagerId', 'notice_period_days': 'noticePeriodDays',
-      'esi_contribution_period_end': 'esiPeriodEnd', 'designation': 'designation', 'branch_id': 'branch_id',
+      'esi_contribution_period_end': 'esiPeriodEnd', 'designation': 'designation', 'branch_id': 'branchPartner',
       'health_insurance_provider': 'insuranceProvider', 'health_insurance_policy_no': 'insurancePolicyNo', 'health_insurance_sum_insured': 'insuranceSumInsured',
       'joint_declaration_status': 'jointDeclarationStatus',
     };
@@ -787,6 +791,20 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                       </select>
                     </div>
                   )}
+
+                  {formData.clientPartner && activeClientDefaults?.branches && activeClientDefaults.branches.length > 0 && (
+                    <div className="form-group">
+                      <label>Work Location / Branch <span style={{ color: "var(--status-danger)" }}>*</span></label>
+                      <select className="form-control" value={formData.branchPartner} onChange={e => handleInputChange('branchPartner', e.target.value)} required>
+                        {activeClientDefaults.branches.map(b => (
+                          <option key={b.id} value={b.id}>
+                            {b.name} ({b.state || 'Head Office'}) {b.is_head_office ? '★ Primary' : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
                   <div className="form-group">
                     <label>Designation <span style={{ color: "var(--status-danger)" }}>*</span></label>
                     <input type="text" className="form-control" value={formData.designation} onChange={e => handleInputChange('designation', e.target.value)} required />
