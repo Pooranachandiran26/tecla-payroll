@@ -20,39 +20,39 @@ class UpdateClientRequest extends FormRequest
     protected function prepareForValidation()
     {
         $mapped = [
-            'company_name' => $this->name,
-            'company_type' => $this->type,
-            'client_code' => $this->code,
-            'trust_registration_number' => $this->trustRegNo,
-            'pan_number' => $this->pan,
+            'company_name' => $this->name ?: $this->company_name,
+            'company_type' => $this->type ?: $this->company_type,
+            'client_code' => $this->code ?: $this->client_code,
+            'trust_registration_number' => $this->trustRegNo ?: $this->trust_registration_number,
+            'pan_number' => $this->pan ?: $this->pan_number,
             'industry' => $this->industry,
             'status' => $this->status ?: 'onboarding',
             'country' => $this->country ?: 'India',
-            'cin_number' => $this->cin,
-            'incorporation_date' => $this->incorporationDate,
-            'logo_path' => $this->logoUrl,
-            'display_name_override' => $this->displayNameOverride,
-            'accent_color' => $this->accentColor,
+            'cin_number' => $this->cin ?: $this->cin_number,
+            'incorporation_date' => $this->incorporationDate ?: $this->incorporation_date,
+            'logo_path' => $this->logoUrl ?: $this->logo_path,
+            'display_name_override' => $this->displayNameOverride ?: $this->display_name_override,
+            'accent_color' => $this->accentColor ?: $this->accent_color,
             
             // Address
-            'registered_address_line_1' => $this->regAddressLine1,
-            'registered_address_line_2' => $this->regAddressLine2,
-            'registered_city' => $this->regCity,
-            'registered_state' => $this->regState,
-            'registered_pin' => $this->regPin,
-            'tax_id' => $this->taxId,
-            'tan_number' => $this->tan,
-            'registration_number' => $this->regNo,
+            'registered_address_line_1' => $this->regAddressLine1 ?: $this->registered_address_line_1,
+            'registered_address_line_2' => $this->regAddressLine2 ?: $this->registered_address_line_2,
+            'registered_city' => $this->regCity ?: $this->registered_city,
+            'registered_state' => $this->regState ?: $this->registered_state,
+            'registered_pin' => $this->regPin ?: $this->registered_pin ?: $this->registered_pin_code,
+            'tax_id' => $this->taxId ?: $this->tax_id,
+            'tan_number' => $this->tan ?: $this->tan_number,
+            'registration_number' => $this->regNo ?: $this->registration_number,
             
             // Contract & Billing
-            'contract_type' => $this->contractType,
-            'billing_model' => $this->billingModel,
-            'markup_percentage' => $this->markupPct,
-            'fixed_fee_amount' => $this->fixedFeeAmount,
-            'hourly_rate' => $this->hourlyRate,
-            'work_locations_count' => $this->locationsCount,
-            'contract_start_date' => $this->contractStart,
-            'contract_end_date' => $this->contractEnd,
+            'contract_type' => $this->contractType ?: $this->contract_type,
+            'billing_model' => $this->billingModel ?: $this->billing_model,
+            'markup_percentage' => $this->markupPct ?: $this->markup_percentage,
+            'fixed_fee_amount' => $this->fixedFeeAmount !== null ? $this->fixedFeeAmount : $this->fixed_fee_amount,
+            'hourly_rate' => $this->hourlyRate !== null ? $this->hourlyRate : $this->hourly_rate,
+            'work_locations_count' => $this->locationsCount !== null ? $this->locationsCount : ($this->work_locations_count ?? 1),
+            'contract_start_date' => $this->contractStart ?: $this->contract_start_date,
+            'contract_end_date' => $this->contractEnd ?: $this->contract_end_date,
             
             'ot_billing_rule' => $this->otBilling,
             'payment_net_terms' => $this->paymentTerms,
@@ -74,9 +74,10 @@ class UpdateClientRequest extends FormRequest
             // Statutory
             'pt_state' => $this->ptState,
             'default_gratuity_mode' => (function($mode) {
+                if (!is_string($mode)) return 'ctc_included';
                 $map = ['payable_on_separation' => 'over_ctc', 'over_and_above' => 'over_ctc', 'over_ctc' => 'over_ctc', 'ctc_included' => 'ctc_included', 'part_of_ctc' => 'ctc_included', 'not_applicable' => 'na', 'na' => 'na'];
-                return $map[$mode] ?? ($mode ?: 'ctc_included');
-            })($this->gratuityMode),
+                return $map[$mode] ?? $mode;
+            })($this->gratuityMode ?: $this->default_gratuity_mode),
             'gratuity_applicable' => $this->gratuityApplicable ? 1 : 0,
             'statutory_bonus_applicable' => $this->statutoryBonusApplicable ? 1 : 0,
             'health_insurance_enabled' => $this->has('healthInsuranceEnabled')
@@ -246,7 +247,8 @@ class UpdateClientRequest extends FormRequest
 
     public function rules(): array
     {
-        $clientId = $this->route('client') ? $this->route('client')->id : null;
+        $clientParam = $this->route('client');
+        $clientId = is_object($clientParam) ? $clientParam->id : $clientParam;
         return [
             // Step 1
             'company_name' => 'required|string|max:255',
@@ -373,7 +375,7 @@ class UpdateClientRequest extends FormRequest
 
             // Branches
             'branches' => 'nullable|array',
-            'branches.*.id' => 'nullable|string',
+            'branches.*.id' => 'nullable',
             'branches.*.branch_code' => 'nullable|string',
             'branches.*.branch_name' => 'nullable|string',
             'branches.*.address_line_1' => 'nullable|string',
