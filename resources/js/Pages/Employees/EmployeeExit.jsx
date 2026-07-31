@@ -74,6 +74,8 @@ export default function EmployeeExit({ employee: rawEmployee, initialExitData })
   
   const [settlementStatus, setSettlementStatus] = useState(initialExitData?.settlement_status || 'draft');
   const [settlementPreview, setSettlementPreview] = useState(null);
+  const [gratuityForfeitureConfirmed, setGratuityForfeitureConfirmed] = useState(false);
+  const [epfoChecklistDone, setEpfoChecklistDone] = useState(false);
 
   // Derived Values
   const isEmployerInitiated = exitType === 'Termination' || exitType === 'Client-Initiated';
@@ -107,6 +109,8 @@ export default function EmployeeExit({ employee: rawEmployee, initialExitData })
   const fetchSettlementPreview = async () => {
     try {
       const payload = {
+        exit_type: exitType,
+        reason_category: reasonCategory,
         last_working_day: lwd,
         notice_shortfall_days: noticeShortfallDays,
         notice_amount_type: noticeAmountType,
@@ -119,6 +123,10 @@ export default function EmployeeExit({ employee: rawEmployee, initialExitData })
       };
       const res = await axios.post(route('employees.exit.preview', employee.id), payload);
       setSettlementPreview(res.data);
+      // Auto-fill bonus input with statutory amount if user hasn't manually set it
+      if (res.data.statutory_bonus_eligible && (!bonusAmount || bonusAmount === '0' || bonusAmount === 0)) {
+        setBonusAmount(res.data.statutory_bonus_amount);
+      }
     } catch (e) {
       console.error(e);
       showToast({ message: 'Error calculating settlement preview', type: 'error' });
@@ -298,6 +306,7 @@ export default function EmployeeExit({ employee: rawEmployee, initialExitData })
                   <option value="Retirement">Retirement</option>
                   <option value="Client-Initiated">Client-Initiated Roll-off</option>
                 </Select>
+                <p className="field-note">Select who initiated the exit. This controls notice pay rules — employee-initiated exits may have notice shortfall deductions; employer/client-initiated exits receive Notice Pay in Lieu.</p>
               </div>
               <div className="form-group flex-1">
                 <label>Reason Category <span className="text-red-500">*</span></label>
@@ -330,6 +339,7 @@ export default function EmployeeExit({ employee: rawEmployee, initialExitData })
                     <option value="Replaced by Client">Replaced by Client</option>
                   </>}
                 </Select>
+                <p className="field-note">Secondary classification for attrition analytics and HR compliance records. Options auto-filter based on the Exit Type selected above.</p>
               </div>
             </div>
 
@@ -337,12 +347,14 @@ export default function EmployeeExit({ employee: rawEmployee, initialExitData })
               <div className="form-group flex-1">
                 <label>Submission / Notice Date</label>
                 <Input type="date" value={submissionDate} onChange={e => setSubmissionDate(e.target.value)} />
+                <p className="field-note">The date the employee formally submitted the resignation letter, or the date the termination letter was issued. Used as the start point to calculate notice days served in Stage 2.</p>
               </div>
               <div className="form-group flex-1"></div>
             </div>
 
             <div className="mt-6 pt-6 border-t border-gray-200">
               <label className="font-semibold block mb-2 text-[#1F3864]">Was this exit discussed with the employee in advance?</label>
+              <p className="field-note mb-3">Compliance acknowledgment confirming whether a pre-exit counselling session was conducted. Especially important for employer-initiated exits to mitigate Sec 25-F Industrial Disputes Act exposure.</p>
               <div className="flex gap-6 mb-4">
                 <label className="flex items-center gap-2 cursor-pointer font-medium">
                   <input type="radio" name="discussed" value="yes" checked={discussed === 'yes'} onChange={() => setDiscussed('yes')} /> Yes, discussed
@@ -359,6 +371,7 @@ export default function EmployeeExit({ employee: rawEmployee, initialExitData })
                     placeholder="Summarize the exit discussion..."
                     value={discussionSummary} onChange={e => setDiscussionSummary(e.target.value)}
                   ></textarea>
+                  <p className="field-note">Briefly note key points from the exit discussion. This is stored as an internal HR audit record and is not shared with the employee.</p>
                 </div>
               )}
             </div>
@@ -388,6 +401,7 @@ export default function EmployeeExit({ employee: rawEmployee, initialExitData })
               <div className="form-group flex-1">
                 <label>Last Working Day (LWD)</label>
                 <Input type="date" value={lwd} onChange={e => setLwd(e.target.value)} />
+                <p className="field-note">The employee's final physical working date. Combined with the Submission Date to auto-calculate days of notice served and any shortfall recovery in the Full & Final Settlement.</p>
               </div>
               <div className="form-group flex-1">
                 <label>Calculated Notice Period Status</label>
@@ -508,6 +522,7 @@ export default function EmployeeExit({ employee: rawEmployee, initialExitData })
                 className="form-control" rows="4" 
                 value={interviewReason} onChange={e => setInterviewReason(e.target.value)}
               ></textarea>
+              <p className="field-note">In the employee's own words — explain why they are leaving and any feedback for the organization. Used for internal attrition analytics and HR improvement initiatives. Not shared externally.</p>
             </div>
 
             <div className="form-row">
@@ -521,6 +536,7 @@ export default function EmployeeExit({ employee: rawEmployee, initialExitData })
                     <input type="radio" checked={recommend === 'no'} onChange={() => setRecommend('no')} /> No
                   </label>
                 </div>
+                <p className="field-note">Net Promoter Signal — helps track employer brand health and alumni loyalty over time across departments.</p>
               </div>
               <div className="form-group flex-1">
                 <label className="font-semibold block mb-2">Overall Experience Rating (1-5 Stars)</label>
@@ -534,6 +550,7 @@ export default function EmployeeExit({ employee: rawEmployee, initialExitData })
                   ))}
                 </div>
                 <div className="text-xs text-gray-500 mt-1">{starRating} / 5 Stars</div>
+                <p className="field-note">Aggregated ratings are tracked in HR dashboards to monitor department-level and client-level employee satisfaction trends.</p>
               </div>
             </div>
 
@@ -559,32 +576,80 @@ export default function EmployeeExit({ employee: rawEmployee, initialExitData })
               </Badge>
             </div>
 
-            <div className="bg-slate-50 border border-slate-300 p-4 rounded-md mb-6 flex gap-6 items-center flex-wrap">
-              <div className="text-[0.85rem] font-bold text-[#1F3864]">⚙️ Settlement Inputs:</div>
-              <div className="flex items-center gap-2">
-                <label className="text-[0.8rem] font-semibold">Unused Leaves:</label>
-                <Input type="number" value={unusedLeaves} onChange={e => setUnusedLeaves(e.target.value)} className="w-24 py-1" />
+            <div className="bg-slate-50 border border-slate-300 p-5 rounded-md mb-2">
+              <div className="text-[0.85rem] font-bold text-[#1F3864] mb-4">⚙️ Settlement Inputs</div>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="form-group">
+                  <label className="text-[0.82rem] font-semibold text-[#1F3864] block mb-1">Unused Leaves <span className="text-gray-400 font-normal">(days)</span></label>
+                  <Input type="number" value={unusedLeaves} onChange={e => setUnusedLeaves(e.target.value)} />
+                  <p className="field-note">Accrued earned/privilege leaves not taken. Encashment = (Basic ÷ 26) × days.</p>
+                </div>
+                <div className="form-group">
+                  <label className="text-[0.82rem] font-semibold text-[#1F3864] block mb-1">Bonus Amount <span className="text-gray-400 font-normal">(₹)</span></label>
+                  <Input type="number" value={bonusAmount} onChange={e => setBonusAmount(e.target.value)} />
+                  <p className="field-note">Performance bonus or statutory bonus at exit. Auto-filled if eligible under Payment of Bonus Act.</p>
+                </div>
+                <div className="form-group">
+                  <label className="text-[0.82rem] font-semibold text-[#1F3864] block mb-1">Pro-rated Salary <span className="text-gray-400 font-normal">(₹)</span></label>
+                  <Input type="number" value={pendingSalaryAmount} onChange={e => setPendingSalaryAmount(e.target.value)} />
+                  <p className="field-note">Salary for the partial exit month (1st to LWD). Calculate: Gross ÷ LOP basis days × days worked.</p>
+                </div>
+                <div className="form-group">
+                  <label className="text-[0.82rem] font-semibold text-[#1F3864] block mb-1">Loan Recovery <span className="text-gray-400 font-normal">(₹)</span></label>
+                  <Input type="number" value={simLoan} onChange={e => setSimLoan(e.target.value)} />
+                  <p className="field-note">Outstanding loan/advance balance to be recovered. Enter ₹0 if no active loan.</p>
+                </div>
+                <div className="form-group">
+                  <label className="text-[0.82rem] font-semibold text-[#1F3864] block mb-1">TDS Adjustment <span className="text-gray-400 font-normal">(₹)</span></label>
+                  <Input type="number" value={tdsAmount} onChange={e => setTdsAmount(e.target.value)} />
+                  <p className="field-note">TDS on settlement components (bonus, leave encashment) under Sec 192. Enter ₹0 if already deducted via payroll.</p>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <label className="text-[0.8rem] font-semibold">Bonus Amount (₹):</label>
-                <Input type="number" value={bonusAmount} onChange={e => setBonusAmount(e.target.value)} className="w-32 py-1" />
-              </div>
-              <div className="flex items-center gap-2">
-                <label className="text-[0.8rem] font-semibold">Pro-rated Salary (₹):</label>
-                <Input type="number" value={pendingSalaryAmount} onChange={e => setPendingSalaryAmount(e.target.value)} className="w-32 py-1" />
-              </div>
-              <div className="flex items-center gap-2">
-                <label className="text-[0.8rem] font-semibold">Loan Recovery (₹):</label>
-                <Input type="number" value={simLoan} onChange={e => setSimLoan(e.target.value)} className="w-32 py-1" />
-              </div>
-              <div className="flex items-center gap-2">
-                <label className="text-[0.8rem] font-semibold">TDS Adj (₹):</label>
-                <Input type="number" value={tdsAmount} onChange={e => setTdsAmount(e.target.value)} className="w-32 py-1" />
-              </div>
+            </div>
+            <div className="mb-6 bg-blue-50 border border-blue-200 rounded-md px-4 py-3 text-[0.8rem] text-blue-800 leading-relaxed">
+              <strong>📌 Input Guide:</strong>&nbsp;
+              <strong>Unused Leaves</strong> — No. of accrued earned/privilege leaves not taken; encashment = (Basic ÷ 26) × days.&nbsp;
+              <strong>Bonus</strong> — Any performance or contractual payout due at exit.&nbsp;
+              <strong>Pro-rated Salary</strong> — Manually enter salary for the partial exit month (1st to LWD).&nbsp;
+              <strong>Loan Recovery</strong> — Outstanding loan/advance balance to be deducted; enter ₹0 if none.&nbsp;
+              <strong>TDS Adj</strong> — Tax to be withheld on settlement components like bonus/leave encashment under Sec 192; enter ₹0 if already deducted via payroll.
             </div>
 
             {settlementPreview ? (
             <>
+            {/* Statutory Bonus Auto-Computation Banner */}
+            {settlementPreview.statutory_bonus_eligible && (
+              <div className="alert-banner green mb-4">
+                ✓ <strong>Statutory Bonus Auto-Computed (Payment of Bonus Act 1965):</strong> This employee's Basic Pay (≤ ₹21,000) makes them eligible. Calculated as min(Basic, ₹7,000 ceiling) × bonus rate% × months worked in this FY = <strong>₹{Number(settlementPreview.statutory_bonus_amount).toLocaleString('en-IN')}</strong>. Pre-filled in Bonus Amount field — override if a different rate applies.
+              </div>
+            )}
+
+            {/* Sec 4(6) Gratuity Forfeiture Advisory */}
+            {settlementPreview.gratuity_forfeiture_risk && (
+              <div className="bg-[#FFF5F5] border border-[#FEB2B2] border-l-4 border-l-[#DC2626] p-4 rounded-md mb-4">
+                <div className="flex items-start gap-3">
+                  <span className="text-[1.4rem]">⚖️</span>
+                  <div className="flex-1">
+                    <h4 className="text-[0.95rem] font-bold text-[#991B1B] mb-1">Gratuity Forfeiture Advisory — Sec 4(6), Payment of Gratuity Act 1972</h4>
+                    <p className="text-[0.82rem] text-[#7F1D1D] leading-relaxed mb-3">
+                      This exit is recorded as <strong>Termination — Conduct / Policy Violation</strong>. Under Sec 4(6), gratuity <em>may</em> be forfeited only when termination is due to <strong>riotous or violent conduct</strong> or an <strong>offense involving moral turpitude</strong>. A generic policy violation does NOT automatically qualify. Please consult your legal/HR team before reducing the gratuity amount.
+                    </p>
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={gratuityForfeitureConfirmed}
+                        onChange={e => setGratuityForfeitureConfirmed(e.target.checked)}
+                        className="w-4 h-4 accent-red-600"
+                      />
+                      <span className="text-[0.82rem] font-semibold text-[#991B1B]">
+                        I acknowledge this advisory and confirm the gratuity amount shown below has been reviewed by legal/HR.
+                      </span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <table className="data-table settlement-table w-full mb-6">
               <thead>
                 <tr>
@@ -783,6 +848,36 @@ export default function EmployeeExit({ employee: rawEmployee, initialExitData })
                 <div className="flex gap-2 border-t border-gray-200 pt-4 mt-4">
                   <Button variant="secondary" size="xs" className="flex-1">Preview</Button>
                   <Button variant="navy" size="xs" className="flex-1">📥 Download PDF</Button>
+                </div>
+              </div>
+
+              <div className="doc-card">
+                <div>
+                  <span className="text-[2.2rem] block mb-3">🏦</span>
+                  <h4>EPFO Form 19 — PF Final Settlement</h4>
+                  <p>Employee must submit Form 19 to EPFO to withdraw Provident Fund balance (or transfer via Form 13). Initiate within 2 months of exit.</p>
+                </div>
+                <div className="border-t border-gray-200 pt-4 mt-4">
+                  <label className="flex items-center gap-2 cursor-pointer text-[0.8rem] font-semibold text-[#1F3864]">
+                    <input
+                      type="checkbox"
+                      checked={epfoChecklistDone}
+                      onChange={e => setEpfoChecklistDone(e.target.checked)}
+                      className="w-4 h-4 accent-[#1F3864]"
+                    />
+                    Intimated employee to file Form 19 / Form 13 at EPFO member portal
+                  </label>
+                </div>
+              </div>
+
+              <div className="doc-card">
+                <div>
+                  <span className="text-[2.2rem] block mb-3">🏛️</span>
+                  <h4>EPFO Form 10C — EPS Withdrawal / Scheme Certificate</h4>
+                  <p>Required for EPS (Pension) withdrawal if service is less than 10 years. For service ≥ 10 years, employee receives a Scheme Certificate instead. Submit jointly with Form 19.</p>
+                </div>
+                <div className="border-t border-gray-200 pt-4 mt-4">
+                  <p className="text-[0.75rem] text-gray-500">ℹ Form 10C is filed jointly with Form 19 at <strong>epfindia.gov.in</strong> → Member Services → Claim (Form 19 & 10C)</p>
                 </div>
               </div>
             </div>
