@@ -1082,7 +1082,7 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
       regAddressLine2: client.registered_address_line_2 || '',
       regCity: client.registered_city || '',
       regState: client.registered_state || '',
-      regPin: client.registered_pin || '',
+      regPin: client.registered_pin || client.registered_pin_code || '',
       country: client.country || 'India',
       taxId: client.tax_id || '',
       regNo: client.registration_number || '',
