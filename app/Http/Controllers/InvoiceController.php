@@ -52,6 +52,24 @@ class InvoiceController extends Controller
     }
 
     /**
+     * Show single invoice details page.
+     */
+    public function show($id)
+    {
+        $invoice = Invoice::with([
+            'client.contacts',
+            'branch',
+            'lineItems.employee',
+            'additionalFees',
+            'sentBy'
+        ])->findOrFail($id);
+
+        return Inertia::render('Invoicing/InvoiceDetail', [
+            'invoice' => $invoice,
+        ]);
+    }
+
+    /**
      * Download or stream Tax Invoice PDF.
      */
     public function downloadPdf($id)
