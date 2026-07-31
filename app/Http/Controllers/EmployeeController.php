@@ -13,6 +13,48 @@ class EmployeeController extends Controller
         return response()->json($calculations);
     }
 
+    public function suggestions(Request $request)
+    {
+        $q = trim($request->get('q', ''));
+
+        $query = \App\Models\Employee::with('client:id,company_name')
+            ->select('id', 'employee_code', 'first_name', 'last_name', 'full_name', 'client_id', 'designation', 'uan_number');
+
+        $user = $request->user();
+        if ($user && $user->role === 'manager') {
+            $managedClientIds = $user->getManagedClientIds();
+            $query->whereIn('client_id', $managedClientIds);
+        }
+
+        if (strlen($q) > 0) {
+            $query->where(function($subQuery) use ($q) {
+                $subQuery->where('employee_code', 'like', "%{$q}%")
+                         ->orWhere('full_name', 'like', "%{$q}%")
+                         ->orWhere('first_name', 'like', "%{$q}%")
+                         ->orWhere('last_name', 'like', "%{$q}%")
+                         ->orWhereRaw("LOWER(CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, ''))) LIKE ?", ["%" . strtolower($q) . "%"])
+                         ->orWhere('uan_number', 'like', "%{$q}%")
+                         ->orWhere('designation', 'like', "%{$q}%");
+            });
+        }
+
+        $results = $query->orderBy('created_at', 'desc')
+            ->limit(50)
+            ->get()
+            ->map(function($emp) {
+                return [
+                    'id' => $emp->id,
+                    'employee_code' => $emp->employee_code,
+                    'full_name' => $emp->full_name ?: trim(($emp->first_name ?? '') . ' ' . ($emp->last_name ?? '')),
+                    'client_name' => $emp->client ? $emp->client->company_name : 'No Client',
+                    'designation' => $emp->designation,
+                    'uan_number' => $emp->uan_number,
+                ];
+            });
+
+        return response()->json($results);
+    }
+
     public function index(Request $request)
     {
         $query = \App\Models\Employee::with(['client', 'documents', 'salaryRevisions']);

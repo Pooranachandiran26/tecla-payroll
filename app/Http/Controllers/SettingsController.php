@@ -21,7 +21,7 @@ class SettingsController extends Controller
         // Convert stored file paths to public URLs for the frontend
         foreach (['logo_path', 'favicon_path'] as $key) {
             if (!empty($settings[$key])) {
-                $settings[$key . '_url'] = Storage::disk('public')->url($settings[$key]);
+                $settings[$key . '_url'] = '/storage/' . ltrim($settings[$key], '/') . '?v=' . time();
             } else {
                 $settings[$key . '_url'] = '';
             }
@@ -130,6 +130,10 @@ class SettingsController extends Controller
 
         if (!empty($changes)) {
             app(\App\Services\AuditService::class)->log('branding_updated', auth()->user(), null, null, ['changes' => $changes]);
+        }
+
+        if ($request->header('X-Inertia')) {
+            return back()->with('success', 'Branding settings updated successfully.');
         }
 
         return response()->json(['message' => 'Branding settings updated successfully.']);

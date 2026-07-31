@@ -65,6 +65,9 @@ Route::middleware(['auth', 'active'])->group(function () {
     
     Route::get('/account/sessions', [SessionController::class, 'ownSessions'])->name('account.sessions');
     Route::delete('/account/sessions/{id}', [SessionController::class, 'revokeOwn'])->name('account.sessions.destroy');
+    Route::post('/account/change-password', [\App\Http\Controllers\Auth\PasswordUpdateController::class, 'update'])->name('account.password.update');
+    Route::get('/account/profile', [\App\Http\Controllers\AccountProfileController::class, 'show'])->name('account.profile');
+    Route::put('/account/profile', [\App\Http\Controllers\AccountProfileController::class, 'update'])->name('account.profile.update');
 
     // -------------------------------------------------------------------
     // FULLY ACTIVE ROUTES (Must have fresh password)
@@ -106,6 +109,7 @@ Route::middleware(['auth', 'active'])->group(function () {
 
             // Employees Module (Gated by module:candidates)
             Route::middleware('module:candidates')->group(function () {
+                Route::get('/employees/suggestions', [EmployeeController::class, 'suggestions'])->name('employees.suggestions');
                 Route::get('/employees/check-unique', [EmployeeController::class, 'checkUnique'])->name('employees.check-unique');
                 Route::post('/employees/calculate-preview', [EmployeeController::class, 'calculatePreview'])->name('employees.calculate-preview');
                 Route::get('/employees', [EmployeeController::class, 'index'])->name('employees.index');

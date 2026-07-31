@@ -300,6 +300,7 @@ export default function Settings() {
     try {
       await axios.put(route('admin.settings.company.update'), companySettings);
       showToast({ type: 'success', title: 'Success', message: 'Company Profile updated successfully!' });
+      router.reload({ preserveScroll: true });
     } catch (err) {
       showToast({ type: 'error', title: 'Error', message: err.response?.data?.message || 'Failed to save company settings' });
     }
@@ -466,14 +467,12 @@ export default function Settings() {
 
       await axios.post(route('admin.settings.branding.update'), formData);
 
-      // Re-fetch to get updated URLs
-      await fetchBrandingSettings();
-      setLogoFile(null);
-      setFaviconFile(null);
       showToast({ type: 'success', title: 'Success', message: 'Branding settings saved successfully!' });
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
     } catch (err) {
       showToast({ type: 'error', title: 'Error', message: err.response?.data?.message || 'Failed to save branding settings' });
-    } finally {
       setBrandingSaving(false);
     }
   };

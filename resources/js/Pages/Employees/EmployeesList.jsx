@@ -12,8 +12,12 @@ export default function EmployeesList({ employees = { data: [], links: [] }, cli
     const [empModel, setEmpModel] = useState(filters.employment_model || '');
     const [status, setStatus] = useState(filters.status || '');
     const [revisionStatus, setRevisionStatus] = useState(filters.revision_status || '');
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const [suggestions, setSuggestions] = useState([]);
+    const [searchingSuggestions, setSearchingSuggestions] = useState(false);
 
     const applyFilters = () => {
+        setShowSuggestions(false);
         router.get(route('employees.index'), {
             search,
             client_id: clientId,
@@ -28,15 +32,70 @@ export default function EmployeesList({ employees = { data: [], links: [] }, cli
             applyFilters();
         }
     };
+
+    const fetchSuggestions = (query = '') => {
+        setSearchingSuggestions(true);
+        axios.get(route('employees.suggestions'), { params: { q: query.trim() } })
+            .then(res => {
+                const serverResults = Array.isArray(res.data) ? res.data : [];
+                setSuggestions(serverResults);
+                setSearchingSuggestions(false);
+            })
+            .catch(() => {
+                setSearchingSuggestions(false);
+            });
+    };
+
+    // Live instant search across overall database when typing or focusing
+    useEffect(() => {
+        const query = search.trim();
+        
+        // Immediate local match preview if search text exists
+        if (query.length > 0 && Array.isArray(employees?.data)) {
+            const q = query.toLowerCase();
+            const localMatches = employees.data.filter(emp => {
+                const name = (emp.full_name || `${emp.first_name || ''} ${emp.last_name || ''}`).toLowerCase();
+                const code = (emp.employee_code || '').toLowerCase();
+                const uan = (emp.uan_number || '').toLowerCase();
+                const desig = (emp.designation || '').toLowerCase();
+                return name.includes(q) || code.includes(q) || uan.includes(q) || desig.includes(q);
+            }).map(emp => ({
+                id: emp.id,
+                employee_code: emp.employee_code,
+                full_name: emp.full_name || `${emp.first_name || ''} ${emp.last_name || ''}`.trim(),
+                client_name: emp.client_name || (emp.client ? emp.client.company_name : 'No Client'),
+                designation: emp.designation,
+                uan_number: emp.uan_number,
+            })).slice(0, 10);
+
+            if (localMatches.length > 0) {
+                setSuggestions(localMatches);
+            }
+        }
+
+        // Fetch overall database suggestions from server
+        const timer = setTimeout(() => {
+            fetchSuggestions(query);
+        }, 100);
+
+        return () => clearTimeout(timer);
+    }, [search, employees]);
+
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (!e.target.closest('.employee-search-container')) {
+                setShowSuggestions(false);
+            }
+        };
+        document.addEventListener('click', handleClickOutside);
+        return () => document.removeEventListener('click', handleClickOutside);
+    }, []);
+
     useEffect(() => {
         // Load the legacy logic dynamically so it runs on client side after render
         import('./EmployeesListLogic.js').then(module => {
             console.log('Legacy logic loaded for EmployeesList');
         }).catch(err => console.error('Error loading legacy logic', err));
-        
-        return () => {
-            // Cleanup logic if needed
-        };
     }, []);
 
     return (
@@ -65,8 +124,81 @@ export default function EmployeesList({ employees = { data: [], links: [] }, cli
         <div style={{"fontSize":"0.85rem","fontWeight":"600","color":"var(--primary-navy)", display: 'inline-flex', alignItems: 'center', gap: '4px'}}>
           <Filter size={14} /> Filters:
         </div>
-        <div style={{"flex":"1","minWidth":"200px"}}>
-          <input type="text" className="form-control" placeholder="Search by Employee Code, Name or UAN..." style={{"padding":"0.4rem 0.75rem"}} value={search} onChange={e => setSearch(e.target.value)} onKeyPress={handleKeyPress} />
+        <div className="employee-search-container" style={{ flex: '1', minWidth: '220px', position: 'relative' }}>
+          <input 
+            type="text" 
+            className="form-control" 
+            placeholder="Search by Employee Code, Name or UAN..." 
+            style={{ padding: '0.4rem 0.75rem', width: '100%' }} 
+            value={search} 
+            onChange={e => {
+              setSearch(e.target.value);
+              setShowSuggestions(true);
+            }} 
+            onFocus={() => {
+              setShowSuggestions(true);
+              fetchSuggestions(search);
+            }}
+            onKeyPress={handleKeyPress} 
+          />
+
+          {showSuggestions && suggestions.length > 0 && (
+            <div
+              style={{
+                position: 'absolute',
+                top: 'calc(100% + 4px)',
+                left: 0,
+                right: 0,
+                backgroundColor: '#FFFFFF',
+                borderRadius: '8px',
+                boxShadow: '0 10px 25px -5px rgba(0,0,0,0.15)',
+                border: '1px solid #E2E8F0',
+                zIndex: 100,
+                maxHeight: '300px',
+                overflowY: 'auto',
+              }}
+            >
+              <div style={{ padding: '6px 12px', background: '#F8FAFC', fontSize: '0.72rem', fontWeight: 700, color: '#64748B', borderBottom: '1px solid #F1F5F9', textTransform: 'uppercase', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>Employee Suggestions ({suggestions.length})</span>
+                <span style={{ fontSize: '0.68rem', fontWeight: 400, color: '#94A3B8' }}>Click to filter</span>
+              </div>
+              {suggestions.map(emp => (
+                <div
+                  key={emp.id}
+                  onClick={() => {
+                    setSearch(emp.employee_code || emp.full_name);
+                    setShowSuggestions(false);
+                    router.get(route('employees.index'), {
+                      search: emp.employee_code || emp.full_name,
+                      client_id: clientId,
+                      employment_model: empModel,
+                      status: status,
+                      revision_status: revisionStatus
+                    }, { preserveState: true, preserveScroll: true });
+                  }}
+                  style={{
+                    padding: '8px 12px',
+                    cursor: 'pointer',
+                    borderBottom: '1px solid #F8FAFC',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    transition: 'background 0.12s ease',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.backgroundColor = '#F1F5F9'}
+                  onMouseLeave={e => e.currentTarget.style.backgroundColor = '#FFFFFF'}
+                >
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#1E293B' }}>{emp.full_name}</div>
+                    <div style={{ fontSize: '0.75rem', color: '#64748B' }}>{emp.client_name || 'No Client'} • {emp.designation || 'Staff'}</div>
+                  </div>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 700, background: '#EFF6FF', color: '#1E40AF', padding: '2px 8px', borderRadius: '4px', border: '1px solid #DBEAFE' }}>
+                    {emp.employee_code}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
         <div>
           <select className="form-control" style={{"padding":"0.4rem 0.75rem"}} title="Select Client" value={clientId} onChange={e => setClientId(e.target.value)}>

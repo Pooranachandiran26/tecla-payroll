@@ -6,12 +6,14 @@ import ToastContainer from '../Components/ui/Toast';
 import { useRole } from '../Contexts/RoleContext.jsx';
 import useToast from '../Hooks/useToast';
 import NotificationPanel from '../Components/NotificationPanel';
+import ChangePasswordModal from '../Components/ChangePasswordModal';
 
 
 export default function AuthenticatedLayout({ children, hideSubNav = false }) {
   const { url, component } = usePage();
   const isErrorPage = component === 'Error' || hideSubNav;
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
   
   // Use auth, branding, flash, and pendingQueryCount from usePage().props
   const { auth, branding, flash, notificationCount } = usePage().props;
@@ -145,14 +147,31 @@ export default function AuthenticatedLayout({ children, hideSubNav = false }) {
               </div>
 
               {dropdownOpen && (
-                <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '0.5rem', background: 'white', borderRadius: '4px', boxShadow: '0 2px 10px rgba(0,0,0,0.1)', minWidth: '150px', zIndex: 100 }}>
-                  <Link href={route('account.sessions')} style={{ display: 'block', padding: '0.5rem 1rem', color: '#333', textDecoration: 'none', borderBottom: '1px solid #eee' }}>My Sessions</Link>
-                  <Link href={route('logout')} method="post" as="button" style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.5rem 1rem', color: '#dc2626', textDecoration: 'none', background: 'none', border: 'none', cursor: 'pointer' }}>Sign Out</Link>
+                <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '0.5rem', background: 'white', borderRadius: '4px', boxShadow: '0 2px 10px rgba(0,0,0,0.1)', minWidth: '160px', zIndex: 100 }}>
+                  <Link href={route('account.profile')} style={{ display: 'block', padding: '0.5rem 1rem', color: '#333', textDecoration: 'none', borderBottom: '1px solid #eee', fontSize: '0.85rem', fontWeight: 600 }}>My Profile</Link>
+                  <Link href={route('account.sessions')} style={{ display: 'block', padding: '0.5rem 1rem', color: '#333', textDecoration: 'none', borderBottom: '1px solid #eee', fontSize: '0.85rem' }}>My Sessions</Link>
+                  <button 
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDropdownOpen(false);
+                      setShowPasswordModal(true);
+                    }} 
+                    style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.5rem 1rem', color: '#333', textDecoration: 'none', background: 'none', border: 'none', borderBottom: '1px solid #eee', cursor: 'pointer', fontSize: '0.85rem' }}
+                  >
+                    Change Password
+                  </button>
+                  <Link href={route('logout')} method="post" as="button" style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.5rem 1rem', color: '#dc2626', textDecoration: 'none', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.85rem' }}>Sign Out</Link>
                 </div>
               )}
             </div>
           </div>
         </div>
+
+        <ChangePasswordModal 
+          isOpen={showPasswordModal} 
+          onClose={() => setShowPasswordModal(false)} 
+        />
 
         {/* Secondary Sub-Nav Row */}
         {!isErrorPage && subNavItems && (
