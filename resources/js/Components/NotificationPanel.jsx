@@ -38,24 +38,14 @@ export default function NotificationPanel({ unreadCount }) {
     if (!open) return;
     setLoading(true);
 
-    fetch(route('notifications.index') + '?per_page=10', {
-      headers: {
-        'Accept': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest',
-        'X-Inertia': 'true',
-        'X-Inertia-Version': document.querySelector('meta[name="inertia-version"]')?.content || '',
-      },
-    })
-      .then(r => r.json())
-      .then(data => {
-        if (data?.props?.notifications?.data && Array.isArray(data.props.notifications.data)) {
-          setItems(data.props.notifications.data);
-        } else {
-          setItems([]);
-        }
+    axios.get(route('notifications.index') + '?json=1&per_page=10')
+      .then(res => {
+        const notifData = res.data?.notifications?.data || res.data?.props?.notifications?.data || res.data?.data || (Array.isArray(res.data) ? res.data : []);
+        setItems(notifData);
         setLoading(false);
       })
-      .catch(() => {
+      .catch(err => {
+        console.error('Failed to load notifications:', err);
         setItems([]);
         setLoading(false);
       });
