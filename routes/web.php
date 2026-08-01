@@ -114,13 +114,18 @@ Route::middleware(['auth', 'active'])->group(function () {
                 Route::post('/employees/calculate-preview', [EmployeeController::class, 'calculatePreview'])->name('employees.calculate-preview');
                 Route::get('/employees', [EmployeeController::class, 'index'])->name('employees.index');
                 Route::post('/employees', [EmployeeController::class, 'store'])->name('employees.store');
-                Route::get('/employees/create', function() {
+                Route::get('/employees/create', function(\Illuminate\Http\Request $request) {
+                    $user = $request->user();
+                    if ($user && $user->role === 'manager' && !$user->hasModulePermission('emp_create', 'candidates')) {
+                        abort(403, 'You do not have permission to add new employees.');
+                    }
                     $clients = \App\Models\Client::where('status', 'active')->select('id', 'company_name', 'weekly_off_pattern', 'employee_pf_wage_basis', 'employer_pf_wage_basis')->get();
                     return Inertia::render('Employees/EmployeeForm', ['clients' => $clients]);
                 })->name('employees.create');
                 Route::get('/employees/bulk-upload', [BulkUploadController::class, 'showUploadForm'])->name('employees.bulk-upload');
                 Route::get('/employees/bulk-upload/template', [BulkUploadController::class, 'downloadTemplate'])->name('employees.bulk-upload.template');
                 Route::get('/employees/bulk-upload/download-template', [BulkUploadController::class, 'downloadTemplate'])->name('employees.bulk-upload.download-template');
+                Route::get('/employees/bulk-upload/template', [BulkUploadController::class, 'downloadTemplate'])->name('employees.bulk-upload.template');
                 Route::post('/employees/bulk-upload/validate', [BulkUploadController::class, 'validateUpload'])->name('employees.bulk-upload.validate');
                 Route::post('/employees/bulk-upload/execute', [BulkUploadController::class, 'executeImport'])->name('employees.bulk-upload.execute');
                 Route::get('/employees/salary-bulk-update', fn() => Inertia::render('Employees/SalaryBulkUpdate'))->name('employees.salary-bulk-update');
@@ -170,20 +175,63 @@ Route::middleware(['auth', 'active'])->group(function () {
 
             // Payroll Module (Gated by module:payroll)
             Route::middleware('module:payroll')->group(function () {
-                Route::get('/payroll/live-monitor', [\App\Http\Controllers\PayrollController::class, 'indexLiveMonitor'])->name('payroll.live-monitor');
-                Route::get('/payroll/attendance-upload', [AttendanceUploadController::class, 'showUploadPage'])->name('payroll.attendance-upload');
+                Route::get('/payroll/live-monitor', function(\Illuminate\Http\Request $request) {
+                    if ($request->user() && $request->user()->role === 'manager' && !$request->user()->hasModulePermission('payroll_live_monitor', 'payroll')) {
+                        abort(403, 'You do not have permission to access Live Attendance Monitor.');
+                    }
+                    return app(\App\Http\Controllers\PayrollController::class)->indexLiveMonitor($request);
+                })->name('payroll.live-monitor');
+
+                Route::get('/payroll/attendance-upload', function(\Illuminate\Http\Request $request) {
+                    if ($request->user() && $request->user()->role === 'manager' && !$request->user()->hasModulePermission('payroll_attendance_upload', 'payroll')) {
+                        abort(403, 'You do not have permission to access Attendance Upload.');
+                    }
+                    return app(AttendanceUploadController::class)->showUploadPage($request);
+                })->name('payroll.attendance-upload');
+
                 Route::get('/payroll/attendance/template', [AttendanceUploadController::class, 'downloadTemplate'])->name('payroll.attendance.template');
                 Route::get('/payroll/attendance/context', [AttendanceUploadController::class, 'getContext'])->name('payroll.attendance.context');
                 Route::post('/payroll/attendance/validate', [AttendanceUploadController::class, 'validateUpload'])->name('payroll.attendance.validate');
                 Route::post('/payroll/attendance/upload', [AttendanceUploadController::class, 'executeUpload'])->name('payroll.attendance.upload');
-                Route::get('/payroll/attendance-review', [\App\Http\Controllers\AttendanceReviewController::class, 'index'])->name('payroll.attendance-review');
+                
+                Route::get('/payroll/attendance-review', function(\Illuminate\Http\Request $request) {
+                    if ($request->user() && $request->user()->role === 'manager' && !$request->user()->hasModulePermission('payroll_attendance_review', 'payroll')) {
+                        abort(403, 'You do not have permission to access Attendance Review.');
+                    }
+                    return app(\App\Http\Controllers\AttendanceReviewController::class)->index($request);
+                })->name('payroll.attendance-review');
+
                 Route::get('/payroll/attendance-review/{clientId}/verify', [\App\Http\Controllers\AttendanceReviewController::class, 'verifyLogs'])->name('payroll.attendance-review.verify');
                 Route::post('/payroll/attendance-review/{clientId}/verify', [\App\Http\Controllers\AttendanceReviewController::class, 'saveVerification'])->name('payroll.attendance-review.verify.save');
                 Route::get('/payroll/attendance-review/{clientId}/details', [\App\Http\Controllers\AttendanceReviewController::class, 'details'])->name('payroll.attendance-review.details');
-                Route::get('/payroll/processing', [\App\Http\Controllers\PayrollController::class, 'indexProcessing'])->name('payroll.processing');
-                Route::get('/payroll/approval', [\App\Http\Controllers\PayrollController::class, 'indexApproval'])->name('payroll.approval');
-                Route::get('/payroll/payslips', [\App\Http\Controllers\PayrollController::class, 'indexPayslips'])->name('payroll.payslips');
-                Route::get('/invoices', [\App\Http\Controllers\InvoiceController::class, 'index'])->name('invoices.index');
+                
+                Route::get('/payroll/processing', function(\Illuminate\Http\Request $request) {
+                    if ($request->user() && $request->user()->role === 'manager' && !$request->user()->hasModulePermission('payroll_processing', 'payroll')) {
+                        abort(403, 'You do not have permission to access Payroll Processing.');
+                    }
+                    return app(\App\Http\Controllers\PayrollController::class)->indexProcessing($request);
+                })->name('payroll.processing');
+
+                Route::get('/payroll/approval', function(\Illuminate\Http\Request $request) {
+                    if ($request->user() && $request->user()->role === 'manager' && !$request->user()->hasModulePermission('payroll_approval', 'payroll')) {
+                        abort(403, 'You do not have permission to access Payroll Approval.');
+                    }
+                    return app(\App\Http\Controllers\PayrollController::class)->indexApproval($request);
+                })->name('payroll.approval');
+
+                Route::get('/payroll/payslips', function(\Illuminate\Http\Request $request) {
+                    if ($request->user() && $request->user()->role === 'manager' && !$request->user()->hasModulePermission('payroll_payslips', 'payroll')) {
+                        abort(403, 'You do not have permission to access Payslips Viewer.');
+                    }
+                    return app(\App\Http\Controllers\PayrollController::class)->indexPayslips($request);
+                })->name('payroll.payslips');
+
+                Route::get('/invoices', function(\Illuminate\Http\Request $request) {
+                    if ($request->user() && $request->user()->role === 'manager' && !$request->user()->hasModulePermission('payroll_invoices', 'payroll')) {
+                        abort(403, 'You do not have permission to access Invoices List.');
+                    }
+                    return app(\App\Http\Controllers\InvoiceController::class)->index($request);
+                })->name('invoices.index');
                 Route::get('/invoices/generate', fn() => Inertia::render('Invoicing/InvoiceGenerate'))->name('invoices.generate');
                 Route::get('/invoices/{id}', [\App\Http\Controllers\InvoiceController::class, 'show'])->name('invoices.show');
                 Route::get('/invoices/{id}/download', [\App\Http\Controllers\InvoiceController::class, 'downloadPdf'])->name('invoices.download');
@@ -243,7 +291,13 @@ Route::middleware(['auth', 'active'])->group(function () {
             Route::get('/admin/payslip-templates', [\App\Http\Controllers\Admin\PayslipTemplateCustomizerController::class, 'index'])->name('admin.payslip-templates');
             Route::get('/admin/payslip-templates/preview', [\App\Http\Controllers\Admin\PayslipTemplateCustomizerController::class, 'previewHtml'])->name('admin.payslip-templates.preview');
             Route::post('/admin/payslip-templates/{client}', [\App\Http\Controllers\Admin\PayslipTemplateCustomizerController::class, 'update'])->name('admin.payslip-templates.update');
-            Route::get('/admin/settings', fn() => Inertia::render('Admin/Settings'))->name('admin.settings');
+            Route::get('/admin/settings', function (\Illuminate\Http\Request $request) {
+                $user = $request->user();
+                if ($user->role === 'manager' && !$user->hasModulePermission('admin_settings', 'admin')) {
+                    abort(403, 'You do not have permission to access Settings.');
+                }
+                return Inertia::render('Admin/Settings');
+            })->name('admin.settings');
             
             Route::apiResource('admin/watchers', \App\Http\Controllers\NotificationWatcherController::class)->except(['show']);
             

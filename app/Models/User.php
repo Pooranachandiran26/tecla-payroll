@@ -70,7 +70,7 @@ class User extends Authenticatable
         ];
     }
 
-    public function hasModulePermission(string $moduleKey): bool
+    public function hasModulePermission(string $moduleKey, ?string $parentModuleKey = null): bool
     {
         if ($this->role === 'admin') {
             return true;
@@ -80,7 +80,35 @@ class User extends Authenticatable
             return true;
         }
 
-        return in_array($moduleKey, $this->module_permissions);
+        if (in_array($moduleKey, $this->module_permissions)) {
+            return true;
+        }
+
+        if ($parentModuleKey && in_array($parentModuleKey, $this->module_permissions)) {
+            $parentSubKeys = [
+                'admin' => ['admin_activity_log', 'admin_users', 'admin_sessions', 'admin_payslip_templates', 'admin_settings'],
+                'candidates' => ['emp_all', 'emp_create', 'emp_bulk_upload', 'emp_salary_revisions', 'emp_bank_change', 'emp_day_swaps', 'emp_leave_approval', 'emp_queries'],
+                'payroll' => ['payroll_live_monitor', 'payroll_attendance_upload', 'payroll_attendance_review', 'payroll_processing', 'payroll_approval', 'payroll_payslips', 'payroll_invoices'],
+                'clients' => ['clients_index', 'clients_create'],
+                'reports' => ['reports_catalog', 'reports_register'],
+                'compliance' => ['compliance_reports'],
+            ];
+
+            $subKeys = $parentSubKeys[$parentModuleKey] ?? [];
+            $hasAnySubKey = false;
+            foreach ($subKeys as $sub) {
+                if (in_array($sub, $this->module_permissions)) {
+                    $hasAnySubKey = true;
+                    break;
+                }
+            }
+
+            if (!$hasAnySubKey) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // Relationships

@@ -999,7 +999,6 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
 
     const handleSuccess = (page) => {
       setIsSubmitting(false);
-      showToast('✅ Client saved & activated successfully!');
       Object.keys(localStorage).forEach(k => {
         if (k.startsWith('tecla_client_draft_')) {
           localStorage.removeItem(k);

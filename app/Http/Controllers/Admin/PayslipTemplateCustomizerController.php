@@ -17,16 +17,37 @@ class PayslipTemplateCustomizerController extends Controller
             abort(403, 'Unauthorized access.');
         }
 
-        $clients = Client::where('status', 'active')
+        if ($user->role === 'manager' && !$user->hasModulePermission('admin_payslip_templates')) {
+            abort(403, 'You do not have permission to access the Payslip Templates Customizer.');
+        }
+
+        $clientsQuery = Client::where('status', 'active');
+        if ($user->role === 'manager') {
+            $managedIds = $user->getManagedClientIds();
+            $clientsQuery->whereIn('id', $managedIds);
+        }
+
+        $clients = $clientsQuery
             ->select('id', 'company_name', 'client_code', 'payslip_template', 'payslip_visible_sections', 'logo_path', 'accent_color')
             ->get();
 
-        $selectedClientId = $request->query('client_id', $clients->first()?->id);
+        $selectedClientId = $request->query('client_id');
+        if ($user->role === 'manager' && $selectedClientId && !$user->isManagerForClient($selectedClientId)) {
+            abort(403, 'You are not authorized to view or configure payslip templates for this client.');
+        }
+
+        $selectedClientId = $selectedClientId ?: $clients->first()?->id;
         $selectedClient = Client::find($selectedClientId) ?: $clients->first();
+
+        $hasNoTemplate = $selectedClient && empty($selectedClient->payslip_template);
+        if ($hasNoTemplate) {
+            session()->flash('warning', "⚠️ No payslip template configured for {$selectedClient->company_name}. Please select a template below and click Save Configuration.");
+        }
 
         return Inertia::render('Admin/PayslipTemplateCustomizer', [
             'clients' => $clients,
             'selectedClient' => $selectedClient,
+            'hasNoTemplate' => $hasNoTemplate,
             'templates' => [
                 ['key' => 'standard', 'name' => 'Standard Template', 'description' => 'Corporate standard 2-column table layout with navy accent bar.'],
                 ['key' => 'elegant', 'name' => 'Elegant Template', 'description' => 'Clean top card header with Net Pay highlight box on top-right.'],
@@ -47,6 +68,15 @@ class PayslipTemplateCustomizerController extends Controller
         $user = $request->user();
         if (!$user || ($user->role !== 'admin' && $user->role !== 'manager')) {
             abort(403);
+        }
+
+        if ($user->role === 'manager' && !$user->hasModulePermission('admin_payslip_templates')) {
+            abort(403, 'You do not have permission to access the Payslip Templates Customizer.');
+        }
+
+        $clientId = $request->query('client_id');
+        if ($user->role === 'manager' && $clientId && !$user->isManagerForClient($clientId)) {
+            abort(403, 'You are not authorized to view templates for this client.');
         }
 
         $templateKey = $request->query('template', 'standard');
@@ -129,7 +159,12 @@ class PayslipTemplateCustomizerController extends Controller
         $companyAddress = "{$locationStr}{$gstStr}";
         $logoUrl = $client ? $client->logo_path : null;
 
-        $accentColor = $request->query('accent_color') ?: ($client && $client->accent_color ? $client->accent_color : '#1F3864');
+        $rawAccentColor = $request->query('accent_color');
+        if (empty($rawAccentColor) || $rawAccentColor === 'undefined' || $rawAccentColor === 'null') {
+            $accentColor = $client && $client->accent_color ? $client->accent_color : null;
+        } else {
+            $accentColor = $rawAccentColor;
+        }
 
         return response()->view('pdf.payslip', [
             'item' => $dummyItem,
@@ -153,6 +188,14 @@ class PayslipTemplateCustomizerController extends Controller
         $user = $request->user();
         if (!in_array($user->role, ['admin', 'manager'])) {
             return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        if ($user->role === 'manager' && !$user->hasModulePermission('admin_payslip_templates')) {
+            abort(403, 'You do not have permission to access the Payslip Templates Customizer.');
+        }
+
+        if ($user->role === 'manager' && !$user->isManagerForClient($clientId)) {
+            abort(403, 'You are not authorized to configure payslip templates for this client.');
         }
 
         $client = Client::findOrFail($clientId);

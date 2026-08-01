@@ -1,5 +1,5 @@
 import { Link, usePage, router } from '@inertiajs/react';
-import { adminNav, clientNav, candidateNav, subNavs, getActiveCategory, getPathname } from '../Constants/navigation';
+import { adminNav, clientNav, candidateNav, subNavs, getActiveCategory, getPathname, isSubNavAuthorized } from '../Constants/navigation';
 import { Bell, User, LogOut, Menu } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import ToastContainer from '../Components/ui/Toast';
@@ -38,7 +38,7 @@ export default function AuthenticatedLayout({ children, hideSubNav = false }) {
 
   useEffect(() => {
     handleFlash(flash);
-  }, []);
+  }, [flash, handleFlash]);
 
   useEffect(() => {
     const preventWheelChange = (e) => {
@@ -73,19 +73,50 @@ export default function AuthenticatedLayout({ children, hideSubNav = false }) {
 
   const safeRawLinks = Array.isArray(rawNavLinks) ? rawNavLinks : [];
 
-  const navLinks = safeRawLinks.filter(item => {
-    if (!item) return false;
-    if (role === 'admin') return true;
-    if (role === 'manager' && Array.isArray(userPermissions) && userPermissions.length > 0) {
-      return userPermissions.includes(item.key);
-    }
-    return true;
-  });
+  // For managers: compute which sub-nav items are allowed per parent module,
+  // then hide parent modules with zero allowed sub-tabs & rewrite header URLs
+  // to point to the first allowed sub-tab.
+  const navLinks = safeRawLinks
+    .filter(item => {
+      if (!item) return false;
+      if (role === 'admin') return true;
+      if (role === 'manager' && Array.isArray(userPermissions) && userPermissions.length > 0) {
+        if (!userPermissions.includes(item.key)) return false;
+        // If this parent has sub-nav items, check if at least one is allowed
+        const parentSubNavs = subNavs[item.key];
+        if (parentSubNavs && parentSubNavs.length > 0) {
+          const allowedSubs = parentSubNavs.filter(sub =>
+            isSubNavAuthorized(sub, item.key, userPermissions, role)
+          );
+          if (allowedSubs.length === 0) return false;
+        }
+        return true;
+      }
+      return true;
+    })
+    .map(item => {
+      // For managers, rewrite the header URL to the first allowed sub-tab
+      if (role === 'manager' && Array.isArray(userPermissions) && userPermissions.length > 0) {
+        const parentSubNavs = subNavs[item.key];
+        if (parentSubNavs && parentSubNavs.length > 0) {
+          const allowedSubs = parentSubNavs.filter(sub =>
+            isSubNavAuthorized(sub, item.key, userPermissions, role)
+          );
+          if (allowedSubs.length > 0) {
+            return { ...item, url: allowedSubs[0].url };
+          }
+        }
+      }
+      return item;
+    });
 
   const activeCategory = getActiveCategory(url, role);
   
-  // Get subnav items if any exist for the active category
-  const subNavItems = (role === 'admin' || role === 'manager') ? subNavs[activeCategory] : null;
+  // Get subnav items filtered by sub-module permissions
+  const rawSubNavItems = (role === 'admin' || role === 'manager') ? subNavs[activeCategory] : null;
+  const subNavItems = rawSubNavItems ? rawSubNavItems.filter(item => 
+    isSubNavAuthorized(item, activeCategory, userPermissions, role)
+  ) : null;
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
 

@@ -104,6 +104,10 @@ class EmployeeQueryController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
+        if ($user->role === 'manager' && !$user->hasModulePermission('emp_queries', 'candidates')) {
+            abort(403, 'You do not have permission to access Employee Queries.');
+        }
+
         $queryBuilder = EmployeeQuery::with(['employee:id,full_name,employee_code', 'client:id,company_name', 'resolver:id,name']);
 
         if ($user->role === 'manager') {

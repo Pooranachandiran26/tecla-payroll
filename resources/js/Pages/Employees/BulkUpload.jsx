@@ -394,7 +394,7 @@ export default function BulkUpload({ clients = [] }) {
     <AuthenticatedLayout>
       <Head title="Bulk Upload Employees" />
 
-      <div className="mb-6 flex justify-between items-end flex-wrap gap-4">
+      <div className="mb-6 flex justify-between items-start flex-wrap gap-4 pt-2">
         <div>
           <Link href={route('employees.index')} className="text-[0.85rem] font-semibold text-[#1F3864] hover:underline mb-2 inline-block">
             ← Back to Employees Directory
@@ -403,7 +403,7 @@ export default function BulkUpload({ clients = [] }) {
           <p className="text-gray-500 text-sm">Upload spreadsheet templates to onboard multiple employees and assign their client defaults instantly.</p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 pt-2">
           <select
             value={selectedClientId}
             onChange={(e) => setSelectedClientId(e.target.value)}
@@ -418,7 +418,7 @@ export default function BulkUpload({ clients = [] }) {
           </select>
           <Button 
             disabled={!selectedClientId}
-            onClick={() => window.location.href = route('employees.bulk-upload.template', { client_id: selectedClientId })}
+            onClick={() => window.location.href = route('employees.bulk-upload.download-template', { client_id: selectedClientId })}
             variant="outline"
           >
             Download Client Template (.XLSX)
@@ -453,7 +453,7 @@ export default function BulkUpload({ clients = [] }) {
         <p className="font-semibold text-base text-[#1F3864] mb-1">
           {isUploading ? 'Validating file...' : 'Click to select or drag and drop your employee Excel/CSV file here'}
         </p>
-        <p className="text-sm text-gray-500 mb-4">Supports .csv up to 10MB</p>
+        <p className="text-sm text-gray-500 mb-4">Supports .xlsx, .xls, .csv up to 100MB (up to 200,000 employees)</p>
         
         <input 
           type="file" 

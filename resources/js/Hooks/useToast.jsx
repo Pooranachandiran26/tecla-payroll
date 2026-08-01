@@ -20,19 +20,40 @@ export function ToastProvider({ children }) {
     }, 300);
   }, []);
 
-  const showToast = useCallback(({ type = 'info', title, message, duration = 2000 }) => {
-    if (!message) return null;
+  const showToast = useCallback((opts) => {
+    let msg = '';
+    let toastType = 'info';
+    let toastTitle = null;
+
+    if (typeof opts === 'string') {
+      msg = opts;
+      toastType = 'success';
+    } else if (opts && typeof opts === 'object') {
+      msg = opts.message || '';
+      toastType = opts.type || 'info';
+      toastTitle = opts.title || null;
+    }
+
+    if (!msg) return null;
 
     const effectiveDuration = 2000; // Strictly 2 seconds for all alerts
     const id = ++toastIdCounter;
+    const now = Date.now();
 
     setToasts(prev => {
       const safePrev = Array.isArray(prev) ? prev : [];
-      // Prevent adding duplicate active toasts with the exact same message and type
-      if (safePrev.some(t => !t.exiting && t.message === message && t.type === type)) {
+      // Prevent adding duplicate active toasts of the same type triggered within 1200ms
+      const isDuplicate = safePrev.some(t => 
+        !t.exiting && 
+        t.type === toastType && 
+        (t.message === msg || (now - (t.timestamp || 0)) < 1200)
+      );
+
+      if (isDuplicate) {
         return safePrev;
       }
-      const toast = { id, type, title, message, duration: effectiveDuration, exiting: false };
+
+      const toast = { id, type: toastType, title: toastTitle, message: msg, duration: effectiveDuration, exiting: false, timestamp: now };
       return [...safePrev, toast];
     });
 

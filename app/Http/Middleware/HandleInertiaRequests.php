@@ -50,6 +50,7 @@ class HandleInertiaRequests extends Middleware
                     'email' => $request->user()->email,
                     'role' => $request->user()->role,
                     'must_change_password' => $request->user()->must_change_password,
+                    'module_permissions' => $request->user()->module_permissions,
                 ] : null,
             ],
             'authConfig' => [

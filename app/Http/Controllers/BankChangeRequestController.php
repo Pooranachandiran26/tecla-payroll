@@ -23,6 +23,9 @@ class BankChangeRequestController extends Controller
         }
 
         $user = $request->user();
+        if ($user && $user->role === 'manager' && !$user->hasModulePermission('emp_bank_change', 'candidates')) {
+            abort(403, 'You do not have permission to access Bank Change Requests.');
+        }
         $query = BankChangeRequest::with(['employee.client']);
 
         if ($user && $user->role === 'manager') {

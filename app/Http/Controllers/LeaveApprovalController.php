@@ -19,6 +19,9 @@ class LeaveApprovalController extends Controller
         }
 
         $user = $request->user();
+        if ($user && $user->role === 'manager' && !$user->hasModulePermission('emp_leave_approval', 'candidates')) {
+            abort(403, 'You do not have permission to access Leave Approval Queue.');
+        }
         $query = LeaveRequest::with(['employee.client']);
 
         if ($user && $user->role === 'manager') {

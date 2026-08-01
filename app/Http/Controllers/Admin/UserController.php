@@ -16,6 +16,15 @@ class UserController extends Controller
 
     public function index(Request $request)
     {
+        $user = $request->user();
+        if (!$user || !in_array($user->role, ['admin', 'manager'])) {
+            abort(403, 'Unauthorized access.');
+        }
+
+        if ($user->role === 'manager' && !$user->hasModulePermission('admin_users', 'admin')) {
+            abort(403, 'You do not have permission to access User Management.');
+        }
+
         $tab = $request->input('tab', 'system');
         $search = $request->input('search', '');
 
@@ -118,7 +127,7 @@ class UserController extends Controller
     {
         $request->validate([
             'module_permissions' => 'nullable|array',
-            'module_permissions.*' => 'string|in:dashboard,quick-access,clients,candidates,payroll,compliance,reports,admin',
+            'module_permissions.*' => 'string',
         ]);
 
         if ($user->role !== 'manager') {

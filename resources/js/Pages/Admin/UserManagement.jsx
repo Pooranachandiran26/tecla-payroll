@@ -27,24 +27,119 @@ export default function UserManagement({ users = {}, unlinkedEmployees = [], unl
   const AVAILABLE_MODULES = [
     { key: 'dashboard', label: 'Dashboard Overview', desc: 'Main executive dashboard metrics & pending queues' },
     { key: 'quick-access', label: 'Quick Access Navigation', desc: 'Quick launcher shortcuts' },
-    { key: 'clients', label: 'Clients Directory', desc: 'Client profiles, branch locations, and statutory setups' },
-    { key: 'candidates', label: 'Employees Directory', desc: 'Employee master data, bulk upload & salary revisions' },
-    { key: 'payroll', label: 'Payroll & Invoicing', desc: 'Attendance review, payroll processing, approvals, payslips & invoices' },
+    { 
+      key: 'clients', 
+      label: 'Clients Directory', 
+      desc: 'Client profiles, branch locations, and statutory setups',
+      children: [
+        { key: 'clients_index', label: 'All Clients Directory' },
+        { key: 'clients_create', label: 'Add New Client' },
+      ]
+    },
+    { 
+      key: 'candidates', 
+      label: 'Employees Directory', 
+      desc: 'Employee master data, bulk upload, salary revisions & queues',
+      children: [
+        { key: 'emp_all', label: 'All Employees' },
+        { key: 'emp_create', label: 'Add New Employee' },
+        { key: 'emp_bulk_upload', label: 'Bulk Upload Employees' },
+        { key: 'emp_salary_revisions', label: 'Salary Revisions Queue' },
+        { key: 'emp_bank_change', label: 'Bank Change Requests' },
+        { key: 'emp_day_swaps', label: 'Day Swap Requests' },
+        { key: 'emp_leave_approval', label: 'Leave Approval Queue' },
+        { key: 'emp_queries', label: 'Employee Queries' },
+      ]
+    },
+    { 
+      key: 'payroll', 
+      label: 'Payroll & Invoicing', 
+      desc: 'Attendance review, processing, approvals, payslips & invoices',
+      children: [
+        { key: 'payroll_live_monitor', label: 'Live Attendance Monitor' },
+        { key: 'payroll_attendance_upload', label: 'Attendance Upload' },
+        { key: 'payroll_attendance_review', label: 'Attendance Review' },
+        { key: 'payroll_processing', label: 'Payroll Processing' },
+        { key: 'payroll_approval', label: 'Payroll Approval' },
+        { key: 'payroll_payslips', label: 'Payslips Viewer' },
+        { key: 'payroll_invoices', label: 'Invoices List' },
+      ]
+    },
     { key: 'compliance', label: 'Compliance Reports', desc: 'PF, ESI, LWF, PT & Statutory tax reports' },
     { key: 'reports', label: 'Analytics Reports', desc: 'Executive payroll analytics & export reports' },
-    { key: 'admin', label: 'Admin System Control', desc: 'Activity logs, user management, sessions, templates' },
+    { 
+      key: 'admin', 
+      label: 'Admin System Control', 
+      desc: 'Activity logs, user management, sessions, templates',
+      children: [
+        { key: 'admin_activity_log', label: 'Activity Log' },
+        { key: 'admin_users', label: 'User Management' },
+        { key: 'admin_sessions', label: 'Active Sessions' },
+        { key: 'admin_payslip_templates', label: 'Payslip Templates Customizer' },
+        { key: 'admin_settings', label: 'System Settings' },
+      ]
+    },
   ];
+
+  const getAllModuleKeys = () => {
+    const keys = [];
+    AVAILABLE_MODULES.forEach(m => {
+      keys.push(m.key);
+      if (m.children) {
+        m.children.forEach(c => keys.push(c.key));
+      }
+    });
+    return keys;
+  };
 
   const openPermissionsModal = (user) => {
     setEditingPermissionsUser(user);
     const existing = user.module_permissions || [];
-    setSelectedPermissions(existing.length > 0 ? existing : AVAILABLE_MODULES.map(m => m.key));
+    if (existing.length === 0) {
+      setSelectedPermissions(getAllModuleKeys());
+      return;
+    }
+
+    const normalized = [...existing];
+    AVAILABLE_MODULES.forEach(mod => {
+      if (mod.children && normalized.includes(mod.key)) {
+        const childKeys = mod.children.map(c => c.key);
+        const hasChildInExisting = childKeys.some(ck => normalized.includes(ck));
+        if (!hasChildInExisting) {
+          childKeys.forEach(ck => {
+            if (!normalized.includes(ck)) normalized.push(ck);
+          });
+        }
+      }
+    });
+
+    setSelectedPermissions(normalized);
   };
 
-  const togglePermission = (moduleKey) => {
-    setSelectedPermissions(prev => 
-      prev.includes(moduleKey) ? prev.filter(k => k !== moduleKey) : [...prev, moduleKey]
-    );
+  const togglePermission = (key, parentKey = null) => {
+    setSelectedPermissions(prev => {
+      const isSelected = prev.includes(key);
+      const mod = AVAILABLE_MODULES.find(m => m.key === key);
+
+      if (mod && mod.children) {
+        const childKeys = mod.children.map(c => c.key);
+        if (isSelected) {
+          return prev.filter(k => k !== key && !childKeys.includes(k));
+        } else {
+          return Array.from(new Set([...prev, key, ...childKeys]));
+        }
+      } else {
+        if (isSelected) {
+          return prev.filter(k => k !== key);
+        } else {
+          const next = [...prev, key];
+          if (parentKey && !next.includes(parentKey)) {
+            next.push(parentKey);
+          }
+          return next;
+        }
+      }
+    });
   };
 
   const handleSavePermissions = () => {
@@ -646,39 +741,91 @@ export default function UserManagement({ users = {}, unlinkedEmployees = [], unl
                 Select which top-level module tabs <strong>{editingPermissionsUser.name}</strong> is authorized to access:
               </p>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', maxHeight: '340px', overflowY: 'auto', paddingRight: '0.25rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '420px', overflowY: 'auto', paddingRight: '0.25rem' }}>
                 {AVAILABLE_MODULES.map(mod => {
                   const isChecked = selectedPermissions.includes(mod.key);
+                  const hasChildren = mod.children && mod.children.length > 0;
+
                   return (
-                    <label 
+                    <div 
                       key={mod.key}
                       style={{
                         display: 'flex',
-                        alignItems: 'flex-start',
-                        gap: '0.75rem',
-                        padding: '0.75rem',
+                        flexDirection: 'column',
                         border: '1px solid ' + (isChecked ? '#93C5FD' : '#E2E8F0'),
                         borderRadius: '8px',
                         backgroundColor: isChecked ? '#EFF6FF' : '#F8FAFC',
-                        cursor: 'pointer',
+                        padding: '0.75rem',
                         transition: 'all 0.2s ease'
                       }}
                     >
-                      <input 
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={() => togglePermission(mod.key)}
-                        style={{ marginTop: '3px', width: '16px', height: '16px' }}
-                      />
-                      <div>
-                        <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#1E293B' }}>
-                          {mod.label}
+                      <label 
+                        style={{
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: '0.75rem',
+                          cursor: 'pointer',
+                          marginBottom: hasChildren && isChecked ? '0.6rem' : 0
+                        }}
+                      >
+                        <input 
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => togglePermission(mod.key)}
+                          style={{ marginTop: '3px', width: '16px', height: '16px' }}
+                        />
+                        <div>
+                          <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#1E293B' }}>
+                            {mod.label}
+                          </div>
+                          <div style={{ fontSize: '0.78rem', color: '#64748B', marginTop: '1px' }}>
+                            {mod.desc}
+                          </div>
                         </div>
-                        <div style={{ fontSize: '0.78rem', color: '#64748B', marginTop: '1px' }}>
-                          {mod.desc}
+                      </label>
+
+                      {/* Sub-module Granular Checkboxes */}
+                      {hasChildren && isChecked && (
+                        <div style={{ 
+                          marginLeft: '1.75rem', 
+                          paddingTop: '0.6rem', 
+                          borderTop: '1px dashed #BFDBFE',
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+                          gap: '0.4rem'
+                        }}>
+                          {mod.children.map(child => {
+                            const isChildChecked = selectedPermissions.includes(child.key);
+                            return (
+                              <label 
+                                key={child.key}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '6px',
+                                  fontSize: '0.78rem',
+                                  fontWeight: isChildChecked ? 700 : 500,
+                                  color: isChildChecked ? '#1E40AF' : '#475569',
+                                  backgroundColor: isChildChecked ? '#DBEAFE' : '#FFFFFF',
+                                  padding: '0.3rem 0.5rem',
+                                  borderRadius: '4px',
+                                  border: '1px solid ' + (isChildChecked ? '#93C5FD' : '#E2E8F0'),
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                <input 
+                                  type="checkbox"
+                                  checked={isChildChecked}
+                                  onChange={() => togglePermission(child.key, mod.key)}
+                                  style={{ width: '14px', height: '14px' }}
+                                />
+                                <span>{child.label}</span>
+                              </label>
+                            );
+                          })}
                         </div>
-                      </div>
-                    </label>
+                      )}
+                    </div>
                   );
                 })}
               </div>
@@ -687,9 +834,9 @@ export default function UserManagement({ users = {}, unlinkedEmployees = [], unl
                 <button
                   type="button"
                   className="btn btn-secondary btn-xs"
-                  onClick={() => setSelectedPermissions(AVAILABLE_MODULES.map(m => m.key))}
+                  onClick={() => setSelectedPermissions(getAllModuleKeys())}
                 >
-                  Select All Modules
+                  Select All Modules & Sub-Tabs
                 </button>
 
                 <div style={{ display: 'flex', gap: '0.5rem' }}>

@@ -30,6 +30,9 @@ class DaySwapController extends Controller
         }
 
         $user = $request->user();
+        if ($user && $user->role === 'manager' && !$user->hasModulePermission('emp_day_swaps', 'candidates')) {
+            abort(403, 'You do not have permission to access Day Swap Requests.');
+        }
         $query = EmployeeAttendanceOverride::with(['employee.client'])
             ->where('attendance_day_type', 'work_day')
             ->whereNotNull('swap_target_date');

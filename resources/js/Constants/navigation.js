@@ -40,41 +40,41 @@ export const candidateNav = [
 
 export const subNavs = {
   clients: [
-    { name: 'All Clients', url: safeRoute('clients.index', '/clients') },
-    { name: 'Add New Client', url: safeRoute('clients.create', '/clients/create') },
+    { name: 'All Clients', url: safeRoute('clients.index', '/clients'), key: 'clients_index' },
+    { name: 'Add New Client', url: safeRoute('clients.create', '/clients/create'), key: 'clients_create' },
   ],
   candidates: [
-    { name: 'All Employees', url: safeRoute('employees.index', '/employees') },
-    { name: 'Add New', url: safeRoute('employees.create', '/employees/create') },
-    { name: 'Bulk Upload', url: safeRoute('employees.bulk-upload', '/employees/bulk-upload') },
-    { name: 'Salary Revisions', url: safeRoute('employees.salary-revisions-queue', '/employees/salary-revisions-queue') },
-    { name: 'Bank Change Requests', url: safeRoute('employees.bank-change-requests', '/employees/bank-change-requests') },
-    { name: 'Day Swap Requests', url: safeRoute('employees.day-swaps', '/day-swap-requests') },
-    { name: 'Leave Approval Queue', url: safeRoute('leave-requests.index', '/leave-requests') },
-    { name: 'Employee Queries', url: safeRoute('admin.employee-queries.index', '/admin/employee-queries') },
+    { name: 'All Employees', url: safeRoute('employees.index', '/employees'), key: 'emp_all' },
+    { name: 'Add New', url: safeRoute('employees.create', '/employees/create'), key: 'emp_create' },
+    { name: 'Bulk Upload', url: safeRoute('employees.bulk-upload', '/employees/bulk-upload'), key: 'emp_bulk_upload' },
+    { name: 'Salary Revisions', url: safeRoute('employees.salary-revisions-queue', '/employees/salary-revisions-queue'), key: 'emp_salary_revisions' },
+    { name: 'Bank Change Requests', url: safeRoute('employees.bank-change-requests', '/employees/bank-change-requests'), key: 'emp_bank_change' },
+    { name: 'Day Swap Requests', url: safeRoute('employees.day-swaps', '/day-swap-requests'), key: 'emp_day_swaps' },
+    { name: 'Leave Approval Queue', url: safeRoute('leave-requests.index', '/leave-requests'), key: 'emp_leave_approval' },
+    { name: 'Employee Queries', url: safeRoute('admin.employee-queries.index', '/admin/employee-queries'), key: 'emp_queries' },
   ],
   payroll: [
-    { name: 'Live Attendance Monitor', url: safeRoute('payroll.live-monitor', '/payroll/live-monitor') },
-    { name: 'Attendance Upload', url: safeRoute('payroll.attendance-upload', '/payroll/attendance-upload') },
-    { name: 'Attendance Review', url: safeRoute('payroll.attendance-review', '/payroll/attendance-review') },
-    { name: 'Processing', url: safeRoute('payroll.processing', '/payroll/processing') },
-    { name: 'Approval', url: safeRoute('payroll.approval', '/payroll/approval') },
-    { name: 'Payslips', url: safeRoute('payroll.payslips', '/payroll/payslips') },
-    { name: 'Invoices', url: safeRoute('invoices.index', '/invoices') },
+    { name: 'Live Attendance Monitor', url: safeRoute('payroll.live-monitor', '/payroll/live-monitor'), key: 'payroll_live_monitor' },
+    { name: 'Attendance Upload', url: safeRoute('payroll.attendance-upload', '/payroll/attendance-upload'), key: 'payroll_attendance_upload' },
+    { name: 'Attendance Review', url: safeRoute('payroll.attendance-review', '/payroll/attendance-review'), key: 'payroll_attendance_review' },
+    { name: 'Processing', url: safeRoute('payroll.processing', '/payroll/processing'), key: 'payroll_processing' },
+    { name: 'Approval', url: safeRoute('payroll.approval', '/payroll/approval'), key: 'payroll_approval' },
+    { name: 'Payslips', url: safeRoute('payroll.payslips', '/payroll/payslips'), key: 'payroll_payslips' },
+    { name: 'Invoices', url: safeRoute('invoices.index', '/invoices'), key: 'payroll_invoices' },
   ],
   compliance: [
-    { name: 'Statutory Reports', url: safeRoute('compliance.index', '/compliance') },
+    { name: 'Statutory Reports', url: safeRoute('compliance.index', '/compliance'), key: 'compliance_reports' },
   ],
   reports: [
-    { name: 'Reports Catalog', url: safeRoute('admin.reports.index', '/admin/reports') },
-    { name: 'Payroll Register', url: safeRoute('admin.reports.show', '/admin/reports/payroll_register') },
+    { name: 'Reports Catalog', url: safeRoute('admin.reports.index', '/admin/reports'), key: 'reports_catalog' },
+    { name: 'Payroll Register', url: safeRoute('admin.reports.show', '/admin/reports/payroll_register'), key: 'reports_register' },
   ],
   admin: [
-    { name: 'Activity Log', url: safeRoute('admin.activity-log', '/admin/activity-log') },
-    { name: 'User Management', url: safeRoute('admin.users', '/admin/users') },
-    { name: 'Active Sessions', url: safeRoute('admin.sessions', '/admin/sessions') },
-    { name: 'Payslip Templates', url: safeRoute('admin.payslip-templates', '/admin/payslip-templates') },
-    { name: 'Settings', url: safeRoute('admin.settings', '/admin/settings') },
+    { name: 'Activity Log', url: safeRoute('admin.activity-log', '/admin/activity-log'), key: 'admin_activity_log' },
+    { name: 'User Management', url: safeRoute('admin.users', '/admin/users'), key: 'admin_users' },
+    { name: 'Active Sessions', url: safeRoute('admin.sessions', '/admin/sessions'), key: 'admin_sessions' },
+    { name: 'Payslip Templates', url: safeRoute('admin.payslip-templates', '/admin/payslip-templates'), key: 'admin_payslip_templates' },
+    { name: 'Settings', url: safeRoute('admin.settings', '/admin/settings'), key: 'admin_settings' },
   ],
 };
 
@@ -147,4 +147,24 @@ export function getActiveCategory(currentPath, role) {
   if (currentPathname.includes('quick-access')) return 'quick-access';
 
   return 'dashboard';
+}
+
+export function isSubNavAuthorized(item, activeCategory, userPermissions, role) {
+  if (role === 'admin') return true;
+  if (role !== 'manager') return true;
+  if (!Array.isArray(userPermissions) || userPermissions.length === 0) return true;
+
+  const hasParentPermission = userPermissions.includes(activeCategory);
+  if (!hasParentPermission) return false;
+
+  const currentCategorySubNavs = subNavs[activeCategory] || [];
+  const categorySubKeys = currentCategorySubNavs.map(i => i.key).filter(Boolean);
+
+  const hasConfiguredSubKeys = categorySubKeys.some(subKey => userPermissions.includes(subKey));
+
+  if (hasConfiguredSubKeys) {
+    return item.key ? userPermissions.includes(item.key) : true;
+  }
+
+  return true;
 }
