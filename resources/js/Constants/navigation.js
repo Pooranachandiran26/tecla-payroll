@@ -66,7 +66,8 @@ export const subNavs = {
     { name: 'Statutory Reports', url: safeRoute('compliance.index', '/compliance') },
   ],
   reports: [
-    { name: 'Analytics Dashboard', url: safeRoute('reports.index', '/reports') },
+    { name: 'Reports Catalog', url: safeRoute('admin.reports.index', '/admin/reports') },
+    { name: 'Payroll Register', url: safeRoute('admin.reports.show', '/admin/reports/payroll_register') },
   ],
   admin: [
     { name: 'Activity Log', url: safeRoute('admin.activity-log', '/admin/activity-log') },

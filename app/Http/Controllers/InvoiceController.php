@@ -52,7 +52,7 @@ class InvoiceController extends Controller
     }
 
     /**
-     * Show single invoice details page with backend paginated line items (limit 15).
+     * Display single invoice details page with backend paginated line items (limit 15).
      */
     public function show(Request $request, $id)
     {
@@ -62,6 +62,8 @@ class InvoiceController extends Controller
             'additionalFees',
             'sentBy'
         ])->findOrFail($id);
+
+        $this->authorizeInvoiceAccess($request, $invoice);
 
         $lineItems = $invoice->lineItems()
             ->with('employee')
@@ -107,9 +109,10 @@ class InvoiceController extends Controller
     /**
      * Download or stream Tax Invoice PDF.
      */
-    public function downloadPdf($id)
+    public function downloadPdf(Request $request, $id)
     {
         $invoice = Invoice::with(['client', 'branch', 'lineItems.employee', 'additionalFees'])->findOrFail($id);
+        $this->authorizeInvoiceAccess($request, $invoice);
 
         $pdfBytes = $this->pdfService->generatePdfBinary($invoice);
 
@@ -127,6 +130,7 @@ class InvoiceController extends Controller
     public function finalize(Request $request, $id)
     {
         $invoice = Invoice::with(['client'])->findOrFail($id);
+        $this->authorizeInvoiceAccess($request, $invoice);
 
         try {
             $this->validatePoRequirements($invoice);
@@ -155,6 +159,7 @@ class InvoiceController extends Controller
     public function sendEmail(Request $request, $id)
     {
         $invoice = Invoice::with(['client.contacts', 'branch', 'lineItems', 'additionalFees'])->findOrFail($id);
+        $this->authorizeInvoiceAccess($request, $invoice);
         $client = $invoice->client;
 
         // 1. DRAFT-STATUS GUARD FIRST
@@ -298,6 +303,7 @@ class InvoiceController extends Controller
     public function storeFee(Request $request, $id)
     {
         $invoice = Invoice::findOrFail($id);
+        $this->authorizeInvoiceAccess($request, $invoice);
 
         // Immutability Guard: Only DRAFT invoices permit adding fees
         if ($invoice->status !== 'draft') {
@@ -341,6 +347,7 @@ class InvoiceController extends Controller
     public function destroyFee(Request $request, $id, $feeId)
     {
         $invoice = Invoice::findOrFail($id);
+        $this->authorizeInvoiceAccess($request, $invoice);
 
         // Immutability Guard: Only DRAFT invoices permit modifying fees
         if ($invoice->status !== 'draft') {
@@ -364,5 +371,16 @@ class InvoiceController extends Controller
         }
 
         return redirect()->back()->with('success', 'Additional fee deleted successfully.');
+    }
+
+    /**
+     * Authorize Manager Access to Invoice by Client ID.
+     */
+    private function authorizeInvoiceAccess(Request $request, Invoice $invoice): void
+    {
+        $user = $request->user();
+        if ($user && $user->role === 'manager' && !$user->isManagerForClient($invoice->client_id)) {
+            abort(403, 'Unauthorized access to this client invoice.');
+        }
     }
 }
