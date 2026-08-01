@@ -31,6 +31,9 @@ class ClientController extends Controller
         $this->authorize('viewAny', Client::class);
 
         $user = $request->user();
+        if ($user && $user->role === 'manager' && !$user->hasModulePermission('clients_index', 'clients')) {
+            abort(403, 'You do not have permission to access the Clients Directory.');
+        }
 
         $query = Client::withCount(['employees' => function ($query) {
             $query->where('status', 'active');
@@ -135,9 +138,14 @@ class ClientController extends Controller
     /**
      * Show the form for creating a new resource.
      */
-    public function create()
+    public function create(Request $request)
     {
         $this->authorize('create', Client::class);
+
+        $user = $request->user();
+        if ($user && $user->role === 'manager' && !$user->hasModulePermission('clients_create', 'clients')) {
+            abort(403, 'You do not have permission to create new clients.');
+        }
         $accountManagers = \App\Models\User::whereIn('role', ['admin', 'manager'])
             ->where('status', 'active')
             ->get(['id', 'name'])

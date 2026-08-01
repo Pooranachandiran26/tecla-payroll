@@ -23,6 +23,15 @@ class ActivityLogController extends Controller
 
     public function index(Request $request)
     {
+        $user = $request->user();
+        if (!$user || !in_array($user->role, ['admin', 'manager'])) {
+            abort(403, 'Unauthorized access.');
+        }
+
+        if ($user->role === 'manager' && !$user->hasModulePermission('admin_activity_log', 'admin')) {
+            abort(403, 'You do not have permission to access Activity Logs.');
+        }
+
         $query = AuditLog::with(['user'])->latest();
 
         // ── Search filter ─────────────────────────────────────────────────────

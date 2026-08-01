@@ -21,6 +21,11 @@ class SalaryRevisionController extends Controller
 {
     public function create($employeeId)
     {
+        $user = request()->user();
+        if ($user && $user->role === 'manager' && !$user->hasModulePermission('emp_salary_revisions', 'candidates')) {
+            abort(403, 'You do not have permission to access Salary Revisions.');
+        }
+
         $employee = Employee::with('client')->findOrFail($employeeId);
         $revisions = SalaryRevision::where('employee_id', $employeeId)
             ->with('approver')
@@ -208,6 +213,9 @@ class SalaryRevisionController extends Controller
     public function queue(Request $request)
     {
         $user = $request->user();
+        if ($user && $user->role === 'manager' && !$user->hasModulePermission('emp_salary_revisions', 'candidates')) {
+            abort(403, 'You do not have permission to access Salary Revisions Queue.');
+        }
 
         $query = SalaryRevision::with(['employee.client', 'approver']);
 

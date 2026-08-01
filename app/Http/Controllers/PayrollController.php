@@ -1065,6 +1065,14 @@ class PayrollController extends Controller
             $selectedClientId = $clients->first()->id;
         }
 
+        if ($selectedClientId) {
+            $selectedClient = \App\Models\Client::find($selectedClientId);
+            if ($selectedClient && (is_null($selectedClient->payslip_template) || $selectedClient->payslip_template === '' || $selectedClient->payslip_template === 'none')) {
+                return redirect()->route('admin.payslip-templates', ['client_id' => $selectedClient->id])
+                    ->with('warning', "⚠️ No payslip template configured for {$selectedClient->company_name}. Please select and save a template first.");
+            }
+        }
+
         $selectedMonth = $request->query('payroll_month');
         if (!$selectedMonth) {
             $latestRun = \App\Models\PayrollRun::where('status', 'locked')->latest('payroll_month')->first();

@@ -293,7 +293,7 @@ class AttendanceUploadController extends Controller
         $request->validate([
             'client_id' => 'required|exists:clients,id',
             'target_month' => 'required|string', // Format: YYYY-MM
-            'file' => 'required|file|mimes:csv,txt,xlsx,xls|max:10240',
+            'file' => 'required|file|mimes:csv,txt,xlsx,xls|max:102400',
         ]);
 
         $file = $request->file('file');
@@ -332,7 +332,7 @@ class AttendanceUploadController extends Controller
         $request->validate([
             'client_id' => 'required|exists:clients,id',
             'target_month' => 'required|string', // Format: "YYYY-MM"
-            'file' => 'required|file|mimes:csv,txt,xlsx,xls|max:10240',
+            'file' => 'required|file|mimes:csv,txt,xlsx,xls|max:102400',
         ]);
 
         $file = $request->file('file');

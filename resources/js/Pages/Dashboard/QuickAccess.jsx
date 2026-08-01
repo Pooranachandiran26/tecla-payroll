@@ -17,23 +17,23 @@ export default function QuickAccess() {
 
   const config = {
     admin: {
-      subtitle: 'You have full access to every module.',
-      visible: ['employees', 'payroll', 'attendance', 'leave', 'compliance', 'reports-admin', 'client-portal', 'employee-portal'],
+      subtitle: 'You have full access to every admin module.',
+      visible: ['employees', 'payroll', 'attendance', 'leave', 'compliance', 'reports-admin'],
       locked: []
     },
     executive: {
       subtitle: 'Showing modules available to your role.',
       subtitleNote: 'Locked items require Agency Admin access.',
-      visible: ['employees', 'payroll', 'attendance', 'leave', 'compliance', 'reports-admin', 'client-portal', 'employee-portal'],
+      visible: ['employees', 'payroll', 'attendance', 'leave', 'compliance', 'reports-admin'],
       locked: ['qa-activity-log', 'qa-user-mgmt', 'qa-settings']
     },
     client: {
-      subtitle: 'Showing your available modules.',
+      subtitle: 'Showing your available client portal modules.',
       visible: ['client-portal'],
       locked: []
     },
     candidate: {
-      subtitle: 'Showing your available modules.',
+      subtitle: 'Showing your available employee portal modules.',
       visible: ['employee-portal'],
       locked: []
     }
@@ -143,10 +143,6 @@ export default function QuickAccess() {
               {renderBtn('qa-add-employee', safeRoute('employees.create', '/employees/create'), <UserPlus strokeWidth={1.6} />, 'Add New Employee')}
               {renderBtn('qa-employee-detail', '/employees/1', <UserCircle strokeWidth={1.6} />, 'Employee Detail')}
               {renderBtn('qa-bulk-upload', safeRoute('employees.bulk-upload', '/employees/bulk-upload'), <UploadCloud strokeWidth={1.6} />, 'Bulk Upload')}
-              {/* {renderBtn('qa-bulk-salary', '/employees/salary-bulk-update', <Banknote strokeWidth={1.6} />, 'Bulk Salary Update')} */}
-              {renderBtn('qa-salary-revision', '/employees/1/salary-revision', <History strokeWidth={1.6} />, 'Salary Revision')}
-              {renderBtn('qa-employee-exit', '/employees/1/exit', <ExternalLink strokeWidth={1.6} />, 'Employee Exit / F&F')}
-              {renderBtn('qa-bank-change', safeRoute('employees.bank-change-requests', '/employees/bank-change-requests'), <Banknote strokeWidth={1.6} />, 'Bank Change Requests')}
               {renderBtn('qa-employee-queries', safeRoute('admin.employee-queries.index', '/admin/employee-queries'), <MessageSquare strokeWidth={1.6} />, 'Employee Queries', "Admin access only", null, null, pendingQueryCount)}
             </div>
           </div>

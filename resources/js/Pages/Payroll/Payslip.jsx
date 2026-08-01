@@ -326,7 +326,7 @@ export default function Payslip({ items, clients = [], selectedClientId, selecte
                         <div className="payslip-right-panel">
                             {selectedItem ? (
                                 <iframe
-                                    src={`/admin/payslip-templates/preview?client_id=${clientId}&item_id=${selectedItem.id}&template=${clientBranding?.payslip_template || 'standard'}&accent_color=${encodeURIComponent(accentColor)}&t=${Date.now()}`}
+                                    src={`/admin/payslip-templates/preview?client_id=${clientId}&item_id=${selectedItem.id}&template=${clientBranding?.payslip_template || 'standard'}&t=${Date.now()}`}
                                     title="Employee Payslip Preview"
                                 />
                             ) : (
@@ -367,6 +367,53 @@ export default function Payslip({ items, clients = [], selectedClientId, selecte
                         variant="warning"
                         loading={isReleasing}
                     />
+
+                    {/* Full-Screen Loading UI Overlay when Releasing Payslips */}
+                    {isReleasing && (
+                        <div style={{
+                            position: 'fixed',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+                            backdropFilter: 'blur(4px)',
+                            zIndex: 9999,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                        }}>
+                            <div style={{
+                                backgroundColor: '#ffffff',
+                                borderRadius: '12px',
+                                padding: '2rem 2.5rem',
+                                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                                textAlign: 'center',
+                                maxWidth: '420px',
+                                border: '1px solid #e2e8f0'
+                            }}>
+                                <div style={{
+                                    width: '56px',
+                                    height: '56px',
+                                    borderRadius: '50%',
+                                    backgroundColor: '#eff6ff',
+                                    color: '#2563eb',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    margin: '0 auto 1.25rem'
+                                }}>
+                                    <Loader2 size={28} style={{ animation: 'spin 1s linear infinite' }} />
+                                </div>
+                                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: '0 0 0.35rem' }}>
+                                    Releasing PDF Payslips...
+                                </h3>
+                                <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0 }}>
+                                    Generating official PDF payslips & emailing notifications to employees...
+                                </p>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </AuthenticatedLayout>
         </RoleGuard>

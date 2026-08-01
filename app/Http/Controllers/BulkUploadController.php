@@ -17,8 +17,12 @@ class BulkUploadController extends Controller
 
     public function showUploadForm(Request $request)
     {
-        if (!in_array($request->user()->role, ['admin', 'manager'])) {
+        $user = $request->user();
+        if (!in_array($user->role, ['admin', 'manager'])) {
             abort(403, 'Unauthorized');
+        }
+        if ($user->role === 'manager' && !$user->hasModulePermission('emp_bulk_upload', 'candidates')) {
+            abort(403, 'You do not have permission to access Bulk Upload Employees.');
         }
         $clients = \App\Models\Client::where('status', 'active')->select('id', 'company_name', 'client_code')->orderBy('id', 'desc')->get();
         return Inertia::render('Employees/BulkUpload', ['clients' => $clients]);
@@ -227,7 +231,7 @@ class BulkUploadController extends Controller
         }
 
         $request->validate([
-            'file' => 'required|file|mimes:csv,txt,xlsx,xls|max:10240', // max 10MB
+            'file' => 'required|file|mimes:csv,txt,xlsx,xls|max:102400', // max 100MB
         ]);
 
         $file = $request->file('file');
@@ -259,7 +263,7 @@ class BulkUploadController extends Controller
         }
 
         $request->validate([
-            'file' => 'required|file|mimes:csv,txt,xlsx,xls|max:10240',
+            'file' => 'required|file|mimes:csv,txt,xlsx,xls|max:102400', // max 100MB
             'partial_import' => 'nullable|boolean',
             'auto_provision_users' => 'nullable|boolean',
         ]);

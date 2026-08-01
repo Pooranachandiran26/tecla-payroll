@@ -4,7 +4,7 @@ import AuthenticatedLayout from '../../Layouts/AuthenticatedLayout';
 import RoleGuard from '../../Components/RoleGuard.jsx';
 import { 
   Palette, CheckCircle2, Building2, Eye, Layout, Type, FileText, 
-  Image as ImageIcon, Sliders, Grid, Check, Edit3
+  Image as ImageIcon, Sliders, Grid, Check, Edit3, Loader2
 } from 'lucide-react';
 
 const PRESET_COLORS = [
@@ -41,9 +41,9 @@ export default function PayslipTemplateCustomizer({ clients, selectedClient, tem
   const [isSaving, setIsSaving] = useState(false);
   const [previewSrc, setPreviewSrc] = useState('');
 
-  // Synchronize state when activeClient or selectedClient changes
+  // Synchronize state when selectedClient or clients prop changes
   useEffect(() => {
-    if (selectedClient && (!activeClient || activeClient.id !== selectedClient.id)) {
+    if (selectedClient) {
       setActiveClient(selectedClient);
       setSelectedTemplate(selectedClient.payslip_template || 'standard');
       setAccentColor(selectedClient.accent_color || '#1F3864');
@@ -86,21 +86,13 @@ export default function PayslipTemplateCustomizer({ clients, selectedClient, tem
       setActiveClient(found);
       setSelectedTemplate(found.payslip_template || 'standard');
       setAccentColor(found.accent_color || '#1F3864');
-      setVisibleSections(found.payslip_visible_sections || {
-        show_pf_details: true,
-        show_esi_details: true,
-        show_pt_details: true,
-        show_lwf_details: true,
-        show_bank_details: true,
-        show_attendance_summary: true,
-        show_organisation_address: true,
-        show_logo: true,
-        show_signature_details: true,
-        show_tds_deduction: true,
-        show_lop_deduction: true,
-        show_net_in_words: true,
-        font_family: 'Helvetica Neue',
-        font_size: 'normal',
+      if (found.payslip_visible_sections) {
+        setVisibleSections(found.payslip_visible_sections);
+      }
+      router.get(route('admin.payslip-templates'), { client_id: clientId }, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true
       });
     }
   };
@@ -114,8 +106,9 @@ export default function PayslipTemplateCustomizer({ clients, selectedClient, tem
     if (!activeClient) return;
 
     setIsSaving(true);
+    const targetTpl = tplKey || selectedTemplate;
     const formData = new FormData();
-    formData.append('payslip_template', tplKey || selectedTemplate);
+    formData.append('payslip_template', targetTpl);
     formData.append('accent_color', accentColor);
     Object.keys(visibleSections).forEach(key => {
       const val = visibleSections[key];
@@ -129,8 +122,19 @@ export default function PayslipTemplateCustomizer({ clients, selectedClient, tem
       formData.append('logo', logoFile);
     }
 
+    // Optimistically update activeClient local state so UI reflects changes immediately
+    setActiveClient(prev => prev ? { ...prev, payslip_template: targetTpl, accent_color: accentColor, payslip_visible_sections: visibleSections } : prev);
+
     router.post(route('admin.payslip-templates.update', activeClient.id), formData, {
+      preserveScroll: true,
       onFinish: () => setIsSaving(false),
+      onSuccess: (page) => {
+        setIsSaving(false);
+        const freshClient = page?.props?.selectedClient || page?.props?.clients?.find(c => c.id === activeClient.id);
+        if (freshClient) {
+          setActiveClient(freshClient);
+        }
+      }
     });
   };
 
@@ -222,15 +226,29 @@ export default function PayslipTemplateCustomizer({ clients, selectedClient, tem
 
               {activeTab === 'customizer' && (
                 <button
+                  type="button"
                   onClick={() => handleSubmitWithTemplate(selectedTemplate)}
                   disabled={isSaving}
                   style={{
-                    backgroundColor: '#4f46e5', color: '#ffffff', padding: '0.5rem 1.1rem',
-                    borderRadius: '6px', fontWeight: 600, border: 'none', cursor: 'pointer',
-                    display: 'inline-flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap', fontSize: '0.88rem'
+                    backgroundColor: '#4f46e5',
+                    color: '#ffffff',
+                    padding: '0.5rem 1.25rem',
+                    borderRadius: '6px',
+                    fontWeight: 600,
+                    border: 'none',
+                    cursor: isSaving ? 'not-allowed' : 'pointer',
+                    opacity: isSaving ? 0.75 : 1,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    whiteSpace: 'nowrap',
+                    fontSize: '0.88rem',
+                    boxShadow: '0 2px 4px rgba(79, 70, 229, 0.25)',
+                    transition: 'all 0.15s ease'
                   }}
                 >
-                  <CheckCircle2 size={16} /> {isSaving ? 'Saving...' : 'Save Payslip Preferences'}
+                  {isSaving ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <CheckCircle2 size={16} />}
+                  {isSaving ? 'Saving...' : 'Save'}
                 </button>
               )}
             </div>
@@ -251,7 +269,7 @@ export default function PayslipTemplateCustomizer({ clients, selectedClient, tem
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '1.75rem' }}>
                 {safeTemplates.map(tpl => {
                   const isCurrentDefault = (activeClient?.payslip_template || 'standard') === tpl.key;
-                  const previewUrl = `/admin/payslip-templates/preview?client_id=${activeClient?.id}&template=${tpl.key}&accent_color=${encodeURIComponent(accentColor)}`;
+                  const previewUrl = `/admin/payslip-templates/preview?client_id=${activeClient?.id}&template=${tpl.key}`;
 
                   return (
                     <div 
@@ -656,6 +674,53 @@ export default function PayslipTemplateCustomizer({ clients, selectedClient, tem
                     </div>
                   );
                 })}
+              </div>
+            </div>
+          )}
+
+          {/* Full-Screen Loading UI Overlay when Saving */}
+          {isSaving && (
+            <div style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(15, 23, 42, 0.65)',
+              backdropFilter: 'blur(4px)',
+              zIndex: 9999,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <div style={{
+                backgroundColor: '#ffffff',
+                borderRadius: '12px',
+                padding: '2rem 2.5rem',
+                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                textAlign: 'center',
+                maxWidth: '400px',
+                border: '1px solid #e2e8f0'
+              }}>
+                <div style={{
+                  width: '56px',
+                  height: '56px',
+                  borderRadius: '50%',
+                  backgroundColor: '#eff6ff',
+                  color: '#3b82f6',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 1.25rem'
+                }}>
+                  <Loader2 size={28} style={{ animation: 'spin 1s linear infinite' }} />
+                </div>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: '0 0 0.35rem' }}>
+                  Saving Configuration...
+                </h3>
+                <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0 }}>
+                  Applying payslip template preferences for <strong>{activeClient?.company_name}</strong>
+                </p>
               </div>
             </div>
           )}
