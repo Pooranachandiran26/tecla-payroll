@@ -16,6 +16,7 @@ class Invoice extends Model
     protected $casts = [
         'first_sent_at' => 'datetime',
         'sent_at' => 'datetime',
+        'paid_at' => 'datetime',
     ];
 
     public function sentBy()
