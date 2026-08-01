@@ -201,14 +201,16 @@ class EmployeeSeeder extends Seeder
                 ]);
 
                 // Create User Login
-                User::create([
-                    'name' => $fullName,
-                    'email' => $email,
-                    'password' => Hash::make('Password@123'),
-                    'role' => 'employee',
-                    'employee_id' => $employee->id,
-                    'status' => 'active',
-                ]);
+                User::updateOrCreate(
+                    ['email' => $email],
+                    [
+                        'name' => $fullName,
+                        'password' => Hash::make('Password@123'),
+                        'role' => 'employee',
+                        'employee_id' => $employee->id,
+                        'status' => 'active',
+                    ]
+                );
 
                 $docs = [
                     'pan_card', 'aadhaar_card', 'bank_passbook', 'offer_letter', 'photo',
