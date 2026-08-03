@@ -21,10 +21,32 @@ export default function ReportsShow({
   const [selectedClient, setSelectedClient] = useState(filters.client_id || '');
   const [selectedMonth, setSelectedMonth] = useState(filters.month || '');
   const [selectedStatus, setSelectedStatus] = useState(filters.status || '');
+  const [perPage, setPerPage] = useState(filters.per_page || 10);
 
   const rows = reportData.data || [];
   const meta = reportData.meta || {};
   const columnKeys = Object.keys(columns);
+
+  const goToPage = (pageNumber, newPerPage = perPage) => {
+    router.get(
+      route('admin.reports.show', reportKey),
+      {
+        month: selectedMonth,
+        client_id: selectedClient,
+        search: search,
+        status: selectedStatus,
+        page: pageNumber,
+        per_page: newPerPage,
+      },
+      { preserveState: true, preserveScroll: true }
+    );
+  };
+
+  const handlePerPageChange = (e) => {
+    const val = parseInt(e.target.value, 10);
+    setPerPage(val);
+    goToPage(1, val);
+  };
 
   const handleFilterSubmit = (e) => {
     e?.preventDefault();
@@ -35,6 +57,8 @@ export default function ReportsShow({
         client_id: selectedClient,
         search: search,
         status: selectedStatus,
+        page: 1,
+        per_page: perPage,
       },
       { preserveState: true, preserveScroll: true }
     );
@@ -45,6 +69,7 @@ export default function ReportsShow({
     setSelectedClient('');
     setSelectedMonth('');
     setSelectedStatus('');
+    setPerPage(10);
     router.get(route('admin.reports.show', reportKey));
   };
 
@@ -346,40 +371,88 @@ export default function ReportsShow({
           </div>
 
           {/* Pagination Controls */}
-          {meta && meta.last_page > 1 && (
-            <div className="p-4 border-t border-slate-200 flex items-center justify-between text-xs text-gray-600 bg-slate-50">
-              <div>
-                Showing <strong>{meta.from}</strong> to <strong>{meta.to}</strong> of <strong>{meta.total}</strong> entries
+          {meta && meta.total > 0 && (
+            <div className="p-4 border-t border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs text-gray-600 bg-slate-50">
+              <div className="flex flex-wrap items-center gap-4">
+                <div>
+                  Showing <strong>{meta.from || 0}</strong> to <strong>{meta.to || 0}</strong> of <strong>{meta.total || 0}</strong> entries
+                </div>
+                <div className="flex items-center gap-1.5 border-l border-slate-200 pl-4">
+                  <label className="text-gray-500 font-medium">Rows per page:</label>
+                  <select
+                    className="text-xs rounded border-gray-300 py-1 px-2 font-semibold bg-white text-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 cursor-pointer"
+                    value={perPage}
+                    onChange={handlePerPageChange}
+                  >
+                    <option value={10}>10</option>
+                    <option value={20}>20</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                </div>
               </div>
-              <div className="flex gap-2">
+
+              <div className="flex items-center gap-1.5">
                 <Button
                   variant="secondary"
                   size="xs"
                   disabled={meta.current_page <= 1}
-                  onClick={() =>
-                    router.get(
-                      route('admin.reports.show', reportKey),
-                      { month: selectedMonth, client_id: selectedClient, search: search, status: selectedStatus, page: meta.current_page - 1 },
-                      { preserveState: true }
-                    )
-                  }
+                  onClick={() => goToPage(meta.current_page - 1)}
                 >
                   Previous
                 </Button>
-                <span className="px-3 py-1 font-semibold">
-                  Page {meta.current_page} of {meta.last_page}
-                </span>
+
+                <div className="flex items-center gap-1 mx-1">
+                  {(() => {
+                    const current = meta.current_page || 1;
+                    const last = meta.last_page || 1;
+                    const delta = 1;
+                    const range = [];
+
+                    for (let i = Math.max(2, current - delta); i <= Math.min(last - 1, current + delta); i++) {
+                      range.push(i);
+                    }
+
+                    if (current - delta > 2) {
+                      range.unshift('...');
+                    }
+                    if (current + delta < last - 1) {
+                      range.push('...');
+                    }
+
+                    range.unshift(1);
+                    if (last > 1) {
+                      range.push(last);
+                    }
+
+                    return range.map((item, idx) => {
+                      if (item === '...') {
+                        return <span key={`dots-${idx}`} className="px-2 py-1 text-gray-400">...</span>;
+                      }
+                      const isActive = item === current;
+                      return (
+                        <button
+                          key={`page-${item}`}
+                          type="button"
+                          onClick={() => goToPage(item)}
+                          className={`px-3 py-1 rounded text-xs font-semibold transition-all ${
+                            isActive
+                              ? 'bg-blue-900 text-white shadow-sm'
+                              : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+                          }`}
+                        >
+                          {item}
+                        </button>
+                      );
+                    });
+                  })()}
+                </div>
+
                 <Button
                   variant="secondary"
                   size="xs"
                   disabled={meta.current_page >= meta.last_page}
-                  onClick={() =>
-                    router.get(
-                      route('admin.reports.show', reportKey),
-                      { month: selectedMonth, client_id: selectedClient, search: search, status: selectedStatus, page: meta.current_page + 1 },
-                      { preserveState: true }
-                    )
-                  }
+                  onClick={() => goToPage(meta.current_page + 1)}
                 >
                   Next
                 </Button>
