@@ -140,4 +140,38 @@ class UserController extends Controller
 
         return back()->with('message', 'Customized module permissions updated successfully.');
     }
+
+    public function resendInvite(Request $request, User $user)
+    {
+        $currentUser = $request->user();
+        if (!$currentUser || !in_array($currentUser->role, ['admin', 'manager'])) {
+            abort(403, 'Unauthorized access.');
+        }
+
+        try {
+            $this->invitationService->resendInvitation($user);
+            return back()->with('message', "Invitation re-sent successfully to {$user->email}.");
+        } catch (\App\Exceptions\InvitationDeliveryException $e) {
+            return back()->withErrors(['message' => $e->getMessage()]);
+        } catch (\Throwable $e) {
+            return back()->withErrors(['message' => 'Failed to resend invitation: ' . $e->getMessage()]);
+        }
+    }
+
+    public function destroy(Request $request, User $user)
+    {
+        $currentUser = $request->user();
+        if (!$currentUser || !in_array($currentUser->role, ['admin', 'manager'])) {
+            abort(403, 'Unauthorized access.');
+        }
+
+        if ($user->id === $currentUser->id) {
+            return back()->withErrors(['message' => 'You cannot delete your own logged-in admin account.']);
+        }
+
+        $userName = $user->name;
+        $user->delete();
+
+        return back()->with('message', "User account '{$userName}' deleted successfully.");
+    }
 }

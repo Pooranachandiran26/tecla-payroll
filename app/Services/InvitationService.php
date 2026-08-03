@@ -48,14 +48,11 @@ class InvitationService
 
     public function resendInvitation(User $user): void
     {
-        if ($user->status !== 'invited') {
-            throw new \Exception('Cannot resend invitation to an active user.');
-        }
-
         $token = Str::random(64);
         $expiryDays = $this->settings->getAuthSecurity('invitation_expiry_days', 7);
         
         $user->update([
+            'status' => 'invited',
             'invitation_token' => hash('sha256', $token),
             'invitation_expires_at' => now()->addDays($expiryDays),
         ]);

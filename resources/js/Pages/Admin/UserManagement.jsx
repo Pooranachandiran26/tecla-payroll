@@ -1,4 +1,4 @@
-import { Head, useForm, router } from '@inertiajs/react';
+import { Head, useForm, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import AuthenticatedLayout from '../../Layouts/AuthenticatedLayout';
 import RoleGuard from '../../Components/RoleGuard.jsx';
@@ -12,10 +12,16 @@ import {
     Users, 
     Edit2, 
     CheckCircle2, 
-    AlertTriangle 
+    AlertTriangle,
+    RotateCw,
+    Trash2,
+    Send
 } from 'lucide-react';
 
 export default function UserManagement({ users = {}, unlinkedEmployees = [], unlinkedClients = [], allClients = [], filters = {} }) {
+  const { auth } = usePage().props;
+  const currentUserId = auth?.user?.id;
+
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [editingManager, setEditingManager] = useState(null);
   const [editClientIds, setEditClientIds] = useState([]);
@@ -23,6 +29,27 @@ export default function UserManagement({ users = {}, unlinkedEmployees = [], unl
 
   const [editingPermissionsUser, setEditingPermissionsUser] = useState(null);
   const [selectedPermissions, setSelectedPermissions] = useState([]);
+  const [deletingUser, setDeletingUser] = useState(null);
+  const [resendingUserId, setResendingUserId] = useState(null);
+
+  const handleResendInvite = (targetUser) => {
+    setResendingUserId(targetUser.id);
+    router.post(
+      route('admin.users.resend-invite', targetUser.id),
+      {},
+      {
+        onFinish: () => setResendingUserId(null),
+      }
+    );
+  };
+
+  const handleDeleteUser = () => {
+    if (!deletingUser) return;
+    router.delete(route('admin.users.destroy', deletingUser.id), {
+      onSuccess: () => setDeletingUser(null),
+      onFinish: () => setDeletingUser(null),
+    });
+  };
 
   const AVAILABLE_MODULES = [
     { key: 'dashboard', label: 'Dashboard Overview', desc: 'Main executive dashboard metrics & pending queues' },
@@ -370,7 +397,7 @@ export default function UserManagement({ users = {}, unlinkedEmployees = [], unl
                     {tab === 'employees' && <th>Client Partner</th>}
                     {tab === 'clients' && <th>Company</th>}
                     {tab === 'system' && <th>Assigned Scope / Access</th>}
-                    {tab === 'system' && <th style={{ textAlign: 'right' }}>Actions</th>}
+                    <th style={{ textAlign: 'right' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -424,10 +451,24 @@ export default function UserManagement({ users = {}, unlinkedEmployees = [], unl
                             )}
                           </td>
                         )}
-                        {tab === 'system' && (
-                          <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                            {row.role === 'manager' ? (
-                              <div style={{ display: 'inline-flex', gap: '0.4rem', justifyContent: 'flex-end' }}>
+                        <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          <div style={{ display: 'inline-flex', gap: '0.4rem', justifyContent: 'flex-end', alignItems: 'center' }}>
+                            {row.status === 'invited' && (
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-xs"
+                                disabled={resendingUserId === row.id}
+                                onClick={() => handleResendInvite(row)}
+                                title="Resend invitation email"
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                              >
+                                <RotateCw size={11} className={resendingUserId === row.id ? 'spin' : ''} />
+                                {resendingUserId === row.id ? 'Sending...' : 'Resend Invite'}
+                              </button>
+                            )}
+
+                            {tab === 'system' && row.role === 'manager' && (
+                              <>
                                 <button
                                   type="button"
                                   className="btn btn-secondary btn-xs"
@@ -444,12 +485,21 @@ export default function UserManagement({ users = {}, unlinkedEmployees = [], unl
                                 >
                                   <Shield size={11} /> Module Permissions
                                 </button>
-                              </div>
-                            ) : (
-                              '—'
+                              </>
                             )}
-                          </td>
-                        )}
+
+                            <button
+                              type="button"
+                              className="btn btn-danger btn-xs"
+                              disabled={row.id === currentUserId}
+                              onClick={() => setDeletingUser(row)}
+                              title={row.id === currentUserId ? "Cannot delete your logged-in account" : "Delete user account"}
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', opacity: row.id === currentUserId ? 0.5 : 1 }}
+                            >
+                              <Trash2 size={11} /> Delete
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     ))
                   ) : (
@@ -858,6 +908,33 @@ export default function UserManagement({ users = {}, unlinkedEmployees = [], unl
               </div>
             </div>
           )}
+        </Modal>
+
+        {/* Delete Account Confirmation Modal */}
+        <Modal
+          isOpen={!!deletingUser}
+          onClose={() => setDeletingUser(null)}
+          title="Confirm Account Deletion"
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.85rem', backgroundColor: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: '8px' }}>
+              <AlertTriangle size={24} style={{ color: '#DC2626', flexShrink: 0 }} />
+              <div>
+                <div style={{ fontWeight: 700, color: '#991B1B', fontSize: '0.9rem' }}>Warning: Permanently Delete Account?</div>
+                <div style={{ fontSize: '0.82rem', color: '#B91C1C', marginTop: '2px' }}>
+                  Are you sure you want to delete account <strong>{deletingUser?.name}</strong> ({deletingUser?.email})? This action cannot be undone.
+                </div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.5rem' }}>
+              <button type="button" className="btn btn-secondary" onClick={() => setDeletingUser(null)}>
+                Cancel
+              </button>
+              <button type="button" className="btn btn-danger" onClick={handleDeleteUser}>
+                Delete Account
+              </button>
+            </div>
+          </div>
         </Modal>
 
       </AuthenticatedLayout>
