@@ -62,7 +62,20 @@ class StoreClientRequest extends FormRequest
             'late_payment_penalty_pct' => $this->latePenalty,
             'invoice_cycle' => $this->invoiceCycle,
             'currency' => $this->billingCurrency ?: 'INR',
-            'tds_applicable_on_agency_fee' => $this->tdsApplicableAgency,
+            'tds_applicable_on_agency_fee' => $this->tdsApplicableAgency === 'other'
+                ? ($this->customTdsPercentage ?: $this->clientTdsPercentage ?: 'other')
+                : $this->tdsApplicableAgency,
+            'client_tds_percentage' => (function() {
+                $custom = $this->customTdsPercentage ?? $this->clientTdsPercentage ?? $this->client_tds_percentage;
+                if ($custom !== null && $custom !== '' && is_numeric($custom)) {
+                    return (float) $custom;
+                }
+                $agencyVal = $this->tdsApplicableAgency ?? $this->tds_applicable_on_agency_fee;
+                if (is_numeric($agencyVal) && (float)$agencyVal > 0) {
+                    return (float) $agencyVal;
+                }
+                return null;
+            })(),
             'po_required' => $this->poRequired ? 1 : 0,
             'po_number' => $this->poNumber,
             'po_value' => $this->poValue,
@@ -288,6 +301,7 @@ class StoreClientRequest extends FormRequest
             'invoice_cycle' => 'nullable|string',
             'currency' => 'nullable|string',
             'tds_applicable_on_agency_fee' => 'nullable|string',
+            'client_tds_percentage' => 'nullable|numeric|min:0|max:100',
             'po_required' => 'nullable|boolean',
             'po_number' => 'nullable|string',
             'po_value' => 'nullable|numeric|min:0',

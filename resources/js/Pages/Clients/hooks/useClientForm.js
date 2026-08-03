@@ -283,8 +283,9 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
     if (val === '1') return 'Net receivable = Invoice Amount - 1% TDS';
     if (val === '2') return 'Net receivable = Invoice Amount - 2% TDS';
     if (val === '10') return 'Net receivable = Invoice Amount - 10% TDS';
+    if (formData.customTdsPercentage) return `Net receivable = Invoice Amount - ${formData.customTdsPercentage}% TDS`;
     return 'Net receivable = Invoice Amount - Custom TDS%';
-  }, [formData.tdsApplicableAgency]);
+  }, [formData.tdsApplicableAgency, formData.customTdsPercentage]);
 
   const handlePFCeiling = useCallback((value) => {
     handleInputChange('pfCeiling', value);
@@ -835,6 +836,8 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
       lutRefNo: formData.lutRefNo,
       reverseCharge: formData.reverseCharge,
       tdsApplicableAgency: formData.tdsApplicableAgency,
+      customTdsPercentage: formData.customTdsPercentage,
+      clientTdsPercentage: formData.customTdsPercentage || (['1', '2', '10'].includes(formData.tdsApplicableAgency) ? formData.tdsApplicableAgency : null),
       prefFormatPDF: formData.prefFormatPDF,
       prefFormatXLSX: formData.prefFormatXLSX,
       invoiceFooterNotes: formData.invoiceFooterNotes,
@@ -1115,7 +1118,17 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
       gstRate: client.gst_rate || '18',
       lutRefNo: client.lut_reference_number || '',
       reverseCharge: client.is_reverse_charge_applicable || false,
-      tdsApplicableAgency: client.tds_applicable_on_agency_fee || 'na',
+      tdsApplicableAgency: (function() {
+        const fee = client.tds_applicable_on_agency_fee;
+        if (['1', '2', '10', 'na'].includes(fee)) return fee;
+        if (client.client_tds_percentage !== null && client.client_tds_percentage !== undefined) {
+          const pctStr = String(client.client_tds_percentage);
+          if (['1', '2', '10'].includes(pctStr)) return pctStr;
+          return 'other';
+        }
+        return fee || 'na';
+      })(),
+      customTdsPercentage: client.client_tds_percentage !== null && client.client_tds_percentage !== undefined ? client.client_tds_percentage : '',
       prefFormatPDF: client.invoice_format_pdf !== undefined ? client.invoice_format_pdf : true,
       prefFormatXLSX: client.invoice_format_xlsx || false,
       invoiceFooterNotes: client.invoice_footer_notes || '',

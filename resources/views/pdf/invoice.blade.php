@@ -274,9 +274,14 @@
         </tr>
     </table>
 
-    @if(isset($client) && $client->client_tds_percentage !== null)
     @php
-        $tdsRate = (float) $client->client_tds_percentage;
+        $tdsRate = $client->client_tds_percentage !== null 
+            ? (float) $client->client_tds_percentage 
+            : (is_numeric($client->tds_applicable_on_agency_fee) ? (float)$client->tds_applicable_on_agency_fee : null);
+    @endphp
+
+    @if(isset($client) && $tdsRate !== null && $tdsRate > 0)
+    @php
         $taxableFee = (float) $invoice->agency_service_fee;
         $estTds = round($taxableFee * ($tdsRate / 100), 2);
         $netReceivable = round((float)$invoice->grand_total - $estTds, 2);

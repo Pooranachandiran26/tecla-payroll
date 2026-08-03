@@ -15,6 +15,20 @@ class Client extends Model
         'weekly_off_pattern' => 'sat,sun',
     ];
 
+    protected static function booted()
+    {
+        static::saving(function ($client) {
+            $agencyTds = $client->tds_applicable_on_agency_fee;
+            if ($agencyTds !== null && $agencyTds !== '') {
+                if (is_numeric($agencyTds) && (float)$agencyTds > 0) {
+                    $client->client_tds_percentage = (float) $agencyTds;
+                } elseif ($agencyTds === 'na') {
+                    $client->client_tds_percentage = null;
+                }
+            }
+        });
+    }
+
     /**
      * Fields safe to include in watcher notification emails.
      * Encrypted/PII fields (pan_number, gstin, etc.) are deliberately excluded.
