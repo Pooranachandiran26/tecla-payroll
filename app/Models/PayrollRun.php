@@ -21,7 +21,7 @@ class PayrollRun extends Model
             $dirtyFields = array_keys($run->getDirty());
 
             // Allowed metadata changes on a locked run
-            $metadataFields = ['review_email_sent_at', 'payslip_released_at', 'payslip_released_by', 'resend_count', 'updated_at'];
+            $metadataFields = ['review_email_sent_at', 'payslip_released_at', 'payslip_released_by', 'resend_count', 'updated_at', 'created_by', 'updated_by', 'locked_by'];
 
             // 1. If already locked, allow ONLY metadata fields
             if ($originalStatus === 'locked') {
@@ -40,7 +40,7 @@ class PayrollRun extends Model
                 }
 
                 // Ensure no financial/core fields are changed during the status transition
-                $allowedFields = array_merge(['status', 'approved_by', 'approved_at', 'locked_at'], $metadataFields);
+                $allowedFields = array_merge(['status', 'approved_by', 'approved_at', 'locked_at', 'locked_by', 'created_by', 'updated_by'], $metadataFields);
                 $invalidChanges = array_diff($dirtyFields, $allowedFields);
 
                 if (!empty($invalidChanges)) {
@@ -77,6 +77,21 @@ class PayrollRun extends Model
     public function approvedBy()
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function updater()
+    {
+        return $this->belongsTo(User::class, 'updated_by');
+    }
+
+    public function locker()
+    {
+        return $this->belongsTo(User::class, 'locked_by');
     }
 
     public function items()

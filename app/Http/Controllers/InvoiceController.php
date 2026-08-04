@@ -141,7 +141,10 @@ class InvoiceController extends Controller
             return redirect()->back()->withErrors(['error' => $e->getMessage()]);
         }
 
-        $invoice->update(['status' => 'finalized']);
+        $invoice->update([
+            'status' => 'finalized',
+            'updated_by' => Auth::id(),
+        ]);
 
         if ($request->expectsJson() && !$request->header('X-Inertia')) {
             return response()->json([
@@ -412,6 +415,8 @@ class InvoiceController extends Controller
             'transaction_reference' => $validated['transaction_reference'] ?? null,
             'tds_deducted' => $tdsDeducted,
             'payment_remarks' => $validated['remarks'] ?? null,
+            'paid_by' => Auth::id(),
+            'updated_by' => Auth::id(),
         ]);
 
         app(\App\Services\AuditService::class)->log(

@@ -24,6 +24,21 @@ class Invoice extends Model
         return $this->belongsTo(User::class, 'sent_by');
     }
 
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function updater()
+    {
+        return $this->belongsTo(User::class, 'updated_by');
+    }
+
+    public function payer()
+    {
+        return $this->belongsTo(User::class, 'paid_by');
+    }
+
     public function getLatePenaltyAmountAttribute(): float
     {
         if ($this->status === 'paid' || now()->toDateString() <= $this->due_date) {

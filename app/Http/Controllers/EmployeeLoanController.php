@@ -61,6 +61,8 @@ class EmployeeLoanController extends Controller
             'status' => 'active',
             'reason' => $validated['reason'] ?? null,
             'approved_by' => auth()->id(),
+            'created_by' => auth()->id(),
+            'updated_by' => auth()->id(),
         ]);
 
         return redirect()->back()->with('success', "Loan {$loan->loan_number} created successfully.");
@@ -74,6 +76,7 @@ class EmployeeLoanController extends Controller
 
         $loan->update([
             'status' => $validated['status'],
+            'updated_by' => auth()->id(),
         ]);
 
         return redirect()->back()->with('success', "Loan {$loan->loan_number} status updated to {$validated['status']}.");

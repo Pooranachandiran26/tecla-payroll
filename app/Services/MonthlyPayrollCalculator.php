@@ -372,6 +372,8 @@ class MonthlyPayrollCalculator
             'warning_notes' => implode(' | ', array_filter([$ptWarning, isset($midCycleNote) ? $midCycleNote : null])),
             'attendance_source' => $attendanceSource,
             'salary_revision_applied' => $salaryRevisionApplied,
+            'created_by' => \Illuminate\Support\Facades\Auth::id(),
+            'updated_by' => \Illuminate\Support\Facades\Auth::id(),
             'created_at' => now(),
             'updated_at' => now(),
         ]);

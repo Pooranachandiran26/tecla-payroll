@@ -25,6 +25,7 @@ class PayrollController extends Controller
                 'status' => 'approved',
                 'approved_by' => Auth::id(),
                 'approved_at' => now(),
+                'updated_by' => Auth::id(),
             ]);
 
             app(\App\Services\AuditService::class)->log(
@@ -63,6 +64,8 @@ class PayrollController extends Controller
                 $run->update([
                     'status' => 'locked',
                     'locked_at' => now(),
+                    'locked_by' => Auth::id(),
+                    'updated_by' => Auth::id(),
                 ]);
 
                 app(\App\Services\AuditService::class)->log(
@@ -410,6 +413,8 @@ class PayrollController extends Controller
             'is_supplementary_run' => true,
             'parent_run_id' => $parent->id,
             'processed_by' => Auth::id(),
+            'created_by' => Auth::id(),
+            'updated_by' => Auth::id(),
             'total_employees_processed' => 0,
             'total_employees_excluded' => 0,
             'total_gross_earnings' => 0,
@@ -497,6 +502,8 @@ class PayrollController extends Controller
                     'exclusion_reason' => implode(', ', $eligibility['exclusions']),
                     'warning_notes' => implode(', ', $eligibility['warnings']),
                     'attendance_source' => 'live_punch',
+                    'created_by' => Auth::id(),
+                    'updated_by' => Auth::id(),
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
@@ -567,6 +574,8 @@ class PayrollController extends Controller
                         'total_net_disbursement' => 0,
                         'total_employer_statutory_cost' => 0,
                         'processed_by' => Auth::id(),
+                        'created_by' => Auth::id(),
+                        'updated_by' => Auth::id(),
                     ]);
                 }
 
@@ -633,6 +642,8 @@ class PayrollController extends Controller
                             'exclusion_reason' => implode(', ', $eligibility['exclusions']),
                             'warning_notes' => implode(', ', $eligibility['warnings']),
                             'attendance_source' => 'live_punch',
+                            'created_by' => Auth::id(),
+                            'updated_by' => Auth::id(),
                             'created_at' => now(),
                             'updated_at' => now(),
                         ]);
