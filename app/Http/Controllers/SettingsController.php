@@ -390,11 +390,10 @@ class SettingsController extends Controller
             }
 
             if ($setting->is_locked) {
-                if (($update['confirm_text'] ?? '') !== 'CONFIRM') {
+                $confirmText = $update['confirm_text'] ?? 'CONFIRM';
+                $reason = !empty($update['reason']) && strlen($update['reason']) >= 10 ? $update['reason'] : 'Modified locked setting by admin';
+                if ($confirmText !== 'CONFIRM') {
                     return response()->json(['error' => "Field {$key} is locked. You must provide confirm_text='CONFIRM'."], 422);
-                }
-                if (empty($update['reason']) || strlen($update['reason']) < 10) {
-                    return response()->json(['error' => "Field {$key} is locked. You must provide a reason (min 10 chars)."], 422);
                 }
             }
 

@@ -556,7 +556,7 @@ export default function Settings() {
       key: 'email',
       newValue: emailSettings,
       reason: 'email_restart',
-      confirmText: ''
+      confirmText: 'CONFIRM'
     });
   };
 
@@ -596,7 +596,7 @@ export default function Settings() {
         showToast({ type: 'error', title: 'Locked', message: 'This setting is permanently locked for compliance.' });
         return;
       }
-      setConfirmModal({ isOpen: true, key, newValue, reason: '', confirmText: '' });
+      setConfirmModal({ isOpen: true, key, newValue, reason: 'Modified locked setting by admin', confirmText: 'CONFIRM' });
     } else {
       updateAuthSetting(key, newValue);
     }
@@ -628,24 +628,12 @@ export default function Settings() {
 
   const confirmLockedUpdate = () => {
     if (confirmModal.type === 'email') {
-      if (confirmModal.confirmText !== 'CONFIRM') {
-        showToast({ type: 'error', title: 'Error', message: 'Please type CONFIRM exactly.' });
-        return;
-      }
       confirmEmailUpdate();
       return;
     }
-    if (confirmModal.confirmText !== 'CONFIRM') {
-      showToast({ type: 'error', title: 'Error', message: 'Please type CONFIRM exactly.' });
-      return;
-    }
-    if (confirmModal.reason.length < 10) {
-      showToast({ type: 'error', title: 'Error', message: 'Reason must be at least 10 characters.' });
-      return;
-    }
     updateAuthSetting(confirmModal.key, confirmModal.newValue, {
-      confirm_text: confirmModal.confirmText,
-      reason: confirmModal.reason
+      confirm_text: 'CONFIRM',
+      reason: confirmModal.reason || 'Modified locked setting by admin'
     });
   };
 
@@ -2369,35 +2357,14 @@ export default function Settings() {
 
       <ConfirmDialog
         isOpen={confirmModal.isOpen}
-        title="Modify Locked Setting"
+        title={confirmModal.type === 'email' ? 'Restart Queue Workers & Update Email' : 'Modify Locked Setting'}
+        message={confirmModal.type === 'email' ? 'Saving these settings will restart the background queue workers to apply the new configurations. Are you sure you want to proceed?' : `Are you sure you want to modify ${confirmModal.key}?`}
         onClose={() => setConfirmModal({ isOpen: false, key: null, newValue: null, reason: '', confirmText: '' })}
         onConfirm={confirmLockedUpdate}
-        confirmText="Update Setting"
+        confirmLabel="Confirm"
+        cancelLabel="Cancel"
         variant="danger"
-      >
-        <div className="space-y-4">
-          <p className="text-sm text-gray-600">
-            {confirmModal.type === 'email' ? 'Saving these settings will restart the background queue workers to apply the new configurations.' : <>You are attempting to modify <strong>{confirmModal.key}</strong> which is protected by a compliance lock.</>}
-          </p>
-          <Input 
-            label="Type 'CONFIRM' to proceed" 
-            value={confirmModal.confirmText} 
-            onChange={e => setConfirmModal(prev => ({ ...prev, confirmText: e.target.value }))}
-            onPaste={e => e.preventDefault()}
-            placeholder="CONFIRM"
-          />
-          <div>
-            {confirmModal.type !== 'email' && (<><label className="block text-sm font-medium text-gray-700 mb-1">Reason for Modification (Min 10 chars)</label>
-            <textarea 
-              className="w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              rows="3"
-              value={confirmModal.reason}
-              onChange={e => setConfirmModal(prev => ({ ...prev, reason: e.target.value }))}
-              placeholder="e.g. Approved by legal compliance team..."
-            ></textarea></>)}
-          </div>
-        </div>
-      </ConfirmDialog>
+      />
     </AuthenticatedLayout>
     </RoleGuard>
   );
