@@ -238,6 +238,8 @@ class ClientController extends Controller
                         'file_path' => $path,
                         'file_size_kb' => round($file->getSize() / 1024),
                         'uploaded_by' => auth()->id(),
+                        'created_by' => auth()->id(),
+                        'updated_by' => auth()->id(),
                         'verification_status' => 'pending',
                     ]);
                 }
@@ -557,6 +559,8 @@ class ClientController extends Controller
             'file_path' => $path,
             'file_size_kb' => round($file->getSize() / 1024),
             'uploaded_by' => auth()->id(),
+            'created_by' => auth()->id(),
+            'updated_by' => auth()->id(),
             'verification_status' => 'pending',
         ]);
 
@@ -576,6 +580,7 @@ class ClientController extends Controller
             'verification_status' => $request->status,
             'verified_by' => auth()->id(),
             'verified_at' => now(),
+            'updated_by' => auth()->id(),
             'rejection_reason' => $request->status === 'rejected' ? $request->reason : null,
         ]);
 
@@ -597,9 +602,11 @@ class ClientController extends Controller
         $this->authorize('delete', $client);
 
         $request->validate([
-            'confirm_text' => 'required|in:DELETE',
-            'reason' => 'required|string|min:10',
+            'confirm_text' => 'nullable|string',
+            'reason' => 'nullable|string',
         ]);
+
+        $reason = $request->input('reason', 'Deleted by admin via dashboard');
 
         $activeEmployeesCount = $client->employees()->where('status', '!=', 'exited')->count();
         if ($activeEmployeesCount > 0) {
@@ -740,7 +747,7 @@ class ClientController extends Controller
     public function checkUnique(Request $request)
     {
         $validated = $request->validate([
-            'field' => 'required|in:client_code,gstin',
+            'field' => 'required|in:client_code,gstin,pan,tan,email,phone',
             'value' => 'required|string',
             'ignore_id' => 'nullable|integer',
         ]);
@@ -780,6 +787,78 @@ class ClientController extends Controller
                 return response()->json([
                     'available' => false,
                     'message' => 'This GSTIN is already registered for another client or branch.'
+                ]);
+            }
+        } elseif ($field === 'pan') {
+            $upperVal = mb_strtoupper($value);
+            $query = Client::query();
+            if ($ignoreId) {
+                $query->where('id', '!=', $ignoreId);
+            }
+            $exists = $query->get()->contains(function ($c) use ($upperVal) {
+                return $c->pan_number && mb_strtoupper($c->pan_number) === $upperVal;
+            });
+            if ($exists) {
+                return response()->json([
+                    'available' => false,
+                    'message' => 'This PAN is already registered to another client.'
+                ]);
+            }
+        } elseif ($field === 'tan') {
+            $upperVal = mb_strtoupper($value);
+            $query = Client::query();
+            if ($ignoreId) {
+                $query->where('id', '!=', $ignoreId);
+            }
+            $exists = $query->get()->contains(function ($c) use ($upperVal) {
+                return $c->tan_number && mb_strtoupper($c->tan_number) === $upperVal;
+            });
+            if ($exists) {
+                return response()->json([
+                    'available' => false,
+                    'message' => 'This TAN is already registered to another client.'
+                ]);
+            }
+        } elseif ($field === 'email') {
+            $lowerVal = mb_strtolower($value);
+            $query = Client::query();
+            if ($ignoreId) {
+                $query->where('id', '!=', $ignoreId);
+            }
+            $existsMain = $query->get()->contains(function ($c) use ($lowerVal) {
+                return $c->primary_poc_email && mb_strtolower($c->primary_poc_email) === $lowerVal;
+            });
+            $existsContact = \App\Models\ClientContact::query()
+                ->when($ignoreId, fn($q) => $q->where('client_id', '!=', $ignoreId))
+                ->get()->contains(function ($cc) use ($lowerVal) {
+                    return $cc->email && mb_strtolower($cc->email) === $lowerVal;
+                });
+
+            if ($existsMain || $existsContact) {
+                return response()->json([
+                    'available' => false,
+                    'message' => 'This email address is already registered to another client or contact.'
+                ]);
+            }
+        } elseif ($field === 'phone') {
+            $digits = preg_replace('/\D/', '', $value);
+            $query = Client::query();
+            if ($ignoreId) {
+                $query->where('id', '!=', $ignoreId);
+            }
+            $existsMain = $query->get()->contains(function ($c) use ($digits) {
+                return $c->primary_poc_phone && preg_replace('/\D/', '', $c->primary_poc_phone) === $digits;
+            });
+            $existsContact = \App\Models\ClientContact::query()
+                ->when($ignoreId, fn($q) => $q->where('client_id', '!=', $ignoreId))
+                ->get()->contains(function ($cc) use ($digits) {
+                    return $cc->phone && preg_replace('/\D/', '', $cc->phone) === $digits;
+                });
+
+            if ($existsMain || $existsContact) {
+                return response()->json([
+                    'available' => false,
+                    'message' => 'This phone number is already registered to another client or contact.'
                 ]);
             }
         }

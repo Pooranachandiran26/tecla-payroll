@@ -100,6 +100,8 @@ class SalaryRevisionController extends Controller
             'old_designation' => $oldDesignation,
             'new_designation' => $newDesignation,
             'status' => 'pending_approval',
+            'created_by' => Auth::id(),
+            'updated_by' => Auth::id(),
         ]);
 
         // Notify all admins in-app (isolated: failure here never breaks the revision submission)
@@ -131,6 +133,7 @@ class SalaryRevisionController extends Controller
                     'status' => 'approved',
                     'approved_by' => Auth::id(),
                     'approved_at' => Carbon::now(),
+                    'updated_by' => Auth::id(),
                 ]);
                 
                 // Update employee
@@ -168,6 +171,7 @@ class SalaryRevisionController extends Controller
                     'approved_by' => Auth::id(), // We store the resolver ID here even if rejected
                     'approved_at' => Carbon::now(),
                     'rejection_reason' => $rejectionReason,
+                    'updated_by' => Auth::id(),
                 ]);
             }
         });

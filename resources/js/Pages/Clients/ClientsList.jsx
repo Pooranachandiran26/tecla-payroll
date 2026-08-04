@@ -51,22 +51,15 @@ export default function ClientsList({ clients, stats = {} }) {
   };
 
   const handleDelete = () => {
-    if (deleteDialog.confirmText !== 'DELETE') {
-      showToast({ type: 'error', title: 'Error', message: 'Please type DELETE exactly.' });
-      return;
-    }
-    if (deleteDialog.reason.length < 10) {
-      showToast({ type: 'error', title: 'Error', message: 'Reason must be at least 10 characters.' });
-      return;
-    }
+    if (!deleteDialog.client) return;
 
     router.delete(route('clients.destroy', deleteDialog.client.id), {
       data: {
-        confirm_text: deleteDialog.confirmText,
-        reason: deleteDialog.reason
+        confirm_text: 'DELETE',
+        reason: 'Deleted by administrator via clients list'
       },
       onSuccess: () => {
-        setDeleteDialog({ client: null, confirmText: '', reason: '' });
+        setDeleteDialog({ client: null });
         showToast({ type: 'success', title: 'Success', message: 'Client deleted successfully.' });
       },
       onError: (errors) => {
@@ -409,36 +402,14 @@ export default function ClientsList({ clients, stats = {} }) {
 
         <ConfirmDialog
           isOpen={!!deleteDialog.client}
-          title="Permanently Delete Client"
-          message={`WARNING: You are about to permanently delete ${deleteDialog.client?.company_name}. This is a destructive operation.`}
-          onClose={() => setDeleteDialog({ client: null, confirmText: '', reason: '' })}
+          title="Delete Client"
+          message={`Are you sure you want to delete ${deleteDialog.client?.company_name || 'this client'}? This action cannot be undone and will soft-delete the client and all related records.`}
+          onClose={() => setDeleteDialog({ client: null })}
           onConfirm={handleDelete}
-          confirmLabel="Permanent Delete"
+          confirmLabel="Delete Client"
+          cancelLabel="Cancel"
           variant="danger"
-        >
-          <div className="space-y-4">
-            <p className="text-sm text-gray-600">
-              This action will cascade soft-deletes to all branches, contacts, and documents. Portal users will be suspended.
-            </p>
-            <Input 
-              label="Type 'DELETE' to confirm" 
-              value={deleteDialog.confirmText} 
-              onChange={e => setDeleteDialog(prev => ({ ...prev, confirmText: e.target.value }))}
-              onPaste={e => e.preventDefault()}
-              placeholder="DELETE"
-            />
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Reason for Deletion (Min 10 chars)</label>
-              <textarea 
-                className="w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
-                rows="3"
-                value={deleteDialog.reason}
-                onChange={e => setDeleteDialog(prev => ({ ...prev, reason: e.target.value }))}
-                placeholder="e.g. Contract terminated, offboarding completed..."
-              ></textarea>
-            </div>
-          </div>
-        </ConfirmDialog>
+        />
 
       </AuthenticatedLayout>
     </RoleGuard>

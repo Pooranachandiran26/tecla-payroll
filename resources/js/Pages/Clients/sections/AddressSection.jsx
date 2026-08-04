@@ -15,7 +15,7 @@ export default function AddressSection({ formData, errors, onChange, hook }) {
       {/* Registered Address */}
       <div className="form-group">
         <label>Registered Office Address Line 1 <span style={{ color: 'var(--status-danger)' }}>*</span></label>
-        <input type="text" className={`form-control ${errors.regAddressLine1 ? 'invalid' : ''}`}
+        <textarea rows="2" className={`form-control ${errors.regAddressLine1 ? 'invalid' : ''}`}
           placeholder="Building Name, Street" value={formData.regAddressLine1}
           onChange={e => onChange('regAddressLine1', e.target.value)} />
         {errors.regAddressLine1 && <div className={`field-msg ${errors.regAddressLine1?.type || 'error'} show`}>{errors.regAddressLine1?.msg || errors.regAddressLine1}</div>}
@@ -24,7 +24,7 @@ export default function AddressSection({ formData, errors, onChange, hook }) {
       <div className="form-row">
         <div className="form-group">
           <label>Address Line 2</label>
-          <input type="text" className="form-control" placeholder="Area, Locality"
+          <textarea rows="2" className="form-control" placeholder="Area, Locality"
             value={formData.regAddressLine2}
             onChange={e => onChange('regAddressLine2', e.target.value)} />
         </div>
@@ -111,7 +111,7 @@ export default function AddressSection({ formData, errors, onChange, hook }) {
           </h4>
           <div className="form-group">
             <label>Billing Address Line 1</label>
-            <input type="text" className="form-control" placeholder="Building Name, Street"
+            <textarea rows="2" className="form-control" placeholder="Building Name, Street"
               value={formData.billAddressLine1}
               onChange={e => onChange('billAddressLine1', e.target.value)} />
           </div>
@@ -272,7 +272,7 @@ function BranchCard({ branch, idx, errors = {}, totalBranches, onUpdate, onRemov
 
       <div className="form-group">
         <label>Address Line 1 <span style={{ color: 'var(--status-danger)' }}>*</span></label>
-        <input type="text" className={`form-control ${errors.branchAddr1 ? 'invalid' : ''}`}
+        <textarea rows="2" className={`form-control ${errors.branchAddr1 ? 'invalid' : ''}`}
           placeholder="Building, Street Name"
           value={branch.addr1}
           onChange={e => onUpdate(branch.id, 'addr1', e.target.value)} />

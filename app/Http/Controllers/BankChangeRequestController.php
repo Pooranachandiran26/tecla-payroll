@@ -131,6 +131,8 @@ class BankChangeRequestController extends Controller
             'new_bank_branch' => $validated['new_bank_branch'] ?? null,
             'new_account_holder_name' => $validated['new_account_holder_name'],
             'reason' => $validated['reason'],
+            'created_by' => auth()->id(),
+            'updated_by' => auth()->id(),
         ]);
 
         // Email watchers (pre-existing watcher system — unchanged)
@@ -178,6 +180,7 @@ class BankChangeRequestController extends Controller
                 'status' => 'approved',
                 'processed_by' => auth()->id(),
                 'processed_at' => now(),
+                'updated_by' => auth()->id(),
             ]);
 
             if ($req->employee) {
@@ -236,6 +239,7 @@ class BankChangeRequestController extends Controller
             'rejection_reason' => $validated['rejection_reason'],
             'processed_by' => auth()->id(),
             'processed_at' => now(),
+            'updated_by' => auth()->id(),
         ]);
 
         if ($req->employee && $req->employee->personal_email) {

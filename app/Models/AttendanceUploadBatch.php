@@ -19,6 +19,9 @@ class AttendanceUploadBatch extends Model
         'matched_rows',
         'status',
         'uploaded_by',
+        'created_by',
+        'updated_by',
+        'verified_by',
     ];
 
     protected $casts = [
@@ -35,6 +38,21 @@ class AttendanceUploadBatch extends Model
     public function uploader()
     {
         return $this->belongsTo(User::class, 'uploaded_by');
+    }
+
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function updater()
+    {
+        return $this->belongsTo(User::class, 'updated_by');
+    }
+
+    public function verifier()
+    {
+        return $this->belongsTo(User::class, 'verified_by');
     }
 
     public function attendanceRecords()

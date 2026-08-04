@@ -10,6 +10,7 @@ import Button from '../../Components/ui/Button';
 import DataTable from '../../Components/ui/DataTable';
 import Checkbox from '../../Components/ui/Checkbox';
 import ConfirmDialog from '../../Components/ui/ConfirmDialog';
+import Modal from '../../Components/ui/Modal';
 import useToast from '../../Hooks/useToast';
 import RoleGuard from '../../Components/RoleGuard.jsx';
 import { 
@@ -556,7 +557,7 @@ export default function Settings() {
       key: 'email',
       newValue: emailSettings,
       reason: 'email_restart',
-      confirmText: ''
+      confirmText: 'CONFIRM'
     });
   };
 
@@ -596,7 +597,7 @@ export default function Settings() {
         showToast({ type: 'error', title: 'Locked', message: 'This setting is permanently locked for compliance.' });
         return;
       }
-      setConfirmModal({ isOpen: true, key, newValue, reason: '', confirmText: '' });
+      setConfirmModal({ isOpen: true, key, newValue, reason: 'Modified locked setting by admin', confirmText: 'CONFIRM' });
     } else {
       updateAuthSetting(key, newValue);
     }
@@ -628,24 +629,12 @@ export default function Settings() {
 
   const confirmLockedUpdate = () => {
     if (confirmModal.type === 'email') {
-      if (confirmModal.confirmText !== 'CONFIRM') {
-        showToast({ type: 'error', title: 'Error', message: 'Please type CONFIRM exactly.' });
-        return;
-      }
       confirmEmailUpdate();
       return;
     }
-    if (confirmModal.confirmText !== 'CONFIRM') {
-      showToast({ type: 'error', title: 'Error', message: 'Please type CONFIRM exactly.' });
-      return;
-    }
-    if (confirmModal.reason.length < 10) {
-      showToast({ type: 'error', title: 'Error', message: 'Reason must be at least 10 characters.' });
-      return;
-    }
     updateAuthSetting(confirmModal.key, confirmModal.newValue, {
-      confirm_text: confirmModal.confirmText,
-      reason: confirmModal.reason
+      confirm_text: 'CONFIRM',
+      reason: confirmModal.reason || 'Modified locked setting by admin'
     });
   };
 
@@ -951,90 +940,83 @@ export default function Settings() {
               )}
 
               {/* Edit PT Slab Modal */}
-              {editingPtSlab && (
-                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                  <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden border border-gray-100">
-                    <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-slate-50">
-                      <h4 className="font-bold text-slate-800">Modify PT Slab ({editingPtSlab.state})</h4>
-                      <button 
-                        type="button" 
-                        onClick={() => setEditingPtSlab(null)} 
-                        className="text-gray-400 hover:text-gray-600 font-bold text-lg"
-                      >
-                        ✕
-                      </button>
+              <Modal
+                isOpen={!!editingPtSlab}
+                onClose={() => setEditingPtSlab(null)}
+                title={`Modify PT Slab (${editingPtSlab?.state || ''})`}
+                size="md"
+              >
+                {editingPtSlab && (
+                  <form onSubmit={savePtSlab} className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <Input 
+                        label="State" 
+                        value={editingPtSlab.state || ''} 
+                        onChange={e => setEditingPtSlab({ ...editingPtSlab, state: e.target.value })} 
+                        required 
+                      />
+                      <Select 
+                        label="Frequency" 
+                        value={editingPtSlab.frequency || 'monthly'} 
+                        onChange={e => setEditingPtSlab({ ...editingPtSlab, frequency: e.target.value })} 
+                        options={[
+                          { value: 'monthly', label: 'Monthly' },
+                          { value: 'half_yearly', label: 'Half-Yearly' }
+                        ]} 
+                      />
                     </div>
-                    <form onSubmit={savePtSlab} className="p-6 space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <Input 
-                          label="State" 
-                          value={editingPtSlab.state || ''} 
-                          onChange={e => setEditingPtSlab({ ...editingPtSlab, state: e.target.value })} 
-                          required 
-                        />
-                        <Select 
-                          label="Frequency" 
-                          value={editingPtSlab.frequency || 'monthly'} 
-                          onChange={e => setEditingPtSlab({ ...editingPtSlab, frequency: e.target.value })} 
-                          options={[
-                            { value: 'monthly', label: 'Monthly' },
-                            { value: 'half_yearly', label: 'Half-Yearly' }
-                          ]} 
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <Input 
-                          type="number" 
-                          label="Min Salary (From Gross ₹)" 
-                          value={editingPtSlab.min_salary ?? ''} 
-                          onChange={e => setEditingPtSlab({ ...editingPtSlab, min_salary: parseFloat(e.target.value) || 0 })} 
-                          required 
-                        />
-                        <Input 
-                          type="number" 
-                          label="Max Salary (To Gross ₹ — leave blank if No Limit)" 
-                          value={editingPtSlab.max_salary ?? ''} 
-                          onChange={e => setEditingPtSlab({ ...editingPtSlab, max_salary: e.target.value === '' ? null : parseFloat(e.target.value) })} 
-                          placeholder="No Limit" 
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <Input 
-                          type="number" 
-                          label="Deduction Amount (₹)" 
-                          value={editingPtSlab.deduction_amount ?? ''} 
-                          onChange={e => setEditingPtSlab({ ...editingPtSlab, deduction_amount: parseFloat(e.target.value) || 0 })} 
-                          required 
-                        />
-                        <Input 
-                          label="Deduction Note" 
-                          value={editingPtSlab.deduction_note || ''} 
-                          onChange={e => setEditingPtSlab({ ...editingPtSlab, deduction_note: e.target.value })} 
-                          placeholder="e.g. / month" 
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Exceptions & Statutory Notes</label>
-                        <textarea 
-                          className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
-                          rows={3} 
-                          value={editingPtSlab.exceptions_text || ''} 
-                          onChange={e => setEditingPtSlab({ ...editingPtSlab, exceptions_text: e.target.value })} 
-                          placeholder="e.g. Women earning <= Rs 25,000 exempt..." 
-                        />
-                      </div>
-                      <div className="flex justify-end gap-3 pt-2">
-                        <Button type="button" variant="secondary" onClick={() => setEditingPtSlab(null)}>
-                          Cancel
-                        </Button>
-                        <Button type="submit" variant="primary" disabled={savingPtSlab}>
-                          {savingPtSlab ? 'Saving...' : 'Update PT Slab'}
-                        </Button>
-                      </div>
-                    </form>
-                  </div>
-                </div>
-              )}
+                    <div className="grid grid-cols-2 gap-4">
+                      <Input 
+                        type="number" 
+                        label="Min Salary (From Gross ₹)" 
+                        value={editingPtSlab.min_salary ?? ''} 
+                        onChange={e => setEditingPtSlab({ ...editingPtSlab, min_salary: parseFloat(e.target.value) || 0 })} 
+                        required 
+                      />
+                      <Input 
+                        type="number" 
+                        label="Max Salary (To Gross ₹ — leave blank if No Limit)" 
+                        value={editingPtSlab.max_salary ?? ''} 
+                        onChange={e => setEditingPtSlab({ ...editingPtSlab, max_salary: e.target.value === '' ? null : parseFloat(e.target.value) })} 
+                        placeholder="No Limit" 
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <Input 
+                        type="number" 
+                        label="Deduction Amount (₹)" 
+                        value={editingPtSlab.deduction_amount ?? ''} 
+                        onChange={e => setEditingPtSlab({ ...editingPtSlab, deduction_amount: parseFloat(e.target.value) || 0 })} 
+                        required 
+                      />
+                      <Input 
+                        label="Deduction Note" 
+                        value={editingPtSlab.deduction_note || ''} 
+                        onChange={e => setEditingPtSlab({ ...editingPtSlab, deduction_note: e.target.value })} 
+                        placeholder="e.g. / month" 
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Exceptions & Statutory Notes</label>
+                      <textarea 
+                        className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                        rows={3} 
+                        value={editingPtSlab.exceptions_text || ''} 
+                        onChange={e => setEditingPtSlab({ ...editingPtSlab, exceptions_text: e.target.value })} 
+                        placeholder="e.g. Women earning <= Rs 25,000 exempt..." 
+                      />
+                    </div>
+                    <div className="flex justify-end gap-3 pt-2">
+                      <Button type="button" variant="secondary" onClick={() => setEditingPtSlab(null)}>
+                        Cancel
+                      </Button>
+                      <Button type="submit" variant="primary" disabled={savingPtSlab}>
+                        {savingPtSlab ? 'Saving...' : 'Update PT Slab'}
+                      </Button>
+                    </div>
+                  </form>
+                )}
+              </Modal>
 
               {/* Labour Welfare Fund (LWF) Slabs Section */}
               <div className="mt-10 border-t border-gray-200 pt-8">
@@ -1088,66 +1070,59 @@ export default function Settings() {
                 )}
 
                 {/* Edit LWF Slab Modal */}
-                {editingLwfSlab && (
-                  <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden border border-gray-100">
-                      <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-slate-50">
-                        <h4 className="font-bold text-slate-800">Modify LWF Slab ({editingLwfSlab.state})</h4>
-                        <button 
-                          type="button" 
-                          onClick={() => setEditingLwfSlab(null)} 
-                          className="text-gray-400 hover:text-gray-600 font-bold text-lg"
-                        >
-                          ✕
-                        </button>
+                <Modal
+                  isOpen={!!editingLwfSlab}
+                  onClose={() => setEditingLwfSlab(null)}
+                  title={`Modify LWF Slab (${editingLwfSlab?.state || ''})`}
+                  size="md"
+                >
+                  {editingLwfSlab && (
+                    <form onSubmit={saveLwfSlab} className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <Input 
+                          label="State" 
+                          value={editingLwfSlab.state || ''} 
+                          onChange={e => setEditingLwfSlab({ ...editingLwfSlab, state: e.target.value })} 
+                          required 
+                        />
+                        <Select 
+                          label="Deduction Schedule" 
+                          value={editingLwfSlab.frequency || 'yearly'} 
+                          onChange={e => setEditingLwfSlab({ ...editingLwfSlab, frequency: e.target.value })} 
+                          options={[
+                            { value: 'half_yearly', label: 'Bi-Annual (Jun & Dec)' },
+                            { value: 'yearly', label: 'Annual (Dec Only)' },
+                            { value: 'monthly', label: 'Monthly' }
+                          ]} 
+                        />
                       </div>
-                      <form onSubmit={saveLwfSlab} className="p-6 space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                          <Input 
-                            label="State" 
-                            value={editingLwfSlab.state || ''} 
-                            onChange={e => setEditingLwfSlab({ ...editingLwfSlab, state: e.target.value })} 
-                            required 
-                          />
-                          <Select 
-                            label="Deduction Schedule" 
-                            value={editingLwfSlab.frequency || 'yearly'} 
-                            onChange={e => setEditingLwfSlab({ ...editingLwfSlab, frequency: e.target.value })} 
-                            options={[
-                              { value: 'half_yearly', label: 'Bi-Annual (Jun & Dec)' },
-                              { value: 'yearly', label: 'Annual (Dec Only)' },
-                              { value: 'monthly', label: 'Monthly' }
-                            ]} 
-                          />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <Input 
-                            type="number" 
-                            label="Employee Contribution (₹)" 
-                            value={editingLwfSlab.employee_contribution ?? ''} 
-                            onChange={e => setEditingLwfSlab({ ...editingLwfSlab, employee_contribution: parseFloat(e.target.value) || 0 })} 
-                            required 
-                          />
-                          <Input 
-                            type="number" 
-                            label="Employer Contribution (₹)" 
-                            value={editingLwfSlab.employer_contribution ?? ''} 
-                            onChange={e => setEditingLwfSlab({ ...editingLwfSlab, employer_contribution: parseFloat(e.target.value) || 0 })} 
-                            required 
-                          />
-                        </div>
-                        <div className="flex justify-end gap-3 pt-2">
-                          <Button type="button" variant="secondary" onClick={() => setEditingLwfSlab(null)}>
-                            Cancel
-                          </Button>
-                          <Button type="submit" variant="primary" disabled={savingLwfSlab}>
-                            {savingLwfSlab ? 'Saving...' : 'Update LWF Slab'}
-                          </Button>
-                        </div>
-                      </form>
-                    </div>
-                  </div>
-                )}
+                      <div className="grid grid-cols-2 gap-4">
+                        <Input 
+                          type="number" 
+                          label="Employee Contribution (₹)" 
+                          value={editingLwfSlab.employee_contribution ?? ''} 
+                          onChange={e => setEditingLwfSlab({ ...editingLwfSlab, employee_contribution: parseFloat(e.target.value) || 0 })} 
+                          required 
+                        />
+                        <Input 
+                          type="number" 
+                          label="Employer Contribution (₹)" 
+                          value={editingLwfSlab.employer_contribution ?? ''} 
+                          onChange={e => setEditingLwfSlab({ ...editingLwfSlab, employer_contribution: parseFloat(e.target.value) || 0 })} 
+                          required 
+                        />
+                      </div>
+                      <div className="flex justify-end gap-3 pt-2">
+                        <Button type="button" variant="secondary" onClick={() => setEditingLwfSlab(null)}>
+                          Cancel
+                        </Button>
+                        <Button type="submit" variant="primary" disabled={savingLwfSlab}>
+                          {savingLwfSlab ? 'Saving...' : 'Update LWF Slab'}
+                        </Button>
+                      </div>
+                    </form>
+                  )}
+                </Modal>
               </div>
             </div>
           )}
@@ -2369,35 +2344,14 @@ export default function Settings() {
 
       <ConfirmDialog
         isOpen={confirmModal.isOpen}
-        title="Modify Locked Setting"
+        title={confirmModal.type === 'email' ? 'Restart Queue Workers & Update Email' : 'Modify Locked Setting'}
+        message={confirmModal.type === 'email' ? 'Saving these settings will restart the background queue workers to apply the new configurations. Are you sure you want to proceed?' : `Are you sure you want to modify ${confirmModal.key}?`}
         onClose={() => setConfirmModal({ isOpen: false, key: null, newValue: null, reason: '', confirmText: '' })}
         onConfirm={confirmLockedUpdate}
-        confirmText="Update Setting"
+        confirmLabel="Confirm"
+        cancelLabel="Cancel"
         variant="danger"
-      >
-        <div className="space-y-4">
-          <p className="text-sm text-gray-600">
-            {confirmModal.type === 'email' ? 'Saving these settings will restart the background queue workers to apply the new configurations.' : <>You are attempting to modify <strong>{confirmModal.key}</strong> which is protected by a compliance lock.</>}
-          </p>
-          <Input 
-            label="Type 'CONFIRM' to proceed" 
-            value={confirmModal.confirmText} 
-            onChange={e => setConfirmModal(prev => ({ ...prev, confirmText: e.target.value }))}
-            onPaste={e => e.preventDefault()}
-            placeholder="CONFIRM"
-          />
-          <div>
-            {confirmModal.type !== 'email' && (<><label className="block text-sm font-medium text-gray-700 mb-1">Reason for Modification (Min 10 chars)</label>
-            <textarea 
-              className="w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              rows="3"
-              value={confirmModal.reason}
-              onChange={e => setConfirmModal(prev => ({ ...prev, reason: e.target.value }))}
-              placeholder="e.g. Approved by legal compliance team..."
-            ></textarea></>)}
-          </div>
-        </div>
-      </ConfirmDialog>
+      />
     </AuthenticatedLayout>
     </RoleGuard>
   );

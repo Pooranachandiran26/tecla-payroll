@@ -526,6 +526,7 @@ class BulkUploadValidationService
                 $dbPayload['client_id'] = $client ? $client->id : null;
                 $dbPayload['branch_id'] = $branchId;
                 $dbPayload['status'] = 'onboarding'; // same as manual creation
+                $dbPayload['entry_source'] = 'bulk_upload';
                 
                 $dbPayload['gross_monthly_salary'] = $salaryPreview['gross_monthly_salary'] ?? 0;
                 $dbPayload['net_take_home_monthly'] = $salaryPreview['net_take_home_monthly'] ?? 0;

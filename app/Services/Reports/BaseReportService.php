@@ -187,8 +187,8 @@ abstract class BaseReportService
     {
         $rows    = $this->getData($filters, $user);
         $rows    = $this->sanitizeCollection($rows, $user);
-        $perPage = isset($filters['per_page']) ? (int) $filters['per_page'] : 25;
-        $page    = isset($filters['page'])     ? (int) $filters['page']     : 1;
+        $perPage = isset($filters['per_page']) && is_numeric($filters['per_page']) ? (int) $filters['per_page'] : 10;
+        $page    = isset($filters['page']) && is_numeric($filters['page']) ? (int) $filters['page'] : 1;
 
         return $this->paginate($rows, $perPage, $page);
     }

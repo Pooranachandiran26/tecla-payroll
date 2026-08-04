@@ -170,6 +170,7 @@ class MonthlyPayrollCalculator
             'employee_pf_wage_basis' => $employee->employee_pf_wage_basis,
             'employer_pf_wage_basis' => $employee->employer_pf_wage_basis,
             'esi_applicable' => $isEsiActive,
+            'esi_limit' => ($isEsiActive && $grossTotal > 21000) ? 99999999.00 : 21000.00,
             'pt_applicable' => false, // We handle PT calculation separately below
             'pt_deduction_override' => 0.00,
         ]);
@@ -372,6 +373,8 @@ class MonthlyPayrollCalculator
             'warning_notes' => implode(' | ', array_filter([$ptWarning, isset($midCycleNote) ? $midCycleNote : null])),
             'attendance_source' => $attendanceSource,
             'salary_revision_applied' => $salaryRevisionApplied,
+            'created_by' => \Illuminate\Support\Facades\Auth::id(),
+            'updated_by' => \Illuminate\Support\Facades\Auth::id(),
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -450,8 +453,16 @@ class MonthlyPayrollCalculator
             if ($firstRunItem) {
                 $wasEsiActiveAtStart = $firstRunItem->employee_esi > 0;
             } else {
-                // If there's no history in this period, ESI is active at start ONLY if initial gross <= 21000
-                $wasEsiActiveAtStart = ($grossTotal <= 21000);
+                // If there's no prior payroll history in the current contribution period:
+                $doj = Carbon::parse($employee->date_of_joining)->startOfDay();
+                if ($doj->greaterThanOrEqualTo($periodStart)) {
+                    // Genuinely NEW employee joining mid-period: ESI active ONLY if initial gross <= 21,000
+                    $wasEsiActiveAtStart = ($grossTotal <= 21000);
+                } else {
+                    // Existing employee who joined in a prior period with ESI enabled:
+                    // They entered ESI active in a prior period and crossed threshold
+                    $wasEsiActiveAtStart = (bool)$employee->esi_applicable;
+                }
             }
         }
 

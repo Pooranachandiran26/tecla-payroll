@@ -407,6 +407,10 @@ class BulkUploadController extends Controller
 
                     $dbPayload = $row['db_payload'];
 
+                    $dbPayload['created_by'] = $request->user()->id;
+                    $dbPayload['updated_by'] = $request->user()->id;
+                    $dbPayload['entry_source'] = 'bulk_upload';
+
                     $dbPayload['gross_monthly_salary'] = $dbPayload['gross_monthly_salary'] ?? 0;
                     $dbPayload['net_take_home_monthly'] = $dbPayload['net_take_home_monthly'] ?? 0;
                     $dbPayload['employer_pf_monthly'] = $dbPayload['employer_pf_monthly'] ?? 0;

@@ -52,7 +52,7 @@ class TestUsersSeeder extends Seeder
         $this->command->info("--- GENERATED TEST USER PASSWORDS ---");
         
         foreach ($users as $userData) {
-            $plainPassword = bin2hex(random_bytes(16));
+            $plainPassword = app()->environment('testing') ? 'password' : bin2hex(random_bytes(16));
             $userData['password'] = \Illuminate\Support\Facades\Hash::make($plainPassword);
             
             \App\Models\User::updateOrCreate(

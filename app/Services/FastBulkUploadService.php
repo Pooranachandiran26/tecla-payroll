@@ -436,6 +436,7 @@ class FastBulkUploadService
             $dbPayload['client_id'] = $client ? $client->id : null;
             $dbPayload['branch_id'] = $branchId;
             $dbPayload['status'] = 'onboarding';
+            $dbPayload['entry_source'] = 'bulk_upload';
 
             $dbPayload['gross_monthly_salary'] = $salaryPreview['gross_monthly_salary'] ?? 0;
             $dbPayload['net_take_home_monthly'] = $salaryPreview['net_take_home_monthly'] ?? 0;
@@ -526,7 +527,7 @@ class FastBulkUploadService
         }
     }
 
-    public function executeBatchImport($batchId)
+    public function executeBatchImport($batchId, $userId = null)
     {
         $now = now()->toDateTimeString();
         $importedCount = 0;
@@ -556,6 +557,11 @@ class FastBulkUploadService
 
                 $dbPayload['created_at'] = $now;
                 $dbPayload['updated_at'] = $now;
+                $dbPayload['entry_source'] = 'bulk_upload';
+                if ($userId) {
+                    $dbPayload['created_by'] = $userId;
+                    $dbPayload['updated_by'] = $userId;
+                }
 
                 $importedEmpCodes[] = $dbPayload['employee_code'];
                 $chunk[] = $dbPayload;

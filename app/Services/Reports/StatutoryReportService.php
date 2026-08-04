@@ -159,11 +159,15 @@ class StatutoryReportService extends BaseReportService
         ];
 
         if (class_exists(\Barryvdh\DomPDF\Facade\Pdf::class)) {
-            $pdf = Pdf::loadView('pdf.reports.statutory_summary', $data)
-                ->setPaper('a4', 'landscape')
-                ->setOption('isRemoteEnabled', true);
+            try {
+                $pdf = Pdf::loadView('pdf.reports.statutory_summary', $data)
+                    ->setPaper('a4', 'landscape')
+                    ->setOption('isRemoteEnabled', false);
 
-            return $pdf->output();
+                return $pdf->output();
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error("StatutoryReportService PDF failed: " . $e->getMessage());
+            }
         }
 
         return view('pdf.reports.statutory_summary', $data)->render();

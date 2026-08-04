@@ -304,8 +304,10 @@ Route::middleware(['auth', 'active'])->group(function () {
             Route::get('/admin/activity-log', [\App\Http\Controllers\Admin\ActivityLogController::class, 'index'])->name('admin.activity-log');
             Route::get('/admin/users', [UserController::class, 'index'])->name('admin.users');
             Route::post('/admin/users', [UserController::class, 'store'])->name('admin.users.store');
+            Route::post('/admin/users/{user}/resend-invite', [UserController::class, 'resendInvite'])->name('admin.users.resend-invite');
             Route::put('/admin/users/{user}/managed-clients', [UserController::class, 'updateManagedClients'])->name('admin.users.update-managed-clients');
             Route::put('/admin/users/{user}/module-permissions', [UserController::class, 'updateModulePermissions'])->name('admin.users.update-module-permissions');
+            Route::delete('/admin/users/{user}', [UserController::class, 'destroy'])->name('admin.users.destroy');
             Route::get('/admin/payslip-templates', [\App\Http\Controllers\Admin\PayslipTemplateCustomizerController::class, 'index'])->name('admin.payslip-templates');
             Route::get('/admin/payslip-templates/preview', [\App\Http\Controllers\Admin\PayslipTemplateCustomizerController::class, 'previewHtml'])->name('admin.payslip-templates.preview');
             Route::post('/admin/payslip-templates/{client}', [\App\Http\Controllers\Admin\PayslipTemplateCustomizerController::class, 'update'])->name('admin.payslip-templates.update');

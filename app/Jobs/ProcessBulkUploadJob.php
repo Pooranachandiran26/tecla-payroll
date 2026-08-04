@@ -76,7 +76,7 @@ class ProcessBulkUploadJob implements ShouldQueue
                 return;
             }
 
-            $importRes = $fastBulkService->executeBatchImport($batch->id);
+            $importRes = $fastBulkService->executeBatchImport($batch->id, $batch->user_id);
 
             $batch->update([
                 'status' => 'completed',

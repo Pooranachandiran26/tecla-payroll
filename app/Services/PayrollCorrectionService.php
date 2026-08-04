@@ -702,6 +702,8 @@ class PayrollCorrectionService
                     'total_gross_earnings' => 0.00,
                     'total_net_disbursement' => 0.00,
                     'total_employer_statutory_cost' => 0.00,
+                    'created_by' => \Illuminate\Support\Facades\Auth::id(),
+                    'updated_by' => \Illuminate\Support\Facades\Auth::id(),
                 ]);
             }
 
@@ -748,6 +750,8 @@ class PayrollCorrectionService
                 'correction_reason' => $reason,
                 'original_payroll_run_item_id' => $originalItem->id,
                 'employee_query_id' => $queryId,
+                'created_by' => \Illuminate\Support\Facades\Auth::id(),
+                'updated_by' => \Illuminate\Support\Facades\Auth::id(),
             ];
 
             if ($existingItem) {
@@ -801,6 +805,8 @@ class PayrollCorrectionService
                     'total_gross_earnings' => 0.00,
                     'total_net_disbursement' => 0.00,
                     'total_employer_statutory_cost' => 0.00,
+                    'created_by' => \Illuminate\Support\Facades\Auth::id(),
+                    'updated_by' => \Illuminate\Support\Facades\Auth::id(),
                 ]);
             }
 
@@ -873,6 +879,8 @@ class PayrollCorrectionService
                     'correction_reason' => $reason,
                     'original_payroll_run_item_id' => $originalItem->id,
                     'employee_query_id' => $queryId,
+                    'created_by' => \Illuminate\Support\Facades\Auth::id(),
+                    'updated_by' => \Illuminate\Support\Facades\Auth::id(),
                 ];
 
                 if ($existingItem) {

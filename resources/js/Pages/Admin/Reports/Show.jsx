@@ -20,22 +20,65 @@ export default function ReportsShow({
   const [search, setSearch] = useState(filters.search || '');
   const [selectedClient, setSelectedClient] = useState(filters.client_id || '');
   const [selectedMonth, setSelectedMonth] = useState(filters.month || '');
+  const [fromDate, setFromDate] = useState(filters.from || '');
+  const [toDate, setToDate] = useState(filters.to || '');
   const [selectedStatus, setSelectedStatus] = useState(filters.status || '');
+  const [statutoryType, setStatutoryType] = useState(filters.statutory_type || '');
+  const [lopOnly, setLopOnly] = useState(filters.lop_only || '');
+  const [billingModel, setBillingModel] = useState(filters.billing_model || '');
+  const [eventType, setEventType] = useState(filters.event_type || '');
+  const [filingType, setFilingType] = useState(filters.filing_type || '');
+  const [agingBucket, setAgingBucket] = useState(filters.aging_bucket || '');
+  const [gstType, setGstType] = useState(filters.gst_type || '');
+  const [pfStatus, setPfStatus] = useState(filters.pf_status || '');
+  const [roleFilter, setRoleFilter] = useState(filters.role || '');
+  const [perPage, setPerPage] = useState(filters.per_page || 10);
 
   const rows = reportData.data || [];
   const meta = reportData.meta || {};
   const columnKeys = Object.keys(columns);
 
+  const buildFilterParams = (extraParams = {}) => {
+    return {
+      month: selectedMonth,
+      from: fromDate,
+      to: toDate,
+      client_id: selectedClient,
+      search: search,
+      status: selectedStatus,
+      statutory_type: statutoryType,
+      lop_only: lopOnly,
+      billing_model: billingModel,
+      event_type: eventType,
+      filing_type: filingType,
+      aging_bucket: agingBucket,
+      gst_type: gstType,
+      pf_status: pfStatus,
+      role: roleFilter,
+      per_page: perPage,
+      ...extraParams,
+    };
+  };
+
+  const goToPage = (pageNumber, newPerPage = perPage) => {
+    router.get(
+      route('admin.reports.show', reportKey),
+      buildFilterParams({ page: pageNumber, per_page: newPerPage }),
+      { preserveState: true, preserveScroll: true }
+    );
+  };
+
+  const handlePerPageChange = (e) => {
+    const val = parseInt(e.target.value, 10);
+    setPerPage(val);
+    goToPage(1, val);
+  };
+
   const handleFilterSubmit = (e) => {
     e?.preventDefault();
     router.get(
       route('admin.reports.show', reportKey),
-      {
-        month: selectedMonth,
-        client_id: selectedClient,
-        search: search,
-        status: selectedStatus,
-      },
+      buildFilterParams({ page: 1 }),
       { preserveState: true, preserveScroll: true }
     );
   };
@@ -44,29 +87,29 @@ export default function ReportsShow({
     setSearch('');
     setSelectedClient('');
     setSelectedMonth('');
+    setFromDate('');
+    setToDate('');
     setSelectedStatus('');
+    setStatutoryType('');
+    setLopOnly('');
+    setBillingModel('');
+    setEventType('');
+    setFilingType('');
+    setAgingBucket('');
+    setGstType('');
+    setPfStatus('');
+    setRoleFilter('');
+    setPerPage(10);
     router.get(route('admin.reports.show', reportKey));
   };
 
   const handleExportCsv = () => {
-    const params = new URLSearchParams({
-      month: selectedMonth,
-      client_id: selectedClient,
-      search: search,
-      status: selectedStatus,
-    }).toString();
-
+    const params = new URLSearchParams(buildFilterParams()).toString();
     window.location.href = route('admin.reports.export', reportKey) + '?' + params;
   };
 
   const handleExportPdf = () => {
-    const params = new URLSearchParams({
-      month: selectedMonth,
-      client_id: selectedClient,
-      search: search,
-      status: selectedStatus,
-    }).toString();
-
+    const params = new URLSearchParams(buildFilterParams()).toString();
     window.location.href = route('admin.reports.pdf', reportKey) + '?' + params;
   };
 
@@ -241,56 +284,276 @@ export default function ReportsShow({
         {/* Filter Controls Bar */}
         <Card className="p-4 mb-6">
           <form onSubmit={handleFilterSubmit} className="flex flex-wrap items-center gap-4">
-            <div className="flex-1 min-w-[180px]">
-              <label className="block text-xs font-semibold text-gray-600 mb-1">Billing / Payroll Month</label>
-              <input
-                type="month"
-                className="w-full text-xs rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
-              />
-            </div>
 
-            <div className="flex-1 min-w-[200px]">
-              <label className="block text-xs font-semibold text-gray-600 mb-1">Client Partner</label>
-              <select
-                className="w-full text-xs rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                value={selectedClient}
-                onChange={(e) => setSelectedClient(e.target.value)}
-              >
-                <option value="">All Scoped Clients</option>
-                {clients.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.company_name} ({c.client_code})
-                  </option>
-                ))}
-              </select>
-            </div>
+            {/* 1. Date Controls */}
+            {['payroll_register', 'statutory_summary', 'attendance_lop', 'payroll_cycle_status', 'gst_tax_summary', 'margin_profitability'].includes(reportKey) ? (
+              <div className="flex-1 min-w-[160px]">
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Payroll Month</label>
+                <input
+                  type="month"
+                  className="w-full text-xs rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                />
+              </div>
+            ) : (
+              <>
+                <div className="w-[140px]">
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Date From</label>
+                  <input
+                    type="date"
+                    className="w-full text-xs rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    value={fromDate}
+                    onChange={(e) => setFromDate(e.target.value)}
+                  />
+                </div>
+                <div className="w-[140px]">
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Date To</label>
+                  <input
+                    type="date"
+                    className="w-full text-xs rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    value={toDate}
+                    onChange={(e) => setToDate(e.target.value)}
+                  />
+                </div>
+              </>
+            )}
 
+            {/* 2. Client Partner Filter (where applicable) */}
+            {!['manager_access_matrix', 'audit_log_report'].includes(reportKey) && (
+              <div className="flex-1 min-w-[180px]">
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Client Partner</label>
+                <select
+                  className="w-full text-xs rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  value={selectedClient}
+                  onChange={(e) => setSelectedClient(e.target.value)}
+                >
+                  <option value="">All Scoped Clients</option>
+                  {clients.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.company_name} ({c.client_code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* 3. Report-Specific Unique Domain Filters */}
             {reportKey === 'invoice_revenue' && (
+              <>
+                <div className="w-[140px]">
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Payment Status</label>
+                  <select
+                    className="w-full text-xs rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    value={selectedStatus}
+                    onChange={(e) => setSelectedStatus(e.target.value)}
+                  >
+                    <option value="">All Statuses</option>
+                    <option value="draft">Draft</option>
+                    <option value="finalized">Finalized</option>
+                    <option value="raised">Raised / Sent</option>
+                    <option value="paid">Paid</option>
+                    <option value="overdue">Overdue</option>
+                  </select>
+                </div>
+                <div className="w-[140px]">
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">GST Type</label>
+                  <select
+                    className="w-full text-xs rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    value={gstType}
+                    onChange={(e) => setGstType(e.target.value)}
+                  >
+                    <option value="">All GST Types</option>
+                    <option value="cgst_sgst">CGST + SGST (Intrastate)</option>
+                    <option value="igst">IGST (Interstate)</option>
+                  </select>
+                </div>
+              </>
+            )}
+
+            {reportKey === 'statutory_summary' && (
+              <div className="w-[160px]">
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Statutory Component</label>
+                <select
+                  className="w-full text-xs rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  value={statutoryType}
+                  onChange={(e) => setStatutoryType(e.target.value)}
+                >
+                  <option value="">All Components</option>
+                  <option value="pf">Provident Fund (PF)</option>
+                  <option value="esi">ESIC (ESI)</option>
+                  <option value="pt">Professional Tax (PT)</option>
+                  <option value="lwf">LWF</option>
+                  <option value="tds">TDS</option>
+                </select>
+              </div>
+            )}
+
+            {reportKey === 'attendance_lop' && (
+              <div className="w-[160px]">
+                <label className="block text-xs font-semibold text-gray-600 mb-1">LOP Audit Filter</label>
+                <select
+                  className="w-full text-xs rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  value={lopOnly}
+                  onChange={(e) => setLopOnly(e.target.value)}
+                >
+                  <option value="">All Employees</option>
+                  <option value="1">Only Employees with LOP &gt; 0</option>
+                </select>
+              </div>
+            )}
+
+            {['margin_profitability', 'client_master'].includes(reportKey) && (
               <div className="w-[150px]">
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Payment Status</label>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Billing Model</label>
+                <select
+                  className="w-full text-xs rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  value={billingModel}
+                  onChange={(e) => setBillingModel(e.target.value)}
+                >
+                  <option value="">All Billing Models</option>
+                  <option value="markup">Markup Model</option>
+                  <option value="fixed">Fixed Management Fee</option>
+                </select>
+              </div>
+            )}
+
+            {reportKey === 'fnf_register' && (
+              <div className="w-[150px]">
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Settlement Status</label>
                 <select
                   className="w-full text-xs rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   value={selectedStatus}
                   onChange={(e) => setSelectedStatus(e.target.value)}
                 >
                   <option value="">All Statuses</option>
-                  <option value="draft">Draft</option>
-                  <option value="finalized">Finalized</option>
-                  <option value="raised">Raised / Sent</option>
-                  <option value="paid">Paid</option>
-                  <option value="overdue">Overdue</option>
+                  <option value="pending">Pending Settlement</option>
+                  <option value="approved">Approved</option>
+                  <option value="settled">Settled / Paid</option>
                 </select>
               </div>
             )}
 
-            <div className="flex-2 min-w-[220px]">
+            {reportKey === 'aging_receivables' && (
+              <div className="w-[160px]">
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Aging Bucket</label>
+                <select
+                  className="w-full text-xs rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  value={agingBucket}
+                  onChange={(e) => setAgingBucket(e.target.value)}
+                >
+                  <option value="">All Aging Buckets</option>
+                  <option value="0-30">Current (0-30 Days)</option>
+                  <option value="31-60">31-60 Days Overdue</option>
+                  <option value="61-90">61-90 Days Overdue</option>
+                  <option value="90+">90+ Days (Severe Overdue)</option>
+                </select>
+              </div>
+            )}
+
+            {reportKey === 'headcount_movement' && (
+              <div className="w-[160px]">
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Movement Type</label>
+                <select
+                  className="w-full text-xs rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  value={eventType}
+                  onChange={(e) => setEventType(e.target.value)}
+                >
+                  <option value="">All Movements</option>
+                  <option value="joiner">New Joiners Only</option>
+                  <option value="exit">Exits / Separations Only</option>
+                </select>
+              </div>
+            )}
+
+            {reportKey === 'compliance_calendar' && (
+              <>
+                <div className="w-[150px]">
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Compliance Type</label>
+                  <select
+                    className="w-full text-xs rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    value={filingType}
+                    onChange={(e) => setFilingType(e.target.value)}
+                  >
+                    <option value="">All Compliances</option>
+                    <option value="pf">PF ECR Challan</option>
+                    <option value="esi">ESI Monthly Contribution</option>
+                    <option value="pt">Professional Tax Return</option>
+                    <option value="lwf">LWF Filing</option>
+                    <option value="tds">TDS Return (24Q)</option>
+                  </select>
+                </div>
+                <div className="w-[140px]">
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Filing Status</label>
+                  <select
+                    className="w-full text-xs rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    value={selectedStatus}
+                    onChange={(e) => setSelectedStatus(e.target.value)}
+                  >
+                    <option value="">All Statuses</option>
+                    <option value="filed">Filed On-Time</option>
+                    <option value="pending">Pending Filing</option>
+                    <option value="overdue">Delayed / Overdue</option>
+                  </select>
+                </div>
+              </>
+            )}
+
+            {reportKey === 'audit_log_report' && (
+              <div className="w-[140px]">
+                <label className="block text-xs font-semibold text-gray-600 mb-1">User Role</label>
+                <select
+                  className="w-full text-xs rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  value={roleFilter}
+                  onChange={(e) => setRoleFilter(e.target.value)}
+                >
+                  <option value="">All Roles</option>
+                  <option value="admin">Administrator</option>
+                  <option value="manager">Manager</option>
+                  <option value="system">System Automated</option>
+                </select>
+              </div>
+            )}
+
+            {reportKey === 'statutory_profile' && (
+              <div className="w-[150px]">
+                <label className="block text-xs font-semibold text-gray-600 mb-1">PF Coverage</label>
+                <select
+                  className="w-full text-xs rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  value={pfStatus}
+                  onChange={(e) => setPfStatus(e.target.value)}
+                >
+                  <option value="">All Statuses</option>
+                  <option value="covered">Covered / Applicable</option>
+                  <option value="exempt">Exempt / Not Covered</option>
+                </select>
+              </div>
+            )}
+
+            {reportKey === 'payroll_cycle_status' && (
+              <div className="w-[140px]">
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Cycle Status</label>
+                <select
+                  className="w-full text-xs rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  value={selectedStatus}
+                  onChange={(e) => setSelectedStatus(e.target.value)}
+                >
+                  <option value="">All Statuses</option>
+                  <option value="DRAFT">Draft</option>
+                  <option value="PROCESSING">Processing</option>
+                  <option value="APPROVED">Approved</option>
+                  <option value="LOCKED">Locked</option>
+                </select>
+              </div>
+            )}
+
+            {/* 4. Search Keyword Input */}
+            <div className="flex-2 min-w-[200px]">
               <label className="block text-xs font-semibold text-gray-600 mb-1">Search Keyword</label>
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="Invoice no, client name..."
+                  placeholder="Search by code, name, invoice..."
                   className="w-full text-xs rounded border-gray-300 pl-8 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
@@ -346,40 +609,88 @@ export default function ReportsShow({
           </div>
 
           {/* Pagination Controls */}
-          {meta && meta.last_page > 1 && (
-            <div className="p-4 border-t border-slate-200 flex items-center justify-between text-xs text-gray-600 bg-slate-50">
-              <div>
-                Showing <strong>{meta.from}</strong> to <strong>{meta.to}</strong> of <strong>{meta.total}</strong> entries
+          {meta && meta.total > 0 && (
+            <div className="p-4 border-t border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs text-gray-600 bg-slate-50">
+              <div className="flex flex-wrap items-center gap-4">
+                <div>
+                  Showing <strong>{meta.from || 0}</strong> to <strong>{meta.to || 0}</strong> of <strong>{meta.total || 0}</strong> entries
+                </div>
+                <div className="flex items-center gap-1.5 border-l border-slate-200 pl-4">
+                  <label className="text-gray-500 font-medium">Rows per page:</label>
+                  <select
+                    className="text-xs rounded border-gray-300 py-1 px-2 font-semibold bg-white text-gray-700 shadow-sm focus:border-blue-500 focus:ring-blue-500 cursor-pointer"
+                    value={perPage}
+                    onChange={handlePerPageChange}
+                  >
+                    <option value={10}>10</option>
+                    <option value={20}>20</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                </div>
               </div>
-              <div className="flex gap-2">
+
+              <div className="flex items-center gap-1.5">
                 <Button
                   variant="secondary"
                   size="xs"
                   disabled={meta.current_page <= 1}
-                  onClick={() =>
-                    router.get(
-                      route('admin.reports.show', reportKey),
-                      { month: selectedMonth, client_id: selectedClient, search: search, status: selectedStatus, page: meta.current_page - 1 },
-                      { preserveState: true }
-                    )
-                  }
+                  onClick={() => goToPage(meta.current_page - 1)}
                 >
                   Previous
                 </Button>
-                <span className="px-3 py-1 font-semibold">
-                  Page {meta.current_page} of {meta.last_page}
-                </span>
+
+                <div className="flex items-center gap-1 mx-1">
+                  {(() => {
+                    const current = meta.current_page || 1;
+                    const last = meta.last_page || 1;
+                    const delta = 1;
+                    const range = [];
+
+                    for (let i = Math.max(2, current - delta); i <= Math.min(last - 1, current + delta); i++) {
+                      range.push(i);
+                    }
+
+                    if (current - delta > 2) {
+                      range.unshift('...');
+                    }
+                    if (current + delta < last - 1) {
+                      range.push('...');
+                    }
+
+                    range.unshift(1);
+                    if (last > 1) {
+                      range.push(last);
+                    }
+
+                    return range.map((item, idx) => {
+                      if (item === '...') {
+                        return <span key={`dots-${idx}`} className="px-2 py-1 text-gray-400">...</span>;
+                      }
+                      const isActive = item === current;
+                      return (
+                        <button
+                          key={`page-${item}`}
+                          type="button"
+                          onClick={() => goToPage(item)}
+                          className={`px-3 py-1 rounded text-xs font-semibold transition-all ${
+                            isActive
+                              ? 'bg-blue-900 text-white shadow-sm'
+                              : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+                          }`}
+                        >
+                          {item}
+                        </button>
+                      );
+                    });
+                  })()}
+                </div>
+
                 <Button
                   variant="secondary"
                   size="xs"
                   disabled={meta.current_page >= meta.last_page}
-                  onClick={() =>
-                    router.get(
-                      route('admin.reports.show', reportKey),
-                      { month: selectedMonth, client_id: selectedClient, search: search, status: selectedStatus, page: meta.current_page + 1 },
-                      { preserveState: true }
-                    )
-                  }
+                  onClick={() => goToPage(meta.current_page + 1)}
                 >
                   Next
                 </Button>
