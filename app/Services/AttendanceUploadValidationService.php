@@ -23,7 +23,7 @@ class AttendanceUploadValidationService
      * @param string $targetMonth  Format: 'YYYY-MM'
      * @return array
      */
-    public function validateFile(string $filePath, int $clientId, string $targetMonth): array
+    public function validateFile(string $filePath, int $clientId, string $targetMonth, ?string $batchId = null): array
     {
         if (!file_exists($filePath) || !is_readable($filePath)) {
             throw new \Exception("File is not readable or does not exist.");
@@ -182,7 +182,36 @@ class AttendanceUploadValidationService
         $allWeekdays = $this->getWeekdaysInRange($monthStart, $monthEnd, $clientOffDays, $clientHolidayDates);
         $totalWorkingDays = count($allWeekdays);
 
+        // Bulk load all employees for this client using fast DB query (avoiding Eloquent overhead)
+        $employees = DB::table('employees')
+            ->where('client_id', $clientId)
+            ->select('id', 'employee_code', 'full_name', 'date_of_joining', 'attendance_tracking_start_date', 'weekly_off_pattern')
+            ->get();
+        $employeesMap = $employees->keyBy('employee_code');
+
+        // Bulk load locked payroll run items for this client and month in 1 query
+        $lockedEmployeeIds = DB::table('payroll_run_items')
+            ->join('payroll_runs', 'payroll_run_items.payroll_run_id', '=', 'payroll_runs.id')
+            ->where('payroll_runs.client_id', $clientId)
+            ->where('payroll_runs.payroll_month', $monthStart->toDateString())
+            ->where('payroll_runs.status', 'locked')
+            ->whereIn('payroll_run_items.employee_id', $employees->pluck('id'))
+            ->pluck('payroll_run_items.employee_id')
+            ->flip()
+            ->toArray();
+
+        // Bulk load existing live punches for all employees in 1 query
+        $existingPunchesMap = AttendanceRecord::whereIn('employee_id', $employees->pluck('id'))
+            ->whereBetween('attendance_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
+            ->whereIn('source', ['live_punch', 'override'])
+            ->select('employee_id', DB::raw('count(*) as count'))
+            ->groupBy('employee_id')
+            ->pluck('count', 'employee_id')
+            ->toArray();
+
         $rows = [];
+        $stagingChunks = [];
+        $now = now()->toDateTimeString();
         $totalRows = 0;
         $matchedRows = 0;
         $skippedCount = 0;
@@ -219,11 +248,9 @@ class AttendanceUploadValidationService
             $notes = '';
             $dbPayloads = [];
 
-            // 1. Look up employee strictly scoped to the target client
+            // 1. Look up employee strictly scoped to the target client using in-memory map
             if (!empty($rawEmpCode)) {
-                $employee = Employee::where('client_id', $clientId)
-                    ->where('employee_code', $rawEmpCode)
-                    ->first();
+                $employee = $employeesMap->get($rawEmpCode);
 
                 if ($employee) {
                     $matchedName = "{$employee->full_name} ({$employee->employee_code})";
@@ -234,13 +261,7 @@ class AttendanceUploadValidationService
             // 2. Validate row parameters if employee matched
             if ($employee) {
                 // 2a. Check if employee already has a LOCKED payroll_run_item for this month
-                $hasLockedItem = DB::table('payroll_run_items')
-                    ->join('payroll_runs', 'payroll_run_items.payroll_run_id', '=', 'payroll_runs.id')
-                    ->where('payroll_run_items.employee_id', $employee->id)
-                    ->where('payroll_runs.client_id', $clientId)
-                    ->where('payroll_runs.payroll_month', $monthStart->toDateString())
-                    ->where('payroll_runs.status', 'locked')
-                    ->exists();
+                $hasLockedItem = isset($lockedEmployeeIds[$employee->id]);
 
                 if ($hasLockedItem) {
                     $monthLabel = $monthStart->format('F Y');
@@ -267,16 +288,26 @@ class AttendanceUploadValidationService
                             $employeeStart = $atsd->copy();
                         }
                     }
-                    $effectiveStart = $monthStart->gt($employeeStart) ? $monthStart->copy() : $employeeStart->copy();
                     $empOffDays = $this->resolveOffDays($employee, $clientModel);
-                    $context = $this->calculateWorkingDaysContext($clientId, $targetMonth, $employee);
-                    $employeeWorkingDays = $context['working_days_slots'];
-                    $availableSlots = $context['net_available_slots'];
-                    $uploadedTotal = $daysPresent + $daysLOP;
+                    $effectiveStart = $monthStart->gt($employeeStart) ? $monthStart->copy() : $employeeStart->copy();
+                    $isMidMonth = $employeeStart->gt($monthStart) && $employeeStart->lte($monthEnd);
+                    $hasCustomPattern = (!empty($employee->weekly_off_pattern) && strtolower($employee->weekly_off_pattern) !== strtolower($clientModel->weekly_off_pattern ?? 'sat,sun'));
+                    $hasPunches = isset($existingPunchesMap[$employee->id]);
 
+                    if ($isMidMonth || $hasCustomPattern || $hasPunches) {
+                        $context = $this->calculateWorkingDaysContext($clientId, $targetMonth, $employee);
+                        $employeeWorkingDays = $context['working_days_slots'];
+                        $availableSlots = $context['net_available_slots'];
+                        $monthLabel = $context['month_label'];
+                    } else {
+                        $employeeWorkingDays = $totalWorkingDays;
+                        $availableSlots = $totalWorkingDays;
+                        $monthLabel = $monthStart->format('F Y');
+                    }
+
+                    $uploadedTotal = $daysPresent + $daysLOP;
                     $isNotYetEmployed = $employeeStart->gt($monthEnd);
                     $dojFormatted = Carbon::parse($employee->date_of_joining)->format('F d, Y');
-                    $monthLabel = $context['month_label'];
 
                     if ($isNotYetEmployed) {
                         $status = 'skipped';
@@ -292,16 +323,6 @@ class AttendanceUploadValidationService
                         $reconciledPresent = $daysPresent;
                         $reconciledLop = $daysLOP;
                         $notes = "";
-
-                        $dbPayloads = $this->expandToDaily(
-                            $employee->id,
-                            $reconciledPresent,
-                            $reconciledLop,
-                            $effectiveStart,
-                            $monthEnd,
-                            $empOffDays,
-                            $clientHolidayDates
-                        );
                     } elseif ($uploadedTotal < $availableSlots) {
                         // Shortfall - auto reconcile
                         $status = 'valid';
@@ -309,16 +330,6 @@ class AttendanceUploadValidationService
                         $reconciledPresent = $daysPresent;
                         $reconciledLop = $availableSlots - $daysPresent;
                         $notes = "Warning: Shortfall. Uploaded: {$daysPresent} present / {$daysLOP} LOP. Saved: {$reconciledPresent} present / {$reconciledLop} LOP (due to unfilled slots).";
-
-                        $dbPayloads = $this->expandToDaily(
-                            $employee->id,
-                            $reconciledPresent,
-                            $reconciledLop,
-                            $effectiveStart,
-                            $monthEnd,
-                            $empOffDays,
-                            $clientHolidayDates
-                        );
                     } else {
                         // Over-count
                         $scheduleReason = "";
@@ -339,16 +350,6 @@ class AttendanceUploadValidationService
                             $reconciledPresent = $availableSlots;
                             $reconciledLop = 0;
                             $notes = "⚠️ Adjusted — you entered {$daysPresent} present days, but this month only has {$availableSlots}{$scheduleReason}. We've automatically capped it to {$availableSlots}.";
-
-                            $dbPayloads = $this->expandToDaily(
-                                $employee->id,
-                                $reconciledPresent,
-                                $reconciledLop,
-                                $effectiveStart,
-                                $monthEnd,
-                                $empOffDays,
-                                $clientHolidayDates
-                            );
                         }
                     }
                 }
@@ -361,17 +362,43 @@ class AttendanceUploadValidationService
                 $notes = empty($notes) ? $monthMismatchNote : ($monthMismatchNote . " " . $notes);
             }
 
-            $rows[] = [
-                'id' => $rowNo,
-                'empCode' => $rawEmpCode,
-                'matchedName' => $matchedName,
-                'matchType' => $matchType,
-                'daysPresent' => is_numeric($rawDaysPresent) ? (int) $rawDaysPresent : $rawDaysPresent,
-                'daysLOP' => is_numeric($rawDaysLOP) ? (int) $rawDaysLOP : $rawDaysLOP,
-                'status' => $status,
-                'notes' => $notes,
-                'db_payloads' => $dbPayloads,
-            ];
+            // Only accumulate error/skipped rows for frontend display
+            if ($status !== 'valid') {
+                $rows[] = [
+                    'id' => $rowNo,
+                    'empCode' => $rawEmpCode,
+                    'matchedName' => $matchedName,
+                    'matchType' => $matchType,
+                    'daysPresent' => is_numeric($rawDaysPresent) ? (int) $rawDaysPresent : $rawDaysPresent,
+                    'daysLOP' => is_numeric($rawDaysLOP) ? (int) $rawDaysLOP : $rawDaysLOP,
+                    'status' => $status,
+                    'notes' => $notes,
+                ];
+            }
+
+            if ($batchId) {
+                $stagingChunks[] = [
+                    'batch_id' => $batchId,
+                    'employee_code' => $rawEmpCode,
+                    'full_name' => $employee ? $employee->full_name : null,
+                    'days_present' => isset($reconciledPresent) ? (float)$reconciledPresent : (is_numeric($rawDaysPresent) ? (float)$rawDaysPresent : 0.00),
+                    'days_lop' => isset($reconciledLop) ? (float)$reconciledLop : (is_numeric($rawDaysLOP) ? (float)$rawDaysLOP : 0.00),
+                    'status' => ($status === 'valid' || $status === 'skipped') ? 'ready' : 'error',
+                    'error_message' => $notes ?: null,
+                    'client_id' => $clientId,
+                    'db_payloads' => '[]',
+                    'raw_data' => json_encode($item),
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+            }
+        }
+
+        if ($batchId && !empty($stagingChunks)) {
+            DB::table('attendance_upload_staging_rows')->where('batch_id', $batchId)->delete();
+            foreach (array_chunk($stagingChunks, 500) as $chunk) {
+                DB::table('attendance_upload_staging_rows')->insert($chunk);
+            }
         }
 
         return [
@@ -399,18 +426,10 @@ class AttendanceUploadValidationService
      * @param array $holidayDates
      * @return array
      */
-    public function expandToDaily(int $employeeId, int $daysPresent, int $daysLOP, Carbon $monthStart, Carbon $monthEnd, array $offDays = ['sat', 'sun'], array $holidayDates = []): array
+    public function expandToDaily(int $employeeId, int $daysPresent, int $daysLOP, Carbon $monthStart, Carbon $monthEnd, array $offDays = ['sat', 'sun'], array $holidayDates = [], array $existingPunchDates = []): array
     {
         // Get all working day dates in the month (using weekly off pattern and holidays)
         $allWeekdays = $this->getWeekdaysInRange($monthStart, $monthEnd, $offDays, $holidayDates);
-
-        // Get dates that already have live_punch/override records
-        $existingPunchDates = AttendanceRecord::where('employee_id', $employeeId)
-            ->whereBetween('attendance_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
-            ->whereIn('source', ['live_punch', 'override'])
-            ->pluck('attendance_date')
-            ->map(fn($d) => Carbon::parse($d)->toDateString())
-            ->toArray();
 
         // Filter to only available (unfilled) weekdays
         $availableWeekdays = array_values(array_filter($allWeekdays, function ($dateStr) use ($existingPunchDates) {
@@ -475,9 +494,9 @@ class AttendanceUploadValidationService
      * @param Client|null $client
      * @return array  Lowercase 3-letter day abbreviations (e.g. ['sat', 'sun'])
      */
-    private function resolveOffDays(?Employee $employee, ?Client $client): array
+    private function resolveOffDays(mixed $employee, ?Client $client): array
     {
-        $pattern = $employee?->weekly_off_pattern
+        $pattern = (is_object($employee) ? ($employee->weekly_off_pattern ?? null) : null)
             ?? $client?->weekly_off_pattern
             ?? 'sat,sun';
         return array_map('trim', explode(',', strtolower($pattern)));
@@ -492,7 +511,7 @@ class AttendanceUploadValidationService
      * @param Employee|null $employee
      * @return array
      */
-    public function calculateWorkingDaysContext(int $clientId, string $targetMonth, ?Employee $employee = null): array
+    public function calculateWorkingDaysContext(int $clientId, string $targetMonth, mixed $employee = null): array
     {
         $monthStart = Carbon::parse($targetMonth . '-01');
         $monthEnd = $monthStart->copy()->endOfMonth();
@@ -503,7 +522,8 @@ class AttendanceUploadValidationService
 
         $empOffDays = $this->resolveOffDays($employee, $clientModel);
 
-        $patternStr = strtolower($employee?->weekly_off_pattern ?? $clientModel?->weekly_off_pattern ?? 'sat,sun');
+        $empPattern = is_object($employee) ? ($employee->weekly_off_pattern ?? null) : null;
+        $patternStr = strtolower($empPattern ?? $clientModel?->weekly_off_pattern ?? 'sat,sun');
         $dayNamesMap = [
             'mon' => 'Monday',
             'tue' => 'Tuesday',
