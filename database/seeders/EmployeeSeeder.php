@@ -22,9 +22,12 @@ class EmployeeSeeder extends Seeder
     {
         Schema::disableForeignKeyConstraints();
 
-        // Clear existing employees and related data
-        DB::table('users')->where('role', 'employee')->delete();
-        DB::table('employees')->truncate();
+        DB::table('bank_change_requests')->truncate();
+        DB::table('client_documents')->truncate();
+        DB::table('attendance_upload_batches')->truncate();
+        if (Schema::hasTable('client_user')) {
+            DB::table('client_user')->truncate();
+        }
         DB::table('employee_documents')->truncate();
         DB::table('employee_tax_declarations')->truncate();
         DB::table('salary_revisions')->truncate();
@@ -33,6 +36,8 @@ class EmployeeSeeder extends Seeder
         DB::table('leave_requests')->truncate();
         DB::table('payroll_run_items')->truncate();
         DB::table('payroll_runs')->truncate();
+        DB::table('employees')->truncate();
+        DB::table('users')->where('role', 'employee')->delete();
 
         Schema::enableForeignKeyConstraints();
 
@@ -192,6 +197,7 @@ class EmployeeSeeder extends Seeder
                     'pt_applicable' => true,
                     'lwf_applicable' => $client->lwf_applicable ?? true,
                     'tds_applicable' => $client->tds_applicable ?? true,
+                    'gratuity_mode' => $client->default_gratuity_mode ?? 'ctc_included',
                     
                     // Overrides 
                     'lop_basis_days' => 30,
