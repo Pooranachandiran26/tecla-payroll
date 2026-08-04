@@ -18,8 +18,12 @@ class ClientResource extends JsonResource
     {
         $data = parent::toArray($request);
         
-        // Add counts
+        // Add counts & audit details
         $data['employees_count'] = $this->whenCounted('employees');
+        $data['creator_name'] = $this->relationLoaded('creator') && $this->creator 
+            ? $this->creator->name 
+            : ($this->entry_source === 'bulk_upload' ? 'Bulk Upload' : ($this->created_by ? 'User #' . $this->created_by : 'System'));
+        $data['entry_source'] = $this->entry_source ?: 'manual';
         
         return $data;
     }

@@ -137,6 +137,13 @@ class EmployeeResource extends JsonResource
             // Computed Document Counts
             'documents_verified_count' => $this->documents_verified_count,
             'documents_required_count' => $this->documents_required_count,
+
+            // Audit Trail
+            'created_by' => $this->created_by,
+            'creator_name' => $this->relationLoaded('creator') && $this->creator 
+                ? $this->creator->name 
+                : ($this->entry_source === 'bulk_upload' ? 'Bulk Upload' : ($this->created_by ? 'User #' . $this->created_by : 'System Admin')),
+            'entry_source' => $this->entry_source ?: 'manual',
         ];
     }
 }

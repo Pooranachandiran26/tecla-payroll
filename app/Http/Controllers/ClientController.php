@@ -35,7 +35,7 @@ class ClientController extends Controller
             abort(403, 'You do not have permission to access the Clients Directory.');
         }
 
-        $query = Client::withCount(['employees' => function ($query) {
+        $query = Client::with('creator')->withCount(['employees' => function ($query) {
             $query->where('status', 'active');
         }]);
 

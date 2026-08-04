@@ -242,6 +242,7 @@ export default function ClientsList({ clients, stats = {} }) {
                     <th>Contract & Billing</th>
                     <th>Onboarding</th>
                     <th>Client Since</th>
+                    <th>Created By</th>
                     <th>Last Invoice</th>
                     <th>Outstanding (₹)</th>
                     <th style={{ textAlign: "center" }}>Active Candidates</th>
@@ -252,7 +253,7 @@ export default function ClientsList({ clients, stats = {} }) {
                 <tbody>
                   {dataList.length === 0 ? (
                     <tr>
-                      <td colSpan="10" style={{ textAlign: "center", padding: "3rem", color: "var(--text-muted)" }}>
+                      <td colSpan="11" style={{ textAlign: "center", padding: "3rem", color: "var(--text-muted)" }}>
                         No clients match your filters. <button onClick={clearFilters} style={{ background: 'none', border: 'none', color: 'var(--primary-blue)', cursor: 'pointer', textDecoration: 'underline' }}>Clear Filters</button>
                       </td>
                     </tr>
@@ -299,6 +300,14 @@ export default function ClientsList({ clients, stats = {} }) {
                                 ? <span style={{ color: "var(--status-warning)", fontWeight: "600" }}>Expiring Soon</span>
                                 : `Ends: ${formatDate(c.contract_end_date)}`
                             ) : 'No End Date'}
+                          </div>
+                        </td>
+                        <td>
+                          <div style={{ fontSize: "0.85rem", fontWeight: "600", color: "#334155" }}>
+                            {c.creator_name || (c.creator ? c.creator.name : (c.created_by ? `User #${c.created_by}` : 'System Admin'))}
+                          </div>
+                          <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
+                            {c.entry_source === 'bulk_upload' ? 'Bulk Import' : 'Manual Entry'}
                           </div>
                         </td>
                         <td>
