@@ -186,6 +186,7 @@ export default function QuickAccess() {
             </div>
             <div className="grid grid-cols-[repeat(auto-fill,minmax(90px,1fr))] gap-0">
               {renderBtn('qa-leave-queue', safeRoute('leave-requests.index', '/leave-requests'), <CheckSquare strokeWidth={1.6} />, 'Leave Approval Queue')}
+              {renderBtn('qa-leave-settings', safeRoute('payroll.leave-settings', '/payroll/leave-settings'), <Settings strokeWidth={1.6} />, 'Client Leave Settings')}
             </div>
           </div>
         )}

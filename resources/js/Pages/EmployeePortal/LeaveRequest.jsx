@@ -7,8 +7,9 @@ import Button from '../../Components/ui/Button';
 import Badge from '../../Components/ui/Badge';
 import Pagination from '../../Components/ui/Pagination';
 import useToast from '../../Hooks/useToast.jsx';
+import { Calendar, CheckCircle2, Info, AlertCircle, Clock } from 'lucide-react';
 
-export default function LeaveRequest({ employee, leaveRequests }) {
+export default function LeaveRequest({ employee, leaveRequests, leaveBalances = [] }) {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const { showToast } = useToast();
 
@@ -60,21 +61,71 @@ export default function LeaveRequest({ employee, leaveRequests }) {
         return type.charAt(0).toUpperCase() + type.slice(1) + ' Leave';
     };
 
+    // Helper to get remaining balance for a leave type
+    const getBalanceForType = (type) => {
+        return leaveBalances.find(b => b.policy?.leave_type === type) || null;
+    };
+
+    const selectedBalance = getBalanceForType(data.leave_type);
+
     return (
         <RoleGuard allowedRoles={['admin', 'manager', 'employee']}>
             <AuthenticatedLayout>
                 <Head title="Leave Request" />
                 
-                <div className="flex-row-between">
+                <div className="flex justify-between items-center mb-6">
                     <div>
-                        <h2>My Leave Requests</h2>
-                        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Submit leave applications, track approval states, and review historical logs.</p>
+                        <h2 className="text-2xl font-bold text-[#1F3864]">My Leave Requests</h2>
+                        <p className="text-gray-500 text-sm">Submit leave applications, track approval states, and review historical logs.</p>
                     </div>
-                    <Button onClick={() => setIsModalOpen(true)}>➕ Apply for Leave</Button>
+                    <Button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2">
+                        ➕ Apply for Leave
+                    </Button>
                 </div>
 
-                <div className="card" style={{ marginTop: '2rem' }}>
-                    <h3 className="card-title" style={{ marginBottom: '1rem' }}>My Leave Request History</h3>
+                {/* Remaining Leave Balance Summary Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    {['casual', 'sick', 'earned'].map((type) => {
+                        const bal = getBalanceForType(type);
+                        const allocated = bal ? parseFloat(bal.allocated_days) : 12;
+                        const remaining = bal ? parseFloat(bal.remaining_days) : allocated;
+                        const used = bal ? parseFloat(bal.used_days) : 0;
+                        const carried = bal ? parseFloat(bal.carried_over_days) : 0;
+                        const title = type === 'casual' ? 'Casual Leave (CL)' : type === 'sick' ? 'Sick Leave (SL)' : 'Earned Leave (EL)';
+                        const cardBg = type === 'casual' ? 'border-sky-200 bg-sky-50/30' : type === 'sick' ? 'border-amber-200 bg-amber-50/30' : 'border-emerald-200 bg-emerald-50/30';
+                        const textAccent = type === 'casual' ? 'text-sky-700' : type === 'sick' ? 'text-amber-700' : 'text-emerald-700';
+
+                        return (
+                            <div key={type} className={`bg-white border ${cardBg} rounded-xl p-5 shadow-sm space-y-3 relative overflow-hidden`}>
+                                <div className="flex justify-between items-center">
+                                    <span className={`text-xs font-bold uppercase tracking-wider ${textAccent}`}>
+                                        {title}
+                                    </span>
+                                    <span className="text-xs text-gray-500 font-medium">Year {new Date().getFullYear()}</span>
+                                </div>
+
+                                <div className="flex items-baseline space-x-2">
+                                    <span className={`text-3xl font-extrabold ${remaining > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                        {remaining}
+                                    </span>
+                                    <span className="text-sm font-semibold text-gray-500">
+                                        / {allocated + carried} Days Remaining
+                                    </span>
+                                </div>
+
+                                <div className="flex justify-between text-xs text-gray-500 border-t border-gray-100 pt-3">
+                                    <span>Allocated: <strong className="text-gray-800">{allocated}d</strong></span>
+                                    {carried > 0 && <span>Carried: <strong className="text-gray-800">{carried}d</strong></span>}
+                                    <span>Used: <strong className="text-amber-700">{used}d</strong></span>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+
+                {/* History Table */}
+                <div className="card">
+                    <h3 className="card-title mb-4">My Leave Request History</h3>
                     
                     <div className="table-responsive">
                         <table className="data-table">
@@ -92,7 +143,7 @@ export default function LeaveRequest({ employee, leaveRequests }) {
                             <tbody>
                                 {leaveRequests.data.length === 0 ? (
                                     <tr>
-                                        <td colSpan="7" style={{ textAlign: 'center' }}>No leave requests found.</td>
+                                        <td colSpan="7" className="text-center py-8 text-gray-500">No leave requests found.</td>
                                     </tr>
                                 ) : (
                                     leaveRequests.data.map(req => (
@@ -119,7 +170,7 @@ export default function LeaveRequest({ employee, leaveRequests }) {
                         </table>
                     </div>
                     {leaveRequests.total > 0 && (
-                        <div style={{ marginTop: '1.5rem' }}>
+                        <div className="mt-6">
                             <Pagination 
                                 currentPage={leaveRequests.current_page}
                                 totalPages={leaveRequests.last_page}
@@ -133,25 +184,41 @@ export default function LeaveRequest({ employee, leaveRequests }) {
                     )}
                 </div>
 
+                {/* Apply Modal */}
                 <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Apply for Leave">
                     <form onSubmit={submitLeave} className="form-grid">
                         <div className="form-group">
-                            <label>Leave Type</label>
+                            <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Leave Type</label>
                             <select 
                                 className="form-control" 
                                 value={data.leave_type} 
                                 onChange={e => setData('leave_type', e.target.value)}
                             >
-                                <option value="casual">Casual Leave (CL)</option>
-                                <option value="sick">Sick Leave (SL)</option>
-                                <option value="earned">Earned Leave (EL)</option>
-                                <option value="unpaid">Loss of Pay (LOP)</option>
+                                {['casual', 'sick', 'earned', 'unpaid'].map(t => {
+                                    const b = getBalanceForType(t);
+                                    const rem = b ? parseFloat(b.remaining_days) : (t === 'unpaid' ? 'Unlimited' : 12);
+                                    const label = t === 'casual' ? `Casual Leave (CL) — ${rem} days available`
+                                        : t === 'sick' ? `Sick Leave (SL) — ${rem} days available`
+                                        : t === 'earned' ? `Earned Leave (EL) — ${rem} days available`
+                                        : `Loss of Pay (LOP) — Unpaid`;
+                                    return <option key={t} value={t}>{label}</option>;
+                                })}
                             </select>
                             {errors.leave_type && <span className="error-text">{errors.leave_type}</span>}
                         </div>
 
+                        {selectedBalance && (
+                            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center justify-between text-xs text-emerald-800 col-span-full">
+                                <div className="flex items-center space-x-2">
+                                    <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                                    <span>Available Balance for selected leave type:</span>
+                                </div>
+                                <strong className="text-emerald-700 font-bold">{selectedBalance.remaining_days} Days</strong>
+                            </div>
+                        )}
+
                         <div className="form-group">
-                            <label>From Date</label>
+                            <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">From Date</label>
                             <input 
                                 type="date" 
                                 className="form-control" 
@@ -162,7 +229,7 @@ export default function LeaveRequest({ employee, leaveRequests }) {
                         </div>
 
                         <div className="form-group">
-                            <label>To Date</label>
+                            <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">To Date</label>
                             <input 
                                 type="date" 
                                 className="form-control" 
@@ -173,7 +240,7 @@ export default function LeaveRequest({ employee, leaveRequests }) {
                         </div>
 
                         <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                            <label>Reason Description</label>
+                            <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Reason Description</label>
                             <textarea 
                                 className="form-control" 
                                 rows="3" 
