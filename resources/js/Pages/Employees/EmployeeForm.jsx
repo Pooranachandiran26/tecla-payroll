@@ -314,6 +314,32 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     clearErrorMsg(field);
+
+    // Instant live real-time validation triggers on type
+    if (field === 'firstName') validateFirstName(value);
+    if (field === 'lastName') validateLastName(value);
+    if (field === 'fatherName') validateFatherName(value);
+    if (field === 'gender') validateGender(value);
+    if (field === 'dob') validateDob(value);
+    if (field === 'clientPartner') validateClientPartner(value);
+    if (field === 'branchPartner') validateBranchPartner(value);
+    if (field === 'designation') validateDesignation(value);
+    if (field === 'doj') validateDoj(value);
+    if (field === 'address') validateAddress(value);
+    if (field === 'accountNo') validateAccountNo(value);
+    if (field === 'accountHolder') validateAccountHolder(value);
+    if (field === 'pan') validatePAN(value);
+    if (field === 'basicSal' || field === 'hraSal' || field === 'conveyanceSal' || field === 'daSal' || field === 'medicalSal' || field === 'specialSal' || field === 'otherSal') {
+      const b = field === 'basicSal' ? value : formData.basicSal;
+      const h = field === 'hraSal' ? value : formData.hraSal;
+      const c = field === 'conveyanceSal' ? value : formData.conveyanceSal;
+      const d = field === 'daSal' ? value : formData.daSal;
+      const m = field === 'medicalSal' ? value : formData.medicalSal;
+      const s = field === 'specialSal' ? value : formData.specialSal;
+      const o = field === 'otherSal' ? value : formData.otherSal;
+      const calcGross = Number(b || 0) + Number(h || 0) + Number(c || 0) + Number(d || 0) + Number(m || 0) + Number(s || 0) + Number(o || 0);
+      validateSalaryStructure(b, calcGross);
+    }
   };
 
   // Initialization (URL parse)
@@ -330,9 +356,189 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
     }
   }, []);
 
-  // Sync logic on client change is now handled above.
-
   // Validations
+  const validateFirstName = (val = formData.firstName) => {
+    const text = (val || '').trim();
+    if (!text) {
+      setErrorMsg('firstName', '⛔ First name is required.');
+      addBlocker('First name is required');
+      return false;
+    }
+    if (text.length < 2) {
+      setErrorMsg('firstName', '⛔ First name must be at least 2 letters.');
+      addBlocker('First name is required');
+      return false;
+    }
+    clearErrorMsg('firstName');
+    removeBlocker('First name is required');
+    return true;
+  };
+
+  const validateLastName = (val = formData.lastName) => {
+    const text = (val || '').trim();
+    if (!text) {
+      setErrorMsg('lastName', '⛔ Last name is required.');
+      addBlocker('Last name is required');
+      return false;
+    }
+    clearErrorMsg('lastName');
+    removeBlocker('Last name is required');
+    return true;
+  };
+
+  const validateFatherName = (val = formData.fatherName) => {
+    const text = (val || '').trim();
+    if (!text) {
+      setErrorMsg('fatherName', '⛔ Father\'s name is required.');
+      addBlocker('Father\'s name is required');
+      return false;
+    }
+    if (text.length < 2) {
+      setErrorMsg('fatherName', '⛔ Father\'s name must be at least 2 characters.');
+      addBlocker('Father\'s name is required');
+      return false;
+    }
+    clearErrorMsg('fatherName');
+    removeBlocker('Father\'s name is required');
+    return true;
+  };
+
+  const validateGender = (val = formData.gender) => {
+    if (!val) {
+      setErrorMsg('gender', '⛔ Gender selection is required.');
+      addBlocker('Gender is required');
+      return false;
+    }
+    clearErrorMsg('gender');
+    removeBlocker('Gender is required');
+    return true;
+  };
+
+  const validateDob = (val = formData.dob) => {
+    if (isAdd && !val) {
+      setErrorMsg('dob', '⛔ Date of Birth is required.');
+      addBlocker('Date of Birth is required');
+      return false;
+    }
+    clearErrorMsg('dob');
+    removeBlocker('Date of Birth is required');
+    validateAgeAtJoining();
+    return true;
+  };
+
+  const validateClientPartner = (val = formData.clientPartner) => {
+    if (isAdd && !val) {
+      setErrorMsg('clientPartner', '⛔ Client Partner selection is required.');
+      addBlocker('Client Partner is required');
+      return false;
+    }
+    clearErrorMsg('clientPartner');
+    removeBlocker('Client Partner is required');
+    return true;
+  };
+
+  const validateBranchPartner = (val = formData.branchPartner) => {
+    if (activeClientDefaults?.branches?.length > 0 && !val) {
+      setErrorMsg('branchPartner', '⛔ Work location / Branch is required.');
+      addBlocker('Branch is required');
+      return false;
+    }
+    clearErrorMsg('branchPartner');
+    removeBlocker('Branch is required');
+    return true;
+  };
+
+  const validateDesignation = (val = formData.designation) => {
+    const text = (val || '').trim();
+    if (!text) {
+      setErrorMsg('designation', '⛔ Designation is required.');
+      addBlocker('Designation is required');
+      return false;
+    }
+    clearErrorMsg('designation');
+    removeBlocker('Designation is required');
+    return true;
+  };
+
+  const validateDoj = (val = formData.doj) => {
+    if (!val) {
+      setErrorMsg('doj', '⛔ Date of Joining is required.');
+      addBlocker('Date of Joining is required');
+      return false;
+    }
+    clearErrorMsg('doj');
+    removeBlocker('Date of Joining is required');
+    validateAgeAtJoining();
+    return true;
+  };
+
+  const validateAddress = (val = formData.address) => {
+    const text = (val || '').trim();
+    if (!text) {
+      setErrorMsg('address', '⛔ Residential address is required.');
+      addBlocker('Residential address is required');
+      return false;
+    }
+    if (text.length < 5) {
+      setErrorMsg('address', '⛔ Residential address must be at least 5 characters.');
+      addBlocker('Residential address is required');
+      return false;
+    }
+    clearErrorMsg('address');
+    removeBlocker('Residential address is required');
+    return true;
+  };
+
+  const validateAccountNo = (val = formData.accountNo) => {
+    if (isActive) return true;
+    const text = (val || '').trim();
+    if (!text) {
+      setErrorMsg('accountNo', '⛔ Bank account number is required.');
+      addBlocker('Bank account number is required');
+      return false;
+    }
+    if (!/^\d{9,18}$/.test(text)) {
+      setErrorMsg('accountNo', '⛔ Bank account number must be 9 to 18 numeric digits.');
+      addBlocker('Bank account number is required');
+      return false;
+    }
+    clearErrorMsg('accountNo');
+    removeBlocker('Bank account number is required');
+    return true;
+  };
+
+  const validateAccountHolder = (val = formData.accountHolder) => {
+    if (isActive) return true;
+    const text = (val || '').trim();
+    if (!text) {
+      setErrorMsg('accountHolder', '⛔ Account holder name is required.');
+      addBlocker('Account holder name is required');
+      return false;
+    }
+    clearErrorMsg('accountHolder');
+    removeBlocker('Account holder name is required');
+    return true;
+  };
+
+  const validateSalaryStructure = (basicVal = formData.basicSal, totalGross = grossCTC) => {
+    if (isActive) return true;
+    const basicNum = Number(basicVal);
+    if (!basicVal || isNaN(basicNum) || basicNum <= 0) {
+      setErrorMsg('basicSal', '⛔ Basic Pay is mandatory and must be greater than 0.');
+      addBlocker('Salary structure is mandatory');
+      return false;
+    }
+    if (totalGross <= 0) {
+      setErrorMsg('basicSal', '⛔ Total Salary Structure (Gross CTC) must be greater than 0.');
+      addBlocker('Salary structure is mandatory');
+      return false;
+    }
+    clearErrorMsg('basicSal');
+    removeBlocker('Salary structure is mandatory');
+    validateBasicPct();
+    return true;
+  };
+
   const validateNameFields = () => {
     const currentFull = `${formData.firstName || ''} ${formData.lastName || ''}`.trim();
     const originalName = employee ? (employee.data?.full_name || employee.full_name) : null;
@@ -382,31 +588,36 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
     }
   };
 
-  const validatePersonalEmail = async () => {
-    if (!formData.personalEmail) {
+  const validatePersonalEmail = async (val = formData.personalEmail) => {
+    const text = (val || '').trim();
+    if (!text) {
       setErrorMsg('personalEmail', '⛔ Personal email is required.', 'error');
       addBlocker('Personal email is required and must be valid');
-      return;
+      return false;
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.personalEmail)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text)) {
       setErrorMsg('personalEmail', '⛔ Enter a valid email address.', 'error');
       addBlocker('Personal email is required and must be valid');
-      return;
+      return false;
     }
+    clearErrorMsg('personalEmail');
     removeBlocker('Personal email is required and must be valid');
-    await checkLiveUniqueness('personal_email', formData.personalEmail);
+    await checkLiveUniqueness('personal_email', text);
+    return true;
   };
 
-  const validatePhone = async () => {
+  const validatePhone = async (val = formData.phone) => {
     setPhoneDupChoiceVisible(false);
     removeBlocker('Phone number must be exactly 10 digits');
-    if (!formData.phone || !/^\d{10}$/.test(formData.phone)) {
+    const text = (val || '').trim();
+    if (!text || !/^\d{10}$/.test(text)) {
       setErrorMsg('phone', '⛔ Phone number must be exactly 10 digits.', 'error');
       addBlocker('Phone number must be exactly 10 digits');
-      return;
+      return false;
     }
     clearErrorMsg('phone');
-    await checkLiveUniqueness('phone_number', formData.phone);
+    await checkLiveUniqueness('phone_number', text);
+    return true;
   };
 
   const acceptDuplicatePhone = () => {
@@ -421,26 +632,34 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
 
   const validateAccountMatch = () => {
     removeBlocker('Account numbers do not match');
-    if (!formData.accountNo || !formData.accountNoConfirm) return;
+    if (!formData.accountNo || !formData.accountNoConfirm) return true;
     if (formData.accountNo !== formData.accountNoConfirm) {
       setErrorMsg('accountNoConfirm', '⛔ Account numbers do not match.', 'error');
       addBlocker('Account numbers do not match');
+      return false;
     }
+    clearErrorMsg('accountNoConfirm');
+    return true;
   };
 
-  const validateIFSC = async () => {
+  const validateIFSC = async (val = formData.ifsc) => {
     removeBlocker('IFSC code format is invalid');
     removeBlocker('IFSC code not found');
-    if (!formData.ifsc) {
+    if (!val) {
+      if (!isActive) {
+        setErrorMsg('ifsc', '⛔ IFSC code is required.', 'error');
+        addBlocker('IFSC code format is invalid');
+        return false;
+      }
       setFormData(prev => ({ ...prev, bankName: '', bankBranch: '' }));
-      return;
+      return true;
     }
-    const ifscUpper = formData.ifsc.toUpperCase();
+    const ifscUpper = val.toUpperCase();
     if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifscUpper)) {
       setErrorMsg('ifsc', '⛔ IFSC must be 4 letters + 0 + 6 alphanumeric chars (e.g. HDFC0000060).', 'error');
       addBlocker('IFSC code format is invalid');
       setFormData(prev => ({ ...prev, bankName: '', bankBranch: '' }));
-      return;
+      return false;
     }
     
     try {
@@ -448,26 +667,34 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       if (res.data) {
         setFormData(prev => ({ ...prev, bankName: res.data.BANK, bankBranch: res.data.BRANCH }));
         setErrorMsg('ifsc', '✅ Verified', 'success');
+        return true;
       }
     } catch (err) {
       setFormData(prev => ({ ...prev, bankName: '', bankBranch: '' }));
       setErrorMsg('ifsc', '⛔ Invalid IFSC code or not found.', 'error');
       addBlocker('IFSC code not found');
+      return false;
     }
   };
 
-  const validatePAN = () => {
+  const validatePAN = (val = formData.pan) => {
     removeBlocker('PAN format is invalid');
-    if (!formData.pan) return;
+    const text = (val || '').trim();
+    if (!text) {
+      setErrorMsg('pan', '⛔ PAN Number is required.', 'error');
+      addBlocker('PAN format is invalid');
+      return false;
+    }
     
-    if (!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(formData.pan.toUpperCase())) {
+    if (!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(text.toUpperCase())) {
       setErrorMsg('pan', '⛔ Invalid PAN format. Must be 5 letters + 4 digits + 1 letter (e.g. ABCDE1234F).', 'error');
       addBlocker('PAN format is invalid');
-      return;
+      return false;
     }
     // Real duplicate PAN checks happen server-side via SHA-256 hash uniqueness.
     clearErrorMsg('pan');
     validateNameFields();
+    return true;
   };
 
   const validateBasicPct = () => {
@@ -522,20 +749,33 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
     if (processing) return;
     setProcessing(true);
     
-    validatePersonalEmail();
-    validatePhone();
-    validatePAN();
+    // Execute all live validations instantly
+    const v1 = validateFirstName();
+    const v2 = validateLastName();
+    const v3 = validateFatherName();
+    const v4 = validateGender();
+    const v5 = await validatePersonalEmail();
+    const v6 = await validatePhone();
+    const v7 = validateDesignation();
+    const v8 = validateDoj();
+    const v9 = validateAddress();
+    const v10 = isAdd ? validateDob() : true;
+    const v11 = isAdd ? validateClientPartner() : true;
+    const v12 = !isActive ? validateAccountNo() : true;
+    const v13 = !isActive ? validateAccountHolder() : true;
+    const v14 = !isActive ? validateSalaryStructure() : true;
     validateAccountMatch();
     await validateIFSC();
+    validatePAN();
     validateBasicPct();
     validateAgeAtJoining();
 
-    if (blockingErrors.size > 0) {
+    if (!v1 || !v2 || !v3 || !v4 || !v5 || !v6 || !v7 || !v8 || !v9 || !v10 || !v11 || !v12 || !v13 || !v14 || blockingErrors.size > 0) {
       setProcessing(false);
       showToast({ 
         type: 'error', 
-        title: 'Cannot Save Employee', 
-        message: 'Please resolve the blocking errors indicated in the form fields before saving.' 
+        title: 'Validation Failed', 
+        message: 'Please resolve the highlighted red validation errors in the form fields before saving.' 
       });
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
@@ -670,7 +910,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                   <div className="form-group">
                     <label>Father's Name <span style={{ color: "var(--status-danger)" }}>*</span></label>
                     <input type="text" className={`form-control ${errors.fatherName ? `is-${errors.fatherName.type || 'error'}` : ''}`} value={formData.fatherName}
-                      onChange={e => handleInputChange('fatherName', e.target.value)} required />
+                      onChange={e => handleInputChange('fatherName', e.target.value)} onBlur={e => validateFatherName(e.target.value)} required />
                     {errors.fatherName && <div className={`field-msg ${errors.fatherName.type || 'error'} show`}>{errors.fatherName.msg}</div>}
 
                     {nameChangeUploadVisible && (
@@ -705,19 +945,22 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                     <div className="form-group">
                       <label>Date of Birth <span style={{ color: "var(--status-danger)" }}>*</span></label>
                       <input type="date" max={maxDobDate} className={`form-control ${errors.dob ? `is-${errors.dob.type || 'error'}` : ''}`} value={formData.dob}
-                        onChange={e => { handleInputChange('dob', e.target.value); validateAgeAtJoining(); }} required />
+                        onChange={e => { handleInputChange('dob', e.target.value); validateAgeAtJoining(); }} onBlur={e => validateDob(e.target.value)} required />
                       {errors.dob && <div className={`field-msg ${errors.dob.type || 'error'} show`}>{errors.dob.msg}</div>}
                     </div>
                   )}
 
                   <div className="form-group">
-                    <label>Gender</label>
-                    <select className="form-control" value={formData.gender} onChange={e => handleInputChange('gender', e.target.value)}>
+                    <label>Gender <span style={{ color: "var(--status-danger)" }}>*</span></label>
+                    <select className={`form-control ${errors.gender ? `is-${errors.gender.type || 'error'}` : ''}`} value={formData.gender}
+                      onChange={e => { handleInputChange('gender', e.target.value); validateGender(e.target.value); }}
+                      onBlur={e => validateGender(e.target.value)} required>
                       <option value="">-- Select --</option>
                       <option value="male">Male</option>
                       <option value="female">Female</option>
                       <option value="other">Other</option>
                     </select>
+                    {errors.gender && <div className={`field-msg ${errors.gender.type || 'error'} show`}>{errors.gender.msg}</div>}
                   </div>
 
                   <div className="form-group">
@@ -783,31 +1026,40 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                   {isAdd && (
                     <div className="form-group">
                       <label>Client Partner <span style={{ color: "var(--status-danger)" }}>*</span></label>
-                      <select className="form-control" value={formData.clientPartner} onChange={e => handleInputChange('clientPartner', e.target.value)} disabled={isActive} required>
+                      <select className={`form-control ${errors.clientPartner ? `is-${errors.clientPartner.type || 'error'}` : ''}`} value={formData.clientPartner}
+                        onChange={e => { handleInputChange('clientPartner', e.target.value); validateClientPartner(e.target.value); }}
+                        onBlur={e => validateClientPartner(e.target.value)} disabled={isActive} required>
                         <option value="">-- Select Client --</option>
                         {clients && clients.map(c => (
                           <option key={c.id} value={c.id}>{c.company_name}</option>
                         ))}
                       </select>
+                      {errors.clientPartner && <div className={`field-msg ${errors.clientPartner.type || 'error'} show`}>{errors.clientPartner.msg}</div>}
                     </div>
                   )}
 
                   {formData.clientPartner && activeClientDefaults?.branches && activeClientDefaults.branches.length > 0 && (
                     <div className="form-group">
                       <label>Work Location / Branch <span style={{ color: "var(--status-danger)" }}>*</span></label>
-                      <select className="form-control" value={formData.branchPartner} onChange={e => handleInputChange('branchPartner', e.target.value)} required>
+                      <select className={`form-control ${errors.branchPartner ? `is-${errors.branchPartner.type || 'error'}` : ''}`} value={formData.branchPartner}
+                        onChange={e => { handleInputChange('branchPartner', e.target.value); validateBranchPartner(e.target.value); }}
+                        onBlur={e => validateBranchPartner(e.target.value)} required>
                         {activeClientDefaults.branches.map(b => (
                           <option key={b.id} value={b.id}>
                             {b.name} ({b.state || 'Head Office'}) {b.is_head_office ? '★ Primary' : ''}
                           </option>
                         ))}
                       </select>
+                      {errors.branchPartner && <div className={`field-msg ${errors.branchPartner.type || 'error'} show`}>{errors.branchPartner.msg}</div>}
                     </div>
                   )}
 
                   <div className="form-group">
                     <label>Designation <span style={{ color: "var(--status-danger)" }}>*</span></label>
-                    <input type="text" className="form-control" value={formData.designation} onChange={e => handleInputChange('designation', e.target.value)} required />
+                    <input type="text" className={`form-control ${errors.designation ? `is-${errors.designation.type || 'error'}` : ''}`} value={formData.designation}
+                      onChange={e => { handleInputChange('designation', e.target.value); validateDesignation(e.target.value); }}
+                      onBlur={e => validateDesignation(e.target.value)} required />
+                    {errors.designation && <div className={`field-msg ${errors.designation.type || 'error'} show`}>{errors.designation.msg}</div>}
                   </div>
                 </div>
 
@@ -816,7 +1068,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                   <div className="form-group">
                       <label>Date of Joining <span style={{ color: "var(--status-danger)" }}>*</span></label>
                       <input type="date" className={`form-control ${isActive ? 'read-only-field' : ''} ${errors.doj ? `is-${errors.doj.type || 'error'}` : ''}`} value={formData.doj}
-                        onChange={e => { handleInputChange('doj', e.target.value); validateAgeAtJoining(); }} readOnly={isActive} required />
+                        onChange={e => { handleInputChange('doj', e.target.value); validateAgeAtJoining(); }} onBlur={e => validateDoj(e.target.value)} readOnly={isActive} required />
                       {errors.doj && <div className={`field-msg ${errors.doj.type || 'error'} show`}>{errors.doj.msg}</div>}
                     </div>
                     <div className="form-group">
@@ -866,7 +1118,16 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                     </div>
                   <div className="form-group" style={{ flex: 1 }}>
                     <label>Residential Address <span style={{ color: "var(--status-danger)" }}>*</span></label>
-                    <input type="text" className="form-control" value={formData.address} onChange={e => handleInputChange('address', e.target.value)} required />
+                    <textarea
+                      className={`form-control ${errors.address ? `is-${errors.address.type || 'error'}` : ''}`}
+                      rows={3}
+                      value={formData.address}
+                      onChange={e => { handleInputChange('address', e.target.value); validateAddress(e.target.value); }}
+                      onBlur={e => validateAddress(e.target.value)}
+                      placeholder="Enter complete residential address..."
+                      required
+                    />
+                    {errors.address && <div className={`field-msg ${errors.address.type || 'error'} show`}>{errors.address.msg}</div>}
                   </div>
                 </div>
 
@@ -985,7 +1246,8 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                       <div className="form-group">
                         <label>Account Number <span style={{ color: "var(--status-danger)" }}>*</span></label>
                         <input type="text" className={`form-control ${errors.accountNo ? `is-${errors.accountNo.type || 'error'}` : ''}`} value={formData.accountNo}
-                          onChange={e => handleInputChange('accountNo', e.target.value)} onBlur={validateAccountMatch} required />
+                          onChange={e => { handleInputChange('accountNo', e.target.value); validateAccountNo(e.target.value); }} onBlur={e => { validateAccountNo(e.target.value); validateAccountMatch(); }} required />
+                        {errors.accountNo && <div className={`field-msg ${errors.accountNo.type || 'error'} show`}>{errors.accountNo.msg}</div>}
                       </div>
                       <div className="form-group" style={{ marginBottom: "0" }}>
                         <label>Confirm Account Number <span style={{ color: "var(--status-danger)" }}>*</span></label>
@@ -1015,7 +1277,9 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                       </div>
                       <div className="form-group">
                         <label>Account Holder Name <span style={{ color: "var(--status-danger)" }}>*</span></label>
-                        <input type="text" className="form-control" value={formData.accountHolder} onChange={e => handleInputChange('accountHolder', e.target.value)} required />
+                        <input type="text" className={`form-control ${errors.accountHolder ? `is-${errors.accountHolder.type || 'error'}` : ''}`} value={formData.accountHolder}
+                          onChange={e => { handleInputChange('accountHolder', e.target.value); validateAccountHolder(e.target.value); }} onBlur={e => validateAccountHolder(e.target.value)} required />
+                        {errors.accountHolder && <div className={`field-msg ${errors.accountHolder.type || 'error'} show`}>{errors.accountHolder.msg}</div>}
                       </div>
                     </div>
                   </div>
@@ -1055,7 +1319,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
 
                 {/* 4. SALARY STRUCTURE */}
                 <h3 style={{ borderBottom: "1px solid var(--border-color)", paddingBottom: "0.5rem", marginTop: "2rem", marginBottom: "1.25rem", fontSize: "1.05rem" }}>
-                  Salary Structure &amp; Compensation (Monthly)
+                  Salary Structure &amp; Compensation (Monthly) <span style={{ color: "var(--status-danger)" }}>*</span>
                 </h3>
 
                 {isActive ? (
@@ -1068,9 +1332,9 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                     <h4 style={{ fontSize: "0.95rem", color: "var(--primary-navy)", marginBottom: "1rem" }}>Earnings Breakdown</h4>
                     <div className="form-row">
                       <div className="form-group">
-                        <label>1. Basic Pay (₹)</label>
+                        <label>1. Basic Pay (₹) <span style={{ color: "var(--status-danger)" }}>*</span></label>
                         <input type="number" className={`form-control ${errors.basicSal ? `is-${errors.basicSal.type || 'error'}` : ''}`} value={formData.basicSal}
-                          onChange={e => handleInputChange('basicSal', e.target.value)} onWheel={e => e.target.blur()} onBlur={validateBasicPct} min="0" required />
+                          onChange={e => handleInputChange('basicSal', e.target.value)} onWheel={e => e.target.blur()} onBlur={e => validateSalaryStructure(e.target.value, grossCTC)} min="0" required />
                         {errors.basicSal && <div className={`field-msg ${errors.basicSal.type || 'error'} show`}>{errors.basicSal.msg}</div>}
                       </div>
                       <div className="form-group">
