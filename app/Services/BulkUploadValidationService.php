@@ -20,6 +20,8 @@ class BulkUploadValidationService
 
     public function validateFile($filePath)
     {
+        @set_time_limit(600);
+        @ini_set('memory_limit', '512M');
         $reader = SimpleExcelReader::create($filePath);
         
         $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
@@ -37,6 +39,19 @@ class BulkUploadValidationService
             'rows' => []
         ];
 
+        // Pre-fetch all DB uniqueness hashtables in single queries (O(1) lookup time)
+        $existingEmpCodes = array_fill_keys(Employee::pluck('employee_code')->filter()->all(), true);
+        $existingEmails = array_fill_keys(Employee::pluck('personal_email')->filter()->all(), true);
+        $existingUserEmails = array_fill_keys(\App\Models\User::pluck('email')->filter()->all(), true);
+        $existingPhones = array_fill_keys(Employee::pluck('phone_number')->filter()->all(), true);
+        $existingBankHashes = array_fill_keys(Employee::whereNotNull('bank_account_hash')->pluck('bank_account_hash')->filter()->all(), true);
+        $existingPanHashes = array_fill_keys(Employee::whereNotNull('pan_number_hash')->pluck('pan_number_hash')->filter()->all(), true);
+        $existingAadhaarHashes = array_fill_keys(Employee::whereNotNull('aadhaar_number_hash')->pluck('aadhaar_number_hash')->filter()->all(), true);
+
+        // Pre-fetch all clients and managers
+        $allClients = Client::with('branches')->get()->keyBy('client_code');
+        $allManagers = Employee::select('id', 'employee_code', 'client_id')->get()->keyBy('employee_code');
+
         $seenEmails = [];
         $seenPhones = [];
         $seenPans = [];
@@ -44,12 +59,13 @@ class BulkUploadValidationService
         $seenBankAccounts = [];
         $seenEmpCodes = [];
 
-        $clientsCache = [];
-
         $rowIndex = 1; // Header is usually row 1 in Excel terms, so data starts at row 2, but we'll use a simple counter.
 
         $reader->getRows()->each(function(array $row) use (
-            &$results, &$seenEmpCodes, &$seenEmails, &$seenPhones, &$seenPans, &$seenAadhaars, &$seenBankAccounts, &$clientsCache, &$rowIndex
+            &$results, &$seenEmpCodes, &$seenEmails, &$seenPhones, &$seenPans, &$seenAadhaars, &$seenBankAccounts,
+            $existingEmpCodes, $existingEmails, $existingUserEmails, $existingPhones,
+            $existingBankHashes, $existingPanHashes, $existingAadhaarHashes,
+            $allClients, $allManagers, &$rowIndex
         ) {
             $rowIndex++;
             
@@ -67,12 +83,12 @@ class BulkUploadValidationService
             if (empty($empCode)) {
                 $errors[] = "Mandatory Employee Code is missing.";
             } else {
-                if (in_array($empCode, $seenEmpCodes)) {
+                if (isset($seenEmpCodes[$empCode])) {
                     $errors[] = "Duplicate employee_code '{$empCode}' within this file.";
                 }
-                $seenEmpCodes[] = $empCode;
+                $seenEmpCodes[$empCode] = true;
 
-                if (Employee::where('employee_code', $empCode)->exists()) {
+                if (isset($existingEmpCodes[$empCode])) {
                     $errors[] = "Employee code '{$empCode}' is already registered to another employee in the system.";
                 }
             }
@@ -83,11 +99,7 @@ class BulkUploadValidationService
             if (empty($clientCode)) {
                 $errors[] = "Client Code is required.";
             } else {
-                if (!isset($clientsCache[$clientCode])) {
-                    $clientsCache[$clientCode] = Client::with('branches')->where('client_code', $clientCode)->first();
-                }
-                $client = $clientsCache[$clientCode];
-
+                $client = $allClients->get($clientCode);
                 if (!$client) {
                     $errors[] = "Client code '{$clientCode}' not found.";
                 }
@@ -116,45 +128,68 @@ class BulkUploadValidationService
                 }
             }
 
-            // 4. Intra-file duplicate tracking
+            // 4. Intra-file duplicate tracking & DB uniqueness
             $email = $normalizedRow['personal_email'] ?? null;
             if ($email) {
-                if (in_array($email, $seenEmails)) {
+                if (isset($seenEmails[$email])) {
                     $errors[] = "Duplicate personal_email within this file.";
                 }
-                $seenEmails[] = $email;
+                $seenEmails[$email] = true;
+
+                if (isset($existingEmails[$email]) || isset($existingUserEmails[$email])) {
+                    $errors[] = "The personal email has already been taken.";
+                }
             }
 
             $phone = $normalizedRow['phone_number'] ?? null;
             if ($phone) {
-                if (in_array($phone, $seenPhones)) {
+                if (isset($seenPhones[$phone])) {
                     $errors[] = "Duplicate phone_number within this file.";
                 }
-                $seenPhones[] = $phone;
+                $seenPhones[$phone] = true;
+
+                if (isset($existingPhones[$phone])) {
+                    $errors[] = "The phone number has already been taken.";
+                }
             }
 
             $pan = $normalizedRow['pan_number'] ?? null;
             if ($pan) {
-                if (in_array($pan, $seenPans)) {
+                if (isset($seenPans[$pan])) {
                     $errors[] = "Duplicate pan_number within this file.";
                 }
-                $seenPans[] = $pan;
+                $seenPans[$pan] = true;
+
+                $panHash = hash('sha256', $pan);
+                if (isset($existingPanHashes[$panHash])) {
+                    $errors[] = "This PAN number is already registered to another employee.";
+                }
             }
 
             $aadhaar = $normalizedRow['aadhaar_number'] ?? null;
             if ($aadhaar) {
-                if (in_array($aadhaar, $seenAadhaars)) {
+                if (isset($seenAadhaars[$aadhaar])) {
                     $errors[] = "Duplicate aadhaar_number within this file.";
                 }
-                $seenAadhaars[] = $aadhaar;
+                $seenAadhaars[$aadhaar] = true;
+
+                $aadhaarHash = hash('sha256', $aadhaar);
+                if (isset($existingAadhaarHashes[$aadhaarHash])) {
+                    $errors[] = "This Aadhaar number is already registered to another employee.";
+                }
             }
 
             $bankAcc = $normalizedRow['bank_account_number'] ?? null;
             if ($bankAcc) {
-                if (in_array($bankAcc, $seenBankAccounts)) {
+                if (isset($seenBankAccounts[$bankAcc])) {
                     $errors[] = "Duplicate bank_account_number within this file.";
                 }
-                $seenBankAccounts[] = $bankAcc;
+                $seenBankAccounts[$bankAcc] = true;
+
+                $bankHash = hash('sha256', $bankAcc);
+                if (isset($existingBankHashes[$bankHash])) {
+                    $errors[] = "This bank account is already registered to another employee.";
+                }
             }
 
             // 5. Statutory Inheritance & Fallbacks
@@ -230,11 +265,12 @@ class BulkUploadValidationService
             $reportingManagerId = null;
             if (!empty($normalizedRow['reporting_manager_code'])) {
                 $managerCode = $normalizedRow['reporting_manager_code'];
-                $manager = Employee::where('employee_code', $managerCode)->first();
+                $manager = $allManagers->get($managerCode);
                 if (!$manager) {
                     $errors[] = "Reporting manager code '{$managerCode}' not found.";
                 } elseif ($client && $manager->client_id !== $client->id) {
-                    $managerClientName = $manager->client ? $manager->client->company_name : 'Unknown';
+                    $managerClient = $allClients->first(fn($c) => $c->id === $manager->client_id);
+                    $managerClientName = $managerClient ? $managerClient->company_name : 'Unknown';
                     $errors[] = "Reporting manager '{$managerCode}' belongs to a different client ('{$managerClientName}'). Reporting manager must belong to the same client.";
                 } else {
                     $reportingManagerId = $manager->id;
@@ -312,8 +348,8 @@ class BulkUploadValidationService
 
             $rules = [
                 'full_name' => 'required|string|max:255',
-                'personal_email' => ['required', 'email', 'unique:employees,personal_email', 'unique:users,email'],
-                'phone_number' => 'required|string|max:15|unique:employees,phone_number',
+                'personal_email' => 'required|email',
+                'phone_number' => 'required|string|max:15',
                 'emergency_contact_name' => 'nullable|string|max:255',
                 'emergency_contact_phone' => 'nullable|string|max:15',
                 'date_of_birth' => 'required|date',
@@ -328,46 +364,20 @@ class BulkUploadValidationService
                 'previous_employer_name' => 'nullable|string|max:255',
                 'previous_employer_uan' => 'nullable|digits:12',
                 'probation_end_date' => 'nullable|date',
-                'reporting_manager_id' => 'nullable|exists:employees,id',
                 'esi_contribution_period_end' => 'nullable|date',
                 'declarations_accepted' => 'required|boolean',
                 'residential_address' => 'required|string',
                 
                 // Banking
-                'bank_account_number' => [
-                    'required',
-                    'string',
-                    function ($attribute, $value, $fail) {
-                        if (Employee::where('bank_account_hash', hash('sha256', $value))->exists()) {
-                            $fail('This bank account is already registered to another employee.');
-                        }
-                    }
-                ],
+                'bank_account_number' => 'required|string',
                 'bank_ifsc' => 'required|string|regex:/^[A-Z]{4}0[A-Z0-9]{6}$/',
                 'bank_name' => 'nullable|string',
                 'bank_branch' => 'nullable|string',
                 'account_holder_name' => 'required|string|max:255',
                 
                 // Identity
-                'pan_number' => [
-                    'required',
-                    'string',
-                    'regex:/^[A-Z]{5}[0-9]{4}[A-Z]$/',
-                    function ($attribute, $value, $fail) {
-                        if (Employee::where('pan_number_hash', hash('sha256', $value))->exists()) {
-                            $fail('This PAN number is already registered to another employee.');
-                        }
-                    }
-                ],
-                'aadhaar_number' => [
-                    'nullable',
-                    'string',
-                    function ($attribute, $value, $fail) {
-                        if (Employee::where('aadhaar_number_hash', hash('sha256', $value))->exists()) {
-                            $fail('This Aadhaar number is already registered to another employee.');
-                        }
-                    }
-                ],
+                'pan_number' => 'required|string|regex:/^[A-Z]{5}[0-9]{4}[A-Z]$/',
+                'aadhaar_number' => 'nullable|string',
                 
                 // Statutory
                 'uan_mode' => 'nullable|in:new,existing_transfer',
@@ -513,10 +523,23 @@ class BulkUploadValidationService
 
             if ($status !== 'error') {
                 $dbPayload = $validationData;
-                $dbPayload['client_id'] = $client->id;
+                $dbPayload['client_id'] = $client ? $client->id : null;
                 $dbPayload['branch_id'] = $branchId;
                 $dbPayload['status'] = 'onboarding'; // same as manual creation
-                // Remove client_code or branch_name or reporting_manager_code which are not in Employee table
+                
+                $dbPayload['gross_monthly_salary'] = $salaryPreview['gross_monthly_salary'] ?? 0;
+                $dbPayload['net_take_home_monthly'] = $salaryPreview['net_take_home_monthly'] ?? 0;
+                $dbPayload['employer_pf_monthly'] = $salaryPreview['employer_pf_monthly'] ?? 0;
+                $dbPayload['employer_esi_monthly'] = $salaryPreview['employer_esi_monthly'] ?? 0;
+                $dbPayload['ctc_monthly'] = $salaryPreview['ctc_monthly'] ?? 0;
+
+                $dbPayload['bank_account_hash'] = hash('sha256', (string)($dbPayload['bank_account_number'] ?? ''));
+                $dbPayload['pan_number_hash'] = hash('sha256', (string)($dbPayload['pan_number'] ?? ''));
+                if (!empty($dbPayload['aadhaar_number'])) {
+                    $dbPayload['aadhaar_number_hash'] = hash('sha256', (string)$dbPayload['aadhaar_number']);
+                }
+
+                // Remove non-employee table fields
                 unset($dbPayload['client_code'], $dbPayload['branch_name'], $dbPayload['branch_code'], $dbPayload['reporting_manager_code']);
                 
                 $rowData['db_payload'] = $dbPayload;

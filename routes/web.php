@@ -123,10 +123,16 @@ Route::middleware(['auth', 'active'])->group(function () {
                     return Inertia::render('Employees/EmployeeForm', ['clients' => $clients]);
                 })->name('employees.create');
                 Route::get('/employees/bulk-upload', [BulkUploadController::class, 'showUploadForm'])->name('employees.bulk-upload');
+                Route::get('/employees/bulk-upload/history', [BulkUploadController::class, 'history'])->name('employees.bulk-upload.history');
+                Route::get('/employees/bulk-upload/history/{batchId}/details', [BulkUploadController::class, 'getBatchDetails'])->name('employees.bulk-upload.history.details');
+                Route::get('/employees/bulk-upload/history/{batchId}/download-errors', [BulkUploadController::class, 'downloadHistoryErrors'])->name('employees.bulk-upload.history.download-errors');
                 Route::get('/employees/bulk-upload/download-template', [BulkUploadController::class, 'downloadTemplate'])->name('employees.bulk-upload.download-template');
                 Route::get('/employees/bulk-upload/template', [BulkUploadController::class, 'downloadTemplate'])->name('employees.bulk-upload.template');
                 Route::post('/employees/bulk-upload/validate', [BulkUploadController::class, 'validateUpload'])->name('employees.bulk-upload.validate');
                 Route::post('/employees/bulk-upload/execute', [BulkUploadController::class, 'executeImport'])->name('employees.bulk-upload.execute');
+                Route::post('/employees/bulk-upload/async', [BulkUploadController::class, 'uploadAsync'])->name('employees.bulk-upload.async');
+                Route::get('/employees/bulk-upload/status/{batchId}', [BulkUploadController::class, 'getBatchStatus'])->name('employees.bulk-upload.status');
+                Route::post('/employees/bulk-upload/clear-session', [BulkUploadController::class, 'clearSession'])->name('employees.bulk-upload.clear-session');
                 Route::get('/employees/salary-bulk-update', fn() => Inertia::render('Employees/SalaryBulkUpdate'))->name('employees.salary-bulk-update');
                 Route::get('/employees/salary-revisions-queue', [SalaryRevisionController::class, 'queue'])->name('employees.salary-revisions-queue');
                 Route::get('/employees/{id}', [EmployeeController::class, 'show'])->where('id', '[0-9]+')->name('employees.show');
@@ -192,6 +198,10 @@ Route::middleware(['auth', 'active'])->group(function () {
                 Route::get('/payroll/attendance/context', [AttendanceUploadController::class, 'getContext'])->name('payroll.attendance.context');
                 Route::post('/payroll/attendance/validate', [AttendanceUploadController::class, 'validateUpload'])->name('payroll.attendance.validate');
                 Route::post('/payroll/attendance/upload', [AttendanceUploadController::class, 'executeUpload'])->name('payroll.attendance.upload');
+                Route::post('/payroll/attendance/upload-async', [AttendanceUploadController::class, 'uploadAsync'])->name('payroll.attendance.upload-async');
+                Route::get('/payroll/attendance/history', [AttendanceUploadController::class, 'history'])->name('payroll.attendance.history');
+                Route::get('/payroll/attendance/history/{batchId}/details', [AttendanceUploadController::class, 'getBatchDetails'])->name('payroll.attendance.history.details');
+                Route::get('/payroll/attendance/history/{batchId}/download-errors', [AttendanceUploadController::class, 'downloadHistoryErrors'])->name('payroll.attendance.history.download-errors');
                 
                 Route::get('/payroll/attendance-review', function(\Illuminate\Http\Request $request) {
                     if ($request->user() && $request->user()->role === 'manager' && !$request->user()->hasModulePermission('payroll_attendance_review', 'payroll')) {

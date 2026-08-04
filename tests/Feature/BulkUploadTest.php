@@ -45,19 +45,7 @@ class BulkUploadTest extends TestCase
         $response->assertStatus(200);
         $this->assertEquals(5, Employee::count());
 
-        dump('--- HAPPY PATH: RAW DB ROWS ---');
-        $rawRows = Employee::orderBy('id', 'desc')->take(2)->get()->toArray();
-        dump($rawRows);
-
-        dump('--- HAPPY PATH: VALIDATION PAYLOAD MATCH ---');
         $emp = Employee::where('employee_code', 'EMP-1')->first();
-        dump([
-            'employee_code' => $emp->employee_code,
-            'pan_number_hash_exists' => !empty($emp->pan_number_hash),
-            'employer_pf_monthly' => $emp->employer_pf_monthly,
-            'ctc_monthly' => $emp->ctc_monthly,
-        ]);
-        
         $this->assertNotNull($emp);
         $this->assertEquals(15000, $emp->basic_pay);
         $this->assertNotNull($emp->pan_number_hash);
@@ -68,9 +56,6 @@ class BulkUploadTest extends TestCase
             'action' => 'employee.bulk_imported',
             'user_id' => $this->admin->id
         ]);
-        
-        dump('--- HAPPY PATH: AUDIT LOG ROW ---');
-        dump(\App\Models\AuditLog::where('action', 'employee.bulk_imported')->first()->toArray());
     }
 
     public function test_race_condition_simulation()
@@ -159,8 +144,6 @@ class BulkUploadTest extends TestCase
         $response->assertStatus(422);
         
         $json = $response->json();
-        dump('--- RACE CONDITION JSON RESPONSE ---');
-        dump($json);
         $this->assertEquals('Transaction fully rolled back. Zero employees were created.', $json['message']);
         $this->assertEquals(4, $json['failed_row']); // Row 4 (EMP-3)
 
