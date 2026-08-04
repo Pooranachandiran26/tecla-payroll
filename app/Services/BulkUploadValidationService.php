@@ -516,6 +516,7 @@ class BulkUploadValidationService
                 $dbPayload['client_id'] = $client->id;
                 $dbPayload['branch_id'] = $branchId;
                 $dbPayload['status'] = 'onboarding'; // same as manual creation
+                $dbPayload['entry_source'] = 'bulk_upload';
                 // Remove client_code or branch_name or reporting_manager_code which are not in Employee table
                 unset($dbPayload['client_code'], $dbPayload['branch_name'], $dbPayload['branch_code'], $dbPayload['reporting_manager_code']);
                 
