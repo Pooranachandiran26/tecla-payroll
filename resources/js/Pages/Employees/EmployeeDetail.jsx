@@ -235,53 +235,18 @@ const renderDocumentRows = () => {
       <ConfirmDialog 
         isOpen={deleteDialog.isOpen}
         title="Delete Employee"
-        message={`Are you absolutely sure you want to delete ${employee.full_name}? This action cannot be undone and will soft-delete the employee and all related records.`}
-        onClose={() => setDeleteDialog({ isOpen: false, confirmText: '', reason: '' })}
+        message={`Are you sure you want to delete ${employee.full_name || 'this employee'}? This action cannot be undone and will soft-delete the employee and all related records.`}
+        onClose={() => setDeleteDialog({ isOpen: false })}
         onConfirm={() => {
-          if (deleteDialog.confirmText !== 'DELETE') {
-            alert('Please type DELETE to confirm.');
-            return;
-          }
-          if (deleteDialog.reason.length < 10) {
-            alert('Please provide a reason (min 10 characters).');
-            return;
-          }
           router.delete(route('employees.destroy', employee.id), {
-            data: { confirm_text: deleteDialog.confirmText, reason: deleteDialog.reason },
-            onFinish: () => setDeleteDialog({ isOpen: false, confirmText: '', reason: '' })
+            data: { confirm_text: 'DELETE', reason: 'Deleted by admin via profile' },
+            onFinish: () => setDeleteDialog({ isOpen: false })
           });
         }}
         confirmLabel="Delete Employee"
+        cancelLabel="Cancel"
         variant="danger"
-      >
-        <div className="space-y-4">
-          <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <label style={{ fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
-              Type 'DELETE' to confirm
-            </label>
-            <input 
-              type="text"
-              style={{ width: '100%', padding: '0.5rem', border: '1px solid #D1D5DB', borderRadius: '0.375rem' }}
-              value={deleteDialog.confirmText} 
-              onChange={e => setDeleteDialog(prev => ({ ...prev, confirmText: e.target.value }))}
-              onPaste={e => e.preventDefault()}
-              placeholder="DELETE"
-            />
-          </div>
-          <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <label style={{ fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
-              Reason for Deletion (Min 10 chars)
-            </label>
-            <textarea 
-              style={{ width: '100%', padding: '0.5rem', border: '1px solid #D1D5DB', borderRadius: '0.375rem' }}
-              rows="3"
-              value={deleteDialog.reason}
-              onChange={e => setDeleteDialog(prev => ({ ...prev, reason: e.target.value }))}
-              placeholder="e.g. Contract terminated, offboarding completed..."
-            ></textarea>
-          </div>
-        </div>
-      </ConfirmDialog>
+      />
 
       {/* Resend Invitation Modal */}
       <ConfirmDialog

@@ -597,9 +597,11 @@ class ClientController extends Controller
         $this->authorize('delete', $client);
 
         $request->validate([
-            'confirm_text' => 'required|in:DELETE',
-            'reason' => 'required|string|min:10',
+            'confirm_text' => 'nullable|string',
+            'reason' => 'nullable|string',
         ]);
+
+        $reason = $request->input('reason', 'Deleted by admin via dashboard');
 
         $activeEmployeesCount = $client->employees()->where('status', '!=', 'exited')->count();
         if ($activeEmployeesCount > 0) {

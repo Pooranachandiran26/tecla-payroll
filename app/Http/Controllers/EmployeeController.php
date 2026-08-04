@@ -452,9 +452,11 @@ class EmployeeController extends Controller
         \Illuminate\Support\Facades\Gate::authorize('delete', $employee);
 
         $request->validate([
-            'confirm_text' => 'required|in:DELETE',
-            'reason' => 'required|string|min:10'
+            'confirm_text' => 'nullable|string',
+            'reason' => 'nullable|string'
         ]);
+
+        $reason = $request->input('reason', 'Deleted by admin via dashboard');
 
         // BLOCKING CHECK 1: Pending or incomplete exit
         $inProgressExit = $employee->exitRequest()->where(function($q) {

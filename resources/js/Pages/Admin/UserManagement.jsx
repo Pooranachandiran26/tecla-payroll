@@ -911,31 +911,16 @@ export default function UserManagement({ users = {}, unlinkedEmployees = [], unl
         </Modal>
 
         {/* Delete Account Confirmation Modal */}
-        <Modal
+        <ConfirmDialog
           isOpen={!!deletingUser}
+          title="Delete User Account"
+          message={`Are you sure you want to delete ${deletingUser?.name || 'this user'} (${deletingUser?.email || ''})? This action cannot be undone.`}
           onClose={() => setDeletingUser(null)}
-          title="Confirm Account Deletion"
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.85rem', backgroundColor: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: '8px' }}>
-              <AlertTriangle size={24} style={{ color: '#DC2626', flexShrink: 0 }} />
-              <div>
-                <div style={{ fontWeight: 700, color: '#991B1B', fontSize: '0.9rem' }}>Warning: Permanently Delete Account?</div>
-                <div style={{ fontSize: '0.82rem', color: '#B91C1C', marginTop: '2px' }}>
-                  Are you sure you want to delete account <strong>{deletingUser?.name}</strong> ({deletingUser?.email})? This action cannot be undone.
-                </div>
-              </div>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.5rem' }}>
-              <button type="button" className="btn btn-secondary" onClick={() => setDeletingUser(null)}>
-                Cancel
-              </button>
-              <button type="button" className="btn btn-danger" onClick={handleDeleteUser}>
-                Delete Account
-              </button>
-            </div>
-          </div>
-        </Modal>
+          onConfirm={handleDeleteUser}
+          confirmLabel="Delete Account"
+          cancelLabel="Cancel"
+          variant="danger"
+        />
 
       </AuthenticatedLayout>
     </RoleGuard>
