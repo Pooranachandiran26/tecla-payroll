@@ -299,5 +299,20 @@ class AttendanceResolutionService
             'holiday'        => $natural['holiday'],
         ];
     }
+
+    /**
+     * Check if a specific date is a working day for an employee.
+     * Delegates to resolveDayTypeForEmployee / classifyNaturalDate.
+     *
+     * @param Employee $employee
+     * @param \Carbon\Carbon|string $date
+     * @return bool
+     */
+    public function isWorkingDay(Employee $employee, $date): bool
+    {
+        $resolved = $this->resolveDayTypeForEmployee($employee, $date);
+        return $resolved['effective_type'] === 'work_day';
+    }
 }
+
 

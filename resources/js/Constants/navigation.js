@@ -25,6 +25,7 @@ export const clientNav = [
   { name: 'Dashboard', url: safeRoute('client.dashboard', '/client/dashboard'), key: 'client-dashboard' },
   { name: 'Employees', url: safeRoute('client.employees', '/client/employees'), key: 'client-candidates' },
   { name: 'Attendance', url: safeRoute('client.attendance', '/client/attendance'), key: 'client-attendance' },
+  { name: 'Leave Settings', url: safeRoute('payroll.leave-settings', '/payroll/leave-settings'), key: 'client-leave-settings' },
   { name: 'Invoices', url: safeRoute('client.invoices', '/client/invoices'), key: 'client-invoices' },
 ];
 
@@ -51,12 +52,14 @@ export const subNavs = {
     { name: 'Bank Change Requests', url: safeRoute('employees.bank-change-requests', '/employees/bank-change-requests'), key: 'emp_bank_change' },
     { name: 'Day Swap Requests', url: safeRoute('employees.day-swaps', '/day-swap-requests'), key: 'emp_day_swaps' },
     { name: 'Leave Approval Queue', url: safeRoute('leave-requests.index', '/leave-requests'), key: 'emp_leave_approval' },
+    { name: 'Leave Settings', url: safeRoute('payroll.leave-settings', '/payroll/leave-settings'), key: 'emp_leave_settings' },
     { name: 'Employee Queries', url: safeRoute('admin.employee-queries.index', '/admin/employee-queries'), key: 'emp_queries' },
   ],
   payroll: [
     { name: 'Live Attendance Monitor', url: safeRoute('payroll.live-monitor', '/payroll/live-monitor'), key: 'payroll_live_monitor' },
     { name: 'Attendance Upload', url: safeRoute('payroll.attendance-upload', '/payroll/attendance-upload'), key: 'payroll_attendance_upload' },
     { name: 'Attendance Review', url: safeRoute('payroll.attendance-review', '/payroll/attendance-review'), key: 'payroll_attendance_review' },
+    { name: 'Leave Settings', url: safeRoute('payroll.leave-settings', '/payroll/leave-settings'), key: 'payroll_leave_settings' },
     { name: 'Processing', url: safeRoute('payroll.processing', '/payroll/processing'), key: 'payroll_processing' },
     { name: 'Approval', url: safeRoute('payroll.approval', '/payroll/approval'), key: 'payroll_approval' },
     { name: 'Payslips', url: safeRoute('payroll.payslips', '/payroll/payslips'), key: 'payroll_payslips' },

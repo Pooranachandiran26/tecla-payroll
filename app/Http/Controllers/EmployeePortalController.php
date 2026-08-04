@@ -392,9 +392,24 @@ class EmployeePortalController extends Controller
             ->orderBy('created_at', 'desc')
             ->paginate(30);
 
+        // Ensure client leave policies exist & employee leave balances are synced for current year
+        $leavePolicyService = app(\App\Services\LeavePolicyService::class);
+        if ($employee->client) {
+            if (\App\Models\ClientLeavePolicy::where('client_id', $employee->client_id)->count() === 0) {
+                $leavePolicyService->seedDefaultPolicies($employee->client);
+            }
+            $leavePolicyService->syncClientEmployeesBalances($employee->client, (int)date('Y'));
+        }
+
+        $leaveBalances = \App\Models\EmployeeLeaveBalance::with('policy')
+            ->where('employee_id', $employee->id)
+            ->where('year', (int)date('Y'))
+            ->get();
+
         return Inertia::render('EmployeePortal/LeaveRequest', [
             'employee' => new EmployeeResource($employee),
-            'leaveRequests' => $leaveRequests
+            'leaveRequests' => $leaveRequests,
+            'leaveBalances' => $leaveBalances,
         ]);
     }
 

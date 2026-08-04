@@ -206,6 +206,12 @@ Route::middleware(['auth', 'active'])->group(function () {
                 Route::get('/payroll/attendance/history/{batchId}/download-errors', [AttendanceUploadController::class, 'downloadHistoryErrors'])->name('payroll.attendance.history.download-errors');
                 Route::get('/payroll/attendance/history/{batchId}/download-success', [AttendanceUploadController::class, 'downloadHistorySuccess'])->name('payroll.attendance.history.download-success');
                 
+                // Client & Admin Leave Settings Routes
+                Route::get('/payroll/leave-settings', [\App\Http\Controllers\ClientLeavePolicyController::class, 'index'])->name('payroll.leave-settings');
+                Route::post('/payroll/leave-settings', [\App\Http\Controllers\ClientLeavePolicyController::class, 'store'])->name('payroll.leave-settings.store');
+                Route::put('/payroll/leave-settings/{id}', [\App\Http\Controllers\ClientLeavePolicyController::class, 'update'])->name('payroll.leave-settings.update');
+                Route::post('/payroll/leave-settings/{clientId}/sync', [\App\Http\Controllers\ClientLeavePolicyController::class, 'syncAllEmployees'])->name('payroll.leave-settings.sync');
+
                 Route::get('/payroll/attendance-review', function(\Illuminate\Http\Request $request) {
                     if ($request->user() && $request->user()->role === 'manager' && !$request->user()->hasModulePermission('payroll_attendance_review', 'payroll')) {
                         abort(403, 'You do not have permission to access Attendance Review.');
