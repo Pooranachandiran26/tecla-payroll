@@ -126,6 +126,7 @@ Route::middleware(['auth', 'active'])->group(function () {
                 Route::get('/employees/bulk-upload/history', [BulkUploadController::class, 'history'])->name('employees.bulk-upload.history');
                 Route::get('/employees/bulk-upload/history/{batchId}/details', [BulkUploadController::class, 'getBatchDetails'])->name('employees.bulk-upload.history.details');
                 Route::get('/employees/bulk-upload/history/{batchId}/download-errors', [BulkUploadController::class, 'downloadHistoryErrors'])->name('employees.bulk-upload.history.download-errors');
+                Route::get('/employees/bulk-upload/history/{batchId}/download-success', [BulkUploadController::class, 'downloadHistorySuccess'])->name('employees.bulk-upload.history.download-success');
                 Route::get('/employees/bulk-upload/template', [BulkUploadController::class, 'downloadTemplate'])->name('employees.bulk-upload.template');
                 Route::get('/employees/bulk-upload/download-template', [BulkUploadController::class, 'downloadTemplate'])->name('employees.bulk-upload.download-template');
                 Route::get('/employees/bulk-upload/template', [BulkUploadController::class, 'downloadTemplate'])->name('employees.bulk-upload.template');
@@ -203,6 +204,7 @@ Route::middleware(['auth', 'active'])->group(function () {
                 Route::get('/payroll/attendance/history', [AttendanceUploadController::class, 'history'])->name('payroll.attendance.history');
                 Route::get('/payroll/attendance/history/{batchId}/details', [AttendanceUploadController::class, 'getBatchDetails'])->name('payroll.attendance.history.details');
                 Route::get('/payroll/attendance/history/{batchId}/download-errors', [AttendanceUploadController::class, 'downloadHistoryErrors'])->name('payroll.attendance.history.download-errors');
+                Route::get('/payroll/attendance/history/{batchId}/download-success', [AttendanceUploadController::class, 'downloadHistorySuccess'])->name('payroll.attendance.history.download-success');
                 
                 Route::get('/payroll/attendance-review', function(\Illuminate\Http\Request $request) {
                     if ($request->user() && $request->user()->role === 'manager' && !$request->user()->hasModulePermission('payroll_attendance_review', 'payroll')) {

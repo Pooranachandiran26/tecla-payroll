@@ -582,13 +582,15 @@ class FastBulkUploadService
                 }
 
                 if (count($chunk) >= 100) {
-                    DB::table('employees')->insert($chunk);
+                    $updateCols = array_keys($chunk[0]);
+                    DB::table('employees')->upsert($chunk, ['employee_code'], $updateCols);
                     $chunk = [];
                 }
             }
 
             if (!empty($chunk)) {
-                DB::table('employees')->insert($chunk);
+                $updateCols = array_keys($chunk[0]);
+                DB::table('employees')->upsert($chunk, ['employee_code'], $updateCols);
                 $chunk = [];
             }
 

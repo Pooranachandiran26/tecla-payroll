@@ -362,19 +362,16 @@ class AttendanceUploadValidationService
                 $notes = empty($notes) ? $monthMismatchNote : ($monthMismatchNote . " " . $notes);
             }
 
-            // Only accumulate error/skipped rows for frontend display
-            if ($status !== 'valid') {
-                $rows[] = [
-                    'id' => $rowNo,
-                    'empCode' => $rawEmpCode,
-                    'matchedName' => $matchedName,
-                    'matchType' => $matchType,
-                    'daysPresent' => is_numeric($rawDaysPresent) ? (int) $rawDaysPresent : $rawDaysPresent,
-                    'daysLOP' => is_numeric($rawDaysLOP) ? (int) $rawDaysLOP : $rawDaysLOP,
-                    'status' => $status,
-                    'notes' => $notes,
-                ];
-            }
+            $rows[] = [
+                'id' => $rowNo,
+                'empCode' => $rawEmpCode,
+                'matchedName' => $matchedName,
+                'matchType' => $matchType,
+                'daysPresent' => is_numeric($rawDaysPresent) ? (int) $rawDaysPresent : $rawDaysPresent,
+                'daysLOP' => is_numeric($rawDaysLOP) ? (int) $rawDaysLOP : $rawDaysLOP,
+                'status' => $status,
+                'notes' => $notes,
+            ];
 
             if ($batchId) {
                 $stagingChunks[] = [

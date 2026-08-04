@@ -342,8 +342,23 @@ class BulkUploadController extends Controller
         @set_time_limit(600);
         @ini_set('memory_limit', '512M');
 
+        if ($request->filled('batch_id') && \Illuminate\Support\Facades\DB::table('bulk_upload_staging_rows')->where('batch_id', $request->input('batch_id'))->exists()) {
+            $batchId = $request->input('batch_id');
+            $fastBulkService = app(\App\Services\FastBulkUploadService::class);
+            $importRes = $fastBulkService->executeBatchImport($batchId);
+
+            \Illuminate\Support\Facades\Cache::forget('bulk_upload_session_' . $request->user()->id);
+
+            return response()->json([
+                'success' => true,
+                'message' => "Successfully imported {$importRes['imported_count']} employees.",
+                'summary' => $importRes['client_impacts'],
+                'imported_count' => $importRes['imported_count'],
+            ]);
+        }
+
         $request->validate([
-            'file' => 'required|file|mimes:csv,txt,xlsx,xls|max:102400', // max 100MB
+            'file' => 'required|file|mimes:csv,txt,xlsx,xls|max:102400',
             'partial_import' => 'nullable|boolean',
             'auto_provision_users' => 'nullable|boolean',
         ]);
@@ -437,13 +452,15 @@ class BulkUploadController extends Controller
                     }
 
                     if (count($currentChunk) >= $chunkSize) {
-                        \Illuminate\Support\Facades\DB::table('employees')->insert($currentChunk);
+                        $updateCols = array_keys($currentChunk[0]);
+                        \Illuminate\Support\Facades\DB::table('employees')->upsert($currentChunk, ['employee_code'], $updateCols);
                         $currentChunk = [];
                     }
                 }
 
                 if (!empty($currentChunk)) {
-                    \Illuminate\Support\Facades\DB::table('employees')->insert($currentChunk);
+                    $updateCols = array_keys($currentChunk[0]);
+                    \Illuminate\Support\Facades\DB::table('employees')->upsert($currentChunk, ['employee_code'], $updateCols);
                     $currentChunk = [];
                 }
 
@@ -608,6 +625,8 @@ class BulkUploadController extends Controller
                 \App\Jobs\ProvisionBulkUploadUsersJob::dispatch($importRes['employee_ids'], $request->user()->id);
             }
 
+            \Illuminate\Support\Facades\Cache::forget('bulk_upload_session_' . $request->user()->id);
+
             return response()->json([
                 'success' => true,
                 'batch_id' => $batchId,
@@ -640,6 +659,7 @@ class BulkUploadController extends Controller
         $batch = \App\Models\BulkUploadBatch::create([
             'id' => $batchId,
             'user_id' => $request->user()->id,
+            'type' => 'employee_onboarding',
             'file_name' => $file->getClientOriginalName(),
             'file_path' => $fullPath,
             'status' => 'processing',
@@ -706,6 +726,11 @@ class BulkUploadController extends Controller
 
         $query = \App\Models\BulkUploadBatch::with('user:id,name,email,role')
             ->forUser($user)
+            ->where(function ($q) {
+                $q->where('type', 'employee_onboarding')
+                  ->orWhereNull('type')
+                  ->orWhere('type', '!=', 'attendance');
+            })
             ->latest();
 
         // Filters
@@ -742,7 +767,12 @@ class BulkUploadController extends Controller
         $batches = $query->paginate(15)->withQueryString();
 
         // Scoped Statistics
-        $baseScopedQuery = \App\Models\BulkUploadBatch::forUser($user);
+        $baseScopedQuery = \App\Models\BulkUploadBatch::forUser($user)
+            ->where(function ($q) {
+                $q->where('type', 'employee_onboarding')
+                  ->orWhereNull('type')
+                  ->orWhere('type', '!=', 'attendance');
+            });
         $totalBatchesCount = (clone $baseScopedQuery)->count();
         $totalRecordsProcessed = (clone $baseScopedQuery)->sum('processed_rows');
         $totalValidRecords = (clone $baseScopedQuery)->sum('valid_count');
@@ -835,14 +865,13 @@ class BulkUploadController extends Controller
             ];
         });
 
-        if ($rows->isEmpty() && $batch->status === 'completed' && $batch->valid_count > 0) {
-            $createdAt = $batch->created_at;
-            $employees = \App\Models\Employee::whereBetween('created_at', [
-                $createdAt->copy()->subMinutes(5),
-                $createdAt->copy()->addMinutes(5)
-            ])
-            ->limit($batch->valid_count)
-            ->get();
+        if ($rows->isEmpty() && $batch->valid_count > 0) {
+            $limit = min($batch->valid_count, 1000);
+            $query = \App\Models\Employee::query();
+            if ($batch->client_id) {
+                $query->where('client_id', $batch->client_id);
+            }
+            $employees = $query->latest()->take($limit)->get();
 
             $rows = $employees->map(function ($emp, $index) {
                 return [
@@ -930,6 +959,97 @@ class BulkUploadController extends Controller
         }
 
         $fileName = 'error_report_' . preg_replace('/[^a-zA-Z0-9_\-]/', '', $batch->file_name) . '_' . date('Ymd_His') . '.csv';
+
+        return response($output, 200, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
+        ]);
+    }
+
+    public function downloadHistorySuccess(Request $request, string $batchId)
+    {
+        $user = $request->user();
+        if (!in_array($user->role, ['admin', 'manager'])) {
+            abort(403, 'Unauthorized access to success reports.');
+        }
+
+        $batch = \App\Models\BulkUploadBatch::forUser($user)
+            ->where('id', $batchId)
+            ->firstOrFail();
+
+        $rowsQuery = \Illuminate\Support\Facades\DB::table('bulk_upload_staging_rows')
+            ->where('batch_id', $batchId)
+            ->where('status', 'ready');
+
+        if ($user->role === 'manager') {
+            $managedClientIds = $user->getManagedClientIds();
+            if (!empty($managedClientIds)) {
+                $rowsQuery->whereIn('client_id', $managedClientIds);
+            }
+        }
+
+        $successRows = $rowsQuery->get();
+
+        $csvHeader = [
+            'Row No', 'Employee Code', 'Full Name', 'Client Code', 'Branch Name',
+            'Personal Email', 'Phone Number', 'Bank Account Number', 'PAN Number',
+            'Status'
+        ];
+        $output = implode(',', $csvHeader) . "\n";
+
+        if ($successRows->isEmpty() && $batch->valid_count > 0) {
+            $limit = min($batch->valid_count, 10000);
+            $query = \App\Models\Employee::query();
+            if ($batch->client_id) {
+                $query->where('client_id', $batch->client_id);
+            }
+            $employees = $query->latest()->take($limit)->get();
+
+            foreach ($employees as $idx => $emp) {
+                $line = [
+                    $idx + 1,
+                    $emp->employee_code,
+                    '"' . str_replace('"', '""', $emp->full_name) . '"',
+                    '',
+                    '',
+                    $emp->personal_email,
+                    $emp->phone_number,
+                    '',
+                    '',
+                    'Success'
+                ];
+                $output .= implode(',', $line) . "\n";
+            }
+        } else {
+            foreach ($successRows as $r) {
+                $rawData = json_decode($r->raw_data, true) ?: [];
+
+                $bankAcc = $r->bank_account_number ?: ($rawData['bank_account_number'] ?? '');
+                $pan = $r->pan_number ?: ($rawData['pan_number'] ?? '');
+
+                if ($user->role === 'manager') {
+                    if (!empty($bankAcc)) $bankAcc = 'XXXX-XXXX-' . substr($bankAcc, -4);
+                    if (!empty($pan)) $pan = substr($pan, 0, 2) . 'XXXXX' . substr($pan, -2);
+                }
+
+                $line = [
+                    $r->row_no,
+                    $r->employee_code ?: '',
+                    '"' . str_replace('"', '""', $r->full_name ?: '') . '"',
+                    $r->client_code ?: ($rawData['client_code'] ?? ''),
+                    $rawData['branch_name'] ?? '',
+                    $r->personal_email ?: '',
+                    $r->phone_number ?: '',
+                    $bankAcc,
+                    $pan,
+                    'Success'
+                ];
+
+                $output .= implode(',', $line) . "\n";
+            }
+        }
+
+        $fileName = 'success_report_' . preg_replace('/[^a-zA-Z0-9_\-]/', '', $batch->file_name) . '_' . date('Ymd_His') . '.csv';
 
         return response($output, 200, [
             'Content-Type' => 'text/csv',
