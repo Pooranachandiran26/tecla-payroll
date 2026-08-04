@@ -43,14 +43,16 @@ class SessionTest extends TestCase
         
         // Save the active session manually as HTTP tests sometimes rebuild the session mid-request
         $sessionId = session()->getId();
-        DB::table('sessions')->insert([
-            'id' => $sessionId,
-            'user_id' => $admin->id,
-            'ip_address' => '127.0.0.1',
-            'user_agent' => 'Test',
-            'payload' => '',
-            'last_activity' => time(),
-        ]);
+        DB::table('sessions')->updateOrInsert(
+            ['id' => $sessionId],
+            [
+                'user_id' => $admin->id,
+                'ip_address' => '127.0.0.1',
+                'user_agent' => 'Test',
+                'payload' => '',
+                'last_activity' => time(),
+            ]
+        );
 
         $this->assertDatabaseHas('sessions', ['id' => $sessionId, 'user_id' => $admin->id]);
 

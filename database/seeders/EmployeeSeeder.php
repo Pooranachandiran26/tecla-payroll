@@ -15,13 +15,16 @@ use Carbon\Carbon;
 
 class EmployeeSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
         Schema::disableForeignKeyConstraints();
 
+        if (Schema::hasTable('client_attendance_verifications')) {
+            DB::table('client_attendance_verifications')->truncate();
+        }
+        DB::table('password_histories')->truncate();
+        DB::table('otp_codes')->truncate();
+        DB::table('login_attempts')->truncate();
         DB::table('bank_change_requests')->truncate();
         DB::table('client_documents')->truncate();
         DB::table('attendance_upload_batches')->truncate();
@@ -37,7 +40,6 @@ class EmployeeSeeder extends Seeder
         DB::table('payroll_run_items')->truncate();
         DB::table('payroll_runs')->truncate();
         DB::table('employees')->truncate();
-        DB::table('users')->where('role', 'employee')->delete();
 
         Schema::enableForeignKeyConstraints();
 

@@ -94,7 +94,7 @@ class UpdateEmployeeRequest extends FormRequest
             'lwf_applicable' => filter_var($this->lwfToggle, FILTER_VALIDATE_BOOLEAN) ? 1 : 0,
             'bonus_toggle' => $this->bonusToggle ? 1 : 0,
             'tds_regime' => $this->taxRegime ?? 'new',
-            'declarations_accepted' => $this->declarations === 'yes' ? 1 : 0,
+            'declarations_accepted' => ($this->declarations_accepted !== null || $this->declarationsAccepted !== null) ? (filter_var($this->declarations_accepted ?? $this->declarationsAccepted, FILTER_VALIDATE_BOOLEAN) ? 1 : 0) : ($this->declarations === 'yes' ? 1 : 0),
             'gratuity_mode' => $this->gratuityMode ?? 'part_of_ctc',
             'lop_basis_days' => '30',
             'weekly_off_pattern' => $this->weeklyOffPattern ?: $this->weekly_off_pattern ?: null,
