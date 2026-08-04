@@ -104,6 +104,7 @@ export default function IdentitySection({ formData, errors, hints, onChange, onV
               placeholder="e.g. AAACM1234A" maxLength="10"
               style={{ textTransform: 'uppercase' }}
               value={formData.pan}
+              onBlur={() => hook.checkLiveUniqueness('pan', formData.pan, 'pan')}
               onChange={e => {
                 const val = hook.validatePAN(e.target.value);
                 onChange('pan', val);
@@ -121,6 +122,7 @@ export default function IdentitySection({ formData, errors, hints, onChange, onV
               placeholder="e.g. MUMD12345A" maxLength="10"
               style={{ textTransform: 'uppercase' }}
               value={formData.tan}
+              onBlur={() => hook.checkLiveUniqueness('tan', formData.tan, 'tan')}
               onChange={e => {
                 const val = hook.validateTAN(e.target.value);
                 onChange('tan', val);

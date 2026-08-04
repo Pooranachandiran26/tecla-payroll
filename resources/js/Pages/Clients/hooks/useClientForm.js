@@ -62,7 +62,27 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
       delete next[field];
       return next;
     });
-  }, []);
+
+    // Live validation triggers for step 1 & step 2 fields
+    if (field === 'companyName' && (!value || !value.trim())) {
+      setErrors(prev => ({ ...prev, companyName: { msg: 'Legal company name is required.', type: 'error' } }));
+    }
+    if (field === 'companyType' && !value) {
+      setErrors(prev => ({ ...prev, companyType: { msg: 'Company type is required.', type: 'error' } }));
+    }
+    if (field === 'trustRegNo' && formData.companyType === 'trust' && (!value || !value.trim())) {
+      setErrors(prev => ({ ...prev, trustRegNo: { msg: 'Trust/NGO registration number is required.', type: 'error' } }));
+    }
+    if (field === 'regAddressLine1' && (!value || !value.trim())) {
+      setErrors(prev => ({ ...prev, regAddressLine1: { msg: 'Registered address line 1 is required.', type: 'error' } }));
+    }
+    if (field === 'regCity' && (!value || !value.trim())) {
+      setErrors(prev => ({ ...prev, regCity: { msg: 'City is required.', type: 'error' } }));
+    }
+    if (field === 'regState' && (!value || !value.trim())) {
+      setErrors(prev => ({ ...prev, regState: { msg: 'State is required.', type: 'error' } }));
+    }
+  }, [formData.companyType]);
 
   // ── Nested object updater (for poc1, poc2, poc3) ─
   const handlePocChange = useCallback((pocKey, field, value) => {
@@ -70,7 +90,53 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
       ...prev,
       [pocKey]: { ...prev[pocKey], [field]: value },
     }));
+
+    if (pocKey === 'poc1') {
+      const errKey = `poc1.${field}`;
+      setErrors(prev => {
+        const next = { ...prev };
+        delete next[errKey];
+        return next;
+      });
+
+      if (field === 'name' && (!value || !value.trim())) {
+        setErrors(prev => ({ ...prev, 'poc1.name': { msg: 'Primary POC name is required.', type: 'error' } }));
+      }
+      if (field === 'email') {
+        if (!value || !value.trim()) {
+          setErrors(prev => ({ ...prev, 'poc1.email': { msg: 'Primary POC email is required.', type: 'error' } }));
+        } else if (!PATTERNS.EMAIL.test(value)) {
+          setErrors(prev => ({ ...prev, 'poc1.email': { msg: 'Enter a valid email address.', type: 'error' } }));
+        }
+      }
+      if (field === 'phone') {
+        const digits = value.replace(/\D/g, '');
+        if (!digits || digits.length !== 10) {
+          setErrors(prev => ({ ...prev, 'poc1.phone': { msg: 'Phone number must be exactly 10 digits.', type: 'error' } }));
+        }
+      }
+    }
   }, []);
+
+  const checkLiveUniqueness = useCallback(async (field, value, errorKey) => {
+    if (!value || !value.trim()) return;
+    try {
+      const ignoreId = editId ? `&ignore_id=${editId}` : '';
+      const res = await fetch(`/clients/check-unique?field=${field}&value=${encodeURIComponent(value.trim())}${ignoreId}`);
+      const data = await res.json();
+      if (data && data.available === false) {
+        setErrors(prev => ({ ...prev, [errorKey]: { msg: data.message, type: 'error' } }));
+      } else {
+        setErrors(prev => {
+          const next = { ...prev };
+          delete next[errorKey];
+          return next;
+        });
+      }
+    } catch (e) {
+      // Ignore network UX helper errors
+    }
+  }, [editId]);
 
   const handlePocPrefChange = useCallback((pocKey, pref, value) => {
     setFormData(prev => ({
@@ -982,7 +1048,16 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
   }, []);
 
   const submitForm = useCallback(() => {
-    if (isSubmitting) return;
+    if (isSubmitting) return false;
+
+    // Run client-side pre-flight validation across steps 1 through 4
+    for (let s = 1; s <= 4; s++) {
+      if (!validateStep(s)) {
+        setCurrentStep(s);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return false;
+      }
+    }
 
     const payload = getFormPayload();
 
@@ -1353,7 +1428,7 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
 
     // Generic handlers
     handleInputChange, handlePocChange, handlePocPrefChange,
-    showToast, markProgress,
+    showToast, markProgress, setErrors, checkLiveUniqueness,
 
     // Validators
     validateGSTIN, validatePAN, validateTAN, validateCIN, validatePIN,
