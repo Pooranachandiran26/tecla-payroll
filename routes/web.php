@@ -126,6 +126,7 @@ Route::middleware(['auth', 'active'])->group(function () {
                 Route::get('/employees/bulk-upload/history', [BulkUploadController::class, 'history'])->name('employees.bulk-upload.history');
                 Route::get('/employees/bulk-upload/history/{batchId}/details', [BulkUploadController::class, 'getBatchDetails'])->name('employees.bulk-upload.history.details');
                 Route::get('/employees/bulk-upload/history/{batchId}/download-errors', [BulkUploadController::class, 'downloadHistoryErrors'])->name('employees.bulk-upload.history.download-errors');
+                Route::get('/employees/bulk-upload/template', [BulkUploadController::class, 'downloadTemplate'])->name('employees.bulk-upload.template');
                 Route::get('/employees/bulk-upload/download-template', [BulkUploadController::class, 'downloadTemplate'])->name('employees.bulk-upload.download-template');
                 Route::get('/employees/bulk-upload/template', [BulkUploadController::class, 'downloadTemplate'])->name('employees.bulk-upload.template');
                 Route::post('/employees/bulk-upload/validate', [BulkUploadController::class, 'validateUpload'])->name('employees.bulk-upload.validate');
@@ -246,6 +247,7 @@ Route::middleware(['auth', 'active'])->group(function () {
                 Route::get('/invoices/{id}/download', [\App\Http\Controllers\InvoiceController::class, 'downloadPdf'])->name('invoices.download');
                 Route::post('/invoices/{id}/finalize', [\App\Http\Controllers\InvoiceController::class, 'finalize'])->name('invoices.finalize');
                 Route::post('/invoices/{id}/send-email', [\App\Http\Controllers\InvoiceController::class, 'sendEmail'])->name('invoices.send-email');
+                Route::post('/invoices/{id}/mark-paid', [\App\Http\Controllers\InvoiceController::class, 'markAsPaid'])->name('invoices.mark-paid');
                 Route::post('/invoices/{id}/fees', [\App\Http\Controllers\InvoiceController::class, 'storeFee'])->name('invoices.fees.store');
                 Route::delete('/invoices/{id}/fees/{feeId}', [\App\Http\Controllers\InvoiceController::class, 'destroyFee'])->name('invoices.fees.destroy');
                 Route::post('/payroll/{id}/release-payslips', [\App\Http\Controllers\PayrollController::class, 'releasePayslips'])->name('payroll.run.release-payslips');
@@ -346,7 +348,7 @@ Route::middleware(['auth', 'active'])->group(function () {
         });
 
         // CLIENT ONLY
-        Route::middleware('role:client')->group(function () {
+        Route::middleware(['role:client', 'client.ip', 'client.timeout'])->group(function () {
             Route::get('/client/dashboard', [\App\Http\Controllers\ClientPortalController::class, 'dashboard'])->name('client.dashboard');
             Route::get('/client/employees', [\App\Http\Controllers\ClientPortalController::class, 'employees'])->name('client.employees');
             Route::get('/client/attendance', [\App\Http\Controllers\ClientPortalController::class, 'attendance'])->name('client.attendance');

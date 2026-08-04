@@ -5,7 +5,8 @@ import Badge from '../../Components/ui/Badge';
 import RoleGuard from '../../Components/RoleGuard.jsx';
 import Pagination from '../../Components/ui/Pagination';
 import AddInvoiceFeeModal from '../../Components/AddInvoiceFeeModal';
-import { ArrowLeft, Download, Plus, Send, Building, FileText, Calendar, DollarSign, Tag, Trash2, ShieldCheck } from 'lucide-react';
+import MarkInvoicePaidModal from '../../Components/MarkInvoicePaidModal';
+import { ArrowLeft, Download, Plus, Send, Building, FileText, Calendar, DollarSign, Tag, Trash2, ShieldCheck, CheckCircle, CreditCard } from 'lucide-react';
 import './InvoiceDetail.css';
 import { formatRupee, formatDate, getStatusBadgeType, calculateLineItemsSummary } from './InvoiceDetailLogic';
 
@@ -14,6 +15,7 @@ export default function InvoiceDetail({ invoice: initialInvoice, lineItems: pagi
     const role = auth?.user?.role || 'manager';
     const [invoice, setInvoice] = useState(initialInvoice);
     const [showFeeModal, setShowFeeModal] = useState(false);
+    const [showPaidModal, setShowPaidModal] = useState(false);
 
     const handleFeeUpdated = (updatedInvoice) => {
         setInvoice(prev => ({
@@ -125,6 +127,16 @@ export default function InvoiceDetail({ invoice: initialInvoice, lineItems: pagi
                                     style={{ backgroundColor: '#059669', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
                                 >
                                     <Send size={15} /> {invoice.sent_at ? 'Resend Email' : 'Send Email'}
+                                </button>
+                            )}
+                            {invoice.status !== 'draft' && invoice.status !== 'paid' && (
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPaidModal(true)}
+                                    className="btn"
+                                    style={{ backgroundColor: '#059669', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                                >
+                                    <CheckCircle size={15} /> Record Payment / Mark Paid
                                 </button>
                             )}
                         </div>
@@ -245,6 +257,53 @@ export default function InvoiceDetail({ invoice: initialInvoice, lineItems: pagi
                                 )}
                             </div>
                         </div>
+
+                        {/* Payment Receipt Details Card (If paid or partially paid) */}
+                        {(invoice.paid_at || (invoice.paid_amount && parseFloat(invoice.paid_amount) > 0) || ['paid', 'partially_paid'].includes(invoice.status)) && (
+                            <div className="card bg-emerald-50 border border-emerald-200 col-span-full">
+                                <div className="invoice-card-title text-emerald-800 font-bold flex items-center gap-2 mb-3">
+                                    <ShieldCheck size={18} /> Official Payment Settlement Receipt
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                    <div>
+                                        <span className="text-slate-500 text-xs block font-medium">Settlement Status</span>
+                                        <span className={`font-bold ${invoice.status === 'paid' ? 'text-emerald-700' : 'text-amber-700'}`}>
+                                            {invoice.status === 'paid' ? '✅ FULLY SETTLED' : '⚠️ PARTIALLY PAID'}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-500 text-xs block font-medium">Payment Date</span>
+                                        <span className="font-semibold text-slate-800">{invoice.paid_at ? formatDate(invoice.paid_at) : 'Today'}</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-500 text-xs block font-medium">Amount Received</span>
+                                        <span className="font-bold text-emerald-700 text-base">{formatRupee(invoice.paid_amount || 0)}</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-500 text-xs block font-medium">Payment Mode</span>
+                                        <span className="font-semibold text-slate-800">{invoice.payment_mode ? invoice.payment_mode.toUpperCase() : 'NEFT / RTGS'}</span>
+                                    </div>
+                                    {invoice.transaction_reference && (
+                                        <div>
+                                            <span className="text-slate-500 text-xs block font-medium">UTR / Transaction Ref</span>
+                                            <span className="font-mono text-slate-800">{invoice.transaction_reference}</span>
+                                        </div>
+                                    )}
+                                    {invoice.tds_deducted && parseFloat(invoice.tds_deducted) > 0 && (
+                                        <div>
+                                            <span className="text-slate-500 text-xs block font-medium">TDS Deducted</span>
+                                            <span className="font-semibold text-purple-700">{formatRupee(invoice.tds_deducted)}</span>
+                                        </div>
+                                    )}
+                                    {invoice.payment_remarks && (
+                                        <div className="col-span-full">
+                                            <span className="text-slate-500 text-xs block font-medium">Payment Remarks / Narration</span>
+                                            <span className="text-slate-700 italic">{invoice.payment_remarks}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Employee Line Items Table (Paginated 15 per page) */}
@@ -384,6 +443,16 @@ export default function InvoiceDetail({ invoice: initialInvoice, lineItems: pagi
                         onClose={() => setShowFeeModal(false)}
                         invoice={invoice}
                         onFeeUpdated={handleFeeUpdated}
+                    />
+
+                    <MarkInvoicePaidModal
+                        isOpen={showPaidModal}
+                        onClose={() => setShowPaidModal(false)}
+                        invoice={invoice}
+                        onSuccess={(updatedInvoice) => {
+                            setInvoice(updatedInvoice);
+                            setShowPaidModal(false);
+                        }}
                     />
                 </div>
             </AuthenticatedLayout>

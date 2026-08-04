@@ -26,6 +26,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'fresh-password' => \App\Http\Middleware\RequireFreshPassword::class,
             'active' => \App\Http\Middleware\EnsureUserActive::class,
             'module' => \App\Http\Middleware\EnsureModulePermission::class,
+            'client.ip' => \App\Http\Middleware\EnsureClientIpWhitelisted::class,
+            'client.timeout' => \App\Http\Middleware\EnforceClientSessionTimeout::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

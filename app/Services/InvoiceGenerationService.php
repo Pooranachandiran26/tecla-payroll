@@ -134,7 +134,7 @@ class InvoiceGenerationService
                 $warningNotes = null;
                 if ($creditLimit > 0) {
                     $outstanding = Invoice::where('client_id', $client->id)
-                        ->whereIn('status', ['draft', 'raised', 'overdue'])
+                        ->whereIn('status', ['draft', 'finalized', 'raised', 'sent', 'overdue', 'partially_paid'])
                         ->where('id', '!=', $existingInvoice->id)
                         ->sum('grand_total');
                     $totalOutstanding = $outstanding + $newGrandTotal;
@@ -170,7 +170,7 @@ class InvoiceGenerationService
                 $warningNotes = null;
                 if ($creditLimit > 0) {
                     $outstanding = Invoice::where('client_id', $client->id)
-                        ->whereIn('status', ['draft', 'raised', 'overdue'])
+                        ->whereIn('status', ['draft', 'finalized', 'raised', 'sent', 'overdue', 'partially_paid'])
                         ->sum('grand_total');
                     $totalOutstanding = $outstanding + $grandTotal;
                     if ($totalOutstanding > $creditLimit) {

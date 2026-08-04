@@ -5,7 +5,8 @@ import Badge from '../../Components/ui/Badge';
 import RoleGuard from '../../Components/RoleGuard.jsx';
 import Pagination from '../../Components/ui/Pagination';
 import AddInvoiceFeeModal from '../../Components/AddInvoiceFeeModal';
-import { Eye, Download, Plus, Tag, Filter, RotateCcw, Search, FileText } from 'lucide-react';
+import MarkInvoicePaidModal from '../../Components/MarkInvoicePaidModal';
+import { Eye, Download, Plus, Tag, Filter, RotateCcw, Search, FileText, CheckCircle } from 'lucide-react';
 import './InvoicesList.css';
 import { formatRupee, formatDate, getStatusBadgeType, calculateSummaryStats } from './InvoicesListLogic';
 
@@ -13,6 +14,7 @@ export default function InvoicesList({ invoices, filters: serverFilters = {} }) 
     const { auth, flash, errors } = usePage().props;
     const role = auth?.user?.role || 'manager';
     const [selectedFeeInvoice, setSelectedFeeInvoice] = useState(null);
+    const [selectedPaidInvoice, setSelectedPaidInvoice] = useState(null);
 
     const queryParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
     const [filters, setFilters] = useState({
@@ -326,6 +328,18 @@ export default function InvoicesList({ invoices, filters: serverFilters = {} }) 
                                                                     {inv.sent_at ? 'Resend' : 'Send'}
                                                                 </button>
                                                             )}
+
+                                                            {inv.status !== 'draft' && inv.status !== 'paid' && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setSelectedPaidInvoice(inv)}
+                                                                    className="invoice-action-btn success"
+                                                                    style={{ backgroundColor: '#059669', color: '#FFF', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                                                                    title="Record Client Payment"
+                                                                >
+                                                                    <CheckCircle size={13} /> Paid
+                                                                </button>
+                                                            )}
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -367,6 +381,16 @@ export default function InvoicesList({ invoices, filters: serverFilters = {} }) 
                         onClose={() => setSelectedFeeInvoice(null)}
                         invoice={selectedFeeInvoice}
                         onFeeUpdated={handleFeeUpdated}
+                    />
+
+                    <MarkInvoicePaidModal
+                        isOpen={!!selectedPaidInvoice}
+                        onClose={() => setSelectedPaidInvoice(null)}
+                        invoice={selectedPaidInvoice}
+                        onSuccess={() => {
+                            setSelectedPaidInvoice(null);
+                            router.reload({ preserveScroll: true });
+                        }}
                     />
                 </div>
             </AuthenticatedLayout>

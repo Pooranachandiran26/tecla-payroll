@@ -374,6 +374,73 @@ class InvoiceController extends Controller
     }
 
     /**
+     * Mark an Invoice as Paid (Admin or Scoped Manager).
+     */
+    public function markAsPaid(Request $request, $id)
+    {
+        $invoice = Invoice::with('client')->findOrFail($id);
+        $this->authorizeInvoiceAccess($request, $invoice);
+
+        if ($invoice->status === 'draft') {
+            $msg = 'Cannot mark a draft invoice as paid. Please finalize the invoice first.';
+            if ($request->expectsJson() || $request->inertia()) {
+                return response()->json(['error' => $msg], 422);
+            }
+            return redirect()->back()->withErrors(['error' => $msg]);
+        }
+
+        $validated = $request->validate([
+            'payment_date' => 'required|date',
+            'amount_received' => 'required|numeric|min:0.01',
+            'payment_mode' => 'required|string|in:neft_rtgs,cheque,upi,bank_transfer,other',
+            'transaction_reference' => 'nullable|string|max:255',
+            'tds_deducted' => 'nullable|numeric|min:0',
+            'remarks' => 'nullable|string|max:1000',
+        ]);
+
+        $paidAmount = round((float) $invoice->paid_amount + (float) $validated['amount_received'], 2);
+        $tdsDeducted = round((float) $invoice->tds_deducted + (float) ($validated['tds_deducted'] ?? 0), 2);
+        $effectiveTotal = round($paidAmount + $tdsDeducted, 2);
+
+        $newStatus = ($effectiveTotal >= (float) $invoice->grand_total) ? 'paid' : 'partially_paid';
+
+        $invoice->update([
+            'status' => $newStatus,
+            'paid_at' => $validated['payment_date'],
+            'paid_amount' => $paidAmount,
+            'payment_mode' => $validated['payment_mode'],
+            'transaction_reference' => $validated['transaction_reference'] ?? null,
+            'tds_deducted' => $tdsDeducted,
+            'payment_remarks' => $validated['remarks'] ?? null,
+        ]);
+
+        app(\App\Services\AuditService::class)->log(
+            'invoice_marked_paid',
+            $request->user(),
+            null,
+            null,
+            [
+                'invoice_id' => $invoice->id,
+                'invoice_number' => $invoice->invoice_number,
+                'status' => $newStatus,
+                'paid_amount' => $paidAmount,
+                'tds_deducted' => $tdsDeducted,
+                'payment_mode' => $validated['payment_mode'],
+                'transaction_reference' => $validated['transaction_reference'] ?? null,
+            ]
+        );
+
+        if ($request->wantsJson() && !$request->inertia()) {
+            return response()->json([
+                'message' => "Payment of ₹" . number_format($validated['amount_received'], 2) . " recorded for invoice {$invoice->invoice_number}.",
+                'invoice' => $invoice->fresh(['client', 'branch']),
+            ]);
+        }
+
+        return redirect()->back()->with('success', "Payment recorded for invoice {$invoice->invoice_number}.");
+    }
+
+    /**
      * Authorize Manager Access to Invoice by Client ID.
      */
     private function authorizeInvoiceAccess(Request $request, Invoice $invoice): void

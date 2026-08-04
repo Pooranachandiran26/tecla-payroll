@@ -306,6 +306,13 @@ export default function ContractSection({ formData, errors, onChange, hook, gstS
             <div className="field-hint">
               {hook.getTDSPreview()}
             </div>
+            {formData.tdsApplicableAgency === 'other' && (
+              <div className="form-group conditional-field" style={{ marginTop: '0.5rem' }}>
+                <label>Custom TDS Percentage (%) <span style={{ color: 'var(--status-danger)' }}>*</span></label>
+                <input type="number" className="form-control" placeholder="e.g. 5.0" step="0.1" min="0" max="100"
+                  value={formData.customTdsPercentage || ''} onChange={e => onChange('customTdsPercentage', e.target.value)} />
+              </div>
+            )}
           </div>
         </div>
       ) : (

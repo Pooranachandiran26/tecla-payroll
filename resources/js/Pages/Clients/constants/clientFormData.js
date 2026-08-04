@@ -268,7 +268,7 @@ export function getDefaultFormData() {
     contractStart: '', contractEnd: '',
     autoRenewal: false, poRequired: false, poNumber: '', poValue: '', poValidity: '',
     gstRate: '18', lutRefNo: '', reverseCharge: false,
-    tdsApplicableAgency: 'na',
+    tdsApplicableAgency: 'na', customTdsPercentage: '',
     prefFormatPDF: true, prefFormatXLSX: false, invoiceFooterNotes: '',
     noticePeriod: 30, creditLimit: '', latePenalty: '', billingCurrency: 'INR',
 
