@@ -238,6 +238,8 @@ class ClientController extends Controller
                         'file_path' => $path,
                         'file_size_kb' => round($file->getSize() / 1024),
                         'uploaded_by' => auth()->id(),
+                        'created_by' => auth()->id(),
+                        'updated_by' => auth()->id(),
                         'verification_status' => 'pending',
                     ]);
                 }
@@ -557,6 +559,8 @@ class ClientController extends Controller
             'file_path' => $path,
             'file_size_kb' => round($file->getSize() / 1024),
             'uploaded_by' => auth()->id(),
+            'created_by' => auth()->id(),
+            'updated_by' => auth()->id(),
             'verification_status' => 'pending',
         ]);
 
@@ -576,6 +580,7 @@ class ClientController extends Controller
             'verification_status' => $request->status,
             'verified_by' => auth()->id(),
             'verified_at' => now(),
+            'updated_by' => auth()->id(),
             'rejection_reason' => $request->status === 'rejected' ? $request->reason : null,
         ]);
 

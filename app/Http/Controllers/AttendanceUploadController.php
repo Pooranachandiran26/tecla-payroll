@@ -462,6 +462,8 @@ class AttendanceUploadController extends Controller
                     'matched_rows' => $results['matched_rows'],
                     'status' => 'approved',
                     'uploaded_by' => $request->user()->id,
+                    'created_by' => $request->user()->id,
+                    'updated_by' => $request->user()->id,
                 ]);
 
                 $stagingRows = DB::table('attendance_upload_staging_rows')

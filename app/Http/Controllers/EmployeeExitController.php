@@ -34,7 +34,11 @@ class EmployeeExitController extends Controller
         $employee = Employee::findOrFail($id);
         $exitRequest = EmployeeExit::where('employee_id', $id)->latest('id')->first();
         if (!$exitRequest) {
-            $exitRequest = EmployeeExit::create(['employee_id' => $id]);
+            $exitRequest = EmployeeExit::create([
+                'employee_id' => $id,
+                'created_by' => $request->user()->id ?? auth()->id(),
+                'updated_by' => $request->user()->id ?? auth()->id(),
+            ]);
         }
 
         if ($exitRequest->current_stage < $stage && $stage <= 5) {
@@ -50,6 +54,7 @@ class EmployeeExitController extends Controller
                     'discussed_with_employee' => 'boolean',
                     'discussion_summary' => 'nullable|string'
                 ]);
+                $validated['updated_by'] = $request->user()->id ?? auth()->id();
                 $exitRequest->update($validated);
                 break;
             case 2: // Notice
@@ -66,6 +71,7 @@ class EmployeeExitController extends Controller
                     ]);
                 }
                 
+                $validated['updated_by'] = $request->user()->id ?? auth()->id();
                 $exitRequest->update($validated);
                 break;
             case 3: // Clearance
@@ -77,6 +83,7 @@ class EmployeeExitController extends Controller
                     'clearance_handover' => 'in:yes,no,na',
                     'clearance_client' => 'in:yes,no,na',
                 ]);
+                $validated['updated_by'] = $request->user()->id ?? auth()->id();
                 $exitRequest->update($validated);
                 break;
             case 4: // Interview
@@ -85,6 +92,7 @@ class EmployeeExitController extends Controller
                     'would_recommend' => 'nullable|in:yes,no',
                     'star_rating' => 'nullable|integer|min:1|max:5',
                 ]);
+                $validated['updated_by'] = $request->user()->id ?? auth()->id();
                 $exitRequest->update($validated);
                 break;
             case 5: // Settlement
@@ -98,6 +106,7 @@ class EmployeeExitController extends Controller
                      $exitRequest->current_stage = 6;
                 }
                 
+                $calculations['updated_by'] = $request->user()->id ?? auth()->id();
                 $exitRequest->update($calculations);
                 break;
         }
@@ -120,7 +129,8 @@ class EmployeeExitController extends Controller
         $exitRequest = EmployeeExit::where('employee_id', $id)->latest('id')->firstOrFail();
 
         $exitRequest->update([
-            'settlement_status' => 'approved'
+            'settlement_status' => 'approved',
+            'updated_by' => $user->id,
         ]);
 
         return response()->json(['message' => 'Settlement approved']);
@@ -142,7 +152,8 @@ class EmployeeExitController extends Controller
         $exitRequest->update([
             'current_stage' => 6,
             'confirmed_at' => now(),
-            'confirmed_by' => $user->id
+            'confirmed_by' => $user->id,
+            'updated_by' => $user->id,
         ]);
 
         $employee->update([
