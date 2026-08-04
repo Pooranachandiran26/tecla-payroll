@@ -152,6 +152,67 @@ export default function AttendanceUpload({ clients }) {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const downloadTotalCsv = () => {
+    if (!validationData || validationData.length === 0) return;
+    let csv = 'Row No,Employee Code,Employee Name,Days Present,Days LOP,Status,Notes\n';
+    validationData.forEach(r => {
+      const escapedNotes = r.notes ? `"${r.notes.replace(/"/g, '""')}"` : '';
+      csv += `${r.id},${r.empCode},"${r.matchedName}",${r.daysPresent},${r.daysLOP},${r.status},${escapedNotes}\n`;
+    });
+    
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.setAttribute('hidden', '');
+    a.setAttribute('href', url);
+    a.setAttribute('download', `attendance_total_records_${targetMonth}.csv`);
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const downloadSuccessCsv = () => {
+    if (!validationData || validationData.length === 0) return;
+    const validRows = validationData.filter(r => r.status === 'valid');
+    if (validRows.length === 0) return;
+    let csv = 'Row No,Employee Code,Employee Name,Days Present,Days LOP,Status,Notes\n';
+    validRows.forEach(r => {
+      const escapedNotes = r.notes ? `"${r.notes.replace(/"/g, '""')}"` : '';
+      csv += `${r.id},${r.empCode},"${r.matchedName}",${r.daysPresent},${r.daysLOP},${r.status},${escapedNotes}\n`;
+    });
+    
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.setAttribute('hidden', '');
+    a.setAttribute('href', url);
+    a.setAttribute('download', `attendance_success_rows_${targetMonth}.csv`);
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const downloadErrorCsv = () => {
+    if (!validationData || validationData.length === 0) return;
+    const errorRows = validationData.filter(r => r.status !== 'valid');
+    if (errorRows.length === 0) return;
+    let csv = 'Row No,Employee Code,Employee Name,Days Present,Days LOP,Status,Notes\n';
+    errorRows.forEach(r => {
+      const escapedNotes = r.notes ? `"${r.notes.replace(/"/g, '""')}"` : '';
+      csv += `${r.id},${r.empCode},"${r.matchedName}",${r.daysPresent},${r.daysLOP},${r.status},${escapedNotes}\n`;
+    });
+    
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.setAttribute('hidden', '');
+    a.setAttribute('href', url);
+    a.setAttribute('download', `attendance_error_rows_${targetMonth}.csv`);
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
   const columns = [
     {
       header: 'Parsed Emp Code',
@@ -450,26 +511,67 @@ export default function AttendanceUpload({ clients }) {
                           <span>{file?.name || 'Attendance Template'}</span>
                         </div>
                       </td>
+                      {/* Total Records */}
                       <td className="py-3.5 px-4 text-center font-bold text-gray-900">
-                        {summary.total.toLocaleString()}
+                        <div className="flex items-center justify-center gap-2">
+                          <span>{summary.total.toLocaleString()}</span>
+                          {validationData && validationData.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={downloadTotalCsv}
+                              className="p-1.5 rounded-lg text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-all shadow-xs cursor-pointer flex items-center justify-center"
+                              title="Download All Total Records (.CSV)"
+                            >
+                              <Download className="w-3.5 h-3.5 text-blue-600" />
+                            </button>
+                          )}
+                        </div>
                       </td>
+
+                      {/* Success */}
                       <td className="py-3.5 px-4 text-center">
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[0.7rem] font-bold bg-green-50 text-green-700 border border-green-200">
-                          <CheckCircle2 className="w-3 h-3" />
-                          {summary.matched.toLocaleString()}
-                        </span>
+                        <div className="flex items-center justify-center gap-2">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[0.7rem] font-bold bg-green-50 text-green-700 border border-green-200">
+                            <CheckCircle2 className="w-3 h-3" />
+                            {summary.matched.toLocaleString()}
+                          </span>
+                          {summary.matched > 0 && (
+                            <button
+                              type="button"
+                              onClick={downloadSuccessCsv}
+                              className="p-1.5 rounded-lg text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 transition-all shadow-xs cursor-pointer flex items-center justify-center"
+                              title="Download Success Validated Rows (.CSV)"
+                            >
+                              <Download className="w-3.5 h-3.5 text-green-600" />
+                            </button>
+                          )}
+                        </div>
                       </td>
+
+                      {/* Failures */}
                       <td className="py-3.5 px-4 text-center">
-                        {summary.errors > 0 ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[0.7rem] font-bold bg-red-50 text-red-700 border border-red-200">
-                            <XCircle className="w-3 h-3" />
-                            {summary.errors.toLocaleString()}
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[0.7rem] font-bold bg-gray-50 text-gray-400 border border-gray-200">
-                            0
-                          </span>
-                        )}
+                        <div className="flex items-center justify-center gap-2">
+                          {summary.errors > 0 ? (
+                            <>
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[0.7rem] font-bold bg-red-50 text-red-700 border border-red-200">
+                                <XCircle className="w-3 h-3" />
+                                {summary.errors.toLocaleString()}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={downloadErrorCsv}
+                                className="p-1.5 rounded-lg text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition-all shadow-xs cursor-pointer flex items-center justify-center"
+                                title="Download Error/Failure Rows (.CSV)"
+                              >
+                                <Download className="w-3.5 h-3.5 text-red-600" />
+                              </button>
+                            </>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[0.7rem] font-bold bg-gray-50 text-gray-400 border border-gray-200">
+                              0
+                            </span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   </tbody>

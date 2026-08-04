@@ -5,11 +5,11 @@ import Button from '../../Components/ui/Button';
 import DataTable from '../../Components/ui/DataTable';
 import Pagination from '../../Components/ui/Pagination';
 import Badge from '../../Components/ui/Badge';
-import { UploadCloud, Loader2, Eye, X, User, Building2, Landmark, IndianRupee, ShieldCheck, HeartPulse, CalendarDays, ChevronLeft, ChevronRight, AlertTriangle, FileSpreadsheet, Trash2, AlertCircle, CheckCircle2, RefreshCw, FileText, Search, ChevronDown, Clock, XCircle } from 'lucide-react';
+import { UploadCloud, Loader2, Eye, X, User, Building2, Landmark, IndianRupee, ShieldCheck, HeartPulse, CalendarDays, ChevronLeft, ChevronRight, AlertTriangle, FileSpreadsheet, Trash2, AlertCircle, CheckCircle2, RefreshCw, FileText, Search, ChevronDown, Clock, XCircle, Download } from 'lucide-react';
 import axios from 'axios';
 import RoleGuard from '../../Components/RoleGuard.jsx';
 import useToast from '../../Hooks/useToast';
-import { downloadErrorRowsXlsx } from '../../Utils/excelExport';
+import { downloadErrorRowsXlsx, downloadAllRowsXlsx, downloadSuccessRowsXlsx } from '../../Utils/excelExport';
 
 /* ────────────────────────────────────────────
    Employee Detail Modal (Slide-over Panel)
@@ -336,8 +336,24 @@ export default function BulkUpload({ clients = [], active_session_batch = null }
   const [isDragging, setIsDragging] = useState(false);
   const [filterStatus, setFilterStatus] = useState('all');
   const [isSessionRestoredBanner, setIsSessionRestoredBanner] = useState(false);
+  const [showImportConfirmModal, setShowImportConfirmModal] = useState(false);
+  const [importTargetMode, setImportTargetMode] = useState(null); // 'direct' or 'queue'
   const bypassNavCheck = useRef(false);
   const fileInputRef = useRef(null);
+
+  const openImportConfirmation = (mode) => {
+    setImportTargetMode(mode);
+    setShowImportConfirmModal(true);
+  };
+
+  const confirmAndProceedImport = () => {
+    setShowImportConfirmModal(false);
+    if (importTargetMode === 'queue') {
+      handleQueueJobUpload();
+    } else {
+      handleExecute();
+    }
+  };
 
   // Restore session state on page load if active_session_batch exists
   React.useEffect(() => {
@@ -429,7 +445,7 @@ export default function BulkUpload({ clients = [], active_session_batch = null }
     setIsProgressModalOpen(true);
 
     const formData = new FormData();
-    if (selectedFile) {
+    if (selectedFile instanceof File) {
       formData.append('file', selectedFile);
     }
     if (validationResults?.batch_id) {
@@ -468,10 +484,13 @@ export default function BulkUpload({ clients = [], active_session_batch = null }
           results: validationResults,
         });
 
+        setIsSessionRestoredBanner(false);
+        axios.post(route('employees.bulk-upload.clear-session')).catch(() => {});
+
         setTimeout(() => {
           setIsProgressModalOpen(false);
           setIsExecuting(false);
-          showToast({ message: '✅ 10,000 employees imported successfully!', type: 'success' });
+          showToast({ message: '✅ Employee bulk import completed successfully!', type: 'success' });
         }, 1000);
       };
 
@@ -666,7 +685,12 @@ export default function BulkUpload({ clients = [], active_session_batch = null }
     }, 400);
 
     const formData = new FormData();
-    formData.append('file', selectedFile);
+    if (selectedFile instanceof File) {
+      formData.append('file', selectedFile);
+    }
+    if (validationResults?.batch_id) {
+      formData.append('batch_id', validationResults.batch_id);
+    }
     formData.append('auto_provision_users', autoProvisionUsers ? '1' : '0');
     if (validationResults?.error_count > 0 && partialImportAcknowledged) {
         formData.append('partial_import', '1');
@@ -687,6 +711,9 @@ export default function BulkUpload({ clients = [], active_session_batch = null }
         error_count: validationResults?.error_count || 0,
         warning_count: 0,
       });
+
+      setIsSessionRestoredBanner(false);
+      axios.post(route('employees.bulk-upload.clear-session')).catch(() => {});
 
       setTimeout(() => {
         setIsProgressModalOpen(false);
@@ -752,41 +779,26 @@ export default function BulkUpload({ clients = [], active_session_batch = null }
 
       <div className="mb-6 flex justify-between items-end flex-wrap gap-4">
         <div>
-          <Link href={route('employees.index')} className="text-[0.85rem] font-semibold text-[#1F3864] hover:underline mb-2 inline-block">
+          <Link href={route('employees.index')} className="text-[0.85rem] font-semibold text-[#1F3864] hover:underline mb-1 inline-block">
             ← Back to Employees Directory
           </Link>
-          <div className="flex items-center gap-3">
-            <h2 className="text-2xl font-bold text-[#1F3864] mt-1 mb-1">Excel Bulk Employee Uploader</h2>
-            <div className="flex items-center bg-gray-200/70 p-1 rounded-xl shadow-inner text-xs font-bold border border-gray-300/50">
-              <span className="px-3 py-1.5 rounded-lg bg-white text-[#1F3864] shadow-sm font-bold flex items-center gap-1.5">
-                <FileSpreadsheet className="w-3.5 h-3.5 text-indigo-600" />
-                <span>Excel Uploader</span>
-              </span>
-              <Link
-                href={route('employees.bulk-upload.history')}
-                className="px-3 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 transition-all flex items-center gap-1.5"
-              >
-                <Clock className="w-3.5 h-3.5 text-gray-500" />
-                <span>Upload History & Audit Log</span>
-              </Link>
-            </div>
-          </div>
+          <h2 className="text-2xl font-bold text-[#1F3864] mt-0.5 mb-1">Excel Bulk Employee Uploader</h2>
           <p className="text-gray-500 text-sm">Upload spreadsheet templates to onboard multiple employees and assign their client defaults instantly.</p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <SearchableClientDropdown 
-            clients={clients} 
-            selectedClientId={selectedClientId} 
-            onChange={setSelectedClientId} 
-          />
-          <Button 
-            disabled={!selectedClientId}
-            onClick={() => window.location.href = route('employees.bulk-upload.download-template', { client_id: selectedClientId })}
-            variant="outline"
+        {/* Tab Navigation Switcher on the far right */}
+        <div className="flex items-center bg-gray-200/70 p-1 rounded-xl shadow-inner text-xs font-bold border border-gray-300/50">
+          <span className="px-3 py-1.5 rounded-lg bg-white text-[#1F3864] shadow-sm font-bold flex items-center gap-1.5">
+            <FileSpreadsheet className="w-3.5 h-3.5 text-indigo-600" />
+            <span>Excel Uploader</span>
+          </span>
+          <Link
+            href={route('employees.bulk-upload.history')}
+            className="px-3 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 transition-all flex items-center gap-1.5"
           >
-            Download Client Template (.XLSX)
-          </Button>
+            <Clock className="w-3.5 h-3.5 text-gray-500" />
+            <span>Upload History & Audit Log</span>
+          </Link>
         </div>
       </div>
 
@@ -826,13 +838,34 @@ export default function BulkUpload({ clients = [], active_session_batch = null }
 
               <div className="mt-4 pt-3 border-t border-blue-100 flex items-center justify-between text-xs text-blue-800 font-medium">
                 <span>Need spreadsheet template?</span>
-                <span className="font-semibold text-blue-900">Select Client above & Download</span>
+                <span className="font-semibold text-blue-900">Select Client & Download Template</span>
               </div>
             </div>
           )}
 
           {/* RIGHT SIDE: Upload File Option / Dropzone */}
-          <div className="flex flex-col h-full">
+          <div className="flex flex-col h-full gap-4">
+            {/* Client Template Selection & Download Bar */}
+            {!selectedFile && (
+              <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div className="w-full sm:w-auto flex-1 max-w-xs">
+                  <SearchableClientDropdown 
+                    clients={clients} 
+                    selectedClientId={selectedClientId} 
+                    onChange={setSelectedClientId} 
+                  />
+                </div>
+                <Button 
+                  disabled={!selectedClientId}
+                  onClick={() => window.location.href = route('employees.bulk-upload.download-template', { client_id: selectedClientId })}
+                  variant="outline"
+                  className="w-full sm:w-auto shrink-0 shadow-2xs"
+                >
+                  Download Client Template (.XLSX)
+                </Button>
+              </div>
+            )}
+
             {selectedFile ? (
               <div className="card p-6 border border-indigo-100 bg-white rounded-xl shadow-sm flex flex-col justify-between h-full">
                 <div>
@@ -1037,29 +1070,65 @@ export default function BulkUpload({ clients = [], active_session_batch = null }
 
                   {/* Total Records */}
                   <td className="py-3.5 px-4 text-center font-bold text-gray-900">
-                    {(validationResults.total_rows || 0).toLocaleString()}
+                    <div className="flex items-center justify-center gap-2">
+                      <span>{(validationResults.total_rows || 0).toLocaleString()}</span>
+                      {validationResults.rows && validationResults.rows.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => downloadAllRowsXlsx(validationResults.rows)}
+                          className="p-1.5 rounded-lg text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-all shadow-xs cursor-pointer flex items-center justify-center"
+                          title="Download All Total Records (.XLSX)"
+                        >
+                          <Download className="w-3.5 h-3.5 text-blue-600" />
+                        </button>
+                      )}
+                    </div>
                   </td>
 
                   {/* Success */}
                   <td className="py-3.5 px-4 text-center">
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[0.7rem] font-bold bg-green-50 text-green-700 border border-green-200">
-                      <CheckCircle2 className="w-3 h-3" />
-                      {(validationResults.valid_count || 0).toLocaleString()}
-                    </span>
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[0.7rem] font-bold bg-green-50 text-green-700 border border-green-200">
+                        <CheckCircle2 className="w-3 h-3" />
+                        {(validationResults.valid_count || 0).toLocaleString()}
+                      </span>
+                      {validationResults.valid_count > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => downloadSuccessRowsXlsx(validationResults.rows)}
+                          className="p-1.5 rounded-lg text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 transition-all shadow-xs cursor-pointer flex items-center justify-center"
+                          title="Download Validated Success Rows (.XLSX)"
+                        >
+                          <Download className="w-3.5 h-3.5 text-green-600" />
+                        </button>
+                      )}
+                    </div>
                   </td>
 
                   {/* Failures */}
                   <td className="py-3.5 px-4 text-center">
-                    {validationResults.error_count > 0 ? (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[0.7rem] font-bold bg-red-50 text-red-700 border border-red-200">
-                        <XCircle className="w-3 h-3" />
-                        {validationResults.error_count.toLocaleString()}
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[0.7rem] font-bold bg-gray-50 text-gray-400 border border-gray-200">
-                        0
-                      </span>
-                    )}
+                    <div className="flex items-center justify-center gap-2">
+                      {validationResults.error_count > 0 ? (
+                        <>
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[0.7rem] font-bold bg-red-50 text-red-700 border border-red-200">
+                            <XCircle className="w-3 h-3" />
+                            {validationResults.error_count.toLocaleString()}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => downloadErrorRowsXlsx(validationResults.rows)}
+                            className="p-1.5 rounded-lg text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition-all shadow-xs cursor-pointer flex items-center justify-center"
+                            title="Download Error/Failure Rows (.XLSX)"
+                          >
+                            <Download className="w-3.5 h-3.5 text-red-600" />
+                          </button>
+                        </>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[0.7rem] font-bold bg-gray-50 text-gray-400 border border-gray-200">
+                          0
+                        </span>
+                      )}
+                    </div>
                   </td>
 
                   {/* Created By */}
@@ -1108,11 +1177,74 @@ export default function BulkUpload({ clients = [], active_session_batch = null }
               <Button variant="secondary" onClick={handleCancelClick} disabled={isExecuting}>
                 Cancel
               </Button>
-              <Button variant="outline" disabled={!canConfirmImport || isExecuting || validationResults.valid_count === 0} onClick={handleExecute}>
+              <Button variant="outline" disabled={!canConfirmImport || isExecuting || validationResults.valid_count === 0} onClick={() => openImportConfirmation('direct')}>
                 {isExecuting ? 'Importing...' : `Direct Import (${validationResults.valid_count} valid)`}
               </Button>
-              <Button variant="primary" disabled={!canConfirmImport || isExecuting || validationResults.valid_count === 0} onClick={handleQueueJobUpload}>
+              <Button variant="primary" disabled={!canConfirmImport || isExecuting || validationResults.valid_count === 0} onClick={() => openImportConfirmation('queue')}>
                 {isExecuting ? 'Queueing...' : `⚡ Queue Background Job (${validationResults.valid_count} valid)`}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Import Confirmation Modal (Are you confirmed? Yes / No) */}
+      {showImportConfirmModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setShowImportConfirmModal(false)} />
+          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl p-6 border border-gray-100 animate-scale-up z-10">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-[#1F3864]">Are you confirmed?</h3>
+                <p className="text-xs text-gray-500 font-medium">Please confirm before processing employee records import</p>
+              </div>
+            </div>
+
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-5 text-xs font-medium space-y-2 text-gray-700">
+              <div className="flex justify-between items-center pb-2 border-b border-gray-200">
+                <span className="text-gray-500">Import Mode:</span>
+                <span className="font-bold text-[#1F3864]">
+                  {importTargetMode === 'queue' ? '⚡ Background Queue Job' : 'Direct Import'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center pb-2 border-b border-gray-200">
+                <span className="text-gray-500">Valid Employee Records:</span>
+                <span className="font-bold text-green-600 font-mono text-sm">
+                  {(validationResults?.valid_count || 0).toLocaleString()} Valid
+                </span>
+              </div>
+              {validationResults?.error_count > 0 && (
+                <div className="flex justify-between items-center text-red-600">
+                  <span>Discarded Error Rows:</span>
+                  <span className="font-bold font-mono">
+                    {validationResults.error_count.toLocaleString()} Errors
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <p className="text-xs text-gray-600 font-medium mb-6 leading-relaxed">
+              Are you sure you want to proceed with importing <strong>{(validationResults?.valid_count || 0).toLocaleString()}</strong> employee records into the database?
+            </p>
+
+            <div className="flex items-center justify-end gap-3">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setShowImportConfirmModal(false)}
+              >
+                No, Cancel
+              </Button>
+              <Button
+                variant={importTargetMode === 'queue' ? 'primary' : 'outline'}
+                size="sm"
+                onClick={confirmAndProceedImport}
+                className="font-bold shadow-sm"
+              >
+                Yes, Confirm & Import
               </Button>
             </div>
           </div>

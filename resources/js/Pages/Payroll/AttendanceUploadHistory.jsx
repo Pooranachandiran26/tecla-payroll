@@ -208,30 +208,27 @@ export default function AttendanceUploadHistory({ batches, kpis }) {
                         <div className="text-[0.6rem] text-gray-400">{new Date(batch.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>
                       </td>
                       <td className="py-3.5 px-4 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => handleViewDetails(batch.id)}
-                            disabled={loadingBatchId !== null}
-                            className="px-2.5 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-all flex items-center gap-1 inline-flex"
+                        <div className="flex items-center justify-end gap-1.5">
+                          {/* Success Download Button */}
+                          <a
+                            href={route('payroll.attendance.history.download-success', { batchId: batch.id })}
+                            className="p-1.5 rounded-lg text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 transition-all inline-flex items-center justify-center shadow-2xs"
+                            title="Download Success Report (.CSV)"
                           >
-                            {loadingBatchId === batch.id ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <Eye className="w-3.5 h-3.5" />
-                            )}
-                            <span>View</span>
-                          </button>
+                            <Download className="w-4 h-4 text-green-600" />
+                          </a>
 
-                          {batch.error_count > 0 && (
-                            <a
-                              href={route('payroll.attendance.history.download-errors', { batchId: batch.id })}
-                              className="px-2.5 py-1.5 text-xs font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-all flex items-center gap-1 inline-flex shadow-xs"
-                              title="Download Error Report (.CSV)"
-                            >
-                              <Download className="w-3.5 h-3.5 text-red-600" />
-                              <span>Errors</span>
-                            </a>
-                          )}
+                          {/* Failure Download Button */}
+                          <a
+                            href={batch.error_count > 0 ? route('payroll.attendance.history.download-errors', { batchId: batch.id }) : '#'}
+                            onClick={(e) => { if ((batch.error_count || 0) === 0) e.preventDefault(); }}
+                            className={`p-1.5 rounded-lg text-red-700 bg-red-50 border border-red-200 transition-all inline-flex items-center justify-center shadow-2xs ${
+                              (batch.error_count || 0) > 0 ? 'hover:bg-red-100 cursor-pointer' : 'opacity-40 cursor-not-allowed'
+                            }`}
+                            title={(batch.error_count || 0) > 0 ? "Download Failure Report (.CSV)" : "No Failures to Download"}
+                          >
+                            <Download className="w-4 h-4 text-red-600" />
+                          </a>
                         </div>
                       </td>
                     </tr>

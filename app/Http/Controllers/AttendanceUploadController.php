@@ -789,4 +789,79 @@ class AttendanceUploadController extends Controller
 
         return response()->stream($callback, 200, $headers);
     }
+
+    /**
+     * Download Success Report CSV for Attendance history batch
+     */
+    public function downloadHistorySuccess(Request $request, string $batchId)
+    {
+        $user = $request->user();
+        if (!in_array($user->role, ['admin', 'manager'])) {
+            abort(403, 'Unauthorized');
+        }
+
+        $batch = \App\Models\BulkUploadBatch::where('type', 'attendance')
+            ->forUser($user)
+            ->where('id', $batchId)
+            ->firstOrFail();
+
+        $rowsQuery = DB::table('attendance_upload_staging_rows')
+            ->where('batch_id', $batchId)
+            ->where('status', 'ready');
+
+        if ($user->role === 'manager') {
+            $managedClientIds = $user->getManagedClientIds();
+            if (!empty($managedClientIds)) {
+                $rowsQuery->whereIn('client_id', $managedClientIds);
+            }
+        }
+
+        $successRows = $rowsQuery->get();
+
+        $filename = 'Attendance_Success_Batch_' . substr($batchId, 0, 8) . '.csv';
+
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
+        ];
+
+        $callback = function () use ($successRows, $batchId) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, ['Employee Code', 'Days Present', 'Days LOP', 'Status']);
+
+            if ($successRows->isEmpty()) {
+                $attendanceRecords = \App\Models\AttendanceRecord::where('uploaded_batch_id', $batchId)
+                    ->with('employee:id,employee_code,full_name')
+                    ->get()
+                    ->groupBy('employee_id');
+
+                foreach ($attendanceRecords as $group) {
+                    $first = $group->first();
+                    $presentCount = $group->where('is_present', true)->count();
+                    $lopCount = $group->where('is_lop', true)->count();
+                    fputcsv($file, [
+                        $first->employee->employee_code ?? 'N/A',
+                        $presentCount,
+                        $lopCount,
+                        'Success',
+                    ]);
+                }
+            } else {
+                foreach ($successRows as $row) {
+                    fputcsv($file, [
+                        $row->employee_code,
+                        $row->days_present,
+                        $row->days_lop,
+                        'Success',
+                    ]);
+                }
+            }
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
 }
