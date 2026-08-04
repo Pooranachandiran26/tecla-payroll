@@ -10,6 +10,7 @@ import Button from '../../Components/ui/Button';
 import DataTable from '../../Components/ui/DataTable';
 import Checkbox from '../../Components/ui/Checkbox';
 import ConfirmDialog from '../../Components/ui/ConfirmDialog';
+import Modal from '../../Components/ui/Modal';
 import useToast from '../../Hooks/useToast';
 import RoleGuard from '../../Components/RoleGuard.jsx';
 import { 
