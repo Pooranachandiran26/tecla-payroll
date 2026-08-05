@@ -20,6 +20,7 @@ import './EmployeeForm.css';
 import RoleGuard from '../../Components/RoleGuard.jsx';
 import axios from 'axios';
 import useToast from '../../Hooks/useToast';
+import { runJQueryValidation } from '../../Utils/jqueryValidation';
 
 
 export default function EmployeeForm({ clients = [], errors: serverErrors, employee = null }) {
@@ -739,12 +740,9 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
 
     if (!isValid || blockingErrors.size > 0) {
       setProcessing(false);
-      showToast({ 
-        type: 'error', 
-        title: 'Cannot Save Employee', 
-        message: 'Please resolve the blocking validation errors indicated in the form fields before saving.' 
-      });
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      setTimeout(() => {
+        runJQueryValidation('#emp-form', errors);
+      }, 50);
       return;
     }
     
@@ -784,8 +782,9 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
           errorMessages.push(msgText);
         });
         setErrors(prev => ({ ...prev, ...mappedErrors }));
-        showToast({ type: 'error', title: 'Validation Failed', message: errorMessages.join(' | ') });
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        setTimeout(() => {
+          runJQueryValidation('#emp-form', mappedErrors);
+        }, 50);
       }
     });
   };
@@ -1894,7 +1893,9 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                   </Link>
                   <button type="submit" className="btn btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }} disabled={processing} onClick={() => {
                     if (blockingErrors.size > 0) {
-                      showToast({ type: 'error', title: 'Cannot Save Employee', message: Array.from(blockingErrors).join(' | ') });
+                      setTimeout(() => {
+                        runJQueryValidation('#emp-form', errors);
+                      }, 50);
                     }
                   }}>
                     <Save size={15} /> {processing ? 'Saving...' : 'Save Employee Configuration'}

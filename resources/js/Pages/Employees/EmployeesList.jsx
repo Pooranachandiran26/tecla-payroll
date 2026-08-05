@@ -249,6 +249,7 @@ export default function EmployeesList({ employees = { data: [], links: [] }, cli
                 <th>Role Designation</th>
                 <th>Employment Type</th>
                 <th>Date of Joining</th>
+                <th>Created By</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
@@ -270,6 +271,14 @@ export default function EmployeesList({ employees = { data: [], links: [] }, cli
                       </span>
                     </td>
                     <td>{emp.date_of_joining ? new Date(emp.date_of_joining).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}</td>
+                    <td>
+                      <div style={{ fontSize: "0.85rem", fontWeight: "600", color: "#334155" }}>
+                        {emp.creator_name || (emp.creator ? emp.creator.name : (emp.created_by ? `User #${emp.created_by}` : 'System Admin'))}
+                      </div>
+                      <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
+                        {emp.entry_source === 'bulk_upload' ? 'Bulk Upload' : 'Manual Entry'}
+                      </div>
+                    </td>
                     <td>
                       <div style={{"display":"flex","flexDirection":"column","gap":"0.4rem","alignItems":"flex-start"}}>
                         <span className={`badge badge-${emp.status === 'active' ? 'success' : emp.status === 'exited' ? 'danger' : 'warning'}`} style={{ whiteSpace: 'nowrap' }}>
@@ -309,7 +318,7 @@ export default function EmployeesList({ employees = { data: [], links: [] }, cli
                 ))
               ) : (
                 <tr>
-                  <td colSpan="8" style={{ textAlign: "center", padding: "2rem" }}>No employees found.</td>
+                  <td colSpan="9" style={{ textAlign: "center", padding: "2rem" }}>No employees found.</td>
                 </tr>
               )}
             </tbody>

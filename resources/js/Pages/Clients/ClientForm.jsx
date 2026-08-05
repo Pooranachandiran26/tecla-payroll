@@ -86,7 +86,7 @@ export default function ClientForm({ client, defaultLopBasis, gstSettings }) {
           <div className="grid-layout">
             {/* ═══════════════ MAIN FORM ═══════════════ */}
             <div className="card">
-              <form onSubmit={e => e.preventDefault()}>
+              <form onSubmit={e => e.preventDefault()} id="client-form">
                 <div className={`form-step-section ${currentStep === 1 ? 'active' : ''}`} style={{ display: currentStep === 1 ? 'block' : 'none' }}>
                   <IdentitySection formData={formData} errors={errors} hints={hints} onChange={handleChange} hook={hook} />
                 </div>

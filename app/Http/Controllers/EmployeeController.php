@@ -57,7 +57,7 @@ class EmployeeController extends Controller
 
     public function index(Request $request)
     {
-        $query = \App\Models\Employee::with(['client', 'documents', 'salaryRevisions']);
+        $query = \App\Models\Employee::with(['client', 'documents', 'salaryRevisions', 'creator']);
         
         $user = $request->user();
 
