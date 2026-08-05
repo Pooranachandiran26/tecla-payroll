@@ -814,19 +814,6 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
           <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 340px", gap: "2rem", alignItems: "start" }}>
             <div className="card">
               <form id="emp-form" onSubmit={handleFormSubmit} noValidate>
-                {(Object.keys(errors).length > 0 || blockingErrors.size > 0) && (
-                  <div className="alert alert-danger mb-4" id="emp-form-validation-summary" style={{ padding: '0.85rem 1.25rem', backgroundColor: '#FEF2F2', borderLeft: '4px solid #EF4444', color: '#991B1B', borderRadius: '6px', fontSize: '0.88rem' }}>
-                    <strong style={{ display: 'block', marginBottom: '0.35rem', fontWeight: '700' }}>⚠️ Validation Failed — Please resolve the following errors:</strong>
-                    <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.82rem' }}>
-                      {Object.entries(errors).map(([key, err]) => (
-                        <li key={key}>{typeof err === 'string' ? err : (err?.msg || 'Invalid field value')}</li>
-                      ))}
-                      {Array.from(blockingErrors).map((msg, idx) => (
-                        <li key={`blocker-${idx}`}>{msg}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
                 
                 {/* 1. PERSONAL DETAILS */}
                 <h3 style={{ borderBottom: "1px solid var(--border-color)", paddingBottom: "0.5rem", marginBottom: "1.25rem", fontSize: "1.05rem" }}>

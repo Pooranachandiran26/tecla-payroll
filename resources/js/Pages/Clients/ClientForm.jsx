@@ -87,16 +87,6 @@ export default function ClientForm({ client, defaultLopBasis, gstSettings }) {
             {/* ═══════════════ MAIN FORM ═══════════════ */}
             <div className="card">
               <form onSubmit={e => e.preventDefault()} id="client-form">
-                {Object.keys(errors).length > 0 && (
-                  <div className="alert alert-danger mb-4" id="client-form-validation-summary" style={{ padding: '0.85rem 1.25rem', backgroundColor: '#FEF2F2', borderLeft: '4px solid #EF4444', color: '#991B1B', borderRadius: '6px', fontSize: '0.88rem' }}>
-                    <strong style={{ display: 'block', marginBottom: '0.35rem', fontWeight: '700' }}>⚠️ Validation Failed — Please resolve the following errors:</strong>
-                    <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.82rem' }}>
-                      {Object.entries(errors).map(([key, err]) => (
-                        <li key={key}>{typeof err === 'string' ? err : (err?.msg || 'Invalid field value')}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
                 <div className={`form-step-section ${currentStep === 1 ? 'active' : ''}`} style={{ display: currentStep === 1 ? 'block' : 'none' }}>
                   <IdentitySection formData={formData} errors={errors} hints={hints} onChange={handleChange} hook={hook} />
                 </div>
