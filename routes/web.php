@@ -362,6 +362,7 @@ Route::middleware(['auth', 'active'])->group(function () {
             Route::get('/client/dashboard', [\App\Http\Controllers\ClientPortalController::class, 'dashboard'])->name('client.dashboard');
             Route::get('/client/employees', [\App\Http\Controllers\ClientPortalController::class, 'employees'])->name('client.employees');
             Route::get('/client/attendance', [\App\Http\Controllers\ClientPortalController::class, 'attendance'])->name('client.attendance');
+            Route::get('/client/leave-settings', [\App\Http\Controllers\ClientPortalController::class, 'leaveSettings'])->name('client.leave-settings');
             Route::get('/client/invoices', [\App\Http\Controllers\ClientPortalController::class, 'invoices'])->name('client.invoices');
             Route::get('/client/profile', [\App\Http\Controllers\ClientPortalController::class, 'show'])->name('client.profile');
         });

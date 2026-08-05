@@ -12,7 +12,6 @@ import {
   ChevronLeft, 
   ChevronRight, 
   LayoutGrid, 
-  List, 
   X, 
   FileText, 
   Send, 
@@ -27,7 +26,7 @@ export default function EmployeeAttendance({ employee, attendanceRecords, correc
     const rawRecords = attendanceRecords?.data || [];
     const { showToast } = useToast();
 
-    // View toggle: 'calendar' or 'list'
+    // View toggle: 'calendar' or 'corrections'
     const [viewMode, setViewMode] = useState('calendar');
 
     // Selected month for calendar (defaults to Aug 2026)
@@ -132,6 +131,11 @@ export default function EmployeeAttendance({ employee, attendanceRecords, correc
         }
     };
 
+    const handleTodayMonth = () => {
+        setCurrentYear(2026);
+        setCurrentMonth(7); // August 2026
+    };
+
     const monthLabel = useMemo(() => {
         return new Date(currentYear, currentMonth, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
     }, [currentYear, currentMonth]);
@@ -220,11 +224,11 @@ export default function EmployeeAttendance({ employee, attendanceRecords, correc
                             <span>/</span>
                             <span className="text-gray-700">Attendance Calendar</span>
                         </div>
-                        <h2 className="text-2xl font-bold text-[#1F3864]">My Attendance Logs</h2>
-                        <p className="text-xs text-gray-500 font-medium">Track your daily clock-in stamps, work hour accumulations, and submission requests.</p>
+                        <h2 className="text-2xl font-bold text-[#1F3864]">My Attendance Calendar</h2>
+                        <p className="text-xs text-gray-500 font-medium">Track daily clock-in stamps, work hour accumulations, and attendance correction requests.</p>
                     </div>
 
-                    {/* View Switcher Controls */}
+                    {/* Clean View Switcher Controls (Table View removed as requested) */}
                     <div className="flex items-center bg-gray-200/70 p-1 rounded-xl shadow-inner text-xs font-bold border border-gray-300/50">
                         <button
                             type="button"
@@ -237,18 +241,6 @@ export default function EmployeeAttendance({ employee, attendanceRecords, correc
                         >
                             <LayoutGrid className="w-4 h-4 text-indigo-600" />
                             <span>Calendar View</span>
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setViewMode('list')}
-                            className={`px-4 py-2 rounded-lg transition-all flex items-center gap-1.5 ${
-                                viewMode === 'list' 
-                                    ? 'bg-white text-[#1F3864] shadow-sm font-bold' 
-                                    : 'text-gray-600 hover:text-gray-900'
-                            }`}
-                        >
-                            <List className="w-4 h-4 text-indigo-600" />
-                            <span>Table View</span>
                         </button>
                         <button
                             type="button"
@@ -270,8 +262,8 @@ export default function EmployeeAttendance({ employee, attendanceRecords, correc
                     </div>
                 </div>
 
-                {/* KPI Summary Cards (Shown for Calendar and Table views) */}
-                {viewMode !== 'corrections' && (
+                {/* KPI Summary Cards */}
+                {viewMode === 'calendar' && (
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                         <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center gap-3">
                             <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold shrink-0">
@@ -308,19 +300,19 @@ export default function EmployeeAttendance({ employee, attendanceRecords, correc
                                 <CalendarIcon className="w-5 h-5" />
                             </div>
                             <div>
-                                <span className="text-[0.65rem] font-semibold text-gray-500 uppercase tracking-wider block">Off-Days & Weekends</span>
+                                <span className="text-[0.65rem] font-semibold text-gray-500 uppercase tracking-wider block">Off-Days &amp; Weekends</span>
                                 <div className="text-xl font-black text-slate-800">{monthStats.weekendCount} Days</div>
                             </div>
                         </div>
                     </div>
                 )}
 
-                {/* CALENDAR VIEW */}
+                {/* IMPROVED CALENDAR VIEW DESIGN */}
                 {viewMode === 'calendar' && (
                     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden mb-6">
                         {/* Month Navigation & Legend Bar */}
                         <div className="p-4 sm:p-5 border-b border-gray-200 bg-gray-50/70 flex flex-col sm:flex-row items-center justify-between gap-4">
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2">
                                 <button
                                     onClick={handlePrevMonth}
                                     className="p-2 rounded-xl bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 transition-all shadow-xs"
@@ -328,7 +320,7 @@ export default function EmployeeAttendance({ employee, attendanceRecords, correc
                                 >
                                     <ChevronLeft className="w-4 h-4" />
                                 </button>
-                                <h3 className="text-lg font-extrabold text-[#1F3864] m-0 min-w-[160px] text-center">
+                                <h3 className="text-lg font-extrabold text-[#1F3864] m-0 px-2 min-w-[160px] text-center">
                                     {monthLabel}
                                 </h3>
                                 <button
@@ -337,6 +329,12 @@ export default function EmployeeAttendance({ employee, attendanceRecords, correc
                                     title="Next Month"
                                 >
                                     <ChevronRight className="w-4 h-4" />
+                                </button>
+                                <button
+                                    onClick={handleTodayMonth}
+                                    className="ml-2 px-3 py-1.5 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold text-xs hover:bg-indigo-100 transition-all"
+                                >
+                                    Today
                                 </button>
                             </div>
 
@@ -371,66 +369,91 @@ export default function EmployeeAttendance({ employee, attendanceRecords, correc
                             </div>
 
                             {/* Days Cells */}
-                            <div className="grid grid-cols-7 gap-2">
+                            <div className="grid grid-cols-7 gap-2.5">
                                 {calendarDays.map((d) => {
                                     if (d.isPadding) {
-                                        return <div key={d.key} className="min-h-[90px] rounded-xl bg-gray-50/50 border border-transparent"></div>;
+                                        return <div key={d.key} className="min-h-[105px] rounded-xl bg-gray-50/40 border border-transparent"></div>;
                                     }
 
                                     const hasPendingCorrection = correctionRequests.some(r => r.attendance_date === d.dateStr && r.status === 'pending');
+                                    const isToday = d.dateStr === '2026-08-05';
 
                                     return (
                                         <div
                                             key={d.dateStr}
                                             onClick={() => setSelectedDayDetail(d)}
-                                            className={`min-h-[96px] p-2.5 rounded-xl border transition-all cursor-pointer flex flex-col justify-between hover:shadow-md hover:scale-[1.02] ${
-                                                d.status === 'present' ? 'bg-emerald-50/40 border-emerald-200 hover:border-emerald-400' :
-                                                d.status === 'half_day' ? 'bg-amber-50/40 border-amber-200 hover:border-amber-400' :
-                                                d.status === 'absent' || d.status === 'lop' ? 'bg-rose-50/40 border-rose-200 hover:border-rose-400' :
-                                                d.status === 'weekend' ? 'bg-slate-50/80 border-slate-200 hover:border-slate-300' :
+                                            className={`min-h-[108px] p-3 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between hover:shadow-md hover:scale-[1.02] relative group ${
+                                                isToday ? 'ring-2 ring-indigo-600 border-indigo-400 bg-indigo-50/30' : ''
+                                            } ${
+                                                d.status === 'present' ? 'bg-emerald-50/50 border-emerald-200 hover:border-emerald-400' :
+                                                d.status === 'half_day' ? 'bg-amber-50/50 border-amber-200 hover:border-amber-400' :
+                                                d.status === 'absent' || d.status === 'lop' ? 'bg-rose-50/50 border-rose-200 hover:border-rose-400' :
+                                                d.status === 'weekend' ? 'bg-slate-50/90 border-slate-200 hover:border-slate-300' :
                                                 'bg-white border-gray-200 hover:border-indigo-300'
                                             }`}
                                         >
+                                            {/* Cell Header: Day Number + Status Badge */}
                                             <div className="flex items-center justify-between">
-                                                <span className={`font-black text-sm ${d.isWeekend ? 'text-rose-600' : 'text-gray-900'}`}>
-                                                    {d.dayNumber}
-                                                </span>
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className={`font-black text-sm ${
+                                                        isToday ? 'w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs' :
+                                                        d.isWeekend ? 'text-rose-600' : 'text-gray-900'
+                                                    }`}>
+                                                        {d.dayNumber}
+                                                    </span>
+                                                    {isToday && (
+                                                        <span className="text-[10px] font-black text-indigo-700 uppercase tracking-wide">Today</span>
+                                                    )}
+                                                </div>
+
                                                 {hasPendingCorrection && (
-                                                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" title="Correction Pending" />
+                                                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping" title="Correction Pending" />
                                                 )}
                                             </div>
 
-                                            {/* Status Badge inside Cell */}
+                                            {/* Punch Details Stamp inside Cell */}
+                                            {d.record && d.status === 'present' && (
+                                                <div className="text-[10px] text-emerald-900 font-semibold my-1 space-y-0.5">
+                                                    <div className="flex items-center gap-1">
+                                                        <Clock className="w-3 h-3 text-emerald-600 shrink-0" />
+                                                        <span>
+                                                            {d.record.punch_in_time ? new Date(d.record.punch_in_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '09:00 AM'}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Status Badge Pill */}
                                             <div className="mt-1">
                                                 {d.status === 'present' && (
-                                                    <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[0.65rem] font-bold bg-emerald-100 text-emerald-800 w-full truncate">
+                                                    <div className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[0.68rem] font-bold bg-emerald-100 text-emerald-800 w-full truncate border border-emerald-200 shadow-2xs">
                                                         <CheckCircle2 className="w-3 h-3 shrink-0 text-emerald-600" />
                                                         <span className="truncate">Present ({d.record?.hours_worked || 8}h)</span>
                                                     </div>
                                                 )}
 
                                                 {d.status === 'half_day' && (
-                                                    <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[0.65rem] font-bold bg-amber-100 text-amber-800 w-full truncate">
+                                                    <div className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[0.68rem] font-bold bg-amber-100 text-amber-800 w-full truncate border border-amber-200 shadow-2xs">
                                                         <Clock className="w-3 h-3 shrink-0 text-amber-600" />
                                                         <span className="truncate">Half Day</span>
                                                     </div>
                                                 )}
 
                                                 {(d.status === 'absent' || d.status === 'lop') && (
-                                                    <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[0.65rem] font-bold bg-rose-100 text-rose-800 w-full truncate">
+                                                    <div className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[0.68rem] font-bold bg-rose-100 text-rose-800 w-full truncate border border-rose-200 shadow-2xs">
                                                         <XCircle className="w-3 h-3 shrink-0 text-rose-600" />
                                                         <span className="truncate">Absent / LOP</span>
                                                     </div>
                                                 )}
 
                                                 {d.status === 'weekend' && (
-                                                    <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[0.65rem] font-bold bg-slate-200/70 text-slate-600 w-full truncate">
-                                                        <span>🏖️ Off-Day</span>
+                                                    <div className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[0.68rem] font-bold bg-slate-200/80 text-slate-700 w-full truncate border border-slate-300/60">
+                                                        <span>☕ Off-Day</span>
                                                     </div>
                                                 )}
 
                                                 {d.status === 'no_record' && !d.isWeekend && (
-                                                    <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[0.65rem] font-medium text-gray-400 bg-gray-100 w-full truncate">
+                                                    <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[0.65rem] font-medium text-gray-400 bg-gray-100 w-full truncate">
                                                         <span>—</span>
                                                     </div>
                                                 )}
@@ -439,71 +462,6 @@ export default function EmployeeAttendance({ employee, attendanceRecords, correc
                                     );
                                 })}
                             </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* TABLE LIST VIEW */}
-                {viewMode === 'list' && (
-                    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden mb-6">
-                        <div className="p-4 border-b border-gray-200 bg-gray-50/70 flex justify-between items-center">
-                            <h3 className="font-bold text-sm text-[#1F3864] m-0">Daily Punch Logs Details</h3>
-                            <span className="text-xs text-gray-500 font-medium">Data source: Live Punch System</span>
-                        </div>
-
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left text-xs">
-                                <thead className="bg-gray-100 font-bold text-gray-700 border-b border-gray-200 uppercase tracking-wider">
-                                    <tr>
-                                        <th className="py-3 px-4">Date</th>
-                                        <th className="py-3 px-4">Clock In Stamp</th>
-                                        <th className="py-3 px-4">Clock Out Stamp</th>
-                                        <th className="py-3 px-4">Total Work Duration</th>
-                                        <th className="py-3 px-4">Status</th>
-                                        <th className="py-3 px-4 text-right">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-100 font-medium">
-                                    {rawRecords.length > 0 ? (
-                                        rawRecords.map(record => (
-                                            <tr key={record.id} className="hover:bg-gray-50/80 transition-colors">
-                                                <td className="py-3.5 px-4 font-bold text-gray-900">
-                                                    {new Date(record.attendance_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-                                                </td>
-                                                <td className="py-3.5 px-4 text-gray-700">
-                                                    {record.punch_in_time ? new Date(record.punch_in_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}
-                                                </td>
-                                                <td className="py-3.5 px-4 text-gray-700">
-                                                    {record.punch_out_time ? new Date(record.punch_out_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}
-                                                </td>
-                                                <td className="py-3.5 px-4 font-black text-indigo-900">
-                                                    {record.hours_worked !== null ? `${record.hours_worked}h` : '—'}
-                                                </td>
-                                                <td className="py-3.5 px-4">
-                                                    <span className={`px-2.5 py-0.5 rounded-full text-[0.7rem] font-bold border ${getBadgeStyle(record.status || 'present')}`}>
-                                                        {record.status ? record.status.replace('_', ' ').toUpperCase() : 'PRESENT'}
-                                                    </span>
-                                                </td>
-                                                <td className="py-3.5 px-4 text-right">
-                                                    <button
-                                                        onClick={() => openCorrectionModal(record.attendance_date)}
-                                                        disabled={correctionRequests.some(r => r.attendance_date === record.attendance_date && r.status === 'pending')}
-                                                        className="px-3 py-1.5 text-xs font-semibold text-[#1F3864] bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-all shadow-2xs disabled:opacity-40 disabled:cursor-not-allowed"
-                                                    >
-                                                        Request Correction
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))
-                                    ) : (
-                                        <tr>
-                                            <td colSpan="6" className="py-12 text-center text-gray-400 font-medium">
-                                                No attendance records found.
-                                            </td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
                         </div>
                     </div>
                 )}
@@ -612,7 +570,7 @@ export default function EmployeeAttendance({ employee, attendanceRecords, correc
                                         <div className="text-sm font-black text-[#1F3864]">
                                             {selectedDayDetail.record?.punch_in_time 
                                                 ? new Date(selectedDayDetail.record.punch_in_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-                                                : '03:00:00 PM'}
+                                                : '09:00 AM'}
                                         </div>
                                     </div>
                                     <div className="bg-indigo-50/50 p-3 rounded-xl border border-indigo-100">
@@ -620,7 +578,7 @@ export default function EmployeeAttendance({ employee, attendanceRecords, correc
                                         <div className="text-sm font-black text-[#1F3864]">
                                             {selectedDayDetail.record?.punch_out_time 
                                                 ? new Date(selectedDayDetail.record.punch_out_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-                                                : '12:00:00 AM'}
+                                                : '05:00 PM'}
                                         </div>
                                     </div>
                                 </div>

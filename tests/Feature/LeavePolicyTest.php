@@ -338,4 +338,131 @@ class LeavePolicyTest extends TestCase
         // Sat, Sun are weekly-offs; Mon is a holiday. Only Friday is a working day!
         $this->assertEquals(1.0, $workingDays);
     }
+
+    /** 9. LR-9 Scenario: Approving 7-day request with 5 days balance caps paid days at 5, marks 2 LOP, and leaves remaining_days at 0 (NOT negative) */
+    public function test_partial_leave_approval_splits_paid_and_lop_without_negative_balance(): void
+    {
+        $leavePolicyService = app(LeavePolicyService::class);
+
+        // Setup Sick Leave policy with 5 days quota
+        $policy = ClientLeavePolicy::updateOrCreate(
+            ['client_id' => $this->client->id, 'leave_type' => 'sick'],
+            [
+                'policy_name' => 'Sick Leave',
+                'annual_quota' => 5.0,
+                'accrual_frequency' => 'annual_upfront',
+                'carry_forward_allowed' => false,
+                'max_carry_forward_days' => 0,
+                'is_active' => true,
+            ]
+        );
+
+        // Employee balance: 5 days allocated, 0 used, 5 remaining
+        $balance = EmployeeLeaveBalance::updateOrCreate(
+            ['employee_id' => $this->employee->id, 'client_leave_policy_id' => $policy->id, 'year' => 2026],
+            [
+                'allocated_days' => 5.0,
+                'used_days' => 0.0,
+                'carried_over_days' => 0.0,
+                'pending_days' => 0.0,
+                'remaining_days' => 5.0,
+                'snapshot_max_carry_forward_days' => 0.0,
+            ]
+        );
+
+        // Request 7 working days (Wed Aug 12 to Thu Aug 20, 2026 - 7 working days)
+        $leaveRequest = LeaveRequest::create([
+            'employee_id' => $this->employee->id,
+            'leave_type' => 'sick',
+            'from_date' => '2026-08-12',
+            'to_date' => '2026-08-20',
+            'days_count' => 7.0,
+            'reason' => 'LR-9 Scenario Test',
+            'status' => 'pending',
+        ]);
+
+        $leavePolicyService->processApprovedLeave($leaveRequest);
+
+        $freshBalance = EmployeeLeaveBalance::find($balance->id);
+
+        // Assert 1: remaining_days = 0.0 (NOT negative!)
+        $this->assertEquals(0.0, (float)$freshBalance->remaining_days);
+
+        // Assert 2: used_days = 5.0
+        $this->assertEquals(5.0, (float)$freshBalance->used_days);
+
+        // Assert 3: Exactly 5 attendance_records show status='on_leave'
+        $onLeaveCount = \App\Models\AttendanceRecord::where('employee_id', $this->employee->id)
+            ->whereBetween('attendance_date', ['2026-08-12', '2026-08-20'])
+            ->where('status', 'on_leave')
+            ->count();
+        $this->assertEquals(5, $onLeaveCount);
+
+        // Assert 4: Exactly 2 attendance_records show status='absent' (LOP)
+        $absentCount = \App\Models\AttendanceRecord::where('employee_id', $this->employee->id)
+            ->whereBetween('attendance_date', ['2026-08-12', '2026-08-20'])
+            ->where('status', 'absent')
+            ->count();
+        $this->assertEquals(2, $absentCount);
+    }
+
+    /** 10. Max Days Per Month Cap: Annual Quota = 12d, Max Per Month = 1d. Employee takes 2 days in August -> 1st day paid, 2nd day LOP, remaining annual balance = 11d */
+    public function test_monthly_usage_cap_enforces_lop_when_exceeded(): void
+    {
+        $leavePolicyService = app(LeavePolicyService::class);
+
+        // Setup Casual Leave policy with 12 days annual quota, max 1 paid day per month
+        $policy = ClientLeavePolicy::updateOrCreate(
+            ['client_id' => $this->client->id, 'leave_type' => 'casual'],
+            [
+                'policy_name' => 'Casual Leave',
+                'annual_quota' => 12.0,
+                'accrual_frequency' => 'monthly',
+                'monthly_accrual_rate' => 1.0,
+                'max_days_per_month' => 1.0, // Max 1 paid day per month cap!
+                'carry_forward_allowed' => false,
+                'max_carry_forward_days' => 0,
+                'is_active' => true,
+            ]
+        );
+
+        // Balance: 12 days allocated, 0 used, 12 remaining
+        $balance = EmployeeLeaveBalance::updateOrCreate(
+            ['employee_id' => $this->employee->id, 'client_leave_policy_id' => $policy->id, 'year' => 2026],
+            [
+                'allocated_days' => 12.0,
+                'used_days' => 0.0,
+                'carried_over_days' => 0.0,
+                'pending_days' => 0.0,
+                'remaining_days' => 12.0,
+                'snapshot_max_carry_forward_days' => 0.0,
+            ]
+        );
+
+        // Request 2 working days in August (Wed Aug 12 to Thu Aug 13)
+        $leaveRequest = LeaveRequest::create([
+            'employee_id' => $this->employee->id,
+            'leave_type' => 'casual',
+            'from_date' => '2026-08-12',
+            'to_date' => '2026-08-13',
+            'days_count' => 2.0,
+            'reason' => 'Monthly Cap Test',
+            'status' => 'pending',
+        ]);
+
+        $leavePolicyService->processApprovedLeave($leaveRequest);
+
+        $freshBalance = EmployeeLeaveBalance::find($balance->id);
+
+        // Assert 1: Only 1 paid day used (used_days = 1.0, remaining_days = 11.0)
+        $this->assertEquals(1.0, (float)$freshBalance->used_days);
+        $this->assertEquals(11.0, (float)$freshBalance->remaining_days);
+
+        // Assert 2: Day 1 (Aug 12) is 'on_leave', Day 2 (Aug 13) is 'absent' (LOP)
+        $day1 = \App\Models\AttendanceRecord::where('employee_id', $this->employee->id)->where('attendance_date', '2026-08-12')->first();
+        $day2 = \App\Models\AttendanceRecord::where('employee_id', $this->employee->id)->where('attendance_date', '2026-08-13')->first();
+
+        $this->assertEquals('on_leave', $day1->status);
+        $this->assertEquals('absent', $day2->status);
+    }
 }

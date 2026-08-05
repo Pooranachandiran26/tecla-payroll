@@ -7,7 +7,7 @@ import Button from '../../Components/ui/Button';
 import Badge from '../../Components/ui/Badge';
 import Pagination from '../../Components/ui/Pagination';
 import useToast from '../../Hooks/useToast.jsx';
-import { Calendar, CheckCircle2, Info, AlertCircle, Clock } from 'lucide-react';
+import { Calendar, CheckCircle2, Info, AlertTriangle, AlertCircle, Clock } from 'lucide-react';
 
 export default function LeaveRequest({ employee, leaveRequests, leaveBalances = [] }) {
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -67,6 +67,32 @@ export default function LeaveRequest({ employee, leaveRequests, leaveBalances = 
     };
 
     const selectedBalance = getBalanceForType(data.leave_type);
+    const selectedPolicy = selectedBalance?.policy;
+    const availableRemaining = selectedBalance ? parseFloat(selectedBalance.remaining_days) : (data.leave_type === 'unpaid' ? 999 : 12);
+    const maxDaysPerMonth = selectedPolicy?.max_days_per_month ? parseFloat(selectedPolicy.max_days_per_month) : null;
+
+    // Calculate requested duration in days
+    const calculateRequestedDays = () => {
+        if (!data.from_date || !data.to_date) return 0;
+        const start = new Date(data.from_date);
+        const end = new Date(data.to_date);
+        if (isNaN(start.getTime()) || isNaN(end.getTime()) || end < start) return 0;
+        const diffTime = Math.abs(end - start);
+        return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    };
+
+    const requestedDays = calculateRequestedDays();
+
+    // Effective paid quota is min(availableRemaining, maxDaysPerMonth)
+    let effectivePaidQuota = availableRemaining;
+    if (maxDaysPerMonth && maxDaysPerMonth > 0) {
+        effectivePaidQuota = Math.min(availableRemaining, maxDaysPerMonth);
+    }
+
+    const isExceeded = data.leave_type !== 'unpaid' && requestedDays > effectivePaidQuota && requestedDays > 0;
+    const paidDaysCount = Math.min(requestedDays, Math.max(0, effectivePaidQuota));
+    const lopDaysCount = isExceeded ? requestedDays - paidDaysCount : 0;
+    const isLowBalance = data.leave_type !== 'unpaid' && availableRemaining <= 5;
 
     return (
         <RoleGuard allowedRoles={['admin', 'manager', 'employee']}>
@@ -87,6 +113,7 @@ export default function LeaveRequest({ employee, leaveRequests, leaveBalances = 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                     {['casual', 'sick', 'earned'].map((type) => {
                         const bal = getBalanceForType(type);
+                        const policy = bal?.policy;
                         const allocated = bal ? parseFloat(bal.allocated_days) : 12;
                         const remaining = bal ? parseFloat(bal.remaining_days) : allocated;
                         const used = bal ? parseFloat(bal.used_days) : 0;
@@ -105,13 +132,26 @@ export default function LeaveRequest({ employee, leaveRequests, leaveBalances = 
                                 </div>
 
                                 <div className="flex items-baseline space-x-2">
-                                    <span className={`text-3xl font-extrabold ${remaining > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                    <span className={`text-3xl font-extrabold ${remaining > 5 ? 'text-emerald-600' : remaining > 0 ? 'text-amber-600' : 'text-red-600'}`}>
                                         {remaining}
                                     </span>
                                     <span className="text-sm font-semibold text-gray-500">
                                         / {allocated + carried} Days Remaining
                                     </span>
                                 </div>
+
+                                {policy?.max_days_per_month && (
+                                    <div className="text-xs font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 w-fit">
+                                        Max {policy.max_days_per_month} Paid Day(s) / Month
+                                    </div>
+                                )}
+
+                                {remaining <= 5 && (
+                                    <div className="flex items-center space-x-1 text-[11px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                                        <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                                        <span>Low Balance Warning ({remaining}d left)</span>
+                                    </div>
+                                )}
 
                                 <div className="flex justify-between text-xs text-gray-500 border-t border-gray-100 pt-3">
                                     <span>Allocated: <strong className="text-gray-800">{allocated}d</strong></span>
@@ -197,23 +237,37 @@ export default function LeaveRequest({ employee, leaveRequests, leaveBalances = 
                                 {['casual', 'sick', 'earned', 'unpaid'].map(t => {
                                     const b = getBalanceForType(t);
                                     const rem = b ? parseFloat(b.remaining_days) : (t === 'unpaid' ? 'Unlimited' : 12);
-                                    const label = t === 'casual' ? `Casual Leave (CL) — ${rem} days available`
-                                        : t === 'sick' ? `Sick Leave (SL) — ${rem} days available`
-                                        : t === 'earned' ? `Earned Leave (EL) — ${rem} days available`
+                                    const cap = b?.policy?.max_days_per_month ? ` (Max ${b.policy.max_days_per_month}d/mo)` : '';
+                                    const label = t === 'casual' ? `Casual Leave (CL) — ${rem} days available${cap}`
+                                        : t === 'sick' ? `Sick Leave (SL) — ${rem} days available${cap}`
+                                        : t === 'earned' ? `Earned Leave (EL) — ${rem} days available${cap}`
                                         : `Loss of Pay (LOP) — Unpaid`;
                                     return <option key={t} value={t}>{label}</option>;
                                 })}
                             </select>
-                            {errors.leave_type && <span className="error-text">{errors.leave_type}</span>}
+                            {errors.leave_type && <span className="error-text">{errors.leave_text}</span>}
                         </div>
 
                         {selectedBalance && (
-                            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center justify-between text-xs text-emerald-800 col-span-full">
-                                <div className="flex items-center space-x-2">
-                                    <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                                    <span>Available Balance for selected leave type:</span>
+                            <div className={`p-3 border rounded-lg flex flex-col space-y-1 text-xs col-span-full ${isLowBalance ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-emerald-50 border-emerald-200 text-emerald-800'}`}>
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center space-x-2">
+                                        {isLowBalance ? (
+                                            <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                                        ) : (
+                                            <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                                        )}
+                                        <span>Available Annual Balance for {formatType(data.leave_type)}:</span>
+                                    </div>
+                                    <strong className={`font-bold ${isLowBalance ? 'text-amber-800' : 'text-emerald-700'}`}>
+                                        {selectedBalance.remaining_days} Days
+                                    </strong>
                                 </div>
-                                <strong className="text-emerald-700 font-bold">{selectedBalance.remaining_days} Days</strong>
+                                {selectedPolicy?.max_days_per_month && (
+                                    <div className="text-[11px] font-semibold text-indigo-800 bg-indigo-50 p-1.5 rounded border border-indigo-200 mt-1">
+                                        📌 Policy Rule: Max {selectedPolicy.max_days_per_month} paid day(s) allowed per month. Taking extra days in the same month will be Loss of Pay (LOP).
+                                    </div>
+                                )}
                             </div>
                         )}
 
@@ -238,6 +292,45 @@ export default function LeaveRequest({ employee, leaveRequests, leaveBalances = 
                             />
                             {errors.to_date && <span className="error-text">{errors.to_date}</span>}
                         </div>
+
+                        {/* Low Balance Warning Banner */}
+                        {isLowBalance && !isExceeded && (
+                            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start space-x-2 text-xs text-amber-900 col-span-full">
+                                <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                                <div>
+                                    <strong className="block font-bold">⚠️ Low Leave Balance Warning:</strong>
+                                    <span>You have only {availableRemaining} day(s) remaining for {formatType(data.leave_type)}. Any requested days beyond {availableRemaining} day(s) will be treated as Loss of Pay (LOP).</span>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Exceeded Balance or Monthly Cap Warning Banner with LOP Breakdown */}
+                        {isExceeded && (
+                            <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-lg col-span-full space-y-2">
+                                <div className="flex items-start space-x-2 text-amber-950 font-semibold text-xs">
+                                    <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                                    <div>
+                                        <span>⚠️ Warning: Requested leave duration ({requestedDays} days) exceeds available paid limit ({effectivePaidQuota} day(s) allowed).</span>
+                                        {maxDaysPerMonth && (
+                                            <p className="text-[11px] text-indigo-900 font-semibold mt-0.5">
+                                                (Policy Cap: Max {maxDaysPerMonth} paid day(s) per month)
+                                            </p>
+                                        )}
+                                        <p className="text-[11px] text-amber-800 font-normal mt-0.5">
+                                            {paidDaysCount} paid leave day(s) will be covered, and the remaining <strong>{lopDaysCount} day(s) will be treated as Loss of Pay (LOP)</strong>.
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3 pt-1 border-t border-amber-200 text-xs font-medium">
+                                    <span className="text-emerald-700 bg-emerald-100/80 px-2.5 py-1 rounded border border-emerald-200">
+                                        Paid Leave: <strong>{paidDaysCount} day(s)</strong>
+                                    </span>
+                                    <span className="text-amber-900 bg-amber-200/90 px-2.5 py-1 rounded border border-amber-300 font-bold">
+                                        Loss of Pay (LOP): <strong>{lopDaysCount} day(s)</strong>
+                                    </span>
+                                </div>
+                            </div>
+                        )}
 
                         <div className="form-group" style={{ gridColumn: '1 / -1' }}>
                             <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Reason Description</label>

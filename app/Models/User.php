@@ -72,7 +72,7 @@ class User extends Authenticatable
 
     public function hasModulePermission(string $moduleKey, ?string $parentModuleKey = null): bool
     {
-        if ($this->role === 'admin') {
+        if ($this->role === 'admin' || $this->role === 'client') {
             return true;
         }
 

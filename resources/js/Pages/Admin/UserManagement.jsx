@@ -3,6 +3,7 @@ import { useState } from 'react';
 import AuthenticatedLayout from '../../Layouts/AuthenticatedLayout';
 import RoleGuard from '../../Components/RoleGuard.jsx';
 import Modal from '../../Components/ui/Modal';
+import ConfirmDialog from '../../Components/ui/ConfirmDialog';
 import { 
     UserPlus, 
     Search, 

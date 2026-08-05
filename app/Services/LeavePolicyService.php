@@ -170,44 +170,12 @@ class LeavePolicyService
         }
 
         DB::transaction(function () use ($request, $employee, $fromDate, $toDate) {
-            // 2. Mark attendance_records as paid leave
-            for ($curr = $fromDate->copy(); $curr->lte($toDate); $curr->addDay()) {
-                $dateStr = $curr->toDateString();
-                if ($this->attendanceResolutionService->isWorkingDay($employee, $curr)) {
-                    $existingRecord = AttendanceRecord::where('employee_id', $employee->id)
-                        ->where('attendance_date', $dateStr)
-                        ->first();
-
-                    if ($existingRecord) {
-                        if ($existingRecord->source === 'live_punch') {
-                            $existingRecord->update([
-                                'status' => 'on_leave',
-                                'source' => 'override',
-                            ]);
-                        } else {
-                            $existingRecord->update([
-                                'punch_in_time' => null,
-                                'punch_out_time' => null,
-                                'hours_worked' => null,
-                                'status' => 'on_leave',
-                                'source' => 'override',
-                            ]);
-                        }
-                    } else {
-                        AttendanceRecord::create([
-                            'employee_id' => $employee->id,
-                            'attendance_date' => $dateStr,
-                            'status' => 'on_leave',
-                            'source' => 'override',
-                        ]);
-                    }
-                }
-            }
-
-            // 3. Update EmployeeLeaveBalance
             $policy = ClientLeavePolicy::where('client_id', $employee->client_id)
                 ->where('leave_type', $request->leave_type)
                 ->first();
+
+            $balance = null;
+            $remainingPaidQuota = 0.0;
 
             if ($policy) {
                 $balance = EmployeeLeaveBalance::firstOrCreate(
@@ -218,12 +186,81 @@ class LeavePolicyService
                     ],
                     [
                         'allocated_days' => $policy->annual_quota,
+                        'remaining_days' => $policy->annual_quota,
                         'snapshot_max_carry_forward_days' => $policy->max_carry_forward_days,
                     ]
                 );
+                $remainingAnnualQuota = max(0.0, (float)$balance->remaining_days);
 
-                $daysCount = (float)$request->days_count;
-                $balance->used_days = round((float)$balance->used_days + $daysCount, 2);
+                // Check monthly usage cap if configured (e.g. max 1 day per month)
+                if ($policy->max_days_per_month !== null && (float)$policy->max_days_per_month > 0) {
+                    $targetMonthStart = $fromDate->copy()->startOfMonth()->toDateString();
+                    $targetMonthEnd = $fromDate->copy()->endOfMonth()->toDateString();
+
+                    $alreadyUsedInMonth = AttendanceRecord::where('employee_id', $employee->id)
+                        ->whereBetween('attendance_date', [$targetMonthStart, $targetMonthEnd])
+                        ->where('status', 'on_leave')
+                        ->count();
+
+                    $monthlyCapRemaining = max(0.0, (float)$policy->max_days_per_month - $alreadyUsedInMonth);
+                    $remainingPaidQuota = min($remainingAnnualQuota, $monthlyCapRemaining);
+                } else {
+                    $remainingPaidQuota = $remainingAnnualQuota;
+                }
+            } else {
+                $remainingPaidQuota = 999.0;
+            }
+
+            $paidDaysGranted = 0.0;
+            $lopDaysGranted = 0.0;
+
+            // 2. Chronological evaluation of working days (paid vs LOP split)
+            for ($curr = $fromDate->copy(); $curr->lte($toDate); $curr->addDay()) {
+                $dateStr = $curr->toDateString();
+                if ($this->attendanceResolutionService->isWorkingDay($employee, $curr)) {
+                    $existingRecord = AttendanceRecord::where('employee_id', $employee->id)
+                        ->where('attendance_date', $dateStr)
+                        ->first();
+
+                    // Chronological split: first N working days within available balance are paid ('on_leave')
+                    if ($request->leave_type !== 'unpaid' && $paidDaysGranted < $remainingPaidQuota) {
+                        $newStatus = 'on_leave';
+                        $paidDaysGranted += 1.0;
+                    } else {
+                        // Tail end working days beyond available balance become unpaid LOP ('absent')
+                        $newStatus = 'absent';
+                        $lopDaysGranted += 1.0;
+                    }
+
+                    if ($existingRecord) {
+                        if ($existingRecord->source === 'live_punch') {
+                            $existingRecord->update([
+                                'status' => $newStatus,
+                                'source' => 'override',
+                            ]);
+                        } else {
+                            $existingRecord->update([
+                                'punch_in_time' => null,
+                                'punch_out_time' => null,
+                                'hours_worked' => null,
+                                'status' => $newStatus,
+                                'source' => 'override',
+                            ]);
+                        }
+                    } else {
+                        AttendanceRecord::create([
+                            'employee_id' => $employee->id,
+                            'attendance_date' => $dateStr,
+                            'status' => $newStatus,
+                            'source' => 'override',
+                        ]);
+                    }
+                }
+            }
+
+            // 3. Update EmployeeLeaveBalance using actual paidDaysGranted (never negative)
+            if ($balance) {
+                $balance->used_days = round((float)$balance->used_days + $paidDaysGranted, 2);
                 $balance->remaining_days = round((float)$balance->allocated_days + (float)$balance->carried_over_days - (float)$balance->used_days - (float)$balance->pending_days, 2);
                 $balance->save();
             }
