@@ -20,6 +20,7 @@ import './EmployeeForm.css';
 import RoleGuard from '../../Components/RoleGuard.jsx';
 import axios from 'axios';
 import useToast from '../../Hooks/useToast';
+import { runJQueryValidation } from '../../Utils/jqueryValidation';
 
 
 export default function EmployeeForm({ clients = [], errors: serverErrors, employee = null }) {
@@ -739,12 +740,9 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
 
     if (!isValid || blockingErrors.size > 0) {
       setProcessing(false);
-      showToast({ 
-        type: 'error', 
-        title: 'Cannot Save Employee', 
-        message: 'Please resolve the blocking validation errors indicated in the form fields before saving.' 
-      });
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      setTimeout(() => {
+        runJQueryValidation('#emp-form', errors);
+      }, 50);
       return;
     }
     
@@ -784,8 +782,9 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
           errorMessages.push(msgText);
         });
         setErrors(prev => ({ ...prev, ...mappedErrors }));
-        showToast({ type: 'error', title: 'Validation Failed', message: errorMessages.join(' | ') });
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        setTimeout(() => {
+          runJQueryValidation('#emp-form', mappedErrors);
+        }, 50);
       }
     });
   };
@@ -815,6 +814,19 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
           <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 340px", gap: "2rem", alignItems: "start" }}>
             <div className="card">
               <form id="emp-form" onSubmit={handleFormSubmit} noValidate>
+                {(Object.keys(errors).length > 0 || blockingErrors.size > 0) && (
+                  <div className="alert alert-danger mb-4" id="emp-form-validation-summary" style={{ padding: '0.85rem 1.25rem', backgroundColor: '#FEF2F2', borderLeft: '4px solid #EF4444', color: '#991B1B', borderRadius: '6px', fontSize: '0.88rem' }}>
+                    <strong style={{ display: 'block', marginBottom: '0.35rem', fontWeight: '700' }}>⚠️ Validation Failed — Please resolve the following errors:</strong>
+                    <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.82rem' }}>
+                      {Object.entries(errors).map(([key, err]) => (
+                        <li key={key}>{typeof err === 'string' ? err : (err?.msg || 'Invalid field value')}</li>
+                      ))}
+                      {Array.from(blockingErrors).map((msg, idx) => (
+                        <li key={`blocker-${idx}`}>{msg}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 
                 {/* 1. PERSONAL DETAILS */}
                 <h3 style={{ borderBottom: "1px solid var(--border-color)", paddingBottom: "0.5rem", marginBottom: "1.25rem", fontSize: "1.05rem" }}>
@@ -1894,7 +1906,9 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                   </Link>
                   <button type="submit" className="btn btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }} disabled={processing} onClick={() => {
                     if (blockingErrors.size > 0) {
-                      showToast({ type: 'error', title: 'Cannot Save Employee', message: Array.from(blockingErrors).join(' | ') });
+                      setTimeout(() => {
+                        runJQueryValidation('#emp-form', errors);
+                      }, 50);
                     }
                   }}>
                     <Save size={15} /> {processing ? 'Saving...' : 'Save Employee Configuration'}

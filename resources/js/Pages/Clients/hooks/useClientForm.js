@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { router } from '@inertiajs/react';
 import useToast from '@/Hooks/useToast';
+import { runJQueryValidation } from '@/Utils/jqueryValidation';
 import {
   PATTERNS, PIN_MAPPING, GST_STATE_CODES, ALLOWED_FILE_TYPES,
   MAX_FILE_SIZE, DOC_TYPE_LABELS, DOC_TYPE_ICONS, REQUIRED_DOC_TYPES,
@@ -788,12 +789,9 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
     setErrors(newErrors);
 
     if (!isValid) {
-      const msg = `Missing required fields: ${missingLabels.join(', ')}`;
-      if (isTabNavigation) {
-        showToast({ message: `Cannot navigate: ${msg}`, type: 'error' });
-      } else {
-        showToast({ message: msg, type: 'error' });
-      }
+      setTimeout(() => {
+        runJQueryValidation('.card form, form', newErrors);
+      }, 50);
     }
 
     return isValid;
@@ -1106,14 +1104,15 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
         }));
       }
 
-      // Jump to first error step
+      // Jump to first error step & apply jQuery field validation
       if (Object.keys(mapped).length > 0) {
         const firstErrorKey = Object.keys(mapped)[0];
         const step = getStepForField(firstErrorKey);
         setCurrentStep(step);
+        setTimeout(() => {
+          runJQueryValidation('.card form, form', mapped);
+        }, 100);
       }
-
-      showToast(`❌ Required fields missing or invalid. Please check the highlighted errors.`);
     };
 
     if (isEditMode && editId) {
