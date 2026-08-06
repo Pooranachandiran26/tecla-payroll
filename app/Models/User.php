@@ -139,7 +139,13 @@ class User extends Authenticatable
                 ->where('user_id', $this->id)
                 ->pluck('client_id');
 
-            return $amClientIds->merge($pivotClientIds)->unique()->filter()->values()->toArray();
+            $ids = $amClientIds->merge($pivotClientIds)->unique()->filter()->values()->toArray();
+
+            if (empty($ids)) {
+                return Client::where('status', 'active')->pluck('id')->toArray();
+            }
+
+            return $ids;
         }
 
         if ($this->role === 'client' && $this->client_id) {

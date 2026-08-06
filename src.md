@@ -13,6 +13,7 @@ Today's development focused on five major pillars:
 4. **Bulk Upload Engine Audit Preservation:** Ensuring seamless user attribution across synchronous and queued fast bulk uploads.
 5. **Test Suite & Seeder Stabilization:** Reconciling test suite baselines, fixing missing package dependencies (`barryvdh/laravel-dompdf`), and seeding fixes.
 6. **Pure jQuery & DOM Inline Validation UX:** Removed toaster popups for form validation errors across Employee and Client Add/Edit forms, implementing inline field error highlighting (`.is-invalid`), inline error summary banners, and smooth scrolling to invalid elements.
+7. **Attendance Correction Approval Queue:** Implemented dedicated Manager/Admin approval queue (`/attendance-correction-requests`) to review, search, approve, and reject employee punch-in/out correction requests with automatic `AttendanceRecord` override updates.
 
 ---
 
