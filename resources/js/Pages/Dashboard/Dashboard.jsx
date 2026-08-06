@@ -714,19 +714,19 @@ function DashboardApprovalQueueTable({
 
   return (
     <div className="mb-8 bg-white border border-slate-200/90 rounded-2xl shadow-sm overflow-hidden font-sans">
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800">
+      <div className="bg-slate-50/90 border-b border-slate-200/90 p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-400/40 text-amber-300 flex items-center justify-center font-bold shrink-0 shadow-inner">
+          <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center font-bold shrink-0 shadow-xs">
             <AlertCircle className="w-5 h-5 animate-pulse" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-base font-bold tracking-tight text-white">Pending Approvals Queue</h3>
-              <span className="bg-amber-500 text-slate-950 font-extrabold text-xs px-2.5 py-0.5 rounded-full shadow-sm">
+              <h3 className="text-base font-bold tracking-tight text-slate-900">Pending Approvals Queue</h3>
+              <span className="bg-amber-100 border border-amber-300 text-amber-900 font-extrabold text-xs px-2.5 py-0.5 rounded-full shadow-xs">
                 {totalPendingAll} Pending
               </span>
             </div>
-            <p className="text-xs text-slate-300 mt-0.5">
+            <p className="text-xs text-slate-500 mt-0.5">
               Review and act on employee leave, attendance swaps, bank updates, and salary requests directly without full page reload.
             </p>
           </div>
@@ -739,12 +739,12 @@ function DashboardApprovalQueueTable({
             placeholder="Search request by employee or client..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-slate-800/80 border border-slate-700 rounded-lg pl-9 pr-3 py-1.5 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400"
+            className="w-full bg-white border border-slate-300 rounded-lg pl-9 pr-3 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 shadow-xs"
           />
         </div>
       </div>
 
-      <div className="flex overflow-x-auto bg-slate-50 border-b border-slate-200 px-4 pt-2 gap-1 no-scrollbar">
+      <div className="flex overflow-x-auto bg-slate-100/60 border-b border-slate-200 px-4 pt-2 gap-1 no-scrollbar">
         {tabs.map((t) => {
           const IconComponent = t.icon;
           const isActive = activeTab === t.key;
