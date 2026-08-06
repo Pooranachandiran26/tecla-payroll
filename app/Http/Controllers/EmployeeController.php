@@ -328,7 +328,15 @@ class EmployeeController extends Controller
         $employee = \App\Models\Employee::findOrFail($id);
         $this->authorizeEmployeeAccess($request->user(), $employee);
         
-        $employee->update($request->validated());
+        $data = $request->validated();
+
+        if (empty($data['branch_id'])) {
+            $clientId = $data['client_id'] ?? $employee->client_id;
+            $clientBranch = \App\Models\ClientBranch::where('client_id', $clientId)->first();
+            $data['branch_id'] = $clientBranch ? $clientBranch->id : ($employee->branch_id ?: 1);
+        }
+
+        $employee->update($data);
 
         // Auto-recalculate any active draft payroll runs for this employee's client
         $draftRuns = \App\Models\PayrollRun::where('client_id', $employee->client_id)->where('status', 'draft')->get();
