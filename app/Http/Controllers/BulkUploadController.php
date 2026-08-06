@@ -68,9 +68,39 @@ class BulkUploadController extends Controller
             }
         }
 
+        $uploadHistory = \App\Models\BulkUploadBatch::with('user:id,name,email,role')
+            ->forUser($user)
+            ->where(function ($q) {
+                $q->where('type', 'employee_onboarding')
+                  ->orWhereNull('type')
+                  ->orWhere('type', '!=', 'attendance');
+            })
+            ->latest()
+            ->take(10)
+            ->get()
+            ->map(function ($b) {
+                return [
+                    'id' => $b->id,
+                    'file_name' => $b->file_name,
+                    'status' => $b->status,
+                    'total_rows' => $b->total_rows,
+                    'processed_rows' => $b->processed_rows,
+                    'valid_count' => $b->valid_count,
+                    'error_count' => $b->error_count,
+                    'warning_count' => $b->warning_count,
+                    'created_at' => $b->created_at ? $b->created_at->toDateTimeString() : null,
+                    'user' => $b->user ? [
+                        'name' => $b->user->name,
+                        'email' => $b->user->email,
+                        'role' => $b->user->role,
+                    ] : null,
+                ];
+            });
+
         return Inertia::render('Employees/BulkUpload', [
             'clients' => $clients,
-            'active_session_batch' => $activeSessionBatch
+            'active_session_batch' => $activeSessionBatch,
+            'upload_history' => $uploadHistory,
         ]);
     }
 
@@ -416,6 +446,19 @@ class BulkUploadController extends Controller
                     $dbPayload['employer_pf_monthly'] = $dbPayload['employer_pf_monthly'] ?? 0;
                     $dbPayload['employer_esi_monthly'] = $dbPayload['employer_esi_monthly'] ?? 0;
                     $dbPayload['ctc_monthly'] = $dbPayload['ctc_monthly'] ?? 0;
+
+                    $dbPayload['conveyance'] = (float)($dbPayload['conveyance'] ?? 0);
+                    $dbPayload['da'] = (float)($dbPayload['da'] ?? 0);
+                    $dbPayload['medical_allowance'] = (float)($dbPayload['medical_allowance'] ?? 0);
+                    $dbPayload['special_allowance'] = (float)($dbPayload['special_allowance'] ?? 0);
+                    $dbPayload['other_additions'] = (float)($dbPayload['other_additions'] ?? 0);
+                    $dbPayload['bank_branch'] = $dbPayload['bank_branch'] ?? '';
+
+                    foreach ($dbPayload as $k => $v) {
+                        if (is_bool($v)) {
+                            $dbPayload[$k] = $v ? 1 : 0;
+                        }
+                    }
 
                     if (isset($dbPayload['bank_account_number'])) {
                         $dbPayload['bank_account_hash'] = hash('sha256', (string)$dbPayload['bank_account_number']);

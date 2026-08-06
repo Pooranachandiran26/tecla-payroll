@@ -444,6 +444,13 @@ class FastBulkUploadService
             $dbPayload['employer_esi_monthly'] = $salaryPreview['employer_esi_monthly'] ?? 0;
             $dbPayload['ctc_monthly'] = $salaryPreview['ctc_monthly'] ?? 0;
 
+            $dbPayload['conveyance'] = (float)($validationData['conveyance'] ?? 0);
+            $dbPayload['da'] = (float)($validationData['da'] ?? 0);
+            $dbPayload['medical_allowance'] = (float)($validationData['medical_allowance'] ?? 0);
+            $dbPayload['special_allowance'] = (float)($validationData['special_allowance'] ?? 0);
+            $dbPayload['other_additions'] = (float)($validationData['other_additions'] ?? 0);
+            $dbPayload['bank_branch'] = $validationData['bank_branch'] ?? '';
+
             $dbPayload['bank_account_hash'] = $bankHash;
             $dbPayload['pan_number_hash'] = $panHash;
             $dbPayload['aadhaar_number_hash'] = $aadhaarHash;
@@ -527,6 +534,30 @@ class FastBulkUploadService
         }
     }
 
+    protected function normalizeChunkKeys(array $chunk): array
+    {
+        if (empty($chunk)) return [];
+
+        $allKeys = [];
+        foreach ($chunk as $row) {
+            foreach ($row as $k => $v) {
+                $allKeys[$k] = true;
+            }
+        }
+        $keysList = array_keys($allKeys);
+        sort($keysList);
+
+        $normalizedChunk = [];
+        foreach ($chunk as $row) {
+            $normalizedRow = [];
+            foreach ($keysList as $k) {
+                $normalizedRow[$k] = array_key_exists($k, $row) ? $row[$k] : null;
+            }
+            $normalizedChunk[] = $normalizedRow;
+        }
+        return $normalizedChunk;
+    }
+
     public function executeBatchImport($batchId, $userId = null)
     {
         $now = now()->toDateTimeString();
@@ -563,6 +594,12 @@ class FastBulkUploadService
                     $dbPayload['updated_by'] = $userId;
                 }
 
+                foreach ($dbPayload as $k => $v) {
+                    if (is_bool($v)) {
+                        $dbPayload[$k] = $v ? 1 : 0;
+                    }
+                }
+
                 $importedEmpCodes[] = $dbPayload['employee_code'];
                 $chunk[] = $dbPayload;
                 $importedCount++;
@@ -582,15 +619,17 @@ class FastBulkUploadService
                 }
 
                 if (count($chunk) >= 100) {
-                    $updateCols = array_keys($chunk[0]);
-                    DB::table('employees')->upsert($chunk, ['employee_code'], $updateCols);
+                    $normChunk = $this->normalizeChunkKeys($chunk);
+                    $updateCols = array_keys($normChunk[0]);
+                    DB::table('employees')->upsert($normChunk, ['employee_code'], $updateCols);
                     $chunk = [];
                 }
             }
 
             if (!empty($chunk)) {
-                $updateCols = array_keys($chunk[0]);
-                DB::table('employees')->upsert($chunk, ['employee_code'], $updateCols);
+                $normChunk = $this->normalizeChunkKeys($chunk);
+                $updateCols = array_keys($normChunk[0]);
+                DB::table('employees')->upsert($normChunk, ['employee_code'], $updateCols);
                 $chunk = [];
             }
 
