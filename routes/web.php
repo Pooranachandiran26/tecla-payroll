@@ -177,6 +177,10 @@ Route::middleware(['auth', 'active'])->group(function () {
                 Route::post('/day-swap-requests/{id}/approve', [DaySwapController::class, 'approve'])->name('employees.day-swaps.approve');
                 Route::post('/day-swap-requests/{id}/reject', [DaySwapController::class, 'reject'])->name('employees.day-swaps.reject');
 
+                Route::get('/attendance-correction-requests', [\App\Http\Controllers\AttendanceCorrectionApprovalController::class, 'index'])->name('employees.attendance-corrections');
+                Route::post('/attendance-correction-requests/{id}/approve', [\App\Http\Controllers\AttendanceCorrectionApprovalController::class, 'approve'])->name('employees.attendance-corrections.approve');
+                Route::post('/attendance-correction-requests/{id}/reject', [\App\Http\Controllers\AttendanceCorrectionApprovalController::class, 'reject'])->name('employees.attendance-corrections.reject');
+
                 Route::get('/leave-requests', [\App\Http\Controllers\LeaveApprovalController::class, 'index'])->name('leave-requests.index');
                 Route::post('/leave-requests/{id}/approve', [\App\Http\Controllers\LeaveApprovalController::class, 'approve'])->name('leave-requests.approve');
                 Route::post('/leave-requests/{id}/reject', [\App\Http\Controllers\LeaveApprovalController::class, 'reject'])->name('leave-requests.reject');

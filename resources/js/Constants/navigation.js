@@ -51,6 +51,7 @@ export const subNavs = {
     { name: 'Salary Revisions', url: safeRoute('employees.salary-revisions-queue', '/employees/salary-revisions-queue'), key: 'emp_salary_revisions' },
     { name: 'Bank Change Requests', url: safeRoute('employees.bank-change-requests', '/employees/bank-change-requests'), key: 'emp_bank_change' },
     { name: 'Day Swap Requests', url: safeRoute('employees.day-swaps', '/day-swap-requests'), key: 'emp_day_swaps' },
+    { name: 'Attendance Corrections', url: safeRoute('employees.attendance-corrections', '/attendance-correction-requests'), key: 'emp_attendance_corrections' },
     { name: 'Leave Approval Queue', url: safeRoute('leave-requests.index', '/leave-requests'), key: 'emp_leave_approval' },
     { name: 'Leave Settings', url: safeRoute('payroll.leave-settings', '/payroll/leave-settings'), key: 'emp_leave_settings' },
     { name: 'Employee Queries', url: safeRoute('admin.employee-queries.index', '/admin/employee-queries'), key: 'emp_queries' },
