@@ -24,7 +24,11 @@ import {
   ChevronDown,
   Calendar,
   MapPin,
-  Briefcase
+  Briefcase,
+  Check,
+  X,
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
 import RoleGuard from '../../Components/RoleGuard.jsx';
 import { useRole } from '../../Contexts/RoleContext.jsx';
@@ -166,6 +170,721 @@ function SearchableClientDropdown({ allClientsList, selectedClientId, selectedCl
   );
 }
 
+}
+
+function LeaveRequestsTable({ items = [], processingId, onApprove, onReject }) {
+  if (!items || items.length === 0) {
+    return (
+      <div className="text-center py-10 px-4">
+        <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-2 opacity-80" />
+        <h4 className="text-sm font-bold text-slate-800">No Pending Leave Requests</h4>
+        <p className="text-xs text-slate-500 mt-1">All employee leave applications have been reviewed.</p>
+      </div>
+    );
+  }
+
+  return (
+    <table className="w-full text-left border-collapse text-xs">
+      <thead>
+        <tr className="bg-slate-100/80 border-b border-slate-200 text-slate-700 uppercase font-bold text-[11px] tracking-wider">
+          <th className="py-3 px-4">Employee</th>
+          <th className="py-3 px-4">Client Partner</th>
+          <th className="py-3 px-4">Leave Type</th>
+          <th className="py-3 px-4">Duration & Days</th>
+          <th className="py-3 px-4">Reason</th>
+          <th className="py-3 px-4 text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-slate-100">
+        {items.map((item) => {
+          const isProcessing = processingId === `leave-${item.id}`;
+          const typeLabel = item.leave_type === 'casual' ? 'Casual Leave (CL)'
+            : item.leave_type === 'sick' ? 'Sick Leave (SL)'
+            : item.leave_type === 'earned' ? 'Earned Leave (EL)'
+            : 'Loss of Pay (LOP)';
+
+          return (
+            <tr key={item.id} className="hover:bg-indigo-50/30 transition-colors">
+              <td className="py-3 px-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-800 font-bold flex items-center justify-center text-xs shrink-0">
+                    {item.employee?.full_name?.charAt(0) || 'E'}
+                  </div>
+                  <div>
+                    <div className="font-bold text-slate-900">{item.employee?.full_name || 'N/A'}</div>
+                    <div className="text-[11px] text-slate-500 font-mono">{item.employee?.employee_code}</div>
+                  </div>
+                </div>
+              </td>
+              <td className="py-3 px-4 font-semibold text-slate-700">
+                {item.employee?.client?.company_name || 'N/A'}
+              </td>
+              <td className="py-3 px-4">
+                <span className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                  item.leave_type === 'sick' ? 'bg-rose-100 text-rose-800 border border-rose-200' :
+                  item.leave_type === 'casual' ? 'bg-blue-100 text-blue-800 border border-blue-200' :
+                  item.leave_type === 'earned' ? 'bg-purple-100 text-purple-800 border border-purple-200' :
+                  'bg-amber-100 text-amber-900 border border-amber-200'
+                }`}>
+                  {typeLabel}
+                </span>
+              </td>
+              <td className="py-3 px-4">
+                <div className="font-bold text-slate-900">{item.from_date} ➔ {item.to_date}</div>
+                <div className="text-[11px] text-indigo-700 font-semibold">{item.days_count} Working Day(s)</div>
+              </td>
+              <td className="py-3 px-4 max-w-xs truncate text-slate-600" title={item.reason}>
+                {item.reason}
+              </td>
+              <td className="py-3 px-4 text-right">
+                <div className="flex items-center justify-end gap-1.5">
+                  <button
+                    type="button"
+                    disabled={isProcessing}
+                    onClick={() => onApprove(item)}
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] rounded-lg shadow-xs transition-all flex items-center gap-1 cursor-pointer"
+                  >
+                    {isProcessing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                    <span>Approve</span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isProcessing}
+                    onClick={() => onReject(item)}
+                    className="px-3 py-1.5 bg-white border border-red-300 text-red-700 hover:bg-red-50 font-bold text-[11px] rounded-lg shadow-xs transition-all flex items-center gap-1 cursor-pointer"
+                  >
+                    <X className="w-3 h-3 text-red-600" />
+                    <span>Reject</span>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}
+
+function DaySwapsTable({ items = [], processingId, onApprove, onReject }) {
+  if (!items || items.length === 0) {
+    return (
+      <div className="text-center py-10 px-4">
+        <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-2 opacity-80" />
+        <h4 className="text-sm font-bold text-slate-800">No Pending Day Swap Requests</h4>
+        <p className="text-xs text-slate-500 mt-1">All attendance day swaps are up to date.</p>
+      </div>
+    );
+  }
+
+  return (
+    <table className="w-full text-left border-collapse text-xs">
+      <thead>
+        <tr className="bg-slate-100/80 border-b border-slate-200 text-slate-700 uppercase font-bold text-[11px] tracking-wider">
+          <th className="py-3 px-4">Employee</th>
+          <th className="py-3 px-4">Client Partner</th>
+          <th className="py-3 px-4">Scheduled Off Date</th>
+          <th className="py-3 px-4">Swap Target Work Date</th>
+          <th className="py-3 px-4">Notes</th>
+          <th className="py-3 px-4 text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-slate-100">
+        {items.map((item) => {
+          const isProcessing = processingId === `day_swap-${item.id}`;
+          return (
+            <tr key={item.id} className="hover:bg-purple-50/30 transition-colors">
+              <td className="py-3 px-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-full bg-purple-100 text-purple-800 font-bold flex items-center justify-center text-xs shrink-0">
+                    {item.employee?.full_name?.charAt(0) || 'E'}
+                  </div>
+                  <div>
+                    <div className="font-bold text-slate-900">{item.employee?.full_name || 'N/A'}</div>
+                    <div className="text-[11px] text-slate-500 font-mono">{item.employee?.employee_code}</div>
+                  </div>
+                </div>
+              </td>
+              <td className="py-3 px-4 font-semibold text-slate-700">
+                {item.employee?.client?.company_name || 'N/A'}
+              </td>
+              <td className="py-3 px-4 font-bold text-slate-900">
+                {item.attendance_date}
+              </td>
+              <td className="py-3 px-4 font-bold text-purple-700">
+                {item.swap_target_date || 'N/A'}
+              </td>
+              <td className="py-3 px-4 max-w-xs truncate text-slate-600" title={item.notes}>
+                {item.notes || 'No details provided'}
+              </td>
+              <td className="py-3 px-4 text-right">
+                <div className="flex items-center justify-end gap-1.5">
+                  <button
+                    type="button"
+                    disabled={isProcessing}
+                    onClick={() => onApprove(item)}
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] rounded-lg shadow-xs transition-all flex items-center gap-1 cursor-pointer"
+                  >
+                    {isProcessing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                    <span>Approve</span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isProcessing}
+                    onClick={() => onReject(item)}
+                    className="px-3 py-1.5 bg-white border border-red-300 text-red-700 hover:bg-red-50 font-bold text-[11px] rounded-lg shadow-xs transition-all flex items-center gap-1 cursor-pointer"
+                  >
+                    <X className="w-3 h-3 text-red-600" />
+                    <span>Reject</span>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}
+
+function AttendanceCorrectionsTable({ items = [], processingId, onApprove, onReject }) {
+  if (!items || items.length === 0) {
+    return (
+      <div className="text-center py-10 px-4">
+        <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-2 opacity-80" />
+        <h4 className="text-sm font-bold text-slate-800">No Pending Attendance Corrections</h4>
+        <p className="text-xs text-slate-500 mt-1">All attendance punch correction requests have been resolved.</p>
+      </div>
+    );
+  }
+
+  return (
+    <table className="w-full text-left border-collapse text-xs">
+      <thead>
+        <tr className="bg-slate-100/80 border-b border-slate-200 text-slate-700 uppercase font-bold text-[11px] tracking-wider">
+          <th className="py-3 px-4">Employee</th>
+          <th className="py-3 px-4">Client Partner</th>
+          <th className="py-3 px-4">Date</th>
+          <th className="py-3 px-4">Requested Punch Times</th>
+          <th className="py-3 px-4">Reason Category & Details</th>
+          <th className="py-3 px-4 text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-slate-100">
+        {items.map((item) => {
+          const isProcessing = processingId === `attendance_correction-${item.id}`;
+          return (
+            <tr key={item.id} className="hover:bg-blue-50/30 transition-colors">
+              <td className="py-3 px-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-800 font-bold flex items-center justify-center text-xs shrink-0">
+                    {item.employee?.full_name?.charAt(0) || 'E'}
+                  </div>
+                  <div>
+                    <div className="font-bold text-slate-900">{item.employee?.full_name || 'N/A'}</div>
+                    <div className="text-[11px] text-slate-500 font-mono">{item.employee?.employee_code}</div>
+                  </div>
+                </div>
+              </td>
+              <td className="py-3 px-4 font-semibold text-slate-700">
+                {item.employee?.client?.company_name || 'N/A'}
+              </td>
+              <td className="py-3 px-4 font-bold text-slate-900">
+                {item.attendance_date}
+              </td>
+              <td className="py-3 px-4">
+                <div className="font-bold text-blue-700">In: {item.requested_punch_in_time ? new Date(item.requested_punch_in_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A'}</div>
+                <div className="font-bold text-indigo-800">Out: {item.requested_punch_out_time ? new Date(item.requested_punch_out_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A'}</div>
+              </td>
+              <td className="py-3 px-4 max-w-xs">
+                <div className="font-bold text-slate-800 capitalize">{item.reason_category?.replace(/_/g, ' ')}</div>
+                <div className="text-slate-500 truncate" title={item.reason_details}>{item.reason_details}</div>
+              </td>
+              <td className="py-3 px-4 text-right">
+                <div className="flex items-center justify-end gap-1.5">
+                  <button
+                    type="button"
+                    disabled={isProcessing}
+                    onClick={() => onApprove(item)}
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] rounded-lg shadow-xs transition-all flex items-center gap-1 cursor-pointer"
+                  >
+                    {isProcessing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                    <span>Approve</span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isProcessing}
+                    onClick={() => onReject(item)}
+                    className="px-3 py-1.5 bg-white border border-red-300 text-red-700 hover:bg-red-50 font-bold text-[11px] rounded-lg shadow-xs transition-all flex items-center gap-1 cursor-pointer"
+                  >
+                    <X className="w-3 h-3 text-red-600" />
+                    <span>Reject</span>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}
+
+function BankRequestsTable({ items = [], processingId, onApprove, onReject }) {
+  if (!items || items.length === 0) {
+    return (
+      <div className="text-center py-10 px-4">
+        <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-2 opacity-80" />
+        <h4 className="text-sm font-bold text-slate-800">No Pending Bank Change Requests</h4>
+        <p className="text-xs text-slate-500 mt-1">All employee bank detail updates have been verified.</p>
+      </div>
+    );
+  }
+
+  return (
+    <table className="w-full text-left border-collapse text-xs">
+      <thead>
+        <tr className="bg-slate-100/80 border-b border-slate-200 text-slate-700 uppercase font-bold text-[11px] tracking-wider">
+          <th className="py-3 px-4">Employee</th>
+          <th className="py-3 px-4">Client Partner</th>
+          <th className="py-3 px-4">Bank Name & Branch</th>
+          <th className="py-3 px-4">Account Details</th>
+          <th className="py-3 px-4 text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-slate-100">
+        {items.map((item) => {
+          const isProcessing = processingId === `bank_change-${item.id}`;
+          return (
+            <tr key={item.id} className="hover:bg-amber-50/30 transition-colors">
+              <td className="py-3 px-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-full bg-amber-100 text-amber-900 font-bold flex items-center justify-center text-xs shrink-0">
+                    {item.employee?.full_name?.charAt(0) || 'E'}
+                  </div>
+                  <div>
+                    <div className="font-bold text-slate-900">{item.employee?.full_name || 'N/A'}</div>
+                    <div className="text-[11px] text-slate-500 font-mono">{item.employee?.employee_code}</div>
+                  </div>
+                </div>
+              </td>
+              <td className="py-3 px-4 font-semibold text-slate-700">
+                {item.employee?.client?.company_name || 'N/A'}
+              </td>
+              <td className="py-3 px-4 font-bold text-slate-900">
+                <div>{item.bank_name}</div>
+                <div className="text-[11px] text-slate-500 font-normal">{item.bank_branch}</div>
+              </td>
+              <td className="py-3 px-4">
+                <div className="font-mono font-bold text-amber-900">A/C: {item.account_number}</div>
+                <div className="text-[11px] text-slate-500 font-mono">IFSC: {item.ifsc_code}</div>
+              </td>
+              <td className="py-3 px-4 text-right">
+                <div className="flex items-center justify-end gap-1.5">
+                  <button
+                    type="button"
+                    disabled={isProcessing}
+                    onClick={() => onApprove(item)}
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] rounded-lg shadow-xs transition-all flex items-center gap-1 cursor-pointer"
+                  >
+                    {isProcessing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                    <span>Approve</span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isProcessing}
+                    onClick={() => onReject(item)}
+                    className="px-3 py-1.5 bg-white border border-red-300 text-red-700 hover:bg-red-50 font-bold text-[11px] rounded-lg shadow-xs transition-all flex items-center gap-1 cursor-pointer"
+                  >
+                    <X className="w-3 h-3 text-red-600" />
+                    <span>Reject</span>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}
+
+function SalaryRevisionsTable({ items = [], processingId, onApprove, onReject }) {
+  if (!items || items.length === 0) {
+    return (
+      <div className="text-center py-10 px-4">
+        <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-2 opacity-80" />
+        <h4 className="text-sm font-bold text-slate-800">No Pending Salary Revisions</h4>
+        <p className="text-xs text-slate-500 mt-1">All compensation & promotion requests are processed.</p>
+      </div>
+    );
+  }
+
+  return (
+    <table className="w-full text-left border-collapse text-xs">
+      <thead>
+        <tr className="bg-slate-100/80 border-b border-slate-200 text-slate-700 uppercase font-bold text-[11px] tracking-wider">
+          <th className="py-3 px-4">Employee</th>
+          <th className="py-3 px-4">Client Partner</th>
+          <th className="py-3 px-4">Revised Salary</th>
+          <th className="py-3 px-4">Promotion / Designation</th>
+          <th className="py-3 px-4">Effective Date</th>
+          <th className="py-3 px-4 text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-slate-100">
+        {items.map((item) => {
+          const isProcessing = processingId === `salary_revision-${item.id}`;
+          return (
+            <tr key={item.id} className="hover:bg-emerald-50/30 transition-colors">
+              <td className="py-3 px-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center text-xs shrink-0">
+                    {item.employee?.full_name?.charAt(0) || 'E'}
+                  </div>
+                  <div>
+                    <div className="font-bold text-slate-900">{item.employee?.full_name || 'N/A'}</div>
+                    <div className="text-[11px] text-slate-500 font-mono">{item.employee?.employee_code}</div>
+                  </div>
+                </div>
+              </td>
+              <td className="py-3 px-4 font-semibold text-slate-700">
+                {item.employee?.client?.company_name || 'N/A'}
+              </td>
+              <td className="py-3 px-4 font-bold text-emerald-700">
+                ₹{parseFloat(item.revised_gross_monthly_salary || 0).toLocaleString()}/mo
+              </td>
+              <td className="py-3 px-4">
+                {item.is_promotion ? (
+                  <span className="inline-block bg-purple-100 text-purple-900 border border-purple-200 px-2 py-0.5 rounded-full text-[11px] font-bold">
+                    Promotion ➔ {item.new_designation || 'New Role'}
+                  </span>
+                ) : (
+                  <span className="text-slate-600 font-medium">Annual Increment</span>
+                )}
+              </td>
+              <td className="py-3 px-4 font-semibold text-slate-800">
+                {item.effective_date}
+              </td>
+              <td className="py-3 px-4 text-right">
+                <div className="flex items-center justify-end gap-1.5">
+                  <button
+                    type="button"
+                    disabled={isProcessing}
+                    onClick={() => onApprove(item)}
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] rounded-lg shadow-xs transition-all flex items-center gap-1 cursor-pointer"
+                  >
+                    {isProcessing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                    <span>Approve</span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isProcessing}
+                    onClick={() => onReject(item)}
+                    className="px-3 py-1.5 bg-white border border-red-300 text-red-700 hover:bg-red-50 font-bold text-[11px] rounded-lg shadow-xs transition-all flex items-center gap-1 cursor-pointer"
+                  >
+                    <X className="w-3 h-3 text-red-600" />
+                    <span>Reject</span>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}
+
+function DashboardApprovalQueueTable({
+  pendingLeavesList = [],
+  pendingDaySwapsList = [],
+  pendingAttendanceCorrectionsList = [],
+  pendingBankRequestsList = [],
+  pendingSalaryRevisionsList = [],
+}) {
+  const getInitialTab = () => {
+    if (pendingLeavesList.length > 0) return 'leave';
+    if (pendingDaySwapsList.length > 0) return 'day_swap';
+    if (pendingAttendanceCorrectionsList.length > 0) return 'attendance_correction';
+    if (pendingBankRequestsList.length > 0) return 'bank_change';
+    if (pendingSalaryRevisionsList.length > 0) return 'salary_revision';
+    return 'leave';
+  };
+
+  const [activeTab, setActiveTab] = useState(getInitialTab);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [processingId, setProcessingId] = useState(null);
+  
+  const [rejectModalItem, setRejectModalItem] = useState(null);
+  const [rejectType, setRejectType] = useState('');
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [rejectError, setRejectError] = useState('');
+
+  const handleApprove = (type, item) => {
+    setProcessingId(`${type}-${item.id}`);
+
+    let targetRoute = '';
+    if (type === 'leave') {
+      targetRoute = route('leave-requests.approve', item.id);
+    } else if (type === 'day_swap') {
+      targetRoute = route('employees.day-swaps.approve', item.id);
+    } else if (type === 'attendance_correction') {
+      targetRoute = route('employees.attendance-corrections.approve', item.id);
+    } else if (type === 'bank_change') {
+      targetRoute = route('employees.bank-change-requests.approve', item.id);
+    } else if (type === 'salary_revision') {
+      targetRoute = route('employees.salary-revision.approve', { id: item.employee_id, revisionId: item.id });
+    }
+
+    router.post(
+      targetRoute,
+      {},
+      {
+        preserveScroll: true,
+        preserveState: true,
+        onFinish: () => setProcessingId(null),
+      }
+    );
+  };
+
+  const openRejectModal = (type, item) => {
+    setRejectType(type);
+    setRejectModalItem(item);
+    setRejectionReason('');
+    setRejectError('');
+  };
+
+  const confirmReject = (e) => {
+    e.preventDefault();
+    if (!rejectionReason || rejectionReason.trim().length < 5) {
+      setRejectError('Please provide a rejection reason (min 5 characters).');
+      return;
+    }
+
+    const type = rejectType;
+    const item = rejectModalItem;
+    setProcessingId(`${type}-${item.id}`);
+
+    let targetRoute = '';
+    if (type === 'leave') {
+      targetRoute = route('leave-requests.reject', item.id);
+    } else if (type === 'day_swap') {
+      targetRoute = route('employees.day-swaps.reject', item.id);
+    } else if (type === 'attendance_correction') {
+      targetRoute = route('employees.attendance-corrections.reject', item.id);
+    } else if (type === 'bank_change') {
+      targetRoute = route('employees.bank-change-requests.reject', item.id);
+    }
+
+    router.post(
+      targetRoute,
+      { rejection_reason: rejectionReason },
+      {
+        preserveScroll: true,
+        preserveState: true,
+        onSuccess: () => {
+          setRejectModalItem(null);
+          setRejectionReason('');
+        },
+        onFinish: () => setProcessingId(null),
+      }
+    );
+  };
+
+  const filterList = (list) => {
+    if (!searchTerm.trim()) return list;
+    const term = searchTerm.toLowerCase();
+    return list.filter((item) => {
+      const empName = item.employee?.full_name?.toLowerCase() || '';
+      const empCode = item.employee?.employee_code?.toLowerCase() || '';
+      const clientName = item.employee?.client?.company_name?.toLowerCase() || '';
+      const reason = (item.reason || item.reason_details || item.notes || '').toLowerCase();
+      return empName.includes(term) || empCode.includes(term) || clientName.includes(term) || reason.includes(term);
+    });
+  };
+
+  const tabs = [
+    { key: 'leave', label: 'Leave Requests', count: pendingLeavesList.length, icon: Calendar, color: 'indigo' },
+    { key: 'day_swap', label: 'Day Swap Requests', count: pendingDaySwapsList.length, icon: Clock, color: 'purple' },
+    { key: 'attendance_correction', label: 'Attendance Corrections', count: pendingAttendanceCorrectionsList.length, icon: ShieldCheck, color: 'blue' },
+    { key: 'bank_change', label: 'Bank Change Requests', count: pendingBankRequestsList.length, icon: CreditCard, color: 'amber' },
+    { key: 'salary_revision', label: 'Salary Revisions', count: pendingSalaryRevisionsList.length, icon: TrendingUp, color: 'emerald' },
+  ];
+
+  const totalPendingAll = pendingLeavesList.length + pendingDaySwapsList.length + pendingAttendanceCorrectionsList.length + pendingBankRequestsList.length + pendingSalaryRevisionsList.length;
+
+  return (
+    <div className="mb-8 bg-white border border-slate-200/90 rounded-2xl shadow-sm overflow-hidden font-sans">
+      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-400/40 text-amber-300 flex items-center justify-center font-bold shrink-0 shadow-inner">
+            <AlertCircle className="w-5 h-5 animate-pulse" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-base font-bold tracking-tight text-white">Pending Approvals Queue</h3>
+              <span className="bg-amber-500 text-slate-950 font-extrabold text-xs px-2.5 py-0.5 rounded-full shadow-sm">
+                {totalPendingAll} Pending
+              </span>
+            </div>
+            <p className="text-xs text-slate-300 mt-0.5">
+              Review and act on employee leave, attendance swaps, bank updates, and salary requests directly without full page reload.
+            </p>
+          </div>
+        </div>
+
+        <div className="relative shrink-0 w-full md:w-64">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+          <input
+            type="text"
+            placeholder="Search request by employee or client..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-slate-800/80 border border-slate-700 rounded-lg pl-9 pr-3 py-1.5 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400"
+          />
+        </div>
+      </div>
+
+      <div className="flex overflow-x-auto bg-slate-50 border-b border-slate-200 px-4 pt-2 gap-1 no-scrollbar">
+        {tabs.map((t) => {
+          const IconComponent = t.icon;
+          const isActive = activeTab === t.key;
+          return (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => { setActiveTab(t.key); setSearchTerm(''); }}
+              className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-xl transition-all border-t-2 shrink-0 cursor-pointer ${
+                isActive
+                  ? 'bg-white border-indigo-600 text-indigo-950 shadow-sm font-bold border-x border-slate-200 -mb-px z-10'
+                  : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
+              }`}
+            >
+              <IconComponent className={`w-4 h-4 ${isActive ? 'text-indigo-600' : 'text-slate-400'}`} />
+              <span>{t.label}</span>
+              <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold font-mono ${
+                t.count > 0 
+                  ? (isActive ? 'bg-indigo-100 text-indigo-900 border border-indigo-200' : 'bg-amber-100 text-amber-900 border border-amber-200')
+                  : 'bg-slate-200 text-slate-600'
+              }`}>
+                {t.count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="p-0 overflow-x-auto">
+        {activeTab === 'leave' && (
+          <LeaveRequestsTable
+            items={filterList(pendingLeavesList)}
+            processingId={processingId}
+            onApprove={(item) => handleApprove('leave', item)}
+            onReject={(item) => openRejectModal('leave', item)}
+          />
+        )}
+
+        {activeTab === 'day_swap' && (
+          <DaySwapsTable
+            items={filterList(pendingDaySwapsList)}
+            processingId={processingId}
+            onApprove={(item) => handleApprove('day_swap', item)}
+            onReject={(item) => openRejectModal('day_swap', item)}
+          />
+        )}
+
+        {activeTab === 'attendance_correction' && (
+          <AttendanceCorrectionsTable
+            items={filterList(pendingAttendanceCorrectionsList)}
+            processingId={processingId}
+            onApprove={(item) => handleApprove('attendance_correction', item)}
+            onReject={(item) => openRejectModal('attendance_correction', item)}
+          />
+        )}
+
+        {activeTab === 'bank_change' && (
+          <BankRequestsTable
+            items={filterList(pendingBankRequestsList)}
+            processingId={processingId}
+            onApprove={(item) => handleApprove('bank_change', item)}
+            onReject={(item) => openRejectModal('bank_change', item)}
+          />
+        )}
+
+        {activeTab === 'salary_revision' && (
+          <SalaryRevisionsTable
+            items={filterList(pendingSalaryRevisionsList)}
+            processingId={processingId}
+            onApprove={(item) => handleApprove('salary_revision', item)}
+            onReject={(item) => openRejectModal('salary_revision', item)}
+          />
+        )}
+      </div>
+
+      {rejectModalItem && (
+        <div className="fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-red-50 text-red-600 flex items-center justify-center font-bold">
+                  <X className="w-4 h-4" />
+                </div>
+                <h4 className="text-sm font-bold text-slate-900">Reject Approval Request</h4>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRejectModalItem(null)}
+                className="text-slate-400 hover:text-slate-600 text-xs font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="text-xs text-slate-600 space-y-1">
+              <p>Applicant: <strong className="text-slate-900">{rejectModalItem.employee?.full_name}</strong> ({rejectModalItem.employee?.employee_code})</p>
+              <p>Client: <strong className="text-indigo-700">{rejectModalItem.employee?.client?.company_name || 'N/A'}</strong></p>
+            </div>
+
+            <form onSubmit={confirmReject} className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">Rejection Reason *</label>
+                <textarea
+                  required
+                  rows="3"
+                  placeholder="Explain why this request is being rejected..."
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-xs text-slate-900 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                ></textarea>
+                {rejectError && <p className="text-xs text-red-600 font-semibold mt-1">{rejectError}</p>}
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setRejectModalItem(null)}
+                  className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-lg transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={processingId !== null}
+                  className="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-lg shadow transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  {processingId ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
+                  <span>Confirm Rejection</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Dashboard({ 
   selectedClientId = null,
   selectedClient = null,
@@ -266,64 +985,14 @@ export default function Dashboard({
           )}
         </div>
 
-        {/* Approval Alerts Banner */}
-        {metrics.totalPendingAlerts > 0 ? (
-          <div className="mb-6 bg-amber-50 border border-amber-300 rounded-xl p-4 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5 sm:mt-0">
-                <AlertTriangle className="w-5 h-5 animate-bounce" />
-              </div>
-              <div>
-                <div className="font-bold text-amber-950 text-sm flex items-center gap-2">
-                  <span>Action Required: {metrics.totalPendingAlerts} Pending Approvals in Queue</span>
-                </div>
-                <div className="text-xs text-amber-900 font-medium mt-1 flex flex-wrap gap-x-4 gap-y-1">
-                  {metrics.pendingSalaryRevisions > 0 && (
-                    <span className="flex items-center gap-1"><TrendingUp className="w-3.5 h-3.5 text-amber-700 inline" /> <strong>{metrics.pendingSalaryRevisions}</strong> Salary Revision Requests</span>
-                  )}
-                  {metrics.pendingBankRequests > 0 && (
-                    <span className="flex items-center gap-1"><Building2 className="w-3.5 h-3.5 text-amber-700 inline" /> <strong>{metrics.pendingBankRequests}</strong> Bank Change Requests</span>
-                  )}
-                  {metrics.pendingDaySwaps > 0 && (
-                    <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5 text-amber-700 inline" /> <strong>{metrics.pendingDaySwaps}</strong> Day Swap Requests</span>
-                  )}
-                  {metrics.pendingLeaves > 0 && (
-                    <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5 text-amber-700 inline" /> <strong>{metrics.pendingLeaves}</strong> Leave Requests</span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0">
-              {metrics.pendingSalaryRevisions > 0 && (
-                <Link
-                  href={route('employees.salary-revisions-queue')}
-                  className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-lg shadow transition-all"
-                >
-                  Review Revisions
-                </Link>
-              )}
-              {metrics.pendingBankRequests > 0 && (
-                <Link
-                  href={route('employees.bank-change-requests')}
-                  className="px-3.5 py-1.5 bg-white border border-amber-400 text-amber-950 hover:bg-amber-100 font-bold text-xs rounded-lg shadow-sm transition-all"
-                >
-                  Bank Requests
-                </Link>
-              )}
-            </div>
-          </div>
-        ) : (
-          <div className="mb-6 bg-emerald-50 border border-emerald-300 rounded-xl p-3 flex items-center justify-between text-xs text-emerald-950 font-medium shadow-sm">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4.5 h-4.5 text-emerald-600 shrink-0" />
-              <span>All approval queues are up to date. Zero pending salary revisions or bank requests.</span>
-            </div>
-            <span className="font-semibold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-300">
-              ✓ Clear Queue
-            </span>
-          </div>
-        )}
+        {/* Interactive Pending Approvals Queue Table */}
+        <DashboardApprovalQueueTable
+          pendingLeavesList={pendingLeavesList}
+          pendingDaySwapsList={pendingDaySwapsList}
+          pendingAttendanceCorrectionsList={pendingAttendanceCorrectionsList}
+          pendingBankRequestsList={pendingBankRequestsList}
+          pendingSalaryRevisionsList={pendingSalaryRevisionsList}
+        />
 
         {/* Top Metric Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 font-sans">

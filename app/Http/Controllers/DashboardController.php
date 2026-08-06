@@ -239,13 +239,68 @@ class DashboardController extends Controller
         }
 
         // 9. Recent Pending Salary Revisions List
-        $recentRevisions = (clone $revQuery)->with('employee:id,full_name,employee_code,designation')
+        $recentRevisions = (clone $revQuery)->with('employee:id,full_name,employee_code,designation,client_id', 'employee.client:id,company_name,client_code')
             ->where('status', 'pending_approval')
             ->orderBy('created_at', 'desc')
-            ->take(5)
+            ->take(20)
             ->get();
 
-        // 10. Recent Payroll Runs
+        // 10. Pending Approval Lists for Dashboard Interactive Approval Queue Table
+        $pendingLeavesList = [];
+        if (class_exists(LeaveRequest::class)) {
+            $lq = LeaveRequest::with(['employee:id,full_name,employee_code,personal_email,client_id', 'employee.client:id,company_name,client_code'])
+                ->where('status', 'pending');
+            if ($user->role === 'manager') {
+                $lq->whereHas('employee', fn($q) => $q->whereIn('client_id', $managedClientIds));
+            }
+            if ($selectedClientId) {
+                $lq->whereHas('employee', fn($q) => $q->where('client_id', $selectedClientId));
+            }
+            $pendingLeavesList = $lq->orderBy('created_at', 'desc')->take(20)->get();
+        }
+
+        $pendingDaySwapsList = [];
+        if (class_exists(EmployeeAttendanceOverride::class)) {
+            $sq = EmployeeAttendanceOverride::with(['employee:id,full_name,employee_code,client_id', 'employee.client:id,company_name,client_code'])
+                ->where('attendance_day_type', 'work_day')
+                ->whereNotNull('swap_target_date')
+                ->where('status', 'pending');
+            if ($user->role === 'manager') {
+                $sq->whereHas('employee', fn($q) => $q->whereIn('client_id', $managedClientIds));
+            }
+            if ($selectedClientId) {
+                $sq->whereHas('employee', fn($q) => $q->where('client_id', $selectedClientId));
+            }
+            $pendingDaySwapsList = $sq->orderBy('created_at', 'desc')->take(20)->get();
+        }
+
+        $pendingAttendanceCorrectionsList = [];
+        if (class_exists(\App\Models\AttendanceCorrectionRequest::class)) {
+            $cq = \App\Models\AttendanceCorrectionRequest::with(['employee:id,full_name,employee_code,client_id', 'employee.client:id,company_name,client_code'])
+                ->where('status', 'pending');
+            if ($user->role === 'manager') {
+                $cq->whereHas('employee', fn($q) => $q->whereIn('client_id', $managedClientIds));
+            }
+            if ($selectedClientId) {
+                $cq->whereHas('employee', fn($q) => $q->where('client_id', $selectedClientId));
+            }
+            $pendingAttendanceCorrectionsList = $cq->orderBy('created_at', 'desc')->take(20)->get();
+        }
+
+        $pendingBankRequestsList = [];
+        if (class_exists(BankChangeRequest::class)) {
+            $bq = BankChangeRequest::with(['employee:id,full_name,employee_code,client_id', 'employee.client:id,company_name,client_code'])
+                ->where('status', 'pending');
+            if ($user->role === 'manager') {
+                $bq->whereHas('employee', fn($q) => $q->whereIn('client_id', $managedClientIds));
+            }
+            if ($selectedClientId) {
+                $bq->whereHas('employee', fn($q) => $q->where('client_id', $selectedClientId));
+            }
+            $pendingBankRequestsList = $bq->orderBy('created_at', 'desc')->take(20)->get();
+        }
+
+        // 11. Recent Payroll Runs
         $recentPayrollRuns = [];
         if (class_exists(PayrollRun::class)) {
             $pRunQ = PayrollRun::with('client:id,company_name');
@@ -309,6 +364,11 @@ class DashboardController extends Controller
             'recentEmployees' => $recentEmployees,
             'topClients' => $topClients,
             'recentRevisions' => $recentRevisions,
+            'pendingLeavesList' => $pendingLeavesList,
+            'pendingDaySwapsList' => $pendingDaySwapsList,
+            'pendingAttendanceCorrectionsList' => $pendingAttendanceCorrectionsList,
+            'pendingBankRequestsList' => $pendingBankRequestsList,
+            'pendingSalaryRevisionsList' => $recentRevisions,
             'recentPayrollRuns' => $recentPayrollRuns,
             'currentPeriod' => Carbon::now()->format('F Y'),
             'themeColor' => class_exists(\App\Services\SettingsService::class) ? (\App\Services\SettingsService::get('branding.primary_color', '#082d9b') ?: '#082d9b') : '#082d9b',
