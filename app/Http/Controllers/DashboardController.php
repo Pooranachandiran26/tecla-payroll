@@ -212,6 +212,8 @@ class DashboardController extends Controller
             $approvedLeavesThisMonth = (clone $leaveQ)->where('status', 'approved')
                 ->whereMonth('created_at', Carbon::now()->month)
                 ->count();
+        }
+
         $pendingEmployeeQueries = 0;
         if (class_exists(\App\Models\EmployeeQuery::class)) {
             $eqCount = \App\Models\EmployeeQuery::where('status', 'pending');
