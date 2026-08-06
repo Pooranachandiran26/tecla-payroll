@@ -852,7 +852,10 @@ function DashboardApprovalQueueTable({
         </div>
       </div>
 
-      <div className="flex overflow-x-auto bg-slate-100/60 border-b border-slate-200 px-4 pt-2 gap-1 no-scrollbar">
+      <div 
+        className="flex items-center overflow-x-auto overflow-y-hidden bg-slate-100/70 border-b border-slate-200 px-4 pt-1.5 gap-1.5"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+      >
         {tabs.map((t) => {
           const IconComponent = t.icon;
           const isActive = activeTab === t.key;
@@ -861,10 +864,10 @@ function DashboardApprovalQueueTable({
               key={t.key}
               type="button"
               onClick={() => { setActiveTab(t.key); setSearchTerm(''); }}
-              className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-xl transition-all border-t-2 shrink-0 cursor-pointer ${
+              className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-t-lg transition-all border-b-2 shrink-0 cursor-pointer ${
                 isActive
-                  ? 'bg-white border-indigo-600 text-indigo-950 shadow-sm font-bold border-x border-slate-200 -mb-px z-10'
-                  : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
+                  ? 'bg-white border-indigo-600 text-indigo-950 font-bold shadow-xs'
+                  : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
               }`}
             >
               <IconComponent className={`w-4 h-4 ${isActive ? 'text-indigo-600' : 'text-slate-400'}`} />
