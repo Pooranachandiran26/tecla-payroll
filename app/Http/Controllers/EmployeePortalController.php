@@ -536,7 +536,7 @@ class EmployeePortalController extends Controller
             type: 'leave_request',
             title: 'New Leave Request Pending Approval',
             body: "{$employee->full_name} ({$employee->employee_code}) submitted a {$leaveTypeName} Leave request for {$daysCount} day(s).",
-            url: route('leave-requests.index'),
+            url: route('leave-requests.index', [], false),
             data: ['employee_id' => $employee->id]
         );
 
