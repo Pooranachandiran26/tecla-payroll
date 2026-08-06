@@ -170,8 +170,6 @@ function SearchableClientDropdown({ allClientsList, selectedClientId, selectedCl
   );
 }
 
-}
-
 function LeaveRequestsTable({ items = [], processingId, onApprove, onReject }) {
   if (!items || items.length === 0) {
     return (
