@@ -42,10 +42,18 @@ class StoreEmployeeRequest extends FormRequest
         $motherName = $this->motherName ?: $this->mother_name;
         $spouseName = $this->spouseName ?: $this->wifeName ?: $this->spouse_name;
 
+        $clientId = $this->clientPartner ?: $this->client_id;
+        $branchId = $this->branchPartner ?: $this->branchId ?: $this->branch_id;
+
+        if (empty($branchId) && !empty($clientId)) {
+            $defaultBranch = \App\Models\ClientBranch::where('client_id', $clientId)->first();
+            $branchId = $defaultBranch ? $defaultBranch->id : 1;
+        }
+
         // Ensure default fallback values for boolean toggles if missing
         $this->merge([
-            'client_id' => $this->clientPartner,
-            'branch_id' => $this->branchId ?: $this->branch_id,
+            'client_id' => $clientId,
+            'branch_id' => $branchId,
             'first_name' => $firstName,
             'last_name' => $lastName,
             'father_name' => $fatherName,
