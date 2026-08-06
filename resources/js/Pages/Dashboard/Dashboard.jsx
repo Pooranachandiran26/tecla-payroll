@@ -988,16 +988,7 @@ export default function Dashboard({
           )}
         </div>
 
-        {/* Interactive Pending Approvals Queue Table */}
-        <DashboardApprovalQueueTable
-          pendingLeavesList={pendingLeavesList}
-          pendingDaySwapsList={pendingDaySwapsList}
-          pendingAttendanceCorrectionsList={pendingAttendanceCorrectionsList}
-          pendingBankRequestsList={pendingBankRequestsList}
-          pendingSalaryRevisionsList={pendingSalaryRevisionsList}
-        />
-
-        {/* Top Metric Cards */}
+        {/* Top Metric Cards (Row 2) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 font-sans">
           
           <div className="card metric-card hover-lift">
@@ -1089,6 +1080,15 @@ export default function Dashboard({
             </div>
           )}
         </div>
+
+        {/* Interactive Pending Approvals Queue Table (Row 3) */}
+        <DashboardApprovalQueueTable
+          pendingLeavesList={pendingLeavesList}
+          pendingDaySwapsList={pendingDaySwapsList}
+          pendingAttendanceCorrectionsList={pendingAttendanceCorrectionsList}
+          pendingBankRequestsList={pendingBankRequestsList}
+          pendingSalaryRevisionsList={pendingSalaryRevisionsList}
+        />
 
         {/* UNIFIED SINGLE PAGE LAYOUT - ALL MODULE SECTIONS */}
         <div className="space-y-6 font-sans">
