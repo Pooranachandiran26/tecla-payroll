@@ -58,8 +58,8 @@ class HandleInertiaRequests extends Middleware
                 'session_lifetime' => config('session.lifetime'),
             ],
             'branding' => [
-                'logo_url' => $logoPath ? '/storage/' . ltrim($logoPath, '/') . '?v=' . time() : '',
-                'favicon_url' => $faviconPath ? '/storage/' . ltrim($faviconPath, '/') . '?v=' . time() : '',
+                'logo_url' => $logoPath ? asset('storage/' . ltrim($logoPath, '/')) . '?v=' . time() : '',
+                'favicon_url' => $faviconPath ? asset('storage/' . ltrim($faviconPath, '/')) . '?v=' . time() : '',
                 'primary_color' => \App\Services\SettingsService::get('branding.primary_color', '#1e3a8a'),
                 'accent_gold_color' => \App\Services\SettingsService::get('branding.accent_gold_color', '#B8860B'),
                 'accent_gold_hover_color' => \App\Services\SettingsService::get('branding.accent_gold_hover_color', '#9c7109'),

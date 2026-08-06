@@ -21,7 +21,7 @@ class SettingsController extends Controller
         // Convert stored file paths to public URLs for the frontend
         foreach (['logo_path', 'favicon_path'] as $key) {
             if (!empty($settings[$key])) {
-                $settings[$key . '_url'] = '/storage/' . ltrim($settings[$key], '/') . '?v=' . time();
+                $settings[$key . '_url'] = asset('storage/' . ltrim($settings[$key], '/')) . '?v=' . time();
             } else {
                 $settings[$key . '_url'] = '';
             }

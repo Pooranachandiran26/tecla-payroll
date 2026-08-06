@@ -74,7 +74,7 @@ class EmployeeQueryController extends Controller
             type: 'employee_query',
             title: 'New Employee Support Query',
             body: "{$employee->full_name} ({$employee->employee_code}) submitted a [{$request->category}] query: {$request->subject}",
-            url: route('admin.employee-queries.index'),
+            url: route('admin.employee-queries.index', [], false),
             data: ['query_id' => $query->id, 'employee_id' => $employee->id]
         );
 

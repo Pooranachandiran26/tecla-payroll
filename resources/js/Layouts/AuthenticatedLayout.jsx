@@ -177,9 +177,9 @@ export default function AuthenticatedLayout({ children, hideSubNav = false }) {
 
               {dropdownOpen && (
                 <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '0.5rem', background: 'white', borderRadius: '6px', boxShadow: '0 4px 15px rgba(0,0,0,0.12)', minWidth: '180px', zIndex: 100, overflow: 'hidden' }}>
-                  <Link href={route('account.profile')} style={{ display: 'block', padding: '0.625rem 1rem', color: '#1e293b', textDecoration: 'none', borderBottom: '1px solid #f1f5f9', fontWeight: 500, fontSize: '0.85rem' }}>My Profile & Security</Link>
-                  <Link href={route('account.sessions')} style={{ display: 'block', padding: '0.625rem 1rem', color: '#1e293b', textDecoration: 'none', borderBottom: '1px solid #f1f5f9', fontWeight: 500, fontSize: '0.85rem' }}>Active Sessions</Link>
-                  <Link href={route('logout')} method="post" as="button" style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.625rem 1rem', color: '#dc2626', textDecoration: 'none', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' }}>Sign Out</Link>
+                  <Link href={role === 'employee' ? (typeof route === 'function' && route().has('employee.profile') ? route('employee.profile') : '/employee/profile') : role === 'client' ? (typeof route === 'function' && route().has('client.profile') ? route('client.profile') : '/client/profile') : (typeof route === 'function' && route().has('account.profile') ? route('account.profile') : '/account/profile')} style={{ display: 'block', padding: '0.625rem 1rem', color: '#1e293b', textDecoration: 'none', borderBottom: '1px solid #f1f5f9', fontWeight: 500, fontSize: '0.85rem' }}>My Profile & Security</Link>
+                  <Link href={typeof route === 'function' && route().has('account.sessions') ? route('account.sessions') : '/account/sessions'} style={{ display: 'block', padding: '0.625rem 1rem', color: '#1e293b', textDecoration: 'none', borderBottom: '1px solid #f1f5f9', fontWeight: 500, fontSize: '0.85rem' }}>Active Sessions</Link>
+                  <Link href={typeof route === 'function' && route().has('logout') ? route('logout') : '/logout'} method="post" as="button" style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.625rem 1rem', color: '#dc2626', textDecoration: 'none', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' }}>Sign Out</Link>
                 </div>
               )}
             </div>

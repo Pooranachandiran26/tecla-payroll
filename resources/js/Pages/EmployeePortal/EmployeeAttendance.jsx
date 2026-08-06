@@ -66,6 +66,23 @@ export default function EmployeeAttendance({ employee, attendanceRecords, correc
         return map;
     }, [rawRecords]);
 
+    const isDayOff = (dateObj) => {
+        const day = dateObj.getDay(); // 0 = Sun, 1 = Mon, ..., 5 = Fri, 6 = Sat
+        const empData = employee?.data || employee || {};
+        const p = (empData.weekly_off_pattern || empData.weeklyOffPattern || 'sat,sun').toLowerCase();
+
+        if (p.includes('sun') && !p.includes('sat')) {
+            return day === 0;
+        }
+        if (p.includes('fri') && p.includes('sat')) {
+            return day === 5 || day === 6;
+        }
+        if (p.includes('mon') && !p.includes('tue')) {
+            return day === 1;
+        }
+        return day === 0 || day === 6;
+    };
+
     // Calendar generation for current selected month
     const calendarDays = useMemo(() => {
         const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
@@ -87,7 +104,7 @@ export default function EmployeeAttendance({ employee, attendanceRecords, correc
             const dateStr = `${currentYear}-${monthStr}-${dayStr}`;
             
             const dateObj = new Date(currentYear, currentMonth, day);
-            const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6; // Sunday or Saturday
+            const isWeekend = isDayOff(dateObj);
             
             const record = recordsByDate[dateStr];
             
@@ -110,7 +127,7 @@ export default function EmployeeAttendance({ employee, attendanceRecords, correc
         }
 
         return days;
-    }, [currentYear, currentMonth, recordsByDate]);
+    }, [currentYear, currentMonth, recordsByDate, employee]);
 
     // Month navigation
     const handlePrevMonth = () => {
@@ -132,8 +149,9 @@ export default function EmployeeAttendance({ employee, attendanceRecords, correc
     };
 
     const handleTodayMonth = () => {
-        setCurrentYear(2026);
-        setCurrentMonth(7); // August 2026
+        const now = new Date();
+        setCurrentYear(now.getFullYear());
+        setCurrentMonth(now.getMonth());
     };
 
     const monthLabel = useMemo(() => {
@@ -159,6 +177,13 @@ export default function EmployeeAttendance({ employee, attendanceRecords, correc
     }, [calendarDays]);
 
     const openCorrectionModal = (dateStr) => {
+        const todayObj = new Date();
+        const todayStr = `${todayObj.getFullYear()}-${String(todayObj.getMonth() + 1).padStart(2, '0')}-${String(todayObj.getDate()).padStart(2, '0')}`;
+        if (dateStr > todayStr) {
+            showToast({ type: 'warning', title: 'Invalid Action', message: 'Cannot request attendance correction for future dates.' });
+            return;
+        }
+
         const isPending = correctionRequests.some(r => r.attendance_date === dateStr && r.status === 'pending');
         if (isPending) {
             showToast({ type: 'warning', title: 'Pending Request', message: 'Correction request already pending for this date.' });
@@ -376,7 +401,9 @@ export default function EmployeeAttendance({ employee, attendanceRecords, correc
                                     }
 
                                     const hasPendingCorrection = correctionRequests.some(r => r.attendance_date === d.dateStr && r.status === 'pending');
-                                    const isToday = d.dateStr === '2026-08-05';
+                                    const todayObj = new Date();
+                                    const todayStr = `${todayObj.getFullYear()}-${String(todayObj.getMonth() + 1).padStart(2, '0')}-${String(todayObj.getDate()).padStart(2, '0')}`;
+                                    const isToday = d.dateStr === todayStr;
 
                                     return (
                                         <div
@@ -606,14 +633,22 @@ export default function EmployeeAttendance({ employee, attendanceRecords, correc
                                 >
                                     Close
                                 </button>
-                                <button
-                                    onClick={() => openCorrectionModal(selectedDayDetail.dateStr)}
-                                    disabled={correctionRequests.some(r => r.attendance_date === selectedDayDetail.dateStr && r.status === 'pending')}
-                                    className="px-4 py-2 text-xs font-bold text-white bg-[#1F3864] hover:bg-[#152748] rounded-xl transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
-                                >
-                                    <FileText className="w-3.5 h-3.5 text-indigo-200" />
-                                    <span>Request Correction</span>
-                                </button>
+                                {(() => {
+                                    const todayObj = new Date();
+                                    const todayStr = `${todayObj.getFullYear()}-${String(todayObj.getMonth() + 1).padStart(2, '0')}-${String(todayObj.getDate()).padStart(2, '0')}`;
+                                    const isFuture = selectedDayDetail.dateStr > todayStr;
+                                    if (isFuture) return null;
+                                    return (
+                                        <button
+                                            onClick={() => openCorrectionModal(selectedDayDetail.dateStr)}
+                                            disabled={correctionRequests.some(r => r.attendance_date === selectedDayDetail.dateStr && r.status === 'pending')}
+                                            className="px-4 py-2 text-xs font-bold text-white bg-[#1F3864] hover:bg-[#152748] rounded-xl transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+                                        >
+                                            <FileText className="w-3.5 h-3.5 text-indigo-200" />
+                                            <span>Request Correction</span>
+                                        </button>
+                                    );
+                                })()}
                             </div>
                         </div>
                     </div>

@@ -109,7 +109,7 @@ class SalaryRevisionController extends Controller
             type: 'salary_revision',
             title: 'Salary Revision Pending Approval',
             body: "{$employee->full_name} ({$employee->employee_code}) has submitted a salary revision request.",
-            url: route('employees.salary-revision.create', $employee->id),
+            url: route('employees.salary-revision.create', $employee->id, false),
             data: ['employee_id' => $employee->id]
         );
 

@@ -375,7 +375,7 @@ class BulkUploadController extends Controller
         if ($request->filled('batch_id') && \Illuminate\Support\Facades\DB::table('bulk_upload_staging_rows')->where('batch_id', $request->input('batch_id'))->exists()) {
             $batchId = $request->input('batch_id');
             $fastBulkService = app(\App\Services\FastBulkUploadService::class);
-            $importRes = $fastBulkService->executeBatchImport($batchId);
+            $importRes = $fastBulkService->executeBatchImport($batchId, $request->user()->id);
 
             \Illuminate\Support\Facades\Cache::forget('bulk_upload_session_' . $request->user()->id);
 
@@ -457,6 +457,8 @@ class BulkUploadController extends Controller
                     foreach ($dbPayload as $k => $v) {
                         if (is_bool($v)) {
                             $dbPayload[$k] = $v ? 1 : 0;
+                        } elseif (is_string($v) && in_array(strtolower(trim($v)), ['true', 'false'], true)) {
+                            $dbPayload[$k] = strtolower(trim($v)) === 'true' ? 1 : 0;
                         }
                     }
 
@@ -653,7 +655,7 @@ class BulkUploadController extends Controller
 
             // Fast execution directly from staging DB (0.3 seconds)
             $fastBulkService = app(\App\Services\FastBulkUploadService::class);
-            $importRes = $fastBulkService->executeBatchImport($batchId);
+            $importRes = $fastBulkService->executeBatchImport($batchId, $request->user()->id);
 
             $batch->update([
                 'status' => 'completed',

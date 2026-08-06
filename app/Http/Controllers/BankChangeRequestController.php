@@ -148,7 +148,7 @@ class BankChangeRequestController extends Controller
             type: 'bank_change',
             title: 'Bank Change Request Submitted',
             body: "{$employee->full_name} ({$employee->employee_code}) has submitted a bank account change request.",
-            url: route('employees.bank-change-requests'),
+            url: route('employees.bank-change-requests', [], false),
             data: ['employee_id' => $employee->id]
         );
 

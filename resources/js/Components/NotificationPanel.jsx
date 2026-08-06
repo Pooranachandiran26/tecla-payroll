@@ -87,7 +87,11 @@ export default function NotificationPanel({ unreadCount }) {
     if (!item.read_at) handleMarkRead(item.id);
     if (item.url) {
       setOpen(false);
-      router.visit(item.url);
+      let targetUrl = item.url.replace(/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?/i, '');
+      if (typeof window !== 'undefined' && window.location.pathname.startsWith('/public') && !targetUrl.startsWith('/public')) {
+        targetUrl = '/public' + (targetUrl.startsWith('/') ? targetUrl : '/' + targetUrl);
+      }
+      router.visit(targetUrl);
     }
   };
 
