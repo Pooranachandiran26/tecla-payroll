@@ -78,9 +78,11 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::get('/employees/{id}/tax-declarations', [\App\Http\Controllers\TaxDeclarationController::class, 'show'])->name('employees.tax-declarations.show');
         Route::post('/employees/{id}/tax-declarations', [\App\Http\Controllers\TaxDeclarationController::class, 'store'])->name('employees.tax-declarations.store');
 
+        // Dashboard (redirects employees/clients to their portal dashboards automatically)
+        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
         // ADMIN & MANAGER
         Route::middleware('role:admin,manager')->group(function () {
-            Route::get('/dashboard', [DashboardController::class, 'index'])->middleware('module:dashboard')->name('dashboard');
             Route::get('/quick-access', fn() => Inertia::render('Dashboard/QuickAccess'))->middleware('module:quick-access')->name('quick-access');
 
             Route::post('/export/employees', [\App\Http\Controllers\ExportController::class, 'exportEmployeeData'])->name('employees.export');

@@ -22,6 +22,19 @@ class DashboardController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
+
+        if ($user->role === 'employee') {
+            return redirect()->route('employee.dashboard');
+        }
+
+        if ($user->role === 'client') {
+            return redirect()->route('client.dashboard');
+        }
+
+        if ($user->role === 'manager' && !$user->hasModulePermission('dashboard')) {
+            abort(403, 'Access Restricted: You do not have permission to access the Dashboard module.');
+        }
+
         $todayStr = Carbon::today()->toDateString();
         $selectedClientId = $request->input('client_id');
 

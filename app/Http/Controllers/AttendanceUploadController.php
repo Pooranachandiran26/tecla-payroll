@@ -37,8 +37,34 @@ class AttendanceUploadController extends Controller
         }
         $clients = $clientsQuery->orderBy('id', 'desc')->get(['id', 'company_name']);
         
+        $uploadHistory = \App\Models\BulkUploadBatch::with('user:id,name,email,role')
+            ->forUser($request->user())
+            ->where('type', 'attendance')
+            ->latest()
+            ->take(15)
+            ->get()
+            ->map(function ($b) {
+                return [
+                    'id' => $b->id,
+                    'file_name' => $b->file_name,
+                    'status' => $b->status,
+                    'total_rows' => $b->total_rows,
+                    'processed_rows' => $b->processed_rows,
+                    'valid_count' => $b->valid_count,
+                    'error_count' => $b->error_count,
+                    'warning_count' => $b->warning_count,
+                    'created_at' => $b->created_at ? $b->created_at->toDateTimeString() : null,
+                    'user' => $b->user ? [
+                        'name' => $b->user->name,
+                        'email' => $b->user->email,
+                        'role' => $b->user->role,
+                    ] : null,
+                ];
+            });
+
         return Inertia::render('Payroll/AttendanceUpload', [
-            'clients' => $clients
+            'clients' => $clients,
+            'upload_history' => $uploadHistory,
         ]);
     }
 

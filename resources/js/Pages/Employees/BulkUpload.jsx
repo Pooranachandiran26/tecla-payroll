@@ -313,7 +313,7 @@ function SearchableClientDropdown({ clients = [], selectedClientId, onChange }) 
   );
 }
 
-export default function BulkUpload({ clients = [], active_session_batch = null }) {
+export default function BulkUpload({ clients = [], active_session_batch = null, upload_history = [] }) {
   const { auth } = usePage().props;
   const { showToast } = useToast();
   const [selectedClientId, setSelectedClientId] = useState('');
@@ -333,6 +333,29 @@ export default function BulkUpload({ clients = [], active_session_batch = null }
   const [showCancelWarningModal, setShowCancelWarningModal] = useState(false);
   const [showNavWarningModal, setShowNavWarningModal] = useState(false);
   const [pendingNavUrl, setPendingNavUrl] = useState(null);
+  const [historySearch, setHistorySearch] = useState('');
+  const [historyStatusFilter, setHistoryStatusFilter] = useState('all');
+  const [historyPage, setHistoryPage] = useState(1);
+  const historyItemsPerPage = 5;
+
+  const filteredUploadHistory = (upload_history || []).filter(batch => {
+    const matchesSearch = !historySearch || 
+      (batch.file_name && batch.file_name.toLowerCase().includes(historySearch.toLowerCase())) ||
+      (batch.id && batch.id.toLowerCase().includes(historySearch.toLowerCase())) ||
+      (batch.user?.name && batch.user.name.toLowerCase().includes(historySearch.toLowerCase()));
+    
+    const matchesStatus = historyStatusFilter === 'all' || 
+      (batch.status && batch.status.toLowerCase() === historyStatusFilter.toLowerCase());
+
+    return matchesSearch && matchesStatus;
+  });
+
+  const totalHistoryItems = filteredUploadHistory.length;
+  const totalHistoryPages = Math.ceil(totalHistoryItems / historyItemsPerPage) || 1;
+  const paginatedUploadHistory = filteredUploadHistory.slice(
+    (historyPage - 1) * historyItemsPerPage,
+    historyPage * historyItemsPerPage
+  );
   const [isDragging, setIsDragging] = useState(false);
   const [filterStatus, setFilterStatus] = useState('all');
   const [isSessionRestoredBanner, setIsSessionRestoredBanner] = useState(false);
@@ -777,29 +800,12 @@ export default function BulkUpload({ clients = [], active_session_batch = null }
     <AuthenticatedLayout>
       <Head title="Bulk Upload Employees" />
 
-      <div className="mb-6 flex justify-between items-end flex-wrap gap-4">
-        <div>
-          <Link href={route('employees.index')} className="text-[0.85rem] font-semibold text-[#1F3864] hover:underline mb-1 inline-block">
-            ← Back to Employees Directory
-          </Link>
-          <h2 className="text-2xl font-bold text-[#1F3864] mt-0.5 mb-1">Excel Bulk Employee Uploader</h2>
-          <p className="text-gray-500 text-sm">Upload spreadsheet templates to onboard multiple employees and assign their client defaults instantly.</p>
-        </div>
-
-        {/* Tab Navigation Switcher on the far right */}
-        <div className="flex items-center bg-gray-200/70 p-1 rounded-xl shadow-inner text-xs font-bold border border-gray-300/50">
-          <span className="px-3 py-1.5 rounded-lg bg-white text-[#1F3864] shadow-sm font-bold flex items-center gap-1.5">
-            <FileSpreadsheet className="w-3.5 h-3.5 text-indigo-600" />
-            <span>Excel Uploader</span>
-          </span>
-          <Link
-            href={route('employees.bulk-upload.history')}
-            className="px-3 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 transition-all flex items-center gap-1.5"
-          >
-            <Clock className="w-3.5 h-3.5 text-gray-500" />
-            <span>Upload History & Audit Log</span>
-          </Link>
-        </div>
+      <div className="mb-6">
+        <Link href={route('employees.index')} className="text-[0.85rem] font-semibold text-[#1F3864] hover:underline mb-1 inline-block">
+          ← Back to Employees Directory
+        </Link>
+        <h2 className="text-2xl font-bold text-[#1F3864] mt-0.5 mb-1">Excel Bulk Employee Uploader</h2>
+        <p className="text-gray-500 text-sm">Upload spreadsheet templates to onboard multiple employees and assign their client defaults instantly.</p>
       </div>
 
       {!executionResults && (
@@ -1021,22 +1027,7 @@ export default function BulkUpload({ clients = [], active_session_batch = null }
         onChange={handleFileChange}
       />
 
-      {isSessionRestoredBanner && validationResults && !executionResults && (
-        <div className="mb-4 bg-indigo-50 border border-indigo-200 p-3.5 rounded-xl flex items-center justify-between gap-4 text-xs font-semibold text-indigo-900 shadow-sm animate-fade-in">
-          <div className="flex items-center gap-2.5">
-            <span className="w-2 h-2 rounded-full bg-indigo-600 animate-ping shrink-0" />
-            <span>
-              <strong>Session Restored:</strong> Restored your active validated batch from session. It will remain saved for <strong>10 minutes</strong> before automatic cleanup.
-            </span>
-          </div>
-          <button 
-            onClick={handleRemoveFile} 
-            className="text-indigo-700 hover:text-indigo-900 underline text-[0.75rem] font-bold"
-          >
-            Clear Session & Remove
-          </button>
-        </div>
-      )}
+
 
       {!executionResults && validationResults && (
         <div className="card p-6">
@@ -1150,7 +1141,7 @@ export default function BulkUpload({ clients = [], active_session_batch = null }
 
           <div className="flex flex-col items-end gap-3 border-t border-gray-200 p-6 bg-gray-50">
             {validationResults.error_count > 0 && (
-              <div className="mb-2 p-3 bg-white border border-red-200 rounded-md shadow-sm w-full max-w-3xl text-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+              <div className="mb-2 p-3 bg-white border border-red-200 rounded-md shadow-sm w-full max-w-3xl text-sm flex items-center justify-between gap-3">
                 <label className="flex items-start gap-3 cursor-pointer flex-1">
                   <input 
                     type="checkbox" 
@@ -1163,14 +1154,6 @@ export default function BulkUpload({ clients = [], active_session_batch = null }
                     The <strong className="text-red-600">{validationResults.error_count} Error</strong> rows will be discarded.
                   </span>
                 </label>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => downloadErrorRowsXlsx(validationResults.rows)}
-                  className="flex items-center gap-1.5 text-xs font-bold text-red-700 border-red-300 bg-red-50 hover:bg-red-100 shrink-0 shadow-sm"
-                >
-                  <FileSpreadsheet className="w-3.5 h-3.5 text-red-600" /> Download Error Rows (.XLSX)
-                </Button>
               </div>
             )}
             <div className="flex justify-end gap-3">
@@ -1447,6 +1430,170 @@ export default function BulkUpload({ clients = [], active_session_batch = null }
           </div>
         </div>
       )}
+
+      {/* Upload History & Audit Log Section */}
+      <div className="mt-8 card p-6">
+        <div className="border-b border-gray-100 pb-4 mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <h3 className="text-lg font-bold text-[#1F3864] m-0 flex items-center gap-2">
+              <Clock className="w-5 h-5 text-indigo-600" />
+              <span>Upload History & Audit Log</span>
+            </h3>
+            <p className="text-xs text-gray-500 mt-0.5 font-medium">
+              Recent bulk employee import logs and execution history
+            </p>
+          </div>
+          <Badge status="inactive" label={`${filteredUploadHistory.length} Batches`} />
+        </div>
+
+        {/* Filter Controls Bar */}
+        <div className="mb-4 bg-gray-50/80 p-3 rounded-xl border border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+          {/* Search Box */}
+          <div className="relative w-full sm:w-80">
+            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Search file name, batch ID, or uploader..."
+              value={historySearch}
+              onChange={(e) => setHistorySearch(e.target.value)}
+              className="w-full pl-9 pr-8 py-1.5 text-xs rounded-lg border border-gray-300 bg-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 font-medium"
+            />
+            {historySearch && (
+              <button onClick={() => setHistorySearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Status Dropdown Filter */}
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+            <span className="text-gray-500 font-semibold shrink-0">Filter Status:</span>
+            <select
+              value={historyStatusFilter}
+              onChange={(e) => setHistoryStatusFilter(e.target.value)}
+              className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 cursor-pointer shadow-2xs"
+            >
+              <option value="all">All Statuses</option>
+              <option value="completed">Completed</option>
+              <option value="processing">Processing</option>
+              <option value="failed">Failed</option>
+            </select>
+          </div>
+        </div>
+
+        {paginatedUploadHistory && paginatedUploadHistory.length > 0 ? (
+          <>
+            <div className="border border-gray-200 rounded-xl overflow-hidden text-xs bg-white mb-4">
+              <table className="w-full text-left">
+                <thead className="bg-gray-50 border-b border-gray-200 text-gray-600 uppercase tracking-wider font-bold">
+                  <tr>
+                    <th className="py-3 px-4">File Name / Batch</th>
+                    <th className="py-3 px-4 text-center">Total Rows</th>
+                    <th className="py-3 px-4 text-center">Valid</th>
+                    <th className="py-3 px-4 text-center">Errors</th>
+                    <th className="py-3 px-4 text-center">Status</th>
+                    <th className="py-3 px-4">Uploaded By</th>
+                    <th className="py-3 px-4 text-right">Date & Time</th>
+                    <th className="py-3 px-4 text-center">Download Reports</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {paginatedUploadHistory.map((batch) => (
+                    <tr key={batch.id} className="hover:bg-gray-50/50 transition-colors">
+                      <td className="py-3.5 px-4 font-semibold text-gray-900">
+                        <div className="flex items-center gap-2">
+                          <FileText className="w-4 h-4 text-indigo-600 shrink-0" />
+                          <div>
+                            <div className="font-bold text-gray-900 text-xs">{batch.file_name || 'Bulk Upload File'}</div>
+                            <div className="text-[0.65rem] text-gray-400 font-mono font-normal">ID: {batch.id}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4 text-center font-bold text-gray-800">
+                        {(batch.total_rows || 0).toLocaleString()}
+                      </td>
+                      <td className="py-3.5 px-4 text-center font-bold text-green-700">
+                        {(batch.valid_count || 0).toLocaleString()}
+                      </td>
+                      <td className="py-3.5 px-4 text-center font-bold text-red-600">
+                        {(batch.error_count || 0).toLocaleString()}
+                      </td>
+                      <td className="py-3.5 px-4 text-center">
+                        <Badge 
+                          status={batch.status === 'completed' ? 'active' : batch.status === 'processing' ? 'pending' : 'rejected'}
+                          label={batch.status ? batch.status.toUpperCase() : 'UNKNOWN'} 
+                        />
+                      </td>
+                      <td className="py-3.5 px-4 font-medium text-gray-700">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-[0.65rem] shrink-0">
+                            {batch.user?.name ? batch.user.name.charAt(0).toUpperCase() : 'U'}
+                          </div>
+                          <div>
+                            <div className="font-bold text-gray-800 text-xs">{batch.user?.name || 'System User'}</div>
+                            <span className="text-[0.6rem] text-gray-400 uppercase font-semibold">{batch.user?.role || 'admin'}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4 text-right font-mono text-[0.75rem] text-gray-500">
+                        {batch.created_at || '—'}
+                      </td>
+                      <td className="py-3.5 px-4 text-center">
+                        <div className="flex items-center justify-center gap-1.5">
+                          {batch.valid_count > 0 ? (
+                            <a
+                              href={route('employees.bulk-upload.history.download-success', { batchId: batch.id })}
+                              className="px-2 py-1 text-[0.7rem] font-bold text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 rounded-lg flex items-center gap-1 transition-all shadow-2xs"
+                              title="Download Validated Rows CSV"
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              <Download className="w-3 h-3 text-green-600" />
+                              <span>Valid ({batch.valid_count})</span>
+                            </a>
+                          ) : null}
+                          {batch.error_count > 0 ? (
+                            <a
+                              href={route('employees.bulk-upload.history.download-errors', { batchId: batch.id })}
+                              className="px-2 py-1 text-[0.7rem] font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg flex items-center gap-1 transition-all shadow-2xs"
+                              title="Download Error Rows CSV"
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              <Download className="w-3 h-3 text-red-600" />
+                              <span>Errors ({batch.error_count})</span>
+                            </a>
+                          ) : null}
+                          {(!batch.valid_count || batch.valid_count === 0) && (!batch.error_count || batch.error_count === 0) && (
+                            <span className="text-gray-400 text-xs">—</span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {totalHistoryPages > 1 && (
+              <div className="mt-4 flex justify-between items-center">
+                <Pagination
+                  currentPage={historyPage}
+                  totalPages={totalHistoryPages}
+                  totalItems={totalHistoryItems}
+                  itemsPerPage={historyItemsPerPage}
+                  onPageChange={setHistoryPage}
+                />
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="py-8 text-center bg-gray-50/50 rounded-xl border border-dashed border-gray-200">
+            <Clock className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+            <p className="text-xs text-gray-500 font-medium">No matching upload history found</p>
+          </div>
+        )}
+      </div>
 
     </AuthenticatedLayout>
     </RoleGuard>
