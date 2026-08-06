@@ -212,9 +212,19 @@ class DashboardController extends Controller
             $approvedLeavesThisMonth = (clone $leaveQ)->where('status', 'approved')
                 ->whereMonth('created_at', Carbon::now()->month)
                 ->count();
+        $pendingEmployeeQueries = 0;
+        if (class_exists(\App\Models\EmployeeQuery::class)) {
+            $eqCount = \App\Models\EmployeeQuery::where('status', 'pending');
+            if ($user->role === 'manager') {
+                $eqCount->whereIn('client_id', $managedClientIds);
+            }
+            if ($selectedClientId) {
+                $eqCount->where('client_id', $selectedClientId);
+            }
+            $pendingEmployeeQueries = $eqCount->count();
         }
 
-        $totalPendingAlerts = $pendingSalaryRevisions + $pendingBankRequests + $pendingDaySwaps + $pendingLeaves;
+        $totalPendingAlerts = $pendingSalaryRevisions + $pendingBankRequests + $pendingDaySwaps + $pendingLeaves + $pendingEmployeeQueries;
 
         // 7. Attendance & Shift Live Snapshot
         $punchedInCount = 0;
@@ -300,6 +310,19 @@ class DashboardController extends Controller
             $pendingBankRequestsList = $bq->orderBy('created_at', 'desc')->take(20)->get();
         }
 
+        $pendingEmployeeQueriesList = [];
+        if (class_exists(\App\Models\EmployeeQuery::class)) {
+            $eqList = \App\Models\EmployeeQuery::with(['employee:id,full_name,employee_code,client_id', 'employee.client:id,company_name,client_code', 'client:id,company_name,client_code'])
+                ->where('status', 'pending');
+            if ($user->role === 'manager') {
+                $eqList->whereIn('client_id', $managedClientIds);
+            }
+            if ($selectedClientId) {
+                $eqList->where('client_id', $selectedClientId);
+            }
+            $pendingEmployeeQueriesList = $eqList->orderBy('created_at', 'desc')->take(20)->get();
+        }
+
         // 11. Recent Payroll Runs
         $recentPayrollRuns = [];
         if (class_exists(PayrollRun::class)) {
@@ -341,6 +364,7 @@ class DashboardController extends Controller
                 'pendingBankRequests' => $pendingBankRequests,
                 'pendingDaySwaps' => $pendingDaySwaps,
                 'pendingLeaves' => $pendingLeaves,
+                'pendingEmployeeQueries' => $pendingEmployeeQueries,
                 'approvedLeavesThisMonth' => $approvedLeavesThisMonth,
                 'activeLoansCount' => $activeLoansCount,
                 'totalLoanPrincipalOutstanding' => (float)$totalLoanPrincipalOutstanding,
@@ -369,6 +393,7 @@ class DashboardController extends Controller
             'pendingAttendanceCorrectionsList' => $pendingAttendanceCorrectionsList,
             'pendingBankRequestsList' => $pendingBankRequestsList,
             'pendingSalaryRevisionsList' => $recentRevisions,
+            'pendingEmployeeQueriesList' => $pendingEmployeeQueriesList,
             'recentPayrollRuns' => $recentPayrollRuns,
             'currentPeriod' => Carbon::now()->format('F Y'),
             'themeColor' => class_exists(\App\Services\SettingsService::class) ? (\App\Services\SettingsService::get('branding.primary_color', '#082d9b') ?: '#082d9b') : '#082d9b',

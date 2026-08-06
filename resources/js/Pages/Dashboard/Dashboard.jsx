@@ -28,7 +28,12 @@ import {
   Check,
   X,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  HelpCircle,
+  MessageSquare,
+  PhoneCall,
+  Mail,
+  Send
 } from 'lucide-react';
 import RoleGuard from '../../Components/RoleGuard.jsx';
 import { useRole } from '../../Contexts/RoleContext.jsx';
@@ -594,12 +599,82 @@ function SalaryRevisionsTable({ items = [], processingId, onApprove, onReject })
   );
 }
 
+function EmployeeQueriesTable({ items = [], processingId, onRespond }) {
+  if (!items || items.length === 0) {
+    return (
+      <div className="text-center py-10 px-4">
+        <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-2 opacity-80" />
+        <h4 className="text-sm font-bold text-slate-800">No Pending Employee Queries</h4>
+        <p className="text-xs text-slate-500 mt-1">All employee helpdesk & support queries have been resolved.</p>
+      </div>
+    );
+  }
+
+  return (
+    <table className="w-full text-left border-collapse text-xs">
+      <thead>
+        <tr className="bg-slate-100/80 border-b border-slate-200 text-slate-700 uppercase font-bold text-[11px] tracking-wider">
+          <th className="py-3 px-4">Employee</th>
+          <th className="py-3 px-4">Client Organization</th>
+          <th className="py-3 px-4">Category & Subject</th>
+          <th className="py-3 px-4">Message / Query Details</th>
+          <th className="py-3 px-4 text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-slate-100">
+        {items.map((item) => {
+          const isProcessing = processingId === `employee_query-${item.id}`;
+          return (
+            <tr key={item.id} className="hover:bg-blue-50/30 transition-colors">
+              <td className="py-3 px-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-800 font-bold flex items-center justify-center text-xs shrink-0">
+                    {item.employee?.full_name?.charAt(0) || 'E'}
+                  </div>
+                  <div>
+                    <div className="font-bold text-slate-900">{item.employee?.full_name || 'Employee'}</div>
+                    <div className="text-[11px] text-slate-500 font-mono">{item.employee?.employee_code || 'N/A'}</div>
+                  </div>
+                </div>
+              </td>
+              <td className="py-3 px-4 font-semibold text-slate-700">
+                {item.employee?.client?.company_name || item.client?.company_name || 'N/A'}
+              </td>
+              <td className="py-3 px-4">
+                <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-indigo-100 text-indigo-800 border border-indigo-200 mb-1">
+                  {item.category || 'General'}
+                </span>
+                <div className="font-bold text-slate-900 truncate max-w-xs">{item.subject}</div>
+              </td>
+              <td className="py-3 px-4 max-w-xs truncate text-slate-600" title={item.message}>
+                {item.message}
+              </td>
+              <td className="py-3 px-4 text-right">
+                <button
+                  type="button"
+                  disabled={isProcessing}
+                  onClick={() => onRespond(item)}
+                  className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] rounded-lg shadow-xs transition-all flex items-center gap-1.5 ml-auto cursor-pointer"
+                >
+                  {isProcessing ? <Loader2 className="w-3 h-3 animate-spin" /> : <MessageSquare className="w-3 h-3" />}
+                  <span>Respond & Resolve</span>
+                </button>
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}
+
 function DashboardApprovalQueueTable({
   pendingLeavesList = [],
   pendingDaySwapsList = [],
   pendingAttendanceCorrectionsList = [],
   pendingBankRequestsList = [],
   pendingSalaryRevisionsList = [],
+  pendingEmployeeQueriesList = [],
 }) {
   const getInitialTab = () => {
     if (pendingLeavesList.length > 0) return 'leave';
@@ -607,6 +682,7 @@ function DashboardApprovalQueueTable({
     if (pendingAttendanceCorrectionsList.length > 0) return 'attendance_correction';
     if (pendingBankRequestsList.length > 0) return 'bank_change';
     if (pendingSalaryRevisionsList.length > 0) return 'salary_revision';
+    if (pendingEmployeeQueriesList.length > 0) return 'employee_query';
     return 'leave';
   };
 
@@ -618,6 +694,37 @@ function DashboardApprovalQueueTable({
   const [rejectType, setRejectType] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
   const [rejectError, setRejectError] = useState('');
+
+  // Employee Query Respond Modal State
+  const [respondQueryModalItem, setRespondQueryModalItem] = useState(null);
+  const [adminResponseText, setAdminResponseText] = useState('');
+  const [respondError, setRespondError] = useState('');
+
+  const confirmRespondQuery = (e) => {
+    e.preventDefault();
+    if (!adminResponseText || adminResponseText.trim().length < 3) {
+      setRespondError('Please enter a response for the employee.');
+      return;
+    }
+
+    const item = respondQueryModalItem;
+    setProcessingId(`employee_query-${item.id}`);
+
+    router.post(
+      route('admin.employee-queries.respond', item.id),
+      { admin_response: adminResponseText },
+      {
+        preserveScroll: true,
+        preserveState: true,
+        onSuccess: () => {
+          setRespondQueryModalItem(null);
+          setAdminResponseText('');
+          setRespondError('');
+        },
+        onFinish: () => setProcessingId(null),
+      }
+    );
+  };
 
   const handleApprove = (type, item) => {
     setProcessingId(`${type}-${item.id}`);
@@ -696,8 +803,8 @@ function DashboardApprovalQueueTable({
     return list.filter((item) => {
       const empName = item.employee?.full_name?.toLowerCase() || '';
       const empCode = item.employee?.employee_code?.toLowerCase() || '';
-      const clientName = item.employee?.client?.company_name?.toLowerCase() || '';
-      const reason = (item.reason || item.reason_details || item.notes || '').toLowerCase();
+      const clientName = (item.employee?.client?.company_name || item.client?.company_name || '').toLowerCase();
+      const reason = (item.reason || item.reason_details || item.notes || item.subject || item.message || '').toLowerCase();
       return empName.includes(term) || empCode.includes(term) || clientName.includes(term) || reason.includes(term);
     });
   };
@@ -708,9 +815,10 @@ function DashboardApprovalQueueTable({
     { key: 'attendance_correction', label: 'Attendance Corrections', count: pendingAttendanceCorrectionsList.length, icon: ShieldCheck, color: 'blue' },
     { key: 'bank_change', label: 'Bank Change Requests', count: pendingBankRequestsList.length, icon: CreditCard, color: 'amber' },
     { key: 'salary_revision', label: 'Salary Revisions', count: pendingSalaryRevisionsList.length, icon: TrendingUp, color: 'emerald' },
+    { key: 'employee_query', label: 'Employee Queries', count: pendingEmployeeQueriesList.length, icon: MessageSquare, color: 'indigo' },
   ];
 
-  const totalPendingAll = pendingLeavesList.length + pendingDaySwapsList.length + pendingAttendanceCorrectionsList.length + pendingBankRequestsList.length + pendingSalaryRevisionsList.length;
+  const totalPendingAll = pendingLeavesList.length + pendingDaySwapsList.length + pendingAttendanceCorrectionsList.length + pendingBankRequestsList.length + pendingSalaryRevisionsList.length + pendingEmployeeQueriesList.length;
 
   return (
     <div className="mb-8 bg-white border border-slate-200/90 rounded-2xl shadow-sm overflow-hidden font-sans">
@@ -721,22 +829,22 @@ function DashboardApprovalQueueTable({
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-base font-bold tracking-tight text-slate-900">Pending Approvals Queue</h3>
+              <h3 className="text-base font-bold tracking-tight text-slate-900">Pending Approvals & Queries Queue</h3>
               <span className="bg-amber-100 border border-amber-300 text-amber-900 font-extrabold text-xs px-2.5 py-0.5 rounded-full shadow-xs">
                 {totalPendingAll} Pending
               </span>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              Review and act on employee leave, attendance swaps, bank updates, and salary requests directly without full page reload.
+              Review and act on employee leave, attendance swaps, bank updates, salary requests, and helpdesk queries directly without full page reload.
             </p>
           </div>
         </div>
 
-        <div className="relative shrink-0 w-full md:w-64">
+        <div className="relative shrink-0 w-full md:w-72">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
           <input
             type="text"
-            placeholder="Search request by employee or client..."
+            placeholder="Search by employee, client or subject..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full bg-white border border-slate-300 rounded-lg pl-9 pr-3 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 shadow-xs"
@@ -818,11 +926,24 @@ function DashboardApprovalQueueTable({
             onReject={(item) => openRejectModal('salary_revision', item)}
           />
         )}
+
+        {activeTab === 'employee_query' && (
+          <EmployeeQueriesTable
+            items={filterList(pendingEmployeeQueriesList)}
+            processingId={processingId}
+            onRespond={(item) => {
+              setRespondQueryModalItem(item);
+              setAdminResponseText('');
+              setRespondError('');
+            }}
+          />
+        )}
       </div>
 
+      {/* Rejection Modal */}
       {rejectModalItem && (
         <div className="fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4 font-sans">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-red-50 text-red-600 flex items-center justify-center font-bold">
@@ -879,6 +1000,75 @@ function DashboardApprovalQueueTable({
           </div>
         </div>
       )}
+
+      {/* Employee Query Response Modal */}
+      {respondQueryModalItem && (
+        <div className="fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4 font-sans">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+                  <MessageSquare className="w-4 h-4" />
+                </div>
+                <h4 className="text-sm font-bold text-slate-900">Respond & Resolve Employee Query</h4>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRespondQueryModalItem(null)}
+                className="text-slate-400 hover:text-slate-600 text-xs font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-xs text-slate-700 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <p>Employee: <strong className="text-slate-900">{respondQueryModalItem.employee?.full_name}</strong> ({respondQueryModalItem.employee?.employee_code || 'N/A'})</p>
+                <span className="bg-indigo-100 text-indigo-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">
+                  {respondQueryModalItem.category}
+                </span>
+              </div>
+              <p>Subject: <strong className="text-slate-900">{respondQueryModalItem.subject}</strong></p>
+              <div className="mt-2 pt-2 border-t border-slate-200 text-slate-600 italic font-sans bg-white p-2 rounded border border-slate-100">
+                "{respondQueryModalItem.message}"
+              </div>
+            </div>
+
+            <form onSubmit={confirmRespondQuery} className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">Your Official Response / Resolution *</label>
+                <textarea
+                  required
+                  rows="4"
+                  placeholder="Type resolution message for the employee..."
+                  value={adminResponseText}
+                  onChange={(e) => setAdminResponseText(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                ></textarea>
+                {respondError && <p className="text-xs text-red-600 font-semibold mt-1">{respondError}</p>}
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setRespondQueryModalItem(null)}
+                  className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-lg transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={processingId !== null}
+                  className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-lg shadow transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  {processingId ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                  <span>Submit Response & Resolve</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -900,6 +1090,7 @@ export default function Dashboard({
   pendingAttendanceCorrectionsList = [],
   pendingBankRequestsList = [],
   pendingSalaryRevisionsList = [],
+  pendingEmployeeQueriesList = [],
   recentPayrollRuns = [], 
   currentPeriod = 'July 2026',
   themeColor = '#082d9b'
@@ -1088,6 +1279,7 @@ export default function Dashboard({
           pendingAttendanceCorrectionsList={pendingAttendanceCorrectionsList}
           pendingBankRequestsList={pendingBankRequestsList}
           pendingSalaryRevisionsList={pendingSalaryRevisionsList}
+          pendingEmployeeQueriesList={pendingEmployeeQueriesList}
         />
 
         {/* UNIFIED SINGLE PAGE LAYOUT - ALL MODULE SECTIONS */}
