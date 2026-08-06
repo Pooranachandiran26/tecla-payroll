@@ -25,7 +25,7 @@ export const clientNav = [
   { name: 'Dashboard', url: safeRoute('client.dashboard', '/client/dashboard'), key: 'client-dashboard' },
   { name: 'Employees', url: safeRoute('client.employees', '/client/employees'), key: 'client-candidates' },
   { name: 'Attendance', url: safeRoute('client.attendance', '/client/attendance'), key: 'client-attendance' },
-  { name: 'Leave Settings', url: safeRoute('payroll.leave-settings', '/payroll/leave-settings'), key: 'client-leave-settings' },
+  { name: 'Leave Settings', url: safeRoute('client.leave-settings', '/client/leave-settings'), key: 'client-leave-settings' },
   { name: 'Invoices', url: safeRoute('client.invoices', '/client/invoices'), key: 'client-invoices' },
 ];
 

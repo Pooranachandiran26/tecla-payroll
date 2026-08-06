@@ -443,7 +443,17 @@ class EmployeePortalController extends Controller
             return redirect()->back()->with('error', 'You already have a pending or approved leave request for this date range.');
         }
 
-        $daysCount = Carbon::parse($fromDate)->diffInDays(Carbon::parse($toDate)) + 1;
+        $daysCount = 0;
+        $attendanceResolutionService = app(\App\Services\AttendanceResolutionService::class);
+        for ($curr = Carbon::parse($fromDate); $curr->lte(Carbon::parse($toDate)); $curr->addDay()) {
+            if ($attendanceResolutionService->isWorkingDay($employee, $curr)) {
+                $daysCount++;
+            }
+        }
+
+        if ($daysCount === 0) {
+            return redirect()->back()->with('error', 'The selected date range contains no working days (weekly-offs / holidays).');
+        }
 
         \App\Models\LeaveRequest::create([
             'employee_id' => $employee->id,

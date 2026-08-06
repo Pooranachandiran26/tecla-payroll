@@ -21,7 +21,11 @@ class EnsureModulePermission
         }
 
         $user = Auth::user();
-        
+
+        if ($user->role === 'admin' || $user->role === 'client') {
+            return $next($request);
+        }
+
         if (!$user->hasModulePermission($moduleKey)) {
             if ($request->expectsJson() || $request->inertia()) {
                 abort(403, 'Access Restricted: You do not have permission to access the ' . ucfirst($moduleKey) . ' module.');

@@ -189,4 +189,46 @@ class ClientPortalController extends Controller
             'client' => $safeClientData
         ]);
     }
+
+    /**
+     * Client Portal Dedicated Leave Settings (Shows ONLY this client's policies and employees)
+     */
+    public function leaveSettings(Request $request)
+    {
+        $user = $request->user();
+        $client = $user->client;
+
+        if (!$client) {
+            return Inertia::render('ClientPortal/ClientLeaveSettings', [
+                'client' => null,
+                'policies' => [],
+                'balances' => [],
+                'currentYear' => (int)date('Y'),
+            ]);
+        }
+
+        $leavePolicyService = app(\App\Services\LeavePolicyService::class);
+        if (\App\Models\ClientLeavePolicy::where('client_id', $client->id)->count() === 0) {
+            $leavePolicyService->seedDefaultPolicies($client);
+            $leavePolicyService->syncClientEmployeesBalances($client, (int)date('Y'));
+        }
+
+        $policies = \App\Models\ClientLeavePolicy::where('client_id', $client->id)
+            ->orderBy('id', 'asc')
+            ->get();
+
+        $balances = \App\Models\EmployeeLeaveBalance::with(['employee:id,first_name,last_name,employee_code', 'policy:id,policy_name,leave_type'])
+            ->whereHas('policy', function ($q) use ($client) {
+                $q->where('client_id', $client->id);
+            })
+            ->where('year', (int)date('Y'))
+            ->get();
+
+        return Inertia::render('ClientPortal/ClientLeaveSettings', [
+            'client' => $client->only(['id', 'company_name', 'client_code']),
+            'policies' => $policies,
+            'balances' => $balances,
+            'currentYear' => (int)date('Y'),
+        ]);
+    }
 }

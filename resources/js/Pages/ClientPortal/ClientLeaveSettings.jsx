@@ -1,39 +1,17 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import AuthenticatedLayout from '../../Layouts/AuthenticatedLayout';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import Button from '../../Components/ui/Button';
 import Badge from '../../Components/ui/Badge';
 import Pagination from '../../Components/ui/Pagination/Pagination';
-import { 
-  Settings, 
-  RefreshCw, 
-  Edit3, 
-  CheckCircle2, 
-  AlertTriangle, 
-  Info, 
-  Plus, 
-  X, 
-  Shield, 
-  Calendar, 
-  UserCheck, 
-  Search, 
-  ChevronDown, 
-  Check, 
-  Building2 
-} from 'lucide-react';
+import { Settings, RefreshCw, Edit3, CheckCircle2, AlertTriangle, Info, Plus, X, Building2 } from 'lucide-react';
 import RoleGuard from '../../Components/RoleGuard.jsx';
 
-export default function LeaveSettings({ clients = [], selectedClientId, policies = [], balances = [], currentYear = 2026 }) {
-  const { flash, errors: pageErrors = {} } = usePage().props;
+export default function ClientLeaveSettings({ client, policies = [], balances = [], currentYear = 2026 }) {
+  const { flash } = usePage().props;
 
   const [search, setSearch] = useState('');
-  const [clientId, setClientId] = useState(selectedClientId || (clients.length > 0 ? clients[0].id : ''));
   const [viewTab, setViewTab] = useState('policies'); // 'policies' | 'balances'
-
-  // Searchable Client Dropdown State
-  const clientDropdownRef = useRef(null);
-  const [isClientDropdownOpen, setIsClientDropdownOpen] = useState(false);
-  const [clientSearchTerm, setClientSearchTerm] = useState('');
 
   // Pagination states
   const [policiesPage, setPoliciesPage] = useState(1);
@@ -55,54 +33,11 @@ export default function LeaveSettings({ clients = [], selectedClientId, policies
     max_carry_forward_days: 0,
   });
 
-  useEffect(() => {
-    if (selectedClientId) {
-      setClientId(selectedClientId);
-    }
-  }, [selectedClientId]);
-
-  // Click outside to close client search dropdown
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (clientDropdownRef.current && !clientDropdownRef.current.contains(event.target)) {
-        setIsClientDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
   // Reset pagination when search or viewTab changes
   useEffect(() => {
     setPoliciesPage(1);
     setBalancesPage(1);
-  }, [search, viewTab, clientId]);
-
-  const applyFilters = () => {
-    setPoliciesPage(1);
-    setBalancesPage(1);
-    router.get(route('payroll.leave-settings'), {
-      client_id: clientId,
-      search: search
-    }, { preserveState: true, preserveScroll: true });
-  };
-
-  const resetFilters = () => {
-    setSearch('');
-    setPoliciesPage(1);
-    setBalancesPage(1);
-    setClientSearchTerm('');
-    const defaultId = clients.length > 0 ? clients[0].id : '';
-    setClientId(defaultId);
-    setViewTab('policies');
-    router.get(route('payroll.leave-settings'), { client_id: defaultId }, { preserveState: true, preserveScroll: true });
-  };
-
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter') {
-      applyFilters();
-    }
-  };
+  }, [search, viewTab]);
 
   const handleOpenCreate = () => {
     setEditingPolicy(null);
@@ -167,7 +102,7 @@ export default function LeaveSettings({ clients = [], selectedClientId, policies
         onError: (errs) => setFormErrors(errs)
       });
     } else {
-      router.post(route('payroll.leave-settings.store'), { ...formData, client_id: clientId }, {
+      router.post(route('payroll.leave-settings.store'), { ...formData, client_id: client?.id }, {
         onSuccess: () => setIsModalOpen(false),
         onError: (errs) => setFormErrors(errs)
       });
@@ -175,8 +110,8 @@ export default function LeaveSettings({ clients = [], selectedClientId, policies
   };
 
   const handleSyncBalances = () => {
-    if (!clientId) return;
-    router.post(route('payroll.leave-settings.sync', clientId), {}, {
+    if (!client?.id) return;
+    router.post(route('payroll.leave-settings.sync', client.id), {}, {
       preserveState: true,
       preserveScroll: true,
     });
@@ -233,16 +168,6 @@ export default function LeaveSettings({ clients = [], selectedClientId, policies
     return name.includes(q) || type.includes(q);
   });
 
-  // Filter client options in real-time based on client search input
-  const filteredClientOptions = useMemo(() => {
-    if (!clientSearchTerm.trim()) return clients;
-    const q = clientSearchTerm.toLowerCase();
-    return clients.filter(c => 
-      (c.company_name || '').toLowerCase().includes(q) ||
-      (c.client_code || '').toLowerCase().includes(q)
-    );
-  }, [clients, clientSearchTerm]);
-
   // Paginated data calculations
   const totalPoliciesCount = filteredPolicies.length;
   const totalPoliciesPages = Math.ceil(totalPoliciesCount / ITEMS_PER_PAGE) || 1;
@@ -258,39 +183,33 @@ export default function LeaveSettings({ clients = [], selectedClientId, policies
     return groupedEmployeeBalances.slice(start, start + ITEMS_PER_PAGE);
   }, [groupedEmployeeBalances, balancesPage]);
 
-  const selectedClientObj = clients.find(c => String(c.id) === String(clientId));
-
   return (
-    <RoleGuard allowedRoles={['admin', 'manager', 'client']}>
+    <RoleGuard allowedRoles={['client']}>
       <AuthenticatedLayout>
-        <Head title="Client Leave Settings" />
+        <Head title="Leave Settings — Client Portal" />
 
-        <div className="mb-6">
-          <Link href={route('employees.index')} className="text-[0.85rem] font-semibold text-[#1F3864] hover:underline">
-            ← Back to Employees Directory
-          </Link>
-          <h2 className="text-2xl font-bold text-[#1F3864] mt-2 mb-1">
-            Client &amp; Employee Leave Settings
-          </h2>
-          <p className="text-gray-500 text-sm">
-            Configure client leave policies (Sick, Casual, Earned), annual quotas, carry-forward caps, and track per-employee balances.
-          </p>
+        {/* Page Header */}
+        <div className="mb-6 flex justify-between items-center flex-wrap gap-4">
+          <div>
+            <div className="flex items-center gap-2 text-xs font-bold text-indigo-700 uppercase tracking-wider mb-1">
+              <Building2 className="w-4 h-4" />
+              <span>{client?.company_name || 'Client Portal'} ({client?.client_code || 'CLIENT'})</span>
+            </div>
+            <h2 className="text-2xl font-bold text-[#1F3864]">Company Leave Settings &amp; Balances</h2>
+            <p className="text-gray-500 text-sm">
+              Manage leave policy quotas, monthly accruals, carry-forward caps, and monitor employee leave balances.
+            </p>
+          </div>
+
+          <div className="flex gap-2">
+            <Button variant="secondary" size="sm" onClick={handleSyncBalances} className="flex items-center gap-1 text-xs">
+              <RefreshCw className="w-3.5 h-3.5 text-indigo-600" /> Sync Balances
+            </Button>
+            <Button variant="primary" size="sm" onClick={handleOpenCreate} className="flex items-center gap-1 text-xs">
+              <Plus className="w-3.5 h-3.5" /> Add Policy
+            </Button>
+          </div>
         </div>
-
-        {/* Flash Banners */}
-        {flash?.success && (
-          <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center space-x-3 text-emerald-800 mb-6">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
-            <p className="text-sm font-medium">{flash.success}</p>
-          </div>
-        )}
-
-        {flash?.warning && (
-          <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-center space-x-3 text-amber-800 mb-6">
-            <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
-            <p className="text-sm font-medium">{flash.warning}</p>
-          </div>
-        )}
 
         {/* Filter Controls Bar */}
         <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-6 flex flex-wrap gap-4 items-end">
@@ -302,95 +221,10 @@ export default function LeaveSettings({ clients = [], selectedClientId, policies
               placeholder="Search by employee name, code..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              onKeyDown={handleKeyPress}
             />
           </div>
 
-          {/* Searchable Client Filter Dropdown */}
-          <div className="w-72 relative" ref={clientDropdownRef}>
-            <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">Client Filter</label>
-            
-            <button
-              type="button"
-              onClick={() => setIsClientDropdownOpen(!isClientDropdownOpen)}
-              className="form-control w-full text-sm font-medium text-left flex items-center justify-between bg-white border border-gray-300 hover:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 py-2 px-3 rounded-md shadow-2xs transition-all cursor-pointer"
-            >
-              <div className="flex items-center gap-2 truncate pr-2">
-                <Building2 className="w-4 h-4 text-indigo-600 shrink-0" />
-                <span className="truncate font-semibold text-slate-800">
-                  {selectedClientObj ? `${selectedClientObj.company_name} (${selectedClientObj.client_code})` : 'Select Client...'}
-                </span>
-              </div>
-              <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${isClientDropdownOpen ? 'rotate-180 text-indigo-600' : ''}`} />
-            </button>
-
-            {/* Searchable Dropdown Popover */}
-            {isClientDropdownOpen && (
-              <div className="absolute left-0 right-0 top-full mt-1.5 z-40 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden animate-in fade-in duration-150 min-w-[320px]">
-                {/* Search Input Box inside Dropdown */}
-                <div className="p-2 border-b border-gray-100 bg-gray-50/90 sticky top-0 z-10">
-                  <div className="relative">
-                    <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="text"
-                      className="w-full pl-8 pr-7 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white font-medium"
-                      placeholder="Search client by name or code..."
-                      value={clientSearchTerm}
-                      onChange={(e) => setClientSearchTerm(e.target.value)}
-                      autoFocus
-                    />
-                    {clientSearchTerm && (
-                      <button
-                        type="button"
-                        onClick={() => setClientSearchTerm('')}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Filtered Clients List */}
-                <div className="max-h-60 overflow-y-auto py-1 divide-y divide-gray-50">
-                  {filteredClientOptions.length === 0 ? (
-                    <div className="px-4 py-3.5 text-center text-xs text-gray-400 font-medium">
-                      No client matching "{clientSearchTerm}"
-                    </div>
-                  ) : (
-                    filteredClientOptions.map((c) => {
-                      const isSelected = String(c.id) === String(clientId);
-                      return (
-                        <button
-                          key={c.id}
-                          type="button"
-                          onClick={() => {
-                            setClientId(c.id);
-                            setIsClientDropdownOpen(false);
-                            setClientSearchTerm('');
-                            setPoliciesPage(1);
-                            setBalancesPage(1);
-                            router.get(route('payroll.leave-settings'), { client_id: c.id, search }, { preserveState: true, preserveScroll: true });
-                          }}
-                          className={`w-full text-left px-3.5 py-2.5 text-xs flex items-center justify-between transition-colors ${
-                            isSelected ? 'bg-indigo-50/80 text-indigo-900 font-bold' : 'hover:bg-slate-50 text-slate-700'
-                          }`}
-                        >
-                          <div className="truncate pr-2">
-                            <span className="block font-semibold truncate">{c.company_name}</span>
-                            <span className="text-[10px] text-slate-400 font-mono font-medium">{c.client_code}</span>
-                          </div>
-                          {isSelected && <Check className="w-4 h-4 text-indigo-600 shrink-0" />}
-                        </button>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="w-48">
+          <div className="w-64">
             <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">View Mode</label>
             <select 
               className="form-control w-full text-sm font-medium" 
@@ -401,20 +235,6 @@ export default function LeaveSettings({ clients = [], selectedClientId, policies
               <option value="balances">Employee Balances ({groupedEmployeeBalances.length} Employees)</option>
             </select>
           </div>
-
-          <div className="flex gap-2">
-            <Button variant="primary" size="sm" onClick={applyFilters}>Apply Filters</Button>
-            <Button variant="secondary" size="sm" onClick={resetFilters}>Reset</Button>
-            {viewTab === 'policies' ? (
-              <Button variant="primary" size="sm" onClick={handleOpenCreate} className="flex items-center gap-1">
-                <Plus className="w-3.5 h-3.5" /> Add Policy
-              </Button>
-            ) : (
-              <Button variant="secondary" size="sm" onClick={handleSyncBalances} className="flex items-center gap-1">
-                <RefreshCw className="w-3.5 h-3.5 text-indigo-600" /> Sync Balances
-              </Button>
-            )}
-          </div>
         </div>
 
         {/* View Mode 1: Leave Policies Table */}
@@ -423,7 +243,7 @@ export default function LeaveSettings({ clients = [], selectedClientId, policies
             <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
               <div>
                 <h3 className="text-base font-bold text-[#1F3864]">
-                  Active Leave Policies for {selectedClientObj ? selectedClientObj.company_name : 'Selected Client'}
+                  Active Leave Policies for {client?.company_name}
                 </h3>
                 <p className="text-xs text-gray-500">Configure annual quotas, monthly credit rates, accrual schedules, and carry forward rules.</p>
               </div>
@@ -449,7 +269,7 @@ export default function LeaveSettings({ clients = [], selectedClientId, policies
                   {paginatedPolicies.length === 0 ? (
                     <tr>
                       <td colSpan="7" className="text-center py-8 text-gray-500">
-                        No leave policies found matching the specified filters.
+                        No leave policies found for {client?.company_name}.
                       </td>
                     </tr>
                   ) : (
@@ -534,7 +354,7 @@ export default function LeaveSettings({ clients = [], selectedClientId, policies
                   Employee Leave Balances Audit Log ({currentYear})
                 </h3>
                 <p className="text-xs text-gray-500">
-                  Single-row summary displaying all leave balances (Casual, Sick, Earned) per employee.
+                  Single-row summary displaying all leave balances (Casual, Sick, Earned) for employees of {client?.company_name}.
                 </p>
               </div>
               <Button variant="secondary" size="sm" onClick={handleSyncBalances} className="flex items-center gap-1 text-xs">
@@ -557,7 +377,7 @@ export default function LeaveSettings({ clients = [], selectedClientId, policies
                   {paginatedBalances.length === 0 ? (
                     <tr>
                       <td colSpan="5" className="text-center py-8 text-gray-500">
-                        No employee leave balances found matching the specified filters.
+                        No employee leave balances found for {client?.company_name}.
                       </td>
                     </tr>
                   ) : (
@@ -566,10 +386,8 @@ export default function LeaveSettings({ clients = [], selectedClientId, policies
                       const empName = `${emp?.first_name || ''} ${emp?.last_name || ''}`.trim() || 'Employee';
                       const empCode = emp?.employee_code || emp?.employee_id || 'N/A';
 
-                      const renderLeaveCell = (b, typeName, accentColor) => {
-                        if (!b) {
-                          return <span className="text-xs text-slate-400 font-medium">—</span>;
-                        }
+                      const renderLeaveCell = (b) => {
+                        if (!b) return <span className="text-xs text-slate-400 font-medium">—</span>;
                         const rem = parseFloat(b.remaining_days || 0);
                         const alloc = parseFloat(b.allocated_days || 0);
                         const used = parseFloat(b.used_days || 0);
@@ -601,15 +419,15 @@ export default function LeaveSettings({ clients = [], selectedClientId, policies
                           </td>
 
                           <td className="py-4 px-4 text-center border-l border-gray-50">
-                            {renderLeaveCell(row.casual, 'Casual Leave', 'sky')}
+                            {renderLeaveCell(row.casual)}
                           </td>
 
                           <td className="py-4 px-4 text-center border-l border-gray-50">
-                            {renderLeaveCell(row.sick, 'Sick Leave', 'amber')}
+                            {renderLeaveCell(row.sick)}
                           </td>
 
                           <td className="py-4 px-4 text-center border-l border-gray-50">
-                            {renderLeaveCell(row.earned, 'Earned Leave', 'emerald')}
+                            {renderLeaveCell(row.earned)}
                           </td>
 
                           <td className="py-4 px-4 text-center border-l border-gray-50 bg-slate-50/40">

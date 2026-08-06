@@ -18,6 +18,7 @@ class ClientLeavePolicy extends Model
         'annual_quota',
         'accrual_frequency',
         'monthly_accrual_rate',
+        'max_days_per_month',
         'carry_forward_allowed',
         'max_carry_forward_days',
         'is_active',
@@ -26,6 +27,7 @@ class ClientLeavePolicy extends Model
     protected $casts = [
         'annual_quota' => 'float',
         'monthly_accrual_rate' => 'float',
+        'max_days_per_month' => 'float',
         'carry_forward_allowed' => 'boolean',
         'max_carry_forward_days' => 'float',
         'is_active' => 'boolean',

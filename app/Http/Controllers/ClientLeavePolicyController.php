@@ -31,13 +31,16 @@ class ClientLeavePolicyController extends Controller
         if ($user->role === 'manager') {
             $managedIds = $user->getManagedClientIds();
             $clientsQuery->whereIn('id', $managedIds);
+            $clients = $clientsQuery->get(['id', 'company_name', 'client_code']);
+            $selectedClientId = $request->input('client_id', $clients->first()?->id);
         } elseif ($user->role === 'client') {
             $clientsQuery->where('id', $user->client_id);
+            $clients = $clientsQuery->get(['id', 'company_name', 'client_code']);
+            $selectedClientId = (int)$user->client_id;
+        } else {
+            $clients = $clientsQuery->get(['id', 'company_name', 'client_code']);
+            $selectedClientId = $request->input('client_id', $clients->first()?->id);
         }
-
-        $clients = $clientsQuery->get(['id', 'company_name', 'client_code']);
-
-        $selectedClientId = $request->input('client_id', $clients->first()?->id);
 
         // Security check for selected client
         if ($selectedClientId) {
@@ -60,7 +63,7 @@ class ClientLeavePolicyController extends Controller
                     ->orderBy('id', 'asc')
                     ->get();
 
-                $balances = EmployeeLeaveBalance::with(['employee:id,first_name,last_name,employee_id', 'policy:id,policy_name,leave_type'])
+                $balances = EmployeeLeaveBalance::with(['employee:id,first_name,last_name,employee_code', 'policy:id,policy_name,leave_type'])
                     ->whereHas('policy', function ($q) use ($client) {
                         $q->where('client_id', $client->id);
                     })
@@ -91,6 +94,8 @@ class ClientLeavePolicyController extends Controller
             'policy_name' => 'required|string|max:100',
             'annual_quota' => 'required|numeric|min:0|max:365',
             'accrual_frequency' => 'required|in:monthly,annual_upfront,quarterly',
+            'monthly_accrual_rate' => 'nullable|numeric|min:0|max:30',
+            'max_days_per_month' => 'nullable|numeric|min:0|max:30',
             'carry_forward_allowed' => 'required|boolean',
             'max_carry_forward_days' => 'required|numeric|min:0|max:365',
         ]);
@@ -98,6 +103,14 @@ class ClientLeavePolicyController extends Controller
         $this->authorizeClientAccess($user, (int)$validated['client_id']);
 
         $client = Client::findOrFail($validated['client_id']);
+
+        $monthlyRate = isset($validated['monthly_accrual_rate']) && (float)$validated['monthly_accrual_rate'] > 0
+            ? (float)$validated['monthly_accrual_rate']
+            : (strtolower($validated['accrual_frequency']) === 'monthly' ? round($validated['annual_quota'] / 12, 2) : 0);
+
+        $maxDaysPerMonth = isset($validated['max_days_per_month']) && $validated['max_days_per_month'] !== '' && (float)$validated['max_days_per_month'] > 0
+            ? (float)$validated['max_days_per_month']
+            : null;
 
         $policy = ClientLeavePolicy::updateOrCreate(
             [
@@ -108,7 +121,8 @@ class ClientLeavePolicyController extends Controller
                 'policy_name' => $validated['policy_name'],
                 'annual_quota' => $validated['annual_quota'],
                 'accrual_frequency' => $validated['accrual_frequency'],
-                'monthly_accrual_rate' => strtolower($validated['accrual_frequency']) === 'monthly' ? round($validated['annual_quota'] / 12, 2) : 0,
+                'monthly_accrual_rate' => $monthlyRate,
+                'max_days_per_month' => $maxDaysPerMonth,
                 'carry_forward_allowed' => $validated['carry_forward_allowed'],
                 'max_carry_forward_days' => $validated['carry_forward_allowed'] ? $validated['max_carry_forward_days'] : 0,
                 'is_active' => true,
@@ -134,17 +148,28 @@ class ClientLeavePolicyController extends Controller
             'policy_name' => 'required|string|max:100',
             'annual_quota' => 'required|numeric|min:0|max:365',
             'accrual_frequency' => 'required|in:monthly,annual_upfront,quarterly',
+            'monthly_accrual_rate' => 'nullable|numeric|min:0|max:30',
+            'max_days_per_month' => 'nullable|numeric|min:0|max:30',
             'carry_forward_allowed' => 'required|boolean',
             'max_carry_forward_days' => 'required|numeric|min:0|max:365',
         ]);
 
         $oldMaxCarryForward = (float)$policy->max_carry_forward_days;
 
+        $monthlyRate = isset($validated['monthly_accrual_rate']) && (float)$validated['monthly_accrual_rate'] > 0
+            ? (float)$validated['monthly_accrual_rate']
+            : (strtolower($validated['accrual_frequency']) === 'monthly' ? round($validated['annual_quota'] / 12, 2) : 0);
+
+        $maxDaysPerMonth = isset($validated['max_days_per_month']) && $validated['max_days_per_month'] !== '' && (float)$validated['max_days_per_month'] > 0
+            ? (float)$validated['max_days_per_month']
+            : null;
+
         $policy->update([
             'policy_name' => $validated['policy_name'],
             'annual_quota' => $validated['annual_quota'],
             'accrual_frequency' => $validated['accrual_frequency'],
-            'monthly_accrual_rate' => strtolower($validated['accrual_frequency']) === 'monthly' ? round($validated['annual_quota'] / 12, 2) : 0,
+            'monthly_accrual_rate' => $monthlyRate,
+            'max_days_per_month' => $maxDaysPerMonth,
             'carry_forward_allowed' => $validated['carry_forward_allowed'],
             'max_carry_forward_days' => $validated['carry_forward_allowed'] ? $validated['max_carry_forward_days'] : 0,
         ]);
