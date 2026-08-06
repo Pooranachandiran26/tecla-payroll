@@ -686,6 +686,13 @@
     font-size: 0.75rem;
     margin-top: 0.25rem;
   }
+  .error-text {
+    color: #dc2626;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-top: 0.25rem;
+    display: block;
+  }
   .form-warning {
     color: var(--status-warning);
     font-size: 0.75rem;
