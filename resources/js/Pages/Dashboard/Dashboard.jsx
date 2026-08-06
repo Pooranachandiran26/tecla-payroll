@@ -895,6 +895,11 @@ export default function Dashboard({
   recentEmployees = [], 
   topClients = [], 
   recentRevisions = [], 
+  pendingLeavesList = [],
+  pendingDaySwapsList = [],
+  pendingAttendanceCorrectionsList = [],
+  pendingBankRequestsList = [],
+  pendingSalaryRevisionsList = [],
   recentPayrollRuns = [], 
   currentPeriod = 'July 2026',
   themeColor = '#082d9b'
