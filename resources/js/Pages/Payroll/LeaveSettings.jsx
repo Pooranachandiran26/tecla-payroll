@@ -646,8 +646,8 @@ export default function LeaveSettings({ clients = [], selectedClientId, policies
 
         {/* Edit / Create Policy Modal */}
         {isModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 sm:p-6 overflow-y-auto">
-            <div className="bg-white border border-gray-200 rounded-xl max-w-xl w-full p-6 shadow-2xl space-y-4 relative max-h-[92vh] flex flex-col">
+          <div className="fixed inset-0 z-[100] flex items-start justify-center pt-20 pb-8 bg-black/60 p-4 sm:p-6 overflow-y-auto">
+            <div className="bg-white border border-gray-200 rounded-xl max-w-xl w-full p-6 shadow-2xl space-y-4 relative max-h-[85vh] flex flex-col my-auto">
               <div className="flex justify-between items-center border-b border-gray-100 pb-3 flex-shrink-0">
                 <h3 className="text-base font-bold text-[#1F3864]">
                   {editingPolicy ? `Edit ${editingPolicy.policy_name}` : 'Configure New Leave Policy'}
