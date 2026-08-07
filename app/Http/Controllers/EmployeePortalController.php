@@ -499,9 +499,11 @@ class EmployeePortalController extends Controller
         
         $validated = $request->validate([
             'leave_type' => 'required|in:casual,sick,earned,unpaid',
-            'from_date' => 'required|date',
+            'from_date' => 'required|date|after_or_equal:today',
             'to_date' => 'required|date|after_or_equal:from_date',
             'reason' => 'required|string|min:10',
+        ], [
+            'from_date.after_or_equal' => 'From Date cannot be in the past.',
         ]);
 
         $fromDate = Carbon::parse($validated['from_date'])->toDateString();

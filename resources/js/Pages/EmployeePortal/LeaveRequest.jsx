@@ -66,6 +66,15 @@ export default function LeaveRequest({ employee, leaveRequests, leaveBalances = 
         return leaveBalances.find(b => b.policy?.leave_type === type) || null;
     };
 
+    const getTodayStr = () => {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+    };
+    const todayStr = getTodayStr();
+
     const selectedBalance = getBalanceForType(data.leave_type);
     const selectedPolicy = selectedBalance?.policy;
     const availableRemaining = selectedBalance ? parseFloat(selectedBalance.remaining_days) : (data.leave_type === 'unpaid' ? 999 : 12);
@@ -290,9 +299,17 @@ export default function LeaveRequest({ employee, leaveRequests, leaveBalances = 
                             <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">From Date</label>
                             <input 
                                 type="date" 
+                                min={todayStr}
                                 className={`form-control ${errors.from_date ? 'is-invalid border-red-500 text-red-900 bg-red-50/50' : ''}`} 
                                 value={data.from_date} 
-                                onChange={e => setData('from_date', e.target.value)}
+                                onChange={e => {
+                                    const val = e.target.value;
+                                    setData(prev => ({
+                                        ...prev,
+                                        from_date: val,
+                                        to_date: prev.to_date && prev.to_date < val ? val : prev.to_date
+                                    }));
+                                }}
                             />
                             {errors.from_date && (
                                 <span className="text-xs text-red-600 font-semibold mt-1 flex items-center gap-1">
@@ -305,6 +322,7 @@ export default function LeaveRequest({ employee, leaveRequests, leaveBalances = 
                             <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">To Date</label>
                             <input 
                                 type="date" 
+                                min={data.from_date || todayStr}
                                 className={`form-control ${errors.to_date ? 'is-invalid border-red-500 text-red-900 bg-red-50/50' : ''}`} 
                                 value={data.to_date} 
                                 onChange={e => setData('to_date', e.target.value)}

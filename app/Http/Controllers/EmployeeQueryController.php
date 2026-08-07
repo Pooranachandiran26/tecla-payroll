@@ -201,6 +201,41 @@ class EmployeeQueryController extends Controller
         ]);
     }
 
+    public function adminStore(Request $request)
+    {
+        $user = $request->user();
+
+        if (!in_array($user->role, ['admin', 'manager'])) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $request->validate([
+            'subject' => 'required|string|max:255',
+            'category' => 'required|in:payroll,attendance,leave,benefits,bank,salary,general',
+            'message' => 'required|string|max:2000',
+            'client_id' => 'nullable|exists:clients,id',
+        ]);
+
+        $query = EmployeeQuery::create([
+            'employee_id' => $user->employee_id ?: null,
+            'client_id' => $request->client_id ?: null,
+            'subject' => $request->subject,
+            'category' => $request->category,
+            'message' => $request->message,
+            'status' => 'pending',
+        ]);
+
+        NotificationService::sendToAdminsAndManagers(
+            type: 'employee_query',
+            title: 'New Admin Support Ticket Raised',
+            body: "{$user->name} raised a [{$request->category}] query: {$request->subject}",
+            url: route('admin.employee-queries.index', [], false),
+            data: ['query_id' => $query->id]
+        );
+
+        return back()->with('success', 'Support ticket / query raised successfully. Reference ID #' . $query->id);
+    }
+
     public function adminRespond(Request $request, EmployeeQuery $query)
     {
         $user = $request->user();
