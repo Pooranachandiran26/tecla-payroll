@@ -293,10 +293,25 @@ class EmployeePortalController extends Controller
             ->orderBy('attendance_date', 'desc')
             ->get();
 
+        $holidays = \App\Models\Holiday::where('client_id', $employee->client_id)
+            ->orderBy('holiday_date', 'asc')
+            ->get();
+
+        $leaveRequests = \App\Models\LeaveRequest::where('employee_id', $employee->id)
+            ->whereIn('status', ['approved', 'pending'])
+            ->get();
+
+        $daySwaps = \App\Models\EmployeeAttendanceOverride::where('employee_id', $employee->id)
+            ->orderBy('override_date', 'desc')
+            ->get();
+
         return Inertia::render('EmployeePortal/EmployeeAttendance', [
             'employee' => new EmployeeResource($employee),
             'attendanceRecords' => $records,
-            'correctionRequests' => $correctionRequests
+            'correctionRequests' => $correctionRequests,
+            'holidays' => $holidays,
+            'leaveRequests' => $leaveRequests,
+            'daySwaps' => $daySwaps,
         ]);
     }
 
@@ -484,9 +499,11 @@ class EmployeePortalController extends Controller
         
         $validated = $request->validate([
             'leave_type' => 'required|in:casual,sick,earned,unpaid',
-            'from_date' => 'required|date',
+            'from_date' => 'required|date|after_or_equal:today',
             'to_date' => 'required|date|after_or_equal:from_date',
             'reason' => 'required|string|min:10',
+        ], [
+            'from_date.after_or_equal' => 'From Date cannot be in the past.',
         ]);
 
         $fromDate = Carbon::parse($validated['from_date'])->toDateString();
@@ -536,7 +553,7 @@ class EmployeePortalController extends Controller
             type: 'leave_request',
             title: 'New Leave Request Pending Approval',
             body: "{$employee->full_name} ({$employee->employee_code}) submitted a {$leaveTypeName} Leave request for {$daysCount} day(s).",
-            url: route('leave-requests.index'),
+            url: route('leave-requests.index', [], false),
             data: ['employee_id' => $employee->id]
         );
 

@@ -223,7 +223,7 @@ class StoreEmployeeRequest extends FormRequest
             'tds_regime' => 'required|in:old,new',
             'gratuity_mode' => 'required|in:part_of_ctc,over_and_above',
             'lop_basis_days' => 'required|integer|min:15|max:31',
-            'weekly_off_pattern' => ['nullable', 'string', 'regex:/^(mon|tue|wed|thu|fri|sat|sun)(,(mon|tue|wed|thu|fri|sat|sun)){0,6}$/i'],
+            'weekly_off_pattern' => 'nullable|string',
             
             // Salary
             'basic_pay' => 'required|numeric|min:0',

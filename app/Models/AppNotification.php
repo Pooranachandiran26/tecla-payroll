@@ -22,6 +22,23 @@ class AppNotification extends Model
         'data'    => 'array',   // Matches the nullable JSON `data` column in the migration
     ];
 
+    /**
+     * Convert absolute domain/localhost URLs stored in database to relative paths.
+     */
+    public function getUrlAttribute($value): ?string
+    {
+        if (empty($value)) {
+            return null;
+        }
+
+        if (preg_match('#^https?://[^/]+(.*)$#i', $value, $matches)) {
+            $path = $matches[1];
+            return $path ?: '/';
+        }
+
+        return $value;
+    }
+
     // -------------------------------------------------------------------------
     // Relations
     // -------------------------------------------------------------------------

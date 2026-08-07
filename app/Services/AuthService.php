@@ -63,11 +63,8 @@ class AuthService
         ]);
 
         try {
-            if (\App\Services\SettingsService::get('email.otp_send_mode') === 'sync') {
-                \Illuminate\Support\Facades\Mail::to($user->email)->send(new \App\Mail\OtpMail($code, $user));
-            } else {
-                \Illuminate\Support\Facades\Mail::to($user->email)->queue(new \App\Mail\OtpMail($code, $user));
-            }
+            // Send synchronously inline to guarantee immediate delivery (< 5s) without waiting for queue workers
+            \Illuminate\Support\Facades\Mail::to($user->email)->send(new \App\Mail\OtpMail($code, $user));
             $this->audit->log('otp.sent', $user, null, null, ['masked_email' => Str::mask($user->email, '*', 3)], null, $ip);
         } catch (\Throwable $e) {
             $this->audit->log('otp.send_failed', $user, null, null, ['error' => $e->getMessage()], null, $ip);

@@ -686,6 +686,13 @@
     font-size: 0.75rem;
     margin-top: 0.25rem;
   }
+  .error-text {
+    color: #dc2626;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-top: 0.25rem;
+    display: block;
+  }
   .form-warning {
     color: var(--status-warning);
     font-size: 0.75rem;
@@ -704,12 +711,16 @@
   .tab-headers {
     display: flex;
     flex-wrap: nowrap;
-    overflow-x: auto;
+    overflow-x: hidden;
     border-bottom: 1px solid var(--border-color);
     list-style: none;
-    gap: 1rem;
+    gap: 0.5rem;
     padding-bottom: 2px;
-    scrollbar-width: thin;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .tab-headers::-webkit-scrollbar {
+    display: none;
   }
   .tab-headers li {
     padding: 0.6rem 0.75rem;
