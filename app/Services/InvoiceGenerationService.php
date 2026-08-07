@@ -24,6 +24,11 @@ class InvoiceGenerationService
         // 1. Load the client
         $client = Client::findOrFail($payrollRun->client_id);
 
+        // 1a. In-House Client Check (No Client Billing / Invoice Generation)
+        if ($client->isInhouse()) {
+            return [];
+        }
+
         // 1b. Contract Expiry Check
         if ($client->contract_end_date && \Carbon\Carbon::parse($client->contract_end_date)->startOfDay()->isPast() && !(bool)$client->auto_renewal) {
             $formattedEnd = \Carbon\Carbon::parse($client->contract_end_date)->format('Y-m-d');

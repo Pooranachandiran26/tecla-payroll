@@ -139,10 +139,21 @@ export default function ContractSection({ formData, errors, onChange, hook, gstS
             <div className="form-group">
               <label>OT Approval Mode</label>
               <select className="form-control" value={formData.otApproval} onChange={e => onChange('otApproval', e.target.value)}>
-                <option value="timesheet">Client Timesheet Approval Required</option>
-                <option value="auto">Auto-approved (based on punch-in/out)</option>
+                <option value="pre">Pre-approval Required</option>
+                <option value="post">Timesheet Log (Post-facto)</option>
               </select>
             </div>
+          </div>
+        </div>
+      )}
+
+      {formData.billingModel === 'inhouse' && (
+        <div className="conditional-field" style={{ backgroundColor: '#F3F4F6', padding: '1rem', borderRadius: 'var(--radius-sm)', border: '1px solid #E5E7EB', marginTop: '1rem' }}>
+          <div style={{ fontWeight: 600, color: '#374151', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            🏢 In-House Payroll Entity
+          </div>
+          <div style={{ fontSize: '0.8rem', color: '#6B7280', marginTop: '0.25rem' }}>
+            No client billing, invoice generation, or agency margin tracking will occur for this client entity. All payroll and statutory compliance execute normally.
           </div>
         </div>
       )}

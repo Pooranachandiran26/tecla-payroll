@@ -18,6 +18,7 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
     const [showDisbursementModal, setShowDisbursementModal] = useState(false);
     const [showSingleCorrectionModal, setShowSingleCorrectionModal] = useState(false);
     const [showBatchCorrectionModal, setShowBatchCorrectionModal] = useState(false);
+    const [isLocking, setIsLocking] = useState(false);
 
     const [showSupplementaryModal, setShowSupplementaryModal] = useState(() => {
         if (typeof window !== 'undefined') {
@@ -79,31 +80,17 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
     const activeItems = items ? items.filter(i => !i.is_excluded) : [];
     const excludedItems = items ? items.filter(i => i.is_excluded) : [];
 
-    // Trigger Approve
+    // Trigger Approve & Lock for Main Batch (Single Atomic POST Request)
     const handleApproveAndLock = () => {
-        if (!run) return;
-        
-        router.post(route('payroll.run.approve', run.id), {}, {
-            onSuccess: () => {
-                // Once approved, run lock
-                router.post(route('payroll.run.lock', run.id), {}, {
-                    onSuccess: () => {
-                        router.visit(route('invoices.index'));
-                    },
-                    onError: (errors) => {
-                        showToast({
-                            type: 'error',
-                            title: 'Lock Error',
-                            message: errors.error || 'Unknown error locking batch'
-                        });
-                    }
-                });
-            },
+        if (!run || isLocking) return;
+        setIsLocking(true);
+        router.post(route('payroll.run.lock', run.id), {}, {
+            onFinish: () => setIsLocking(false),
             onError: (errors) => {
                 showToast({
                     type: 'error',
-                    title: 'Approval Error',
-                    message: errors.error || 'Unknown error approving batch'
+                    title: 'Lock Error',
+                    message: errors.error || 'Unknown error locking batch'
                 });
             }
         });
@@ -127,33 +114,17 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
         });
     };
 
-    // Approve & Lock a specific supplementary run (status-aware: skips approve if already approved)
-    const handleApproveSupplementary = (supplementaryRunId, currentStatus) => {
-        const doLock = () => {
-            router.post(route('payroll.run.lock', supplementaryRunId), {}, {
-                onSuccess: () => {
-                    router.reload();
-                },
-                onError: (errors) => {
-                    showToast({ type: 'error', title: 'Lock Error',
-                        message: errors.error || 'Error locking supplementary run. It may now be in Approved state — retry to lock.' });
-                    router.reload();
-                }
-            });
-        };
-
-        if (currentStatus === 'approved') {
-            // Already approved (e.g. previous attempt's lock failed) — skip approve, go straight to lock
-            doLock();
-        } else {
-            router.post(route('payroll.run.approve', supplementaryRunId), {}, {
-                onSuccess: () => doLock(),
-                onError: (errors) => {
-                    showToast({ type: 'error', title: 'Approval Error',
-                        message: errors.error || 'Error approving supplementary run' });
-                }
-            });
-        }
+    // Approve & Lock a specific supplementary run (Single Atomic POST Request)
+    const handleApproveSupplementary = (supplementaryRunId) => {
+        if (isLocking) return;
+        setIsLocking(true);
+        router.post(route('payroll.run.lock', supplementaryRunId), {}, {
+            onFinish: () => setIsLocking(false),
+            onError: (errors) => {
+                showToast({ type: 'error', title: 'Lock Error',
+                    message: errors.error || 'Error locking supplementary run.' });
+            }
+        });
     };
 
     return (
@@ -248,7 +219,11 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
                     let agencyMargin = 0;
                     let invoicedAmount = 0;
 
-                    if (clientData.billing_model === 'percentage_markup') {
+                    if (clientData.billing_model === 'inhouse') {
+                        contractModelText = 'In-House Payroll (No Billing)';
+                        agencyMargin = 0;
+                        invoicedAmount = 0;
+                    } else if (clientData.billing_model === 'percentage_markup') {
                         const rate = parseFloat(clientData.markup_value || 8.5);
                         const isCtc = clientData.markup_applied_on === 'ctc';
                         contractModelText = `${rate}% Markup on ${isCtc ? 'Gross CTC' : 'Gross Salary'}`;
@@ -326,13 +301,13 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
 
                                                             return (
                                                                 <tr key={item.id}>
-                                                                    <td className="font-mono text-xs">{item.employee_code || item.employee?.employee_code}</td>
-                                                                    <td style={{ fontWeight: 600 }}>{item.employee_name || item.employee?.full_name}</td>
-                                                                    <td>₹{gross.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                                                                    <td style={{ fontWeight: 600, color: '#047857' }}>₹{net.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                                                                    <td style={{ color: '#DC2626' }}>₹{deduct.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                                                                    <td style={{ color: '#D97706' }}>₹{erCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                                                                    <td style={{ fontWeight: 700, color: '#1F3864' }}>₹{ctcVal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                                                    <td className="font-mono text-xs" style={{ whiteSpace: 'nowrap' }}>{item.employee_code || item.employee?.employee_code}</td>
+                                                                    <td style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{item.full_name || item.employee_name || item.employee?.full_name}</td>
+                                                                    <td style={{ whiteSpace: 'nowrap' }}>₹{gross.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                                                    <td style={{ fontWeight: 600, color: '#047857', whiteSpace: 'nowrap' }}>₹{net.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                                                    <td style={{ color: '#DC2626', whiteSpace: 'nowrap' }}>₹{deduct.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                                                    <td style={{ color: '#D97706', whiteSpace: 'nowrap' }}>₹{erCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                                                    <td style={{ fontWeight: 700, color: '#1F3864', whiteSpace: 'nowrap' }}>₹{ctcVal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
                                                                 </tr>
                                                             );
                                                         })}
@@ -369,21 +344,25 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
                                 <div className="card">
                                     <h3 className="card-title" style={{ marginBottom: "0.35rem" }}>Authorization &amp; Release Lock</h3>
                                     <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "1rem" }}>
-                                        Approving and locking this run generates branch invoices, performs reconciliation, and enables official payslips.
+                                        {clientData.billing_model === 'inhouse' 
+                                            ? 'Approving and locking this run finalizes payroll calculations and enables official payslips (In-House Payroll — No Client Billing).'
+                                            : 'Approving and locking this run generates branch invoices, performs reconciliation, and enables official payslips.'}
                                     </p>
                                     
                                     <div>
                                         <button 
                                             className="btn btn-primary" 
-                                            style={{ width: "100%", padding: "0.75rem", fontSize: "0.95rem", fontWeight: 700, backgroundColor: run.status === 'locked' ? '#D97706' : '#1F3864' }} 
+                                            style={{ width: "100%", padding: "0.75rem", fontSize: "0.95rem", fontWeight: 700, backgroundColor: (run.status === 'locked' || isLocking) ? '#D97706' : '#1F3864' }} 
                                             onClick={handleApproveAndLock} 
-                                            disabled={role !== 'admin' || run.status === 'locked'}
+                                            disabled={role !== 'admin' || run.status === 'locked' || isLocking}
                                         >
-                                            {run.status === 'locked' 
-                                                ? (pendingSupplementaryRuns.length > 0 
-                                                    ? `✓ Parent Locked — ${pendingSupplementaryRuns.length} Supplementary Pending` 
-                                                    : '✓ Batch Locked & Finalized') 
-                                                : '✓ Approve & Lock Batch'}
+                                            {isLocking ? (clientData.billing_model === 'inhouse' ? '⏳ Locking Payroll Run...' : '⏳ Locking & Merging Invoices...') : (
+                                                run.status === 'locked' 
+                                                    ? (pendingSupplementaryRuns.length > 0 
+                                                        ? `✓ Parent Locked — ${pendingSupplementaryRuns.length} Supplementary Pending` 
+                                                        : '✓ Batch Locked & Finalized') 
+                                                    : '✓ Approve & Lock Batch'
+                                            )}
                                         </button>
 
                                         {pendingSupplementaryRuns.length > 0 && (
@@ -439,10 +418,10 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
                                                         <button
                                                             className="btn btn-primary btn-sm"
                                                             style={{ width: '100%', padding: '0.5rem', fontWeight: 600 }}
-                                                            onClick={() => handleApproveSupplementary(sr.id, sr.status)}
-                                                            disabled={role !== 'admin'}
+                                                            onClick={() => handleApproveSupplementary(sr.id)}
+                                                            disabled={role !== 'admin' || isLocking}
                                                         >
-                                                            {sr.status === 'approved' ? '🔒 Lock Supplementary Run' : '✓ Approve & Lock Supplementary Run'} #{sr.id}
+                                                            {isLocking ? '⏳ Locking Supplementary Run...' : `✓ Approve & Lock Supplementary Run #${sr.id}`}
                                                         </button>
                                                     </div>
                                                 ))}
@@ -519,33 +498,41 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
                                 {/* Agency Profit Margin Card (Below Primary Actions) */}
                                 <div className="card">
                                     <h3 className="card-title" style={{ marginBottom: "0.25rem" }}>Agency Profit Margin</h3>
-                                    <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "1rem" }}>
-                                        Calculated as Invoiced Amount minus Gross Earnings and True Employer-Side Cost.
-                                    </p>
+                                    {clientData.billing_model === 'inhouse' ? (
+                                        <div style={{ backgroundColor: "#F3F4F6", padding: "1.25rem", borderRadius: "var(--radius-sm)", textAlign: "center", color: "#4B5563", fontSize: "0.88rem", fontWeight: 600, border: "1px solid #E5E7EB", marginTop: "0.75rem" }}>
+                                            🏢 In-House Payroll — No Client Billing
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "1rem" }}>
+                                                Calculated as Invoiced Amount minus Gross Earnings and True Employer-Side Cost.
+                                            </p>
 
-                                    <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", fontSize: "0.85rem" }}>
-                                        <div style={{ display: "flex", justifyContent: "space-between" }}>
-                                            <span style={{ color: "var(--text-muted)" }}>Contract Model:</span>
-                                            <span style={{ fontWeight: 600 }}>{contractModelText}</span>
-                                        </div>
-                                        <div style={{ display: "flex", justifyContent: "space-between" }}>
-                                            <span>Invoiced to Client:</span>
-                                            <span style={{ fontWeight: 600 }}>₹{invoicedAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                        </div>
-                                        <div style={{ display: "flex", justifyContent: "space-between" }}>
-                                            <span style={{ color: "var(--status-danger)" }}>Less: Gross Earnings:</span>
-                                            <span style={{ fontWeight: 600, color: "var(--status-danger)" }}>-₹{grossEarnings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                        </div>
-                                        <div style={{ display: "flex", justifyContent: "space-between" }}>
-                                            <span style={{ color: "var(--status-danger)" }}>Less: Employer Cost:</span>
-                                            <span style={{ fontWeight: 600, color: "var(--status-danger)" }}>-₹{employerCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                        </div>
-                                        <hr style={{ border: 0, borderTop: "1px solid var(--border-color)" }} />
-                                        <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "bold", fontSize: "1.05rem" }}>
-                                            <span style={{ color: agencyMargin >= 0 ? "#059669" : "#DC2626" }}>True Agency Margin:</span>
-                                            <span style={{ color: agencyMargin >= 0 ? "#059669" : "#DC2626" }}>₹{agencyMargin.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                        </div>
-                                    </div>
+                                            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", fontSize: "0.85rem" }}>
+                                                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                                                    <span style={{ color: "var(--text-muted)" }}>Contract Model:</span>
+                                                    <span style={{ fontWeight: 600 }}>{contractModelText}</span>
+                                                </div>
+                                                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                                                    <span>Invoiced to Client:</span>
+                                                    <span style={{ fontWeight: 600 }}>₹{invoicedAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                                </div>
+                                                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                                                    <span style={{ color: "var(--status-danger)" }}>Less: Gross Earnings:</span>
+                                                    <span style={{ fontWeight: 600, color: "var(--status-danger)" }}>-₹{grossEarnings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                                </div>
+                                                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                                                    <span style={{ color: "var(--status-danger)" }}>Less: Employer Cost:</span>
+                                                    <span style={{ fontWeight: 600, color: "var(--status-danger)" }}>-₹{employerCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                                </div>
+                                                <hr style={{ border: 0, borderTop: "1px solid var(--border-color)" }} />
+                                                <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "bold", fontSize: "1.05rem" }}>
+                                                    <span style={{ color: agencyMargin >= 0 ? "#059669" : "#DC2626" }}>True Agency Margin:</span>
+                                                    <span style={{ color: agencyMargin >= 0 ? "#059669" : "#DC2626" }}>₹{agencyMargin.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                         </div>

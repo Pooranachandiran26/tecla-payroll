@@ -377,7 +377,7 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
                                             <th className="col-group-earn">DA</th>
                                             <th className="col-group-earn">Med.</th>
                                             <th className="col-group-earn">Special</th>
-                                            <th className="col-group-earn">Arrears</th>
+                                            <th className="col-group-earn">Other Add.</th>
                                         </>
                                     )}
                                     {deductVisible && (

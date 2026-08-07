@@ -255,6 +255,14 @@ class Client extends Model
         $clampedDay = min($day, $target->daysInMonth);
         return $target->day($clampedDay)->format('M j, Y');
     }
+
+    /**
+     * Check if the client is an internal in-house entity (no client billing/invoicing).
+     */
+    public function isInhouse(): bool
+    {
+        return $this->billing_model === 'inhouse';
+    }
 }
 
 

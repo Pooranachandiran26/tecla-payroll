@@ -6,7 +6,7 @@ use Tests\TestCase;
 use App\Models\User;
 use App\Models\Client;
 use App\Models\Employee;
-use App\Jobs\ProcessBulkEmployeeUploadJob;
+use App\Jobs\ProcessBulkUploadJob;
 use App\Services\BulkUploadValidationService;
 use App\Services\AuditService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -50,30 +50,29 @@ class ProcessBulkEmployeeUploadJobTest extends TestCase
 
         file_put_contents($filePath, $csvContent);
 
-        DB::table('bulk_import_jobs')->insert([
-            'job_uuid' => $jobUuid,
+        DB::table('bulk_upload_batches')->insert([
+            'id' => $jobUuid,
             'user_id' => $user->id,
+            'type' => 'employee',
+            'client_id' => $client->id,
             'file_name' => 'sample_import.csv',
-            'stored_path' => $filePath,
-            'status' => 'queued',
+            'file_path' => $filePath,
+            'status' => 'pending',
             'total_rows' => 0,
             'processed_rows' => 0,
+            'valid_count' => 0,
+            'error_count' => 0,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
 
-        $job = new ProcessBulkEmployeeUploadJob(
-            $jobUuid,
-            $filePath,
-            $user->id,
-            false,
-            false,
-            'sample_import.csv'
+        $job = new ProcessBulkUploadJob(
+            $jobUuid
         );
 
-        $job->handle(app(BulkUploadValidationService::class), app(AuditService::class));
+        $job->handle(app(\App\Services\FastBulkUploadService::class));
 
-        $jobRecord = DB::table('bulk_import_jobs')->where('job_uuid', $jobUuid)->first();
+        $jobRecord = DB::table('bulk_upload_batches')->where('id', $jobUuid)->first();
         $this->assertEquals('completed', $jobRecord->status);
         $this->assertEquals(2, $jobRecord->processed_rows);
         $this->assertEquals(2, $jobRecord->valid_count);

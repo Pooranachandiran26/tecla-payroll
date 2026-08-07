@@ -123,8 +123,10 @@ class AttendanceUploadController extends Controller
         $writer = \Spatie\SimpleExcel\SimpleExcelWriter::create($tempPath, 'xlsx', function ($spoutWriter) {
             $options = $spoutWriter->getOptions();
             if (method_exists($options, 'setColumnWidth')) {
-                $options->setColumnWidth(35.0, 1);
+                $options->setColumnWidth(40.0, 1);
                 $options->setColumnWidth(75.0, 2);
+                $options->setColumnWidth(25.0, 3);
+                $options->setColumnWidth(18.0, 4);
             }
         });
 
@@ -287,8 +289,23 @@ class AttendanceUploadController extends Controller
         $writer->addNewSheetAndMakeItCurrent('Attendance Entry');
         if (!empty($allActiveEmployees) && count($allActiveEmployees) > 0) {
             foreach ($allActiveEmployees as $emp) {
-                // Instantly pre-fill with client default working days to support fast sub-second download of 10,000+ employees
-                $empWorkingDays = $workingDaysSlots;
+                // Auto-detect mid-month joiners & custom weekly off pattern employees to pre-fill their exact max available working days
+                $empStart = \Carbon\Carbon::parse($emp->date_of_joining)->startOfDay();
+                if (!empty($emp->attendance_tracking_start_date)) {
+                    $atsd = \Carbon\Carbon::parse($emp->attendance_tracking_start_date)->startOfDay();
+                    if ($atsd->gt($empStart)) {
+                        $empStart = $atsd->copy();
+                    }
+                }
+                $isMidMonth = $empStart->gt($monthStart) && $empStart->lte($monthEnd);
+                $hasCustomPattern = !empty($emp->weekly_off_pattern) && strtolower($emp->weekly_off_pattern) !== ($clientDefaultPattern ?? 'sat,sun');
+
+                if ($isMidMonth || $hasCustomPattern) {
+                    $empCtx = $this->validationService->calculateWorkingDaysContext((int) $clientId, $targetMonthStr, $emp);
+                    $empWorkingDays = $empCtx['net_available_slots'];
+                } else {
+                    $empWorkingDays = $workingDaysSlots;
+                }
 
                 $writer->addRow([
                     'target_month' => $targetMonthVal,
