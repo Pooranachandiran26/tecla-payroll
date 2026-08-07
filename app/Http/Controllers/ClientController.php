@@ -409,10 +409,40 @@ class ClientController extends Controller
             $activityLogs = $activityLogs->concat($syntheticLogs);
         }
                
+        $probationEmployees = $client->employees()
+            ->get()
+            ->map(function ($emp) {
+                $doj = $emp->date_of_joining ? \Carbon\Carbon::parse($emp->date_of_joining) : null;
+                $probEndStr = $emp->probation_end_date ?: ($doj ? $doj->copy()->addDays(180)->toDateString() : null);
+                
+                if (!$probEndStr) {
+                    return null;
+                }
+
+                $probCarbon = \Carbon\Carbon::parse($probEndStr);
+                $daysLeft = (int) round(now()->startOfDay()->diffInDays($probCarbon, false));
+
+                return [
+                    'id' => $emp->id,
+                    'employee_code' => $emp->employee_code,
+                    'full_name' => $emp->full_name,
+                    'designation' => $emp->designation ?: 'Staff',
+                    'date_of_joining' => $emp->date_of_joining,
+                    'probation_end_date' => $probEndStr,
+                    'days_left' => $daysLeft,
+                    'status' => $emp->status,
+                    'probation_status' => $daysLeft < 0 ? 'expired' : ($daysLeft <= 30 ? 'expiring_soon' : 'active'),
+                ];
+            })
+            ->filter()
+            ->sortBy('probation_end_date')
+            ->values();
+
         return Inertia::render('Clients/ClientDetail', [
             'client' => new ClientResource($client),
             'employees' => $employees,
             'activityLogs' => $activityLogs,
+            'probationEmployees' => $probationEmployees,
         ]);
     }
 

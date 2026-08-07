@@ -22,7 +22,7 @@ import {
   BadgeAlert
 } from 'lucide-react';
 
-export default function EmployeeAttendance({ employee, attendanceRecords, correctionRequests = [] }) {
+export default function EmployeeAttendance({ employee, attendanceRecords, correctionRequests = [], holidays = [], leaveRequests = [], daySwaps = [] }) {
     const rawRecords = attendanceRecords?.data || [];
     const { showToast } = useToast();
 
@@ -66,21 +66,74 @@ export default function EmployeeAttendance({ employee, attendanceRecords, correc
         return map;
     }, [rawRecords]);
 
-    const isDayOff = (dateObj) => {
-        const day = dateObj.getDay(); // 0 = Sun, 1 = Mon, ..., 5 = Fri, 6 = Sat
-        const empData = employee?.data || employee || {};
-        const p = (empData.weekly_off_pattern || empData.weeklyOffPattern || 'sat,sun').toLowerCase();
+    // Map client holidays by YYYY-MM-DD
+    const holidaysByDate = useMemo(() => {
+        const map = {};
+        (holidays || []).forEach(h => {
+            if (h.holiday_date) {
+                const key = String(h.holiday_date).substring(0, 10);
+                map[key] = h;
+            }
+        });
+        return map;
+    }, [holidays]);
 
-        if (p.includes('sun') && !p.includes('sat')) {
-            return day === 0;
-        }
-        if (p.includes('fri') && p.includes('sat')) {
-            return day === 5 || day === 6;
-        }
-        if (p.includes('mon') && !p.includes('tue')) {
-            return day === 1;
-        }
-        return day === 0 || day === 6;
+    // Map applied leave requests across their date ranges
+    const leavesByDate = useMemo(() => {
+        const map = {};
+        (leaveRequests || []).forEach(req => {
+            if (req.from_date && req.to_date) {
+                const start = new Date(req.from_date);
+                const end = new Date(req.to_date);
+                for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                    const monthStr = String(d.getMonth() + 1).padStart(2, '0');
+                    const dayStr = String(d.getDate()).padStart(2, '0');
+                    const key = `${d.getFullYear()}-${monthStr}-${dayStr}`;
+                    map[key] = req;
+                }
+            }
+        });
+        return map;
+    }, [leaveRequests]);
+
+    // Map day swaps (overrides) by YYYY-MM-DD
+    const swapsByDate = useMemo(() => {
+        const map = {};
+        (daySwaps || []).forEach(swap => {
+            if (swap.override_date) {
+                const key = String(swap.override_date).substring(0, 10);
+                map[key] = { ...swap, isOverrideDate: true };
+            }
+            if (swap.swap_target_date) {
+                const key = String(swap.swap_target_date).substring(0, 10);
+                map[key] = { ...swap, isTargetDate: true };
+            }
+        });
+        return map;
+    }, [daySwaps]);
+
+    const isDayOff = (dateObj) => {
+        const day = dateObj.getDay(); // 0 = Sun, 1 = Mon, 2 = Tue, 3 = Wed, 4 = Thu, 5 = Fri, 6 = Sat
+        const empData = employee?.data || employee || {};
+        const rawPattern = empData.weekly_off_pattern || empData.weeklyOffPattern || 'sat,sun';
+        const p = String(rawPattern).toLowerCase();
+
+        const dayMap = {
+            0: ['sun', 'sunday'],
+            1: ['mon', 'monday'],
+            2: ['tue', 'tuesday', 'tues'],
+            3: ['wed', 'wednesday'],
+            4: ['thu', 'thursday', 'thur', 'thurs'],
+            5: ['fri', 'friday'],
+            6: ['sat', 'saturday'],
+        };
+
+        const currentDayAliases = dayMap[day] || [];
+        const tokens = p.split(/[\s,_\+\-]+/).map(t => t.trim()).filter(Boolean);
+
+        return currentDayAliases.some(alias =>
+            tokens.some(token => token === alias || alias.startsWith(token) || token.startsWith(alias))
+        );
     };
 
     // Calendar generation for current selected month
@@ -104,13 +157,49 @@ export default function EmployeeAttendance({ employee, attendanceRecords, correc
             const dateStr = `${currentYear}-${monthStr}-${dayStr}`;
             
             const dateObj = new Date(currentYear, currentMonth, day);
-            const isWeekend = isDayOff(dateObj);
-            
+            const naturalIsWeekend = isDayOff(dateObj);
+            const swap = swapsByDate[dateStr];
+            const leave = leavesByDate[dateStr];
+            const holiday = holidaysByDate[dateStr];
             const record = recordsByDate[dateStr];
             
+            let isWeekend = naturalIsWeekend;
+            let isSwappedDay = false;
+            let swapType = null;
+
+            if (swap && swap.status === 'approved') {
+                isSwappedDay = true;
+                const isOverride = swap.override_date && String(swap.override_date).substring(0, 10) === dateStr;
+                const isTarget = swap.swap_target_date && String(swap.swap_target_date).substring(0, 10) === dateStr;
+
+                if (isOverride) {
+                    if (swap.attendance_day_type === 'work_day') {
+                        isWeekend = false;
+                        swapType = 'swapped_in'; // Work Day brought in on a day off
+                    } else {
+                        isWeekend = true;
+                        swapType = 'swapped_out'; // Day off given in place of work
+                    }
+                } else if (isTarget) {
+                    if (swap.attendance_day_type === 'work_day') {
+                        isWeekend = true;
+                        swapType = 'swapped_out'; // Target counterpart day given off
+                    } else {
+                        isWeekend = false;
+                        swapType = 'swapped_in';
+                    }
+                }
+            }
+
             let status = 'no_record';
             if (record) {
                 status = record.status || 'present';
+            } else if (leave) {
+                status = 'on_leave';
+            } else if (swapType === 'swapped_in') {
+                status = 'day_swap_work';
+            } else if (holiday) {
+                status = 'holiday';
             } else if (isWeekend) {
                 status = 'weekend';
             }
@@ -121,13 +210,19 @@ export default function EmployeeAttendance({ employee, attendanceRecords, correc
                 dateStr,
                 dateObj,
                 isWeekend,
+                naturalIsWeekend,
+                isSwappedDay,
+                swapType,
                 status,
                 record,
+                holiday,
+                leave,
+                swap,
             });
         }
 
         return days;
-    }, [currentYear, currentMonth, recordsByDate, employee]);
+    }, [currentYear, currentMonth, recordsByDate, holidaysByDate, leavesByDate, swapsByDate, employee]);
 
     // Month navigation
     const handlePrevMonth = () => {
@@ -158,22 +253,38 @@ export default function EmployeeAttendance({ employee, attendanceRecords, correc
         return new Date(currentYear, currentMonth, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
     }, [currentYear, currentMonth]);
 
+    const getBadgeStyle = (status) => {
+        switch (status) {
+            case 'present': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+            case 'half_day': return 'bg-amber-100 text-amber-800 border-amber-200';
+            case 'absent':
+            case 'lop': return 'bg-rose-100 text-rose-800 border-rose-200';
+            case 'on_leave':
+            case 'leave': return 'bg-sky-100 text-sky-800 border-sky-200';
+            case 'holiday': return 'bg-purple-100 text-purple-900 border-purple-200';
+            case 'weekend': return 'bg-slate-200 text-slate-700 border-slate-300';
+            default: return 'bg-gray-100 text-gray-700 border-gray-200';
+        }
+    };
+
     // Stats for current month view
     const monthStats = useMemo(() => {
         let presentCount = 0;
         let lopCount = 0;
         let weekendCount = 0;
         let halfDayCount = 0;
+        let holidayCount = 0;
 
         calendarDays.forEach(d => {
             if (d.isPadding) return;
             if (d.status === 'present') presentCount++;
             else if (d.status === 'absent' || d.status === 'lop') lopCount++;
             else if (d.status === 'half_day') halfDayCount++;
+            else if (d.status === 'holiday') holidayCount++;
             else if (d.status === 'weekend') weekendCount++;
         });
 
-        return { presentCount, lopCount, halfDayCount, weekendCount };
+        return { presentCount, lopCount, halfDayCount, weekendCount, holidayCount };
     }, [calendarDays]);
 
     const openCorrectionModal = (dateStr) => {
@@ -218,23 +329,7 @@ export default function EmployeeAttendance({ employee, attendanceRecords, correc
         });
     };
 
-    const getBadgeStyle = (status) => {
-        switch (status) {
-            case 'present':
-                return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-            case 'half_day':
-                return 'bg-amber-50 text-amber-800 border-amber-200';
-            case 'absent':
-            case 'lop':
-                return 'bg-rose-50 text-rose-700 border-rose-200';
-            case 'weekend':
-                return 'bg-slate-100 text-slate-600 border-slate-200';
-            case 'holiday':
-                return 'bg-sky-50 text-sky-700 border-sky-200';
-            default:
-                return 'bg-gray-50 text-gray-500 border-gray-200';
-        }
-    };
+
 
     return (
         <RoleGuard allowedRoles={['employee']}>
@@ -242,42 +337,36 @@ export default function EmployeeAttendance({ employee, attendanceRecords, correc
                 <Head title="My Attendance Calendar" />
 
                 {/* Top Header & View Switcher */}
-                <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div className="mb-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
                     <div>
-                        <div className="flex items-center gap-2 text-xs text-gray-500 mb-1 font-semibold">
-                            <span className="text-[#1F3864]">Employee Portal</span>
-                            <span>/</span>
-                            <span className="text-gray-700">Attendance Calendar</span>
-                        </div>
-                        <h2 className="text-2xl font-bold text-[#1F3864]">My Attendance Calendar</h2>
-                        <p className="text-xs text-gray-500 font-medium">Track daily clock-in stamps, work hour accumulations, and attendance correction requests.</p>
+                        <h2 className="text-xl font-extrabold text-[#1F3864]">My Attendance Calendar</h2>
                     </div>
 
-                    {/* Clean View Switcher Controls (Table View removed as requested) */}
+                    {/* Clean View Switcher Controls */}
                     <div className="flex items-center bg-gray-200/70 p-1 rounded-xl shadow-inner text-xs font-bold border border-gray-300/50">
                         <button
                             type="button"
                             onClick={() => setViewMode('calendar')}
-                            className={`px-4 py-2 rounded-lg transition-all flex items-center gap-1.5 ${
+                            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
                                 viewMode === 'calendar' 
                                     ? 'bg-white text-[#1F3864] shadow-sm font-bold' 
                                     : 'text-gray-600 hover:text-gray-900'
                             }`}
                         >
-                            <LayoutGrid className="w-4 h-4 text-indigo-600" />
+                            <LayoutGrid className="w-3.5 h-3.5 text-indigo-600" />
                             <span>Calendar View</span>
                         </button>
                         <button
                             type="button"
                             onClick={() => setViewMode('corrections')}
-                            className={`px-4 py-2 rounded-lg transition-all flex items-center gap-1.5 ${
+                            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
                                 viewMode === 'corrections' 
                                     ? 'bg-white text-[#1F3864] shadow-sm font-bold' 
                                     : 'text-gray-600 hover:text-gray-900'
                             }`}
                         >
-                            <FileText className="w-4 h-4 text-indigo-600" />
-                            <span>My Correction Requests</span>
+                            <FileText className="w-3.5 h-3.5 text-indigo-600" />
+                            <span>Correction Requests</span>
                             {correctionRequests.length > 0 && (
                                 <span className="px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-800 text-[0.65rem] font-extrabold ml-0.5">
                                     {correctionRequests.length}
@@ -289,44 +378,44 @@ export default function EmployeeAttendance({ employee, attendanceRecords, correc
 
                 {/* KPI Summary Cards */}
                 {viewMode === 'calendar' && (
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold shrink-0">
-                                <CheckCircle2 className="w-5 h-5" />
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
+                        <div className="bg-white p-2.5 px-3 rounded-xl border border-gray-200 shadow-xs flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold shrink-0">
+                                <CheckCircle2 className="w-4 h-4" />
                             </div>
                             <div>
-                                <span className="text-[0.65rem] font-semibold text-gray-500 uppercase tracking-wider block">Present Days</span>
-                                <div className="text-xl font-black text-emerald-700">{monthStats.presentCount} Days</div>
+                                <span className="text-[0.62rem] font-semibold text-gray-500 uppercase tracking-wider block">Present Days</span>
+                                <div className="text-base font-black text-emerald-700">{monthStats.presentCount} Days</div>
                             </div>
                         </div>
 
-                        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center font-bold shrink-0">
-                                <Clock className="w-5 h-5" />
+                        <div className="bg-white p-2.5 px-3 rounded-xl border border-gray-200 shadow-xs flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center font-bold shrink-0">
+                                <Clock className="w-4 h-4" />
                             </div>
                             <div>
-                                <span className="text-[0.65rem] font-semibold text-gray-500 uppercase tracking-wider block">Half Days</span>
-                                <div className="text-xl font-black text-amber-800">{monthStats.halfDayCount} Days</div>
+                                <span className="text-[0.62rem] font-semibold text-gray-500 uppercase tracking-wider block">Half Days</span>
+                                <div className="text-base font-black text-amber-800">{monthStats.halfDayCount} Days</div>
                             </div>
                         </div>
 
-                        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center font-bold shrink-0">
-                                <XCircle className="w-5 h-5" />
+                        <div className="bg-white p-2.5 px-3 rounded-xl border border-gray-200 shadow-xs flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center font-bold shrink-0">
+                                <XCircle className="w-4 h-4" />
                             </div>
                             <div>
-                                <span className="text-[0.65rem] font-semibold text-gray-500 uppercase tracking-wider block">LOP / Absent</span>
-                                <div className="text-xl font-black text-rose-700">{monthStats.lopCount} Days</div>
+                                <span className="text-[0.62rem] font-semibold text-gray-500 uppercase tracking-wider block">LOP / Absent</span>
+                                <div className="text-base font-black text-rose-700">{monthStats.lopCount} Days</div>
                             </div>
                         </div>
 
-                        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center font-bold shrink-0">
-                                <CalendarIcon className="w-5 h-5" />
+                        <div className="bg-white p-2.5 px-3 rounded-xl border border-gray-200 shadow-xs flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center font-bold shrink-0">
+                                <CalendarIcon className="w-4 h-4" />
                             </div>
                             <div>
-                                <span className="text-[0.65rem] font-semibold text-gray-500 uppercase tracking-wider block">Off-Days &amp; Weekends</span>
-                                <div className="text-xl font-black text-slate-800">{monthStats.weekendCount} Days</div>
+                                <span className="text-[0.62rem] font-semibold text-gray-500 uppercase tracking-wider block">Off-Days &amp; Weekends</span>
+                                <div className="text-base font-black text-slate-800">{monthStats.weekendCount} Days</div>
                             </div>
                         </div>
                     </div>
@@ -334,70 +423,76 @@ export default function EmployeeAttendance({ employee, attendanceRecords, correc
 
                 {/* IMPROVED CALENDAR VIEW DESIGN */}
                 {viewMode === 'calendar' && (
-                    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden mb-6">
+                    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden mb-3">
                         {/* Month Navigation & Legend Bar */}
-                        <div className="p-4 sm:p-5 border-b border-gray-200 bg-gray-50/70 flex flex-col sm:flex-row items-center justify-between gap-4">
-                            <div className="flex items-center gap-2">
+                        <div className="px-3 py-2 border-b border-gray-200 bg-gray-50/70 flex flex-col sm:flex-row items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5">
                                 <button
                                     onClick={handlePrevMonth}
-                                    className="p-2 rounded-xl bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 transition-all shadow-xs"
+                                    className="p-1.5 rounded-lg bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 transition-all shadow-xs"
                                     title="Previous Month"
                                 >
-                                    <ChevronLeft className="w-4 h-4" />
+                                    <ChevronLeft className="w-3.5 h-3.5" />
                                 </button>
-                                <h3 className="text-lg font-extrabold text-[#1F3864] m-0 px-2 min-w-[160px] text-center">
+                                <h3 className="text-base font-extrabold text-[#1F3864] m-0 px-2 min-w-[140px] text-center">
                                     {monthLabel}
                                 </h3>
                                 <button
                                     onClick={handleNextMonth}
-                                    className="p-2 rounded-xl bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 transition-all shadow-xs"
+                                    className="p-1.5 rounded-lg bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 transition-all shadow-xs"
                                     title="Next Month"
                                 >
-                                    <ChevronRight className="w-4 h-4" />
+                                    <ChevronRight className="w-3.5 h-3.5" />
                                 </button>
                                 <button
                                     onClick={handleTodayMonth}
-                                    className="ml-2 px-3 py-1.5 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold text-xs hover:bg-indigo-100 transition-all"
+                                    className="ml-1.5 px-2.5 py-1 rounded-md bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold text-xs hover:bg-indigo-100 transition-all"
                                 >
                                     Today
                                 </button>
                             </div>
 
                             {/* Color Legend */}
-                            <div className="flex items-center flex-wrap gap-2 text-xs font-semibold">
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200">
-                                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Present
+                            <div className="flex items-center flex-wrap gap-1.5 text-[0.7rem] font-semibold">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Present
                                 </span>
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-50 text-amber-800 border border-amber-200">
-                                    <span className="w-2 h-2 rounded-full bg-amber-500"></span> Half Day
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Half Day
                                 </span>
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-rose-50 text-rose-800 border border-rose-200">
-                                    <span className="w-2 h-2 rounded-full bg-rose-500"></span> LOP / Absent
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-rose-50 text-rose-800 border border-rose-200">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span> LOP / Absent
                                 </span>
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 border border-slate-200">
-                                    <span className="w-2 h-2 rounded-full bg-slate-400"></span> Weekend / Off
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-50 text-blue-900 border border-blue-200">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span> Day Swap
+                                </span>
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-purple-50 text-purple-800 border border-purple-200">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span> Holiday
+                                </span>
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span> Weekend / Off
                                 </span>
                             </div>
                         </div>
 
                         {/* Calendar Grid */}
-                        <div className="p-4 sm:p-5">
+                        <div className="p-2 sm:p-3">
                             {/* Days of Week Header */}
-                            <div className="grid grid-cols-7 text-center font-bold text-xs text-gray-500 uppercase tracking-wider mb-2">
-                                <div className="py-2 text-rose-600">Sun</div>
-                                <div className="py-2">Mon</div>
-                                <div className="py-2">Tue</div>
-                                <div className="py-2">Wed</div>
-                                <div className="py-2">Thu</div>
-                                <div className="py-2">Fri</div>
-                                <div className="py-2 text-rose-600">Sat</div>
+                            <div className="grid grid-cols-7 text-center font-extrabold text-[0.7rem] text-gray-500 uppercase tracking-wider mb-1">
+                                <div className="py-1 text-rose-600">Sun</div>
+                                <div className="py-1">Mon</div>
+                                <div className="py-1">Tue</div>
+                                <div className="py-1">Wed</div>
+                                <div className="py-1">Thu</div>
+                                <div className="py-1">Fri</div>
+                                <div className="py-1 text-rose-600">Sat</div>
                             </div>
 
                             {/* Days Cells */}
-                            <div className="grid grid-cols-7 gap-2.5">
+                            <div className="grid grid-cols-7 gap-1.5">
                                 {calendarDays.map((d) => {
                                     if (d.isPadding) {
-                                        return <div key={d.key} className="min-h-[105px] rounded-xl bg-gray-50/40 border border-transparent"></div>;
+                                        return <div key={d.key} className="min-h-[58px] sm:min-h-[66px] rounded-xl bg-gray-50/40 border border-transparent"></div>;
                                     }
 
                                     const hasPendingCorrection = correctionRequests.some(r => r.attendance_date === d.dateStr && r.status === 'pending');
@@ -409,78 +504,94 @@ export default function EmployeeAttendance({ employee, attendanceRecords, correc
                                         <div
                                             key={d.dateStr}
                                             onClick={() => setSelectedDayDetail(d)}
-                                            className={`min-h-[108px] p-3 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between hover:shadow-md hover:scale-[1.02] relative group ${
+                                            className={`min-h-[58px] sm:min-h-[66px] p-1.5 rounded-xl border transition-all cursor-pointer flex flex-col justify-between hover:shadow-md hover:scale-[1.01] relative group ${
                                                 isToday ? 'ring-2 ring-indigo-600 border-indigo-400 bg-indigo-50/30' : ''
                                             } ${
                                                 d.status === 'present' ? 'bg-emerald-50/50 border-emerald-200 hover:border-emerald-400' :
                                                 d.status === 'half_day' ? 'bg-amber-50/50 border-amber-200 hover:border-amber-400' :
                                                 d.status === 'absent' || d.status === 'lop' ? 'bg-rose-50/50 border-rose-200 hover:border-rose-400' :
+                                                d.swap || d.status === 'day_swap_work' ? 'bg-blue-50/60 border-blue-200 hover:border-blue-400' :
                                                 d.status === 'weekend' ? 'bg-slate-50/90 border-slate-200 hover:border-slate-300' :
-                                                'bg-white border-gray-200 hover:border-indigo-300'
+                                                'bg-[#FAFBFC] border-gray-200 hover:border-indigo-300'
                                             }`}
                                         >
                                             {/* Cell Header: Day Number + Status Badge */}
                                             <div className="flex items-center justify-between">
-                                                <div className="flex items-center gap-1.5">
-                                                    <span className={`font-black text-sm ${
-                                                        isToday ? 'w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs' :
+                                                <div className="flex items-center gap-1">
+                                                    <span className={`font-black text-xs ${
+                                                        isToday ? 'w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]' :
                                                         d.isWeekend ? 'text-rose-600' : 'text-gray-900'
                                                     }`}>
                                                         {d.dayNumber}
                                                     </span>
                                                     {isToday && (
-                                                        <span className="text-[10px] font-black text-indigo-700 uppercase tracking-wide">Today</span>
+                                                        <span className="text-[9px] font-black text-indigo-700 uppercase tracking-tight">Today</span>
                                                     )}
                                                 </div>
 
                                                 {hasPendingCorrection && (
-                                                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping" title="Correction Pending" />
+                                                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" title="Correction Pending" />
                                                 )}
                                             </div>
 
-                                            {/* Punch Details Stamp inside Cell */}
-                                            {d.record && d.status === 'present' && (
-                                                <div className="text-[10px] text-emerald-900 font-semibold my-1 space-y-0.5">
-                                                    <div className="flex items-center gap-1">
-                                                        <Clock className="w-3 h-3 text-emerald-600 shrink-0" />
-                                                        <span>
-                                                            {d.record.punch_in_time ? new Date(d.record.punch_in_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '09:00 AM'}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            )}
-
                                             {/* Status Badge Pill */}
-                                            <div className="mt-1">
+                                            <div className="mt-0.5">
                                                 {d.status === 'present' && (
-                                                    <div className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[0.68rem] font-bold bg-emerald-100 text-emerald-800 w-full truncate border border-emerald-200 shadow-2xs">
-                                                        <CheckCircle2 className="w-3 h-3 shrink-0 text-emerald-600" />
+                                                    <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[0.62rem] font-bold bg-emerald-100 text-emerald-800 w-full truncate border border-emerald-200">
+                                                        <CheckCircle2 className="w-2.5 h-2.5 shrink-0 text-emerald-600" />
                                                         <span className="truncate">Present ({d.record?.hours_worked || 8}h)</span>
                                                     </div>
                                                 )}
 
                                                 {d.status === 'half_day' && (
-                                                    <div className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[0.68rem] font-bold bg-amber-100 text-amber-800 w-full truncate border border-amber-200 shadow-2xs">
-                                                        <Clock className="w-3 h-3 shrink-0 text-amber-600" />
+                                                    <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[0.62rem] font-bold bg-amber-100 text-amber-800 w-full truncate border border-amber-200">
+                                                        <Clock className="w-2.5 h-2.5 shrink-0 text-amber-600" />
                                                         <span className="truncate">Half Day</span>
                                                     </div>
                                                 )}
 
                                                 {(d.status === 'absent' || d.status === 'lop') && (
-                                                    <div className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[0.68rem] font-bold bg-rose-100 text-rose-800 w-full truncate border border-rose-200 shadow-2xs">
-                                                        <XCircle className="w-3 h-3 shrink-0 text-rose-600" />
+                                                    <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[0.62rem] font-bold bg-rose-100 text-rose-800 w-full truncate border border-rose-200">
+                                                        <XCircle className="w-2.5 h-2.5 shrink-0 text-rose-600" />
                                                         <span className="truncate">Absent / LOP</span>
                                                     </div>
                                                 )}
 
-                                                {d.status === 'weekend' && (
-                                                    <div className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[0.68rem] font-bold bg-slate-200/80 text-slate-700 w-full truncate border border-slate-300/60">
+                                                {(d.status === 'on_leave' || d.status === 'leave') && (
+                                                    <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[0.62rem] font-bold bg-sky-100 text-sky-800 w-full truncate border border-sky-200">
+                                                        <Sparkles className="w-2.5 h-2.5 shrink-0 text-sky-600" />
+                                                        <span className="truncate">{d.leave?.leave_type ? `On Leave (${d.leave.leave_type})` : 'On Leave'}</span>
+                                                    </div>
+                                                )}
+
+                                                {d.swap && !d.record && (
+                                                    <div className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[0.62rem] font-bold w-full truncate border ${
+                                                        d.swapType === 'swapped_in' || d.swap.attendance_day_type === 'work_day'
+                                                            ? 'bg-blue-100 text-blue-900 border-blue-200'
+                                                            : 'bg-indigo-100 text-indigo-900 border-indigo-200'
+                                                    }`}>
+                                                        <Sparkles className="w-2.5 h-2.5 shrink-0 text-blue-600" />
+                                                        <span className="truncate">
+                                                            {d.swapType === 'swapped_in' || d.swap.attendance_day_type === 'work_day' ? '🔁 Swapped Work (In)' : '🔁 Swapped Off (Out)'}
+                                                        </span>
+                                                    </div>
+                                                )}
+
+                                                {d.status === 'holiday' && !d.swap && (
+                                                    <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[0.62rem] font-bold bg-purple-100 text-purple-900 w-full truncate border border-purple-200">
+                                                        <Sparkles className="w-2.5 h-2.5 shrink-0 text-purple-600" />
+                                                        <span className="truncate">🌴 {d.holiday?.name || d.holiday?.holiday_name || 'Holiday'}</span>
+                                                    </div>
+                                                )}
+
+                                                {d.status === 'weekend' && !d.swap && (
+                                                    <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[0.62rem] font-bold bg-slate-200/80 text-slate-700 w-full truncate border border-slate-300/60">
                                                         <span>☕ Off-Day</span>
                                                     </div>
                                                 )}
 
-                                                {d.status === 'no_record' && !d.isWeekend && (
-                                                    <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[0.65rem] font-medium text-gray-400 bg-gray-100 w-full truncate">
+                                                {d.status === 'no_record' && !d.isWeekend && !d.swap && (
+                                                    <div className="inline-flex items-center gap-1 px-1 py-0.2 rounded text-[0.6rem] font-medium text-gray-400 bg-gray-100/80 w-full truncate">
                                                         <span>—</span>
                                                     </div>
                                                 )}
@@ -586,9 +697,60 @@ export default function EmployeeAttendance({ employee, attendanceRecords, correc
                                 <div className="flex items-center justify-between bg-gray-50 p-3 rounded-xl border border-gray-200">
                                     <span className="text-gray-500 font-semibold">Attendance Status:</span>
                                     <span className={`px-3 py-1 rounded-full font-bold border ${getBadgeStyle(selectedDayDetail.status)}`}>
-                                        {selectedDayDetail.status.replace('_', ' ').toUpperCase()}
+                                        {selectedDayDetail.swap 
+                                            ? `DAY SWAP (${selectedDayDetail.swap.attendance_day_type === 'work_day' ? 'WORK DAY' : 'DAY OFF'})`
+                                            : (selectedDayDetail.status === 'holiday' 
+                                                ? `HOLIDAY: ${selectedDayDetail.holiday?.name || selectedDayDetail.holiday?.holiday_name || 'Paid Holiday'}`
+                                                : selectedDayDetail.status.replace('_', ' ').toUpperCase())}
                                     </span>
                                 </div>
+
+                                {selectedDayDetail.swap && (
+                                    <div className="bg-blue-50/80 p-3.5 rounded-xl border border-blue-200 text-blue-950">
+                                        <div className="font-extrabold text-xs flex items-center gap-1.5 mb-1">
+                                            <Sparkles className="w-4 h-4 text-blue-600 shrink-0" />
+                                            <span>Approved Day Swap Request</span>
+                                        </div>
+                                        <div className="text-[0.7rem] text-blue-800 font-medium space-y-0.5">
+                                            <div>Override Date: <strong>{selectedDayDetail.swap.override_date}</strong></div>
+                                            {selectedDayDetail.swap.swap_target_date && (
+                                                <div>Target Swapped Date: <strong>{selectedDayDetail.swap.swap_target_date}</strong></div>
+                                            )}
+                                            {selectedDayDetail.swap.reason && (
+                                                <div className="mt-1 italic text-blue-900">Reason: "{selectedDayDetail.swap.reason}"</div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {selectedDayDetail.holiday && (
+                                    <div className="bg-purple-50/70 p-3 rounded-xl border border-purple-200 text-purple-900">
+                                        <div className="font-extrabold text-xs flex items-center gap-1.5 mb-0.5">
+                                            <Sparkles className="w-4 h-4 text-purple-600 shrink-0" />
+                                            <span>{selectedDayDetail.holiday.name || selectedDayDetail.holiday.holiday_name}</span>
+                                        </div>
+                                        <div className="text-[0.7rem] text-purple-700 font-medium">
+                                            Client Paid Holiday ({selectedDayDetail.holiday.is_optional ? 'Optional' : 'Mandatory'})
+                                        </div>
+                                    </div>
+                                )}
+
+                                {selectedDayDetail.leave && (
+                                    <div className="bg-sky-50/70 p-3 rounded-xl border border-sky-200 text-sky-900">
+                                        <div className="font-extrabold text-xs flex items-center gap-1.5 mb-0.5">
+                                            <Sparkles className="w-4 h-4 text-sky-600 shrink-0" />
+                                            <span>Leave Request: {selectedDayDetail.leave.leave_type || 'Leave'}</span>
+                                        </div>
+                                        <div className="text-[0.7rem] text-sky-700 font-medium">
+                                            Status: <strong className="capitalize">{selectedDayDetail.leave.status}</strong> ({selectedDayDetail.leave.from_date} to {selectedDayDetail.leave.to_date})
+                                        </div>
+                                        {selectedDayDetail.leave.reason && (
+                                            <div className="text-[0.7rem] text-sky-800 mt-1 italic">
+                                                "{selectedDayDetail.leave.reason}"
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
 
                                 {/* Punch Timings Card */}
                                 <div className="grid grid-cols-2 gap-3">

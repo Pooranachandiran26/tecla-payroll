@@ -293,10 +293,25 @@ class EmployeePortalController extends Controller
             ->orderBy('attendance_date', 'desc')
             ->get();
 
+        $holidays = \App\Models\Holiday::where('client_id', $employee->client_id)
+            ->orderBy('holiday_date', 'asc')
+            ->get();
+
+        $leaveRequests = \App\Models\LeaveRequest::where('employee_id', $employee->id)
+            ->whereIn('status', ['approved', 'pending'])
+            ->get();
+
+        $daySwaps = \App\Models\EmployeeAttendanceOverride::where('employee_id', $employee->id)
+            ->orderBy('override_date', 'desc')
+            ->get();
+
         return Inertia::render('EmployeePortal/EmployeeAttendance', [
             'employee' => new EmployeeResource($employee),
             'attendanceRecords' => $records,
-            'correctionRequests' => $correctionRequests
+            'correctionRequests' => $correctionRequests,
+            'holidays' => $holidays,
+            'leaveRequests' => $leaveRequests,
+            'daySwaps' => $daySwaps,
         ]);
     }
 

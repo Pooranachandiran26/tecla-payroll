@@ -6,9 +6,11 @@ import Modal from '../../Components/ui/Modal';
 import Button from '../../Components/ui/Button';
 import Badge from '../../Components/ui/Badge';
 import useToast from '../../Hooks/useToast.jsx';
+import { AlertTriangle } from 'lucide-react';
 
 export default function DaySwapRequests({ requests = [] }) {
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [withdrawTargetId, setWithdrawTargetId] = useState(null);
     const { showToast } = useToast();
 
     const { data, setData, post, processing, errors, reset } = useForm({
@@ -38,14 +40,16 @@ export default function DaySwapRequests({ requests = [] }) {
         });
     };
 
-    const withdrawSwap = (id) => {
-        if (!confirm('Are you sure you want to withdraw this day swap request?')) return;
-        post(route('employee.day-swaps.withdraw', id), {
+    const confirmWithdrawSwap = () => {
+        if (!withdrawTargetId) return;
+        post(route('employee.day-swaps.withdraw', withdrawTargetId), {
             onSuccess: () => {
                 showToast({ message: 'Day swap request withdrawn successfully.', type: 'success' });
+                setWithdrawTargetId(null);
             },
             onError: (errs) => {
                 showToast({ message: 'Failed to withdraw swap request.', type: 'error' });
+                setWithdrawTargetId(null);
             }
         });
     };
@@ -127,7 +131,7 @@ export default function DaySwapRequests({ requests = [] }) {
                                                         <Button
                                                             variant="secondary"
                                                             size="sm"
-                                                            onClick={() => withdrawSwap(req.id)}
+                                                            onClick={() => setWithdrawTargetId(req.id)}
                                                             disabled={processing}
                                                         >
                                                             Withdraw
@@ -220,6 +224,32 @@ export default function DaySwapRequests({ requests = [] }) {
                             </Button>
                         </div>
                     </form>
+                </Modal>
+
+                {/* Confirm Withdrawal Custom Pop-up Modal */}
+                <Modal
+                    isOpen={!!withdrawTargetId}
+                    onClose={() => setWithdrawTargetId(null)}
+                    title="Confirm Withdrawal"
+                >
+                    <div className="py-3 space-y-4">
+                        <div className="flex items-start gap-3 p-3.5 bg-amber-50 rounded-xl border border-amber-200 text-amber-900 text-xs font-medium">
+                            <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                            <div>
+                                <strong className="font-bold text-amber-950 block mb-0.5">Withdraw Day Swap Request?</strong>
+                                Are you sure you want to withdraw this day swap request? This action will remove the pending request from approval queue.
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end gap-3 pt-3 border-t border-gray-100">
+                            <Button variant="secondary" size="sm" onClick={() => setWithdrawTargetId(null)}>
+                                Cancel
+                            </Button>
+                            <Button variant="danger" size="sm" onClick={confirmWithdrawSwap} disabled={processing}>
+                                {processing ? 'Withdrawing...' : 'Yes, Withdraw Request'}
+                            </Button>
+                        </div>
+                    </div>
                 </Modal>
             </AuthenticatedLayout>
         </RoleGuard>
