@@ -106,20 +106,26 @@ class PayrollRun extends Model
 
     public function getCombinedStats()
     {
-        $allRuns = collect([$this])->concat($this->children()->get());
+        $allRunIds = $this->children()->pluck('id')->prepend($this->id)->toArray();
 
-        $gross = $allRuns->sum('total_gross_earnings');
-        $net = $allRuns->sum('total_net_disbursement');
-        $statutory = $allRuns->sum('total_employer_statutory_cost');
+        $rawItems = \Illuminate\Support\Facades\DB::table('payroll_run_items')
+            ->join('employees', 'payroll_run_items.employee_id', '=', 'employees.id')
+            ->whereIn('payroll_run_id', $allRunIds)
+            ->select('payroll_run_items.*', 'payroll_run_items.id as id', 'employees.full_name', 'employees.employee_code')
+            ->orderBy('payroll_run_items.id', 'asc')
+            ->get();
 
-        $latestItems = \Illuminate\Support\Facades\DB::table('payroll_run_items')
-            ->whereIn('payroll_run_id', $allRuns->pluck('id'))
-            ->orderBy('id', 'desc')
-            ->get()
-            ->unique('employee_id');
+        $consolidatedItems = app(\App\Services\PayrollCorrectionService::class)->consolidateItemsForDisplay($rawItems);
+        $activeItems = $consolidatedItems->where('is_excluded', false);
 
-        $processed = $latestItems->where('is_excluded', 0)->count();
-        $excluded = $latestItems->where('is_excluded', 1)->count();
+        $gross = $activeItems->sum('gross_total');
+        $net = $activeItems->sum('net_pay');
+        $statutory = $activeItems->sum(function ($item) {
+            return (float)($item->employer_pf ?? 0) + (float)($item->employer_esi ?? 0) + (float)($item->employer_lwf ?? 0);
+        });
+
+        $processed = $consolidatedItems->where('is_excluded', false)->count();
+        $excluded = $consolidatedItems->where('is_excluded', true)->count();
 
         return [
             'total_gross_earnings' => round($gross, 2),
