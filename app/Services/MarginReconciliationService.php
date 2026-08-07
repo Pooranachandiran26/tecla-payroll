@@ -33,6 +33,31 @@ class MarginReconciliationService
     {
         $client = Client::findOrFail($payrollRun->client_id);
 
+        if ($client->isInhouse()) {
+            return [
+                'check_a' => [
+                    'label' => 'Invoice Line Total Reconciliation',
+                    'invoice_side_line_total' => 0.0,
+                    'payroll_side_line_total' => 0.0,
+                    'payroll_gross' => 0.0,
+                    'payroll_expected_service_fee' => 0.0,
+                    'passed' => true,
+                    'note' => 'In-house client — no invoice billing.',
+                ],
+                'check_b' => [
+                    'label' => 'Agency Margin Reconciliation',
+                    'margin_invoice_side' => 0.0,
+                    'margin_payroll_side' => 0.0,
+                    'invoice_service_fee' => 0.0,
+                    'payroll_employer_statutory' => 0.0,
+                    'passed' => true,
+                    'note' => 'In-house client — no agency margin.',
+                ],
+                'reconciled' => true,
+                'is_inhouse' => true,
+            ];
+        }
+
         // Determine the target run ID for invoice lookup (same logic as InvoiceGenerationService)
         $targetRunId = $payrollRun->is_supplementary_run
             ? $payrollRun->parent_run_id

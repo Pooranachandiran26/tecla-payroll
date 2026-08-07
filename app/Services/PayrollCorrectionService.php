@@ -57,7 +57,7 @@ class PayrollCorrectionService
 
         $monthStart = Carbon::parse($parentRun->payroll_month)->startOfMonth();
         $monthEnd = Carbon::parse($parentRun->payroll_month)->endOfMonth();
-        $calendarDays = $monthStart->diffInDays($monthEnd) + 1;
+        $calendarDays = $monthStart->daysInMonth;
         $lopBasisDays = (int)$employee->lop_basis_days ?: 30;
 
         // Check for mid-month salary revision

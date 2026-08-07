@@ -288,7 +288,7 @@ class StoreClientRequest extends FormRequest
             
             // Step 4
             'contract_type' => 'required|in:agency,eor',
-            'billing_model' => 'required|in:markup,fixed_per_candidate,fixed_per_month,lumpsum,hourly',
+            'billing_model' => 'required|in:markup,fixed_per_candidate,fixed_per_month,lumpsum,hourly,inhouse',
             'contract_start_date' => 'required|date',
             'contract_end_date' => 'nullable|date|after:contract_start_date',
             'markup_percentage' => 'nullable|required_if:billing_model,markup|numeric|min:0|max:100',

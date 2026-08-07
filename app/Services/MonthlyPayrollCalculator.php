@@ -76,7 +76,7 @@ class MonthlyPayrollCalculator
             'other_additions' => 'other_additions'
         ];
 
-        $calendarDays = $monthStart->diffInDays($monthEnd) + 1;
+        $calendarDays = $monthStart->daysInMonth;
 
         // Determine employee's effective start date in target month (check date_of_joining & attendance_tracking_start_date)
         $doj = Carbon::parse($employee->date_of_joining)->startOfDay();

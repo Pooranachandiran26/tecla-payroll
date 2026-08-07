@@ -54,8 +54,8 @@ class PayrollController extends Controller
             return redirect()->back()->with('error', 'This payroll run is already locked.');
         }
 
-        if ($run->status !== 'approved') {
-            return redirect()->back()->with('error', 'Only approved payroll runs can be locked.');
+        if (!in_array($run->status, ['draft', 'approved'])) {
+            return redirect()->back()->with('error', 'Only draft or approved payroll runs can be locked.');
         }
 
         try {
@@ -63,6 +63,8 @@ class PayrollController extends Controller
                 $oldStatus = $run->status;
                 $run->update([
                     'status' => 'locked',
+                    'approved_by' => $run->approved_by ?: Auth::id(),
+                    'approved_at' => $run->approved_at ?: now(),
                     'locked_at' => now(),
                     'locked_by' => Auth::id(),
                     'updated_by' => Auth::id(),
@@ -139,11 +141,24 @@ class PayrollController extends Controller
             // Resolve linked employee queries and dispatch adjustment emails
             $this->dispatchLinkedQueryResolutionEmails($run);
 
+            $clientModel = $run->client ?? \App\Models\Client::find($run->client_id);
+            $isInhouse = $clientModel ? $clientModel->isInhouse() : false;
+
             if ($run->is_supplementary_run || !empty($run->parent_run_id)) {
-                return redirect()->back()->with('success', 'Supplementary run locked and invoices merged successfully.');
+                $msg = $isInhouse
+                    ? 'Supplementary run locked successfully (In-House Payroll — No billing/invoices).'
+                    : 'Supplementary run locked and invoices merged successfully.';
+                return redirect()->back()->with('success', $msg);
             }
 
-            return redirect()->back()->with('success', 'Payroll run locked, invoices generated, and salary summary emails dispatched successfully.');
+            if ($isInhouse) {
+                return redirect()->route('payroll.payslips', [
+                    'client_id' => $run->client_id,
+                    'payroll_month' => $run->payroll_month,
+                ])->with('success', 'Payroll run locked successfully (In-House Payroll — No billing/invoices). Directed to Payslips.');
+            }
+
+            return redirect()->route('invoices.index')->with('success', 'Payroll run locked, invoices generated, and salary summary emails dispatched successfully.');
         } catch (\Exception $e) {
             return redirect()->back()->with('error', $e->getMessage());
         }
@@ -1343,7 +1358,7 @@ class PayrollController extends Controller
             'employee_id' => 'required|exists:employees,id',
             'corrected_paid_days' => 'required|numeric|min:0|max:31',
             'corrected_lop_days' => 'required|numeric|min:0|max:31',
-            'reason' => 'required|string|max:500',
+            'reason' => 'nullable|string|max:500',
             'employee_query_id' => 'nullable|exists:employee_queries,id',
         ]);
 
@@ -1362,7 +1377,7 @@ class PayrollController extends Controller
             $employee,
             $parentRun,
             $preview,
-            $request->reason,
+            $request->reason ?? 'Manual payroll correction',
             $request->employee_query_id ? (int)$request->employee_query_id : null
         );
 
@@ -1654,7 +1669,7 @@ class PayrollController extends Controller
     {
         $request->validate([
             'parent_run_id' => 'required|exists:payroll_runs,id',
-            'reason' => 'required|string|max:500',
+            'reason' => 'nullable|string|max:500',
             'items' => 'required|array|min:1',
             'items.*.employee_id' => 'required|exists:employees,id',
             'items.*.corrected_paid_days' => 'required|numeric|min:0|max:31',
@@ -1666,7 +1681,7 @@ class PayrollController extends Controller
         $parentRun = PayrollRun::findOrFail($request->parent_run_id);
 
         $service = app(\App\Services\PayrollCorrectionService::class);
-        $service->applyBatchCorrection($parentRun, $request->items, $request->reason);
+        $service->applyBatchCorrection($parentRun, $request->items, $request->reason ?? 'Batch payroll correction');
 
         return redirect()->back()->with('success', 'Batch payroll corrections added to draft supplementary run successfully.');
     }

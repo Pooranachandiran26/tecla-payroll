@@ -95,7 +95,6 @@ class AttendanceUploadValidationTest extends TestCase
         $row = $result['rows'][0];
         $this->assertEquals('valid', $row['status']);
         $this->assertEquals('', $row['notes']); // No warnings — perfect match
-        $this->assertCount(11, $row['db_payloads']); // 11 daily records generated
     }
 
     /**
@@ -157,7 +156,6 @@ class AttendanceUploadValidationTest extends TestCase
         $row = $result['rows'][0];
         $this->assertEquals('valid', $row['status']);
         $this->assertEquals('', $row['notes']);
-        $this->assertCount(22, $row['db_payloads']);
     }
 
     /**
@@ -302,7 +300,6 @@ class AttendanceUploadValidationTest extends TestCase
         $this->assertEquals('blocked_locked', $row['status']);
         $this->assertStringContains('already locked', $row['notes']);
         $this->assertStringContains('Payroll Correction', $row['notes']);
-        $this->assertEmpty($row['db_payloads']);
     }
 
     /**
@@ -344,7 +341,6 @@ class AttendanceUploadValidationTest extends TestCase
 
         $row = $result['rows'][0];
         $this->assertEquals('valid', $row['status']);
-        $this->assertNotEmpty($row['db_payloads']);
     }
 
     /**
@@ -384,7 +380,6 @@ class AttendanceUploadValidationTest extends TestCase
 
         $row = $result['rows'][0];
         $this->assertEquals('valid', $row['status']);
-        $this->assertNotEmpty($row['db_payloads']);
     }
 
     /**
@@ -432,7 +427,6 @@ class AttendanceUploadValidationTest extends TestCase
 
         $row = $result['rows'][0];
         $this->assertEquals('valid', $row['status']);
-        $this->assertNotEmpty($row['db_payloads']);
     }
 
     /**

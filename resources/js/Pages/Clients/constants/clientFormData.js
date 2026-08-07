@@ -48,6 +48,7 @@ export const BILLING_MODELS = [
   { value: 'fixed_per_month', label: 'Fixed Monthly Retainer (₹/month)' },
   { value: 'lumpsum', label: 'Lump Sum Project Billing' },
   { value: 'hourly', label: 'Hourly Rate Billing' },
+  { value: 'inhouse', label: 'In-House Payroll (No Billing / Internal Staff)' },
 ];
 
 export const OT_BILLING_RULES = [
