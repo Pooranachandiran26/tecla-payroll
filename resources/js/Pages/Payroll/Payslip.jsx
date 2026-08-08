@@ -302,9 +302,7 @@ export default function Payslip({ items, clients = [], selectedClientId, selecte
                                                     totalItems={items.total}
                                                     itemsPerPage={items.per_page}
                                                     onPageChange={(page) => {
-                                                        const params = new URLSearchParams(window.location.search);
-                                                        params.set('page', page);
-                                                        window.location.search = params.toString();
+                                                        router.get(route('payroll.payslips'), { client_id: clientId, payroll_month: month, page: page }, { preserveState: true });
                                                     }}
                                                 />
                                             )}
@@ -326,7 +324,12 @@ export default function Payslip({ items, clients = [], selectedClientId, selecte
                         <div className="payslip-right-panel">
                             {selectedItem ? (
                                 <iframe
-                                    src={`/admin/payslip-templates/preview?client_id=${clientId}&item_id=${selectedItem.id}&template=${clientBranding?.payslip_template || 'standard'}&t=${Date.now()}`}
+                                    src={route('admin.payslip-templates.preview', {
+                                        client_id: clientId,
+                                        item_id: selectedItem.id,
+                                        template: clientBranding?.payslip_template || 'standard',
+                                        t: Date.now()
+                                    })}
                                     title="Employee Payslip Preview"
                                 />
                             ) : (
