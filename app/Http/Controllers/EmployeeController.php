@@ -62,9 +62,6 @@ class EmployeeController extends Controller
         $user = $request->user();
 
         if ($user && $user->role === 'manager') {
-            if (!$user->hasModulePermission('emp_all', 'candidates')) {
-                abort(403, 'You do not have permission to access the Employees directory.');
-            }
             $managedClientIds = $user->getManagedClientIds();
             $query->whereIn('client_id', $managedClientIds);
         }

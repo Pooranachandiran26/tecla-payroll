@@ -116,15 +116,11 @@ Route::middleware(['auth', 'active'])->group(function () {
                 Route::post('/employees/calculate-preview', [EmployeeController::class, 'calculatePreview'])->name('employees.calculate-preview');
                 Route::get('/employees', [EmployeeController::class, 'index'])->name('employees.index');
                 Route::post('/employees', [EmployeeController::class, 'store'])->name('employees.store');
-                Route::get('/employees/create', function(\Illuminate\Http\Request $request) {
-                    $user = $request->user();
-                    if ($user && $user->role === 'manager' && !$user->hasModulePermission('emp_create', 'candidates')) {
-                        abort(403, 'You do not have permission to add new employees.');
-                    }
+                Route::get('/employees/create', function() {
                     $clients = \App\Models\Client::where('status', 'active')->select('id', 'company_name', 'weekly_off_pattern', 'employee_pf_wage_basis', 'employer_pf_wage_basis')->get();
                     return Inertia::render('Employees/EmployeeForm', ['clients' => $clients]);
-                })->name('employees.create');
-                Route::get('/employees/bulk-upload', [BulkUploadController::class, 'showUploadForm'])->name('employees.bulk-upload');
+                })->middleware('module:candidates,emp_create')->name('employees.create');
+                Route::get('/employees/bulk-upload', [BulkUploadController::class, 'showUploadForm'])->middleware('module:candidates,emp_bulk_upload')->name('employees.bulk-upload');
                 Route::get('/employees/bulk-upload/history', [BulkUploadController::class, 'history'])->name('employees.bulk-upload.history');
                 Route::get('/employees/bulk-upload/history/{batchId}/details', [BulkUploadController::class, 'getBatchDetails'])->name('employees.bulk-upload.history.details');
                 Route::get('/employees/bulk-upload/history/{batchId}/download-errors', [BulkUploadController::class, 'downloadHistoryErrors'])->name('employees.bulk-upload.history.download-errors');
@@ -189,7 +185,26 @@ Route::middleware(['auth', 'active'])->group(function () {
             // Payroll Module (Gated by module:payroll)
             Route::middleware('module:payroll')->group(function () {
                 Route::get('/payroll/live-monitor', function(\Illuminate\Http\Request $request) {
-                    if ($request->user() && $request->user()->role === 'manager' && !$request->user()->hasModulePermission('payroll_live_monitor', 'payroll')) {
+                    $user = $request->user();
+                    if ($user && $user->role === 'manager' && !$user->hasModulePermission('payroll_live_monitor', 'payroll')) {
+                        if ($user->hasModulePermission('payroll_attendance_upload', 'payroll')) {
+                            return redirect()->route('payroll.attendance-upload');
+                        }
+                        if ($user->hasModulePermission('payroll_attendance_review', 'payroll')) {
+                            return redirect()->route('payroll.attendance-review');
+                        }
+                        if ($user->hasModulePermission('payroll_processing', 'payroll')) {
+                            return redirect()->route('payroll.processing');
+                        }
+                        if ($user->hasModulePermission('payroll_approval', 'payroll')) {
+                            return redirect()->route('payroll.approval');
+                        }
+                        if ($user->hasModulePermission('payroll_payslips', 'payroll')) {
+                            return redirect()->route('payroll.payslips');
+                        }
+                        if ($user->hasModulePermission('payroll_invoices', 'payroll')) {
+                            return redirect()->route('invoices.index');
+                        }
                         abort(403, 'You do not have permission to access Live Attendance Monitor.');
                     }
                     return app(\App\Http\Controllers\PayrollController::class)->indexLiveMonitor($request);
@@ -318,13 +333,7 @@ Route::middleware(['auth', 'active'])->group(function () {
             Route::get('/admin/payslip-templates', [\App\Http\Controllers\Admin\PayslipTemplateCustomizerController::class, 'index'])->name('admin.payslip-templates');
             Route::get('/admin/payslip-templates/preview', [\App\Http\Controllers\Admin\PayslipTemplateCustomizerController::class, 'previewHtml'])->name('admin.payslip-templates.preview');
             Route::post('/admin/payslip-templates/{client}', [\App\Http\Controllers\Admin\PayslipTemplateCustomizerController::class, 'update'])->name('admin.payslip-templates.update');
-            Route::get('/admin/settings', function (\Illuminate\Http\Request $request) {
-                $user = $request->user();
-                if ($user->role === 'manager' && !$user->hasModulePermission('admin_settings', 'admin')) {
-                    abort(403, 'You do not have permission to access Settings.');
-                }
-                return Inertia::render('Admin/Settings');
-            })->name('admin.settings');
+            Route::get('/admin/settings', fn() => Inertia::render('Admin/Settings'))->middleware('module:admin,admin_settings')->name('admin.settings');
             
             Route::apiResource('admin/watchers', \App\Http\Controllers\NotificationWatcherController::class)->except(['show']);
             
