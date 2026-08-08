@@ -476,6 +476,12 @@ function BankRequestsTable({ items = [], processingId, onApprove, onReject }) {
       <tbody className="divide-y divide-slate-100">
         {items.map((item) => {
           const isProcessing = processingId === `bank_change-${item.id}`;
+          const bankName = item.new_bank_name || item.bank_name || 'Bank Account';
+          const bankBranch = item.new_bank_branch || item.bank_branch || '';
+          const accountNumber = item.new_bank_account_number || item.account_number || 'N/A';
+          const ifscCode = item.new_bank_ifsc || item.ifsc_code || 'N/A';
+          const holderName = item.new_account_holder_name || item.account_holder_name || '';
+
           return (
             <tr key={item.id} className="hover:bg-amber-50/30 transition-colors">
               <td className="py-3 px-4">
@@ -494,12 +500,13 @@ function BankRequestsTable({ items = [], processingId, onApprove, onReject }) {
                 {item.created_at && <div className="text-[10px] text-slate-400 font-normal mt-0.5">Submitted: {formatDateStr(item.created_at)}</div>}
               </td>
               <td className="py-3 px-4 font-bold text-slate-900">
-                <div>{item.bank_name}</div>
-                <div className="text-[11px] text-slate-500 font-normal">{item.bank_branch}</div>
+                <div>{bankName}</div>
+                {bankBranch && <div className="text-[11px] text-slate-500 font-normal">{bankBranch}</div>}
+                {holderName && <div className="text-[10px] text-indigo-700 font-medium mt-0.5">Holder: {holderName}</div>}
               </td>
               <td className="py-3 px-4">
-                <div className="font-mono font-bold text-amber-900">A/C: {item.account_number}</div>
-                <div className="text-[11px] text-slate-500 font-mono">IFSC: {item.ifsc_code}</div>
+                <div className="font-mono font-bold text-amber-900">A/C: {accountNumber}</div>
+                <div className="text-[11px] text-slate-500 font-mono">IFSC: {ifscCode}</div>
               </td>
               <td className="py-3 px-4 text-right">
                 <div className="flex items-center justify-end gap-1.5">
