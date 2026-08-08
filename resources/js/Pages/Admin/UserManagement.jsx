@@ -76,6 +76,7 @@ export default function UserManagement({ users = {}, unlinkedEmployees = [], unl
         { key: 'emp_bank_change', label: 'Bank Change Requests' },
         { key: 'emp_day_swaps', label: 'Day Swap Requests' },
         { key: 'emp_leave_approval', label: 'Leave Approval Queue' },
+        { key: 'emp_leave_settings', label: 'Client Leave Settings' },
         { key: 'emp_queries', label: 'Employee Queries' },
       ]
     },
@@ -785,14 +786,25 @@ export default function UserManagement({ users = {}, unlinkedEmployees = [], unl
           isOpen={!!editingPermissionsUser} 
           onClose={() => setEditingPermissionsUser(null)}
           title={`Custom Module Permissions — ${editingPermissionsUser?.name}`}
+          size="xl"
         >
           {editingPermissionsUser && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              <p style={{ fontSize: '0.85rem', color: '#64748B', margin: 0 }}>
-                Select which top-level module tabs <strong>{editingPermissionsUser.name}</strong> is authorized to access:
-              </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#F8FAFC', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
+                <span style={{ fontSize: '0.82rem', color: '#475569' }}>
+                  Select top-level module tabs & sub-features authorized for <strong>{editingPermissionsUser.name}</strong>:
+                </span>
+                <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#1E3A8A', backgroundColor: '#EFF6FF', padding: '0.2rem 0.5rem', borderRadius: '4px', border: '1px solid #BFDBFE' }}>
+                  {selectedPermissions.length} / {getAllModuleKeys().length} Selected
+                </span>
+              </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '420px', overflowY: 'auto', paddingRight: '0.25rem' }}>
+              {/* 2-Column Grid Layout — No Vertical Scrollbar */}
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(2, 1fr)', 
+                gap: '0.6rem'
+              }}>
                 {AVAILABLE_MODULES.map(mod => {
                   const isChecked = selectedPermissions.includes(mod.key);
                   const hasChildren = mod.children && mod.children.length > 0;
@@ -804,33 +816,35 @@ export default function UserManagement({ users = {}, unlinkedEmployees = [], unl
                         display: 'flex',
                         flexDirection: 'column',
                         border: '1px solid ' + (isChecked ? '#93C5FD' : '#E2E8F0'),
-                        borderRadius: '8px',
-                        backgroundColor: isChecked ? '#EFF6FF' : '#F8FAFC',
-                        padding: '0.75rem',
-                        transition: 'all 0.2s ease'
+                        borderRadius: '6px',
+                        backgroundColor: isChecked ? '#F0F7FF' : '#FFFFFF',
+                        padding: '0.55rem 0.75rem',
+                        transition: 'all 0.15s ease'
                       }}
                     >
                       <label 
                         style={{
                           display: 'flex',
-                          alignItems: 'flex-start',
-                          gap: '0.75rem',
+                          alignItems: 'center',
+                          gap: '0.5rem',
                           cursor: 'pointer',
-                          marginBottom: hasChildren && isChecked ? '0.6rem' : 0
+                          marginBottom: hasChildren && isChecked ? '0.4rem' : 0
                         }}
                       >
                         <input 
                           type="checkbox"
                           checked={isChecked}
                           onChange={() => togglePermission(mod.key)}
-                          style={{ marginTop: '3px', width: '16px', height: '16px' }}
+                          style={{ width: '15px', height: '15px', accentColor: '#1F3864' }}
                         />
-                        <div>
-                          <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#1E293B' }}>
-                            {mod.label}
-                          </div>
-                          <div style={{ fontSize: '0.78rem', color: '#64748B', marginTop: '1px' }}>
-                            {mod.desc}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: '0.84rem', fontWeight: 700, color: isChecked ? '#1E3A8A' : '#1E293B', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <span>{mod.label}</span>
+                            {hasChildren && (
+                              <span style={{ fontSize: '0.7rem', color: '#64748B', fontWeight: 500 }}>
+                                {mod.children.filter(c => selectedPermissions.includes(c.key)).length} / {mod.children.length}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </label>
@@ -838,12 +852,12 @@ export default function UserManagement({ users = {}, unlinkedEmployees = [], unl
                       {/* Sub-module Granular Checkboxes */}
                       {hasChildren && isChecked && (
                         <div style={{ 
-                          marginLeft: '1.75rem', 
-                          paddingTop: '0.6rem', 
+                          paddingTop: '0.4rem', 
+                          marginTop: '0.2rem',
                           borderTop: '1px dashed #BFDBFE',
-                          display: 'grid',
-                          gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
-                          gap: '0.4rem'
+                          display: 'flex',
+                          flexWrap: 'wrap',
+                          gap: '0.3rem'
                         }}>
                           {mod.children.map(child => {
                             const isChildChecked = selectedPermissions.includes(child.key);
@@ -851,24 +865,25 @@ export default function UserManagement({ users = {}, unlinkedEmployees = [], unl
                               <label 
                                 key={child.key}
                                 style={{
-                                  display: 'flex',
+                                  display: 'inline-flex',
                                   alignItems: 'center',
-                                  gap: '6px',
-                                  fontSize: '0.78rem',
+                                  gap: '4px',
+                                  fontSize: '0.74rem',
                                   fontWeight: isChildChecked ? 700 : 500,
                                   color: isChildChecked ? '#1E40AF' : '#475569',
-                                  backgroundColor: isChildChecked ? '#DBEAFE' : '#FFFFFF',
-                                  padding: '0.3rem 0.5rem',
+                                  backgroundColor: isChildChecked ? '#DBEAFE' : '#F8FAFC',
+                                  padding: '0.2rem 0.45rem',
                                   borderRadius: '4px',
                                   border: '1px solid ' + (isChildChecked ? '#93C5FD' : '#E2E8F0'),
-                                  cursor: 'pointer'
+                                  cursor: 'pointer',
+                                  userSelect: 'none'
                                 }}
                               >
                                 <input 
                                   type="checkbox"
                                   checked={isChildChecked}
                                   onChange={() => togglePermission(child.key, mod.key)}
-                                  style={{ width: '14px', height: '14px' }}
+                                  style={{ width: '13px', height: '13px', accentColor: '#1E40AF' }}
                                 />
                                 <span>{child.label}</span>
                               </label>
@@ -881,14 +896,24 @@ export default function UserManagement({ users = {}, unlinkedEmployees = [], unl
                 })}
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.75rem', borderTop: '1px solid #E2E8F0' }}>
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-xs"
-                  onClick={() => setSelectedPermissions(getAllModuleKeys())}
-                >
-                  Select All Modules & Sub-Tabs
-                </button>
+              {/* Modal Footer Controls */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.6rem', borderTop: '1px solid #E2E8F0', marginTop: '0.25rem' }}>
+                <div style={{ display: 'flex', gap: '0.4rem' }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-xs"
+                    onClick={() => setSelectedPermissions(getAllModuleKeys())}
+                  >
+                    Select All
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-xs"
+                    onClick={() => setSelectedPermissions([])}
+                  >
+                    Clear All
+                  </button>
+                </div>
 
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   <button 

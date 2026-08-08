@@ -31,9 +31,6 @@ class ClientController extends Controller
         $this->authorize('viewAny', Client::class);
 
         $user = $request->user();
-        if ($user && $user->role === 'manager' && !$user->hasModulePermission('clients_index', 'clients')) {
-            abort(403, 'You do not have permission to access the Clients Directory.');
-        }
 
         $query = Client::with('creator')->withCount(['employees' => function ($query) {
             $query->where('status', 'active');

@@ -87,7 +87,7 @@ class User extends Authenticatable
         if ($parentModuleKey && in_array($parentModuleKey, $this->module_permissions)) {
             $parentSubKeys = [
                 'admin' => ['admin_activity_log', 'admin_users', 'admin_sessions', 'admin_payslip_templates', 'admin_settings'],
-                'candidates' => ['emp_all', 'emp_create', 'emp_bulk_upload', 'emp_salary_revisions', 'emp_bank_change', 'emp_day_swaps', 'emp_leave_approval', 'emp_queries'],
+                'candidates' => ['emp_all', 'emp_create', 'emp_bulk_upload', 'emp_salary_revisions', 'emp_bank_change', 'emp_day_swaps', 'emp_leave_approval', 'emp_leave_settings', 'emp_queries'],
                 'payroll' => ['payroll_live_monitor', 'payroll_attendance_upload', 'payroll_attendance_review', 'payroll_processing', 'payroll_approval', 'payroll_payslips', 'payroll_invoices'],
                 'clients' => ['clients_index', 'clients_create'],
                 'reports' => ['reports_catalog', 'reports_register'],
