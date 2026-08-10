@@ -14,6 +14,10 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 
 class Gstr1GeneratorService
 {
+    public const MAX_INVOICE_NUMBER_LENGTH = 16;
+
+    public const DISCLAIMER = 'Internal reconciliation export only — NOT validated against the current official GSTN offline-tool/API schema. Verify before any government upload.';
+
     /**
      * Standard Indian State to GST 2-Digit State Code Mapping
      */
@@ -89,7 +93,8 @@ class Gstr1GeneratorService
     }
 
     /**
-     * Preview GSTR-1 dataset (Table 4A B2B and Table 12 HSN Summary).
+     * Preview GSTR-1 Table 4A (B2B) dataset. Table 12 (HSN) is not available —
+     * no per-invoice HSN/SAC data exists in TECLA PAY.
      */
     public function previewGstr1(string $returnPeriod): array
     {
@@ -110,25 +115,38 @@ class Gstr1GeneratorService
         }
 
         $b2bList = [];
+        $errors = [];
         $totalTaxable = 0.0;
         $totalIgst = 0.0;
         $totalCgst = 0.0;
         $totalSgst = 0.0;
 
         foreach ($invoices as $inv) {
+            $customerGstin = trim((string) ($inv->branch_gstin ?: ($inv->client->gstin ?? '')));
+
+            // B2B (Table 4A) requires a registered recipient GSTIN. Never
+            // invent one — exclude and report if genuinely absent.
+            if ($customerGstin === '') {
+                $errors[] = "Invoice {$inv->invoice_number}: no recipient GSTIN on file (branch or client) — excluded from B2B Table 4A.";
+                continue;
+            }
+
+            if (mb_strlen((string) $inv->invoice_number) > self::MAX_INVOICE_NUMBER_LENGTH) {
+                $errors[] = "Invoice {$inv->invoice_number}: number exceeds GSTR-1's " . self::MAX_INVOICE_NUMBER_LENGTH . "-character limit — excluded, not truncated.";
+                continue;
+            }
+
             $taxable = (float)$inv->agency_service_fee;
             $totalTaxable += $taxable;
 
-            $gstAmount = (float)$inv->gst_amount;
-
             if ($inv->gst_type === 'igst') {
-                $igst = $gstAmount;
+                $igst = round((float) $inv->igst_amount, 2);
                 $cgst = 0.0;
                 $sgst = 0.0;
             } else {
                 $igst = 0.0;
-                $cgst = round($gstAmount / 2, 2);
-                $sgst = round($gstAmount / 2, 2);
+                $cgst = round((float) $inv->cgst_amount, 2);
+                $sgst = round((float) $inv->sgst_amount, 2);
             }
 
             $totalIgst += $igst;
@@ -139,7 +157,7 @@ class Gstr1GeneratorService
                 'invoice_number' => $inv->invoice_number,
                 'invoice_date' => Carbon::parse($inv->created_at ?? $inv->invoice_month)->format('d-m-Y'),
                 'client_name' => $inv->client->company_name ?? 'N/A',
-                'customer_gstin' => $inv->branch_gstin ?: ($inv->client->gstin ?? 'UNREGISTERED'),
+                'customer_gstin' => $customerGstin,
                 'place_of_supply' => $inv->place_of_supply_state,
                 'gst_type' => strtoupper((string)$inv->gst_type),
                 'taxable_value' => round($taxable, 2),
@@ -160,21 +178,17 @@ class Gstr1GeneratorService
             'total_sgst' => round($totalSgst, 2),
             'total_tax_liability' => round($totalIgst + $totalCgst + $totalSgst, 2),
             'invoices' => $b2bList,
-            'hsn_summary' => [
-                'hsn_sc' => '9985',
-                'desc' => 'Human Resources & Payroll Management Services',
-                'uqc' => 'OTH',
-                'qty' => count($b2bList),
-                'txval' => round($totalTaxable, 2),
-                'igst' => round($totalIgst, 2),
-                'cgst' => round($totalCgst, 2),
-                'sgst' => round($totalSgst, 2),
-            ]
+            'errors' => $errors,
+            'table_12_available' => false,
+            'table_12_reason' => 'HSN/SAC is not recorded per-invoice or per-line-item anywhere in TECLA PAY — Table 12 cannot be populated from real data.',
+            'disclaimer' => self::DISCLAIMER,
         ];
     }
 
     /**
-     * Generate official GSTR-1 JSON and Excel Helper files for a return period.
+     * Generate an internal GSTR-1 Table 4A reconciliation JSON + Excel helper
+     * for a return period. NOT an official GSTN-upload-ready file — see
+     * DISCLAIMER — pending validation against the current GSTN schema.
      */
     public function generateGstr1(string $returnPeriod, ?int $userId = null): array
     {
@@ -190,36 +204,27 @@ class Gstr1GeneratorService
             ->orderBy('invoice_number')
             ->get();
 
+        // Supplier GSTIN is required once for the whole payload — never invent it.
         $firstInvoice = $invoices->first();
-        $supplierGstin = $firstInvoice ? ($firstInvoice->agency_gstin ?: '27AAACT1234A1Z5') : '27AAACT1234A1Z5';
+        $supplierGstin = $firstInvoice ? trim((string) $firstInvoice->agency_gstin) : '';
+        if ($supplierGstin === '') {
+            throw ValidationException::withMessages([
+                'gstr1' => ['Agency GSTIN is not set on the invoice(s) for this period — cannot generate without it.'],
+            ]);
+        }
+
         $fp = Carbon::parse($returnPeriod . '-01')->format('mY'); // e.g. 082026
 
-        // Build B2B Array (Table 4A) according to GSTN Schema v1.1
+        // Build B2B Array (Table 4A) from the SAME validated/excluded rows as previewGstr1(),
+        // so generation never diverges from what was previewed.
         $b2bGrouped = [];
-        foreach ($invoices as $inv) {
-            $customerGstin = trim((string)($inv->branch_gstin ?: ($inv->client->gstin ?? '')));
-            if (empty($customerGstin)) {
-                $customerGstin = '27AAACT9999A1Z1'; // Fallback sample format if missing
-            }
-
-            $posCode = $this->resolveStateCode($inv->place_of_supply_state, $customerGstin);
-            $taxable = round((float)$inv->agency_service_fee, 2);
-            $gstAmount = (float)$inv->gst_amount;
-
-            if ($inv->gst_type === 'igst') {
-                $igst = round($gstAmount, 2);
-                $cgst = 0.0;
-                $sgst = 0.0;
-            } else {
-                $igst = 0.0;
-                $cgst = round($gstAmount / 2, 2);
-                $sgst = round($gstAmount / 2, 2);
-            }
+        foreach ($preview['invoices'] as $row) {
+            $posCode = $this->resolveStateCode($row['place_of_supply'], $row['customer_gstin']);
 
             $invItem = [
-                'inum' => (string)$inv->invoice_number,
-                'idt' => Carbon::parse($inv->created_at ?? $inv->invoice_month)->format('d-m-Y'),
-                'val' => round((float)$inv->grand_total, 2),
+                'inum' => (string) $row['invoice_number'],
+                'idt' => $row['invoice_date'],
+                'val' => $row['total_invoice_value'],
                 'pos' => $posCode,
                 'rchrg' => 'N',
                 'inv_typ' => 'R',
@@ -228,55 +233,33 @@ class Gstr1GeneratorService
                         'num' => 1,
                         'itm_det' => [
                             'rt' => 18.0,
-                            'txval' => $taxable,
-                            'iamt' => $igst,
-                            'camt' => $cgst,
-                            'samt' => $sgst,
+                            'txval' => $row['taxable_value'],
+                            'iamt' => $row['igst'],
+                            'camt' => $row['cgst'],
+                            'samt' => $row['sgst'],
                             'csamt' => 0.0,
                         ]
                     ]
                 ]
             ];
 
-            if (!isset($b2bGrouped[$customerGstin])) {
-                $b2bGrouped[$customerGstin] = [
-                    'ctin' => $customerGstin,
-                    'inv' => []
-                ];
+            $ctin = $row['customer_gstin'];
+            if (!isset($b2bGrouped[$ctin])) {
+                $b2bGrouped[$ctin] = ['ctin' => $ctin, 'inv' => []];
             }
-            $b2bGrouped[$customerGstin]['inv'][] = $invItem;
+            $b2bGrouped[$ctin]['inv'][] = $invItem;
         }
 
         $b2bData = array_values($b2bGrouped);
 
-        // Build Table 12 HSN Summary
-        $hsnData = [
-            'data' => [
-                [
-                    'num' => 1,
-                    'hsn_sc' => '9985',
-                    'desc' => 'Human Resources & Payroll Management Services',
-                    'uqc' => 'OTH',
-                    'qty' => count($invoices),
-                    'val' => $preview['total_taxable_value'] + $preview['total_tax_liability'],
-                    'txval' => $preview['total_taxable_value'],
-                    'iamt' => $preview['total_igst'],
-                    'camt' => $preview['total_cgst'],
-                    'samt' => $preview['total_sgst'],
-                    'csamt' => 0.0,
-                ]
-            ]
-        ];
-
         $jsonPayload = [
             'gstin' => $supplierGstin,
             'fp' => $fp,
-            'gt' => 0.0,
-            'cur_gt' => 0.0,
-            'version' => 'GST3.0',
-            'hash' => 'hash',
             'b2b' => $b2bData,
-            'hsn' => $hsnData,
+            'errors' => $preview['errors'],
+            'table_12_available' => false,
+            'table_12_reason' => $preview['table_12_reason'],
+            'disclaimer' => self::DISCLAIMER,
         ];
 
         // Validate JSON payload
@@ -287,12 +270,12 @@ class Gstr1GeneratorService
 
         // Save JSON File
         $periodClean = str_replace('-', '', $returnPeriod);
-        $jsonFileName = "GSTR1_{$supplierGstin}_{$periodClean}.json";
+        $jsonFileName = "GSTR1_Internal_{$supplierGstin}_{$periodClean}.json";
         $jsonFilePath = "gstr1/{$periodClean}/{$jsonFileName}";
         Storage::disk('local')->put($jsonFilePath, $encodedJson);
 
         // Save XLSX Helper File
-        $xlsxFilePath = $this->writeXlsxReport($returnPeriod, $invoices, $preview);
+        $xlsxFilePath = $this->writeXlsxReport($returnPeriod, $preview);
         $xlsxFileName = basename($xlsxFilePath);
 
         $fileHash = hash('sha256', $encodedJson);
@@ -301,7 +284,7 @@ class Gstr1GeneratorService
 
         $attrs = [
             'return_period' => $returnPeriod,
-            'invoice_count' => count($invoices),
+            'invoice_count' => count($preview['invoices']),
             'total_taxable_value' => $preview['total_taxable_value'],
             'total_igst' => $preview['total_igst'],
             'total_cgst' => $preview['total_cgst'],
@@ -341,13 +324,13 @@ class Gstr1GeneratorService
     }
 
     /**
-     * Write 2-sheet Excel Helper report matching GSTR-1 Offline Tool format.
+     * Write Table 4A B2B sheet + a Notes sheet (Table 12 unavailable, excluded invoices).
      */
-    protected function writeXlsxReport(string $returnPeriod, $invoices, array $preview): string
+    protected function writeXlsxReport(string $returnPeriod, array $preview): string
     {
         $spreadsheet = new Spreadsheet();
 
-        // Sheet 1: Table 4A B2B Invoices
+        // Sheet 1: Table 4A B2B Invoices (same validated rows as the JSON payload)
         $sheet1 = $spreadsheet->getActiveSheet();
         $sheet1->setTitle('4A - B2B Invoices');
 
@@ -363,65 +346,41 @@ class Gstr1GeneratorService
         $sheet1->getStyle('A1:N1')->getFont()->getColor()->setRGB('FFFFFF');
 
         $rowNum = 2;
-        foreach ($invoices as $inv) {
-            $customerGstin = trim((string)($inv->branch_gstin ?: ($inv->client->gstin ?? 'UNREGISTERED')));
-            $posCode = $this->resolveStateCode($inv->place_of_supply_state, $customerGstin);
-            $posDisplay = "{$posCode}-{$inv->place_of_supply_state}";
-            $taxable = (float)$inv->agency_service_fee;
-            $gstAmount = (float)$inv->gst_amount;
+        foreach ($preview['invoices'] as $row) {
+            $posCode = $this->resolveStateCode($row['place_of_supply'], $row['customer_gstin']);
 
-            if ($inv->gst_type === 'igst') {
-                $igst = $gstAmount;
-                $cgst = 0.0;
-                $sgst = 0.0;
-            } else {
-                $igst = 0.0;
-                $cgst = round($gstAmount / 2, 2);
-                $sgst = round($gstAmount / 2, 2);
-            }
-
-            $sheet1->setCellValue("A{$rowNum}", $customerGstin);
-            $sheet1->setCellValue("B{$rowNum}", $inv->client->company_name ?? 'N/A');
-            $sheet1->setCellValue("C{$rowNum}", $inv->invoice_number);
-            $sheet1->setCellValue("D{$rowNum}", Carbon::parse($inv->created_at ?? $inv->invoice_month)->format('d-m-Y'));
-            $sheet1->setCellValue("E{$rowNum}", (float)$inv->grand_total);
-            $sheet1->setCellValue("F{$rowNum}", $posDisplay);
+            $sheet1->setCellValue("A{$rowNum}", $row['customer_gstin']);
+            $sheet1->setCellValue("B{$rowNum}", $row['client_name']);
+            $sheet1->setCellValue("C{$rowNum}", $row['invoice_number']);
+            $sheet1->setCellValue("D{$rowNum}", $row['invoice_date']);
+            $sheet1->setCellValue("E{$rowNum}", $row['total_invoice_value']);
+            $sheet1->setCellValue("F{$rowNum}", "{$posCode}-{$row['place_of_supply']}");
             $sheet1->setCellValue("G{$rowNum}", 'N');
             $sheet1->setCellValue("H{$rowNum}", 'Regular');
             $sheet1->setCellValue("I{$rowNum}", 18.0);
-            $sheet1->setCellValue("J{$rowNum}", $taxable);
-            $sheet1->setCellValue("K{$rowNum}", $igst);
-            $sheet1->setCellValue("L{$rowNum}", $cgst);
-            $sheet1->setCellValue("M{$rowNum}", $sgst);
+            $sheet1->setCellValue("J{$rowNum}", $row['taxable_value']);
+            $sheet1->setCellValue("K{$rowNum}", $row['igst']);
+            $sheet1->setCellValue("L{$rowNum}", $row['cgst']);
+            $sheet1->setCellValue("M{$rowNum}", $row['sgst']);
             $sheet1->setCellValue("N{$rowNum}", 0.0);
 
             $rowNum++;
         }
 
-        // Sheet 2: Table 12 HSN Summary
+        // Sheet 2: Notes — Table 12 (HSN Summary) is not available; no per-invoice
+        // HSN/SAC data exists anywhere in TECLA PAY to populate it from.
         $sheet2 = $spreadsheet->createSheet();
-        $sheet2->setTitle('12 - HSN Summary');
-
-        $headers2 = [
-            'HSN/SAC', 'Description', 'UQC', 'Total Quantity', 'Total Taxable Value (₹)',
-            'Integrated Tax (₹)', 'Central Tax (₹)', 'State/UT Tax (₹)', 'Cess (₹)'
-        ];
-
-        $sheet2->fromArray([$headers2], null, 'A1');
-        $sheet2->getStyle('A1:I1')->getFont()->setBold(true);
-        $sheet2->getStyle('A1:I1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('065F46');
-        $sheet2->getStyle('A1:I1')->getFont()->getColor()->setRGB('FFFFFF');
-
-        $hsn = $preview['hsn_summary'];
-        $sheet2->setCellValue('A2', $hsn['hsn_sc']);
-        $sheet2->setCellValue('B2', $hsn['desc']);
-        $sheet2->setCellValue('C2', $hsn['uqc']);
-        $sheet2->setCellValue('D2', $hsn['qty']);
-        $sheet2->setCellValue('E2', $hsn['txval']);
-        $sheet2->setCellValue('F2', $hsn['igst']);
-        $sheet2->setCellValue('G2', $hsn['cgst']);
-        $sheet2->setCellValue('H2', $hsn['sgst']);
-        $sheet2->setCellValue('I2', 0.0);
+        $sheet2->setTitle('Notes');
+        $sheet2->setCellValue('A1', 'Table 12 (HSN Summary): NOT AVAILABLE — ' . $preview['table_12_reason']);
+        $sheet2->setCellValue('A2', self::DISCLAIMER);
+        if (!empty($preview['errors'])) {
+            $sheet2->setCellValue('A4', 'Excluded invoices:');
+            $r = 5;
+            foreach ($preview['errors'] as $err) {
+                $sheet2->setCellValue("A{$r}", $err);
+                $r++;
+            }
+        }
 
         $periodClean = str_replace('-', '', $returnPeriod);
         $fileName = "GSTR1_Summary_{$periodClean}.xlsx";

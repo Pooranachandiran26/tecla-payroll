@@ -283,6 +283,134 @@ export default function ComplianceReports() {
     }
   };
 
+  // TDS Form 24Q Modal & Feature State
+  const [isTdsModalOpen, setIsTdsModalOpen] = useState(false);
+  const [tdsLoadingMetadata, setTdsLoadingMetadata] = useState(false);
+  const [tdsClients, setTdsClients] = useState([]);
+  const [tdsBatches, setTdsBatches] = useState([]);
+  const [selectedTdsClient, setSelectedTdsClient] = useState('');
+  const [selectedTdsFy, setSelectedTdsFy] = useState('2026-2027');
+  const [selectedTdsQuarter, setSelectedTdsQuarter] = useState('Q1');
+  const [tdsGenerating, setTdsGenerating] = useState(false);
+  const [lastTdsBatch, setLastTdsBatch] = useState(null);
+  const [tdsError, setTdsError] = useState('');
+  const [tdsPreviewData, setTdsPreviewData] = useState(null);
+
+  // Treasury Challan State Form
+  const [challanBsr, setChallanBsr] = useState('0210001');
+  const [challanDate, setChallanDate] = useState('2026-07-07');
+  const [challanSerial, setChallanSerial] = useState('00101');
+  const [challanTax, setChallanTax] = useState('');
+  const [challanSaving, setChallanSaving] = useState(false);
+
+  const fetchTdsMetadata = async () => {
+    setTdsLoadingMetadata(true);
+    try {
+      const response = await axios.get(route('compliance.tds_24q.metadata'));
+      setTdsClients(response.data.clients || []);
+      setTdsBatches(response.data.batches || []);
+      if (response.data.clients && response.data.clients.length > 0) {
+        const firstClientId = String(response.data.clients[0].id);
+        setSelectedTdsClient(firstClientId);
+        handlePreviewTds(firstClientId, selectedTdsFy, selectedTdsQuarter);
+      } else {
+        setSelectedTdsClient('');
+        setTdsPreviewData(null);
+      }
+    } catch (err) {
+      showToast('❌ Failed to fetch TDS metadata.', 'error');
+    } finally {
+      setTdsLoadingMetadata(false);
+    }
+  };
+
+  const handlePreviewTds = async (clientId, fy, qtr) => {
+    const targetClient = clientId || selectedTdsClient;
+    const targetFy = fy || selectedTdsFy;
+    const targetQtr = qtr || selectedTdsQuarter;
+    if (!targetClient) return;
+    try {
+      const response = await axios.post(route('compliance.tds_24q.preview'), {
+        client_id: targetClient,
+        financial_year: targetFy,
+        quarter: targetQtr
+      });
+      setTdsPreviewData(response.data);
+      if (response.data.challan) {
+        setChallanBsr(response.data.challan.bsr_code);
+        setChallanDate(response.data.challan.deposit_date);
+        setChallanSerial(response.data.challan.challan_serial_number);
+        setChallanTax(String(response.data.challan.tax_amount));
+      } else {
+        setChallanTax(String(response.data.total_tds_deducted || ''));
+      }
+    } catch (err) {
+      setTdsPreviewData(null);
+    }
+  };
+
+  useEffect(() => {
+    if (isTdsModalOpen) {
+      setLastTdsBatch(null);
+      setTdsError('');
+      fetchTdsMetadata();
+    }
+  }, [isTdsModalOpen]);
+
+  const handleSaveChallan = async () => {
+    if (!selectedTdsClient) return;
+    setChallanSaving(true);
+    try {
+      await axios.post(route('compliance.tds_24q.save_challan'), {
+        client_id: selectedTdsClient,
+        financial_year: selectedTdsFy,
+        quarter: selectedTdsQuarter,
+        bsr_code: challanBsr,
+        deposit_date: challanDate,
+        challan_serial_number: challanSerial,
+        tax_amount: Number(challanTax) || 0.00
+      });
+      showToast('🎉 Treasury Challan details saved!');
+      handlePreviewTds(selectedTdsClient, selectedTdsFy, selectedTdsQuarter);
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Failed to save challan.';
+      showToast(`❌ ${msg}`, 'error');
+    } finally {
+      setChallanSaving(false);
+    }
+  };
+
+  const handleGenerateTds24q = async () => {
+    if (!selectedTdsClient) return;
+    setTdsGenerating(true);
+    setTdsError('');
+    try {
+      const response = await axios.post(route('compliance.tds_24q.generate'), {
+        client_id: selectedTdsClient,
+        financial_year: selectedTdsFy,
+        quarter: selectedTdsQuarter,
+        challan: {
+          bsr_code: challanBsr,
+          deposit_date: challanDate,
+          challan_serial_number: challanSerial,
+          tax_amount: Number(challanTax) || 0.00
+        }
+      });
+      if (response.data.success) {
+        showToast('🎉 Form 24Q e-TDS Text Return & Excel Reconciliation generated successfully!');
+        setLastTdsBatch(response.data);
+        fetchTdsMetadata();
+      }
+    } catch (err) {
+      const errorList = err.response?.data?.errors?.tds;
+      const errorMsg = Array.isArray(errorList) ? errorList.join(' ') : (err.response?.data?.message || 'Form 24Q generation failed.');
+      setTdsError(errorMsg);
+      showToast(`❌ ${errorMsg}`, 'error');
+    } finally {
+      setTdsGenerating(false);
+    }
+  };
+
   const fetchEcrRuns = async (selectedMonth = monthFilter) => {
     setLoadingRuns(true);
     try {
@@ -438,8 +566,8 @@ export default function ComplianceReports() {
     },
     { id: 'esi', title: 'ESI Monthly File', badge: 'ESIC Portal', color: 'success', desc: 'Monthly contribution file for ESI-eligible employees from locked payroll data. Standard 6-column ESIC bulk upload sheet (Excel 97-2003, no header).', action: 'ESI Contribution Excel', btnText: 'Generate ESI (.xls)', isFunctional: true },
     { id: 'pt', title: 'PT Challan Summary', badge: 'State-wise', color: 'success', desc: 'Aggregates Professional Tax deductions across state slabs (Maharashtra, Karnataka, Tamil Nadu) from locked payroll. Generates 2-sheet return helper report (.xlsx).', action: 'PT State-wise Challans', btnText: 'Generate PT Report (.xlsx)', isFunctional: true },
-    { id: 'tds', title: 'TDS Form 24Q', badge: 'Quarterly', color: 'info', desc: 'Generates consolidated Annexure-II salary and tax declaration data for quarterly income tax filings.', action: 'TDS Q1 Return Dataset', btnText: 'Generate Form 24Q (.csv)', isFunctional: false },
-    { id: 'gstr1', title: 'GSTR-1 Summary', badge: 'GST Portal', color: 'success', desc: 'Extracts B2B agency service invoices and HSN 9985 summaries. Generates official GSTN JSON payload and Excel offline tool helper.', action: 'GSTR-1 Export', btnText: 'Generate GSTR-1 (.json)', isFunctional: true },
+    { id: 'tds', title: 'TDS Form 24Q', badge: 'Quarterly', color: 'success', desc: 'Quarterly return of TDS on salaries u/s 200(3). Generates official e-TDS caret-delimited return (.txt) and 4-sheet Excel reconciliation helper.', action: 'TDS Form 24Q Return', btnText: 'Generate Form 24Q (.txt)', isFunctional: true },
+    { id: 'gstr1', title: 'GSTR-1 Summary', badge: 'Internal Only', color: 'success', desc: 'Extracts B2B agency service invoices (Table 4A) into an internal reconciliation JSON/Excel export. Not an official GSTN upload file — verify before use.', action: 'GSTR-1 Export', btnText: 'Export GSTR-1 (.json)', isFunctional: true },
     { id: 'audit', title: 'Client Audit Pack', badge: 'Consolidated', color: 'neutral', desc: 'Generates a complete compliance zip file per client including PF/ESI challan copies and registers.', action: 'Consolidated Client Audit Pack', btnText: 'Generate Audit Pack (.zip)', isFunctional: false }
   ];
 
@@ -559,6 +687,7 @@ export default function ComplianceReports() {
                       if (report.id === 'esi') setIsEsiModalOpen(true);
                       else if (report.id === 'pt') setIsPtModalOpen(true);
                       else if (report.id === 'gstr1') setIsGstr1ModalOpen(true);
+                      else if (report.id === 'tds') setIsTdsModalOpen(true);
                       else setIsEcrModalOpen(true);
                     }}
                   >
@@ -1301,15 +1430,20 @@ export default function ComplianceReports() {
                   </table>
                 </div>
 
-                {gstr1PreviewData.hsn_summary && (
-                  <div className="bg-emerald-50 border border-emerald-200 p-2.5 rounded text-xs space-y-1">
-                    <div className="font-bold text-emerald-900 flex justify-between">
-                      <span>Table 12 — HSN/SAC Summary (SAC {gstr1PreviewData.hsn_summary.hsn_sc})</span>
-                      <span>Total Taxable: ₹{Number(gstr1PreviewData.hsn_summary.txval).toLocaleString('en-IN')}</span>
-                    </div>
-                    <div className="text-[11px] text-emerald-800">{gstr1PreviewData.hsn_summary.desc} (UQC: {gstr1PreviewData.hsn_summary.uqc})</div>
+                <div className="bg-gray-50 border border-gray-200 p-2.5 rounded text-xs text-gray-600">
+                  Table 12 (HSN Summary): not available — no per-invoice HSN/SAC data exists in TECLA PAY.
+                </div>
+
+                {gstr1PreviewData.errors && gstr1PreviewData.errors.length > 0 && (
+                  <div className="bg-amber-50 border border-amber-200 p-2.5 rounded text-xs text-amber-800 space-y-1">
+                    <div className="font-bold">Excluded invoices ({gstr1PreviewData.errors.length}):</div>
+                    {gstr1PreviewData.errors.map((e, i) => <div key={i}>{e}</div>)}
                   </div>
                 )}
+
+                <div className="bg-red-50 border border-red-200 p-2.5 rounded text-[11px] text-red-700">
+                  Internal reconciliation export only — not validated against the current official GSTN schema. Verify before any government upload.
+                </div>
               </div>
             )}
 
@@ -1399,6 +1533,261 @@ export default function ComplianceReports() {
                               href={b.xlsx_download_url}
                               className="text-emerald-700 hover:underline flex items-center gap-1 font-bold"
                               title="Download .XLSX Helper"
+                            >
+                              <Download className="w-3.5 h-3.5" /> XLSX
+                            </a>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        </Modal>
+
+        {/* TDS Form 24Q Modal */}
+        <Modal
+          isOpen={isTdsModalOpen}
+          onClose={() => setIsTdsModalOpen(false)}
+          title="TDS Form 24Q Quarterly Return (e-TDS Text Return & 4-Sheet Excel)"
+          size="lg"
+        >
+          <div className="space-y-5">
+            <div className="bg-amber-50 border border-amber-200 p-3 rounded-md text-xs text-amber-900 leading-relaxed space-y-1">
+              <div><strong>TDS Form 24Q Salary Return u/s 200(3):</strong> Generates official caret (`^`) delimited e-TDS text return (`.txt`) for Protean RPU/FVU processing and a 4-sheet Excel reconciliation helper (`.xlsx`).</div>
+              <div className="font-bold text-amber-800">⚠️ Disclaimer: FVU validation NOT RUN (Official Protean FVU.exe utility not executed in local environment).</div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Client / Employer:</label>
+                <select
+                  value={selectedTdsClient}
+                  onChange={(e) => {
+                    setSelectedTdsClient(e.target.value);
+                    handlePreviewTds(e.target.value, selectedTdsFy, selectedTdsQuarter);
+                  }}
+                  className="w-full text-xs border border-gray-300 rounded px-2.5 py-1.5 bg-white font-medium"
+                >
+                  {tdsClients.map(c => (
+                    <option key={c.id} value={c.id}>{c.company_name} ({c.tan_number || 'NO TAN'})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Financial Year:</label>
+                <select
+                  value={selectedTdsFy}
+                  onChange={(e) => {
+                    setSelectedTdsFy(e.target.value);
+                    handlePreviewTds(selectedTdsClient, e.target.value, selectedTdsQuarter);
+                  }}
+                  className="w-full text-xs border border-gray-300 rounded px-2.5 py-1.5 bg-white font-medium"
+                >
+                  <option value="2026-2027">FY 2026-2027 (AY 2027-2028)</option>
+                  <option value="2025-2026">FY 2025-2026 (AY 2026-2027)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Quarter:</label>
+                <select
+                  value={selectedTdsQuarter}
+                  onChange={(e) => {
+                    setSelectedTdsQuarter(e.target.value);
+                    handlePreviewTds(selectedTdsClient, selectedTdsFy, e.target.value);
+                  }}
+                  className="w-full text-xs border border-gray-300 rounded px-2.5 py-1.5 bg-white font-medium font-bold text-blue-900"
+                >
+                  <option value="Q1">Q1 (Apr – Jun)</option>
+                  <option value="Q2">Q2 (Jul – Sep)</option>
+                  <option value="Q3">Q3 (Oct – Dec)</option>
+                  <option value="Q4">Q4 (Jan – Mar + Full FY Annexure-II)</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Treasury Challan Entry Card */}
+            <div className="bg-slate-50 border border-slate-200 p-3 rounded space-y-3">
+              <div className="flex justify-between items-center">
+                <h4 className="font-bold text-xs text-slate-800">1. Treasury Challan Deposit Details</h4>
+                <Button size="xs" variant="secondary" onClick={handleSaveChallan} disabled={challanSaving}>
+                  {challanSaving ? 'Saving...' : 'Save Challan Info'}
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                <div>
+                  <label className="block text-[11px] font-semibold text-gray-600 mb-0.5">BSR Code (7 Digits):</label>
+                  <input
+                    type="text"
+                    maxLength={7}
+                    value={challanBsr}
+                    onChange={e => setChallanBsr(e.target.value)}
+                    className="w-full text-xs border rounded px-2 py-1 font-mono"
+                    placeholder="0210001"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-gray-600 mb-0.5">Deposit Date:</label>
+                  <input
+                    type="date"
+                    value={challanDate}
+                    onChange={e => setChallanDate(e.target.value)}
+                    className="w-full text-xs border rounded px-2 py-1 font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-gray-600 mb-0.5">Challan Serial No:</label>
+                  <input
+                    type="text"
+                    maxLength={5}
+                    value={challanSerial}
+                    onChange={e => setChallanSerial(e.target.value)}
+                    className="w-full text-xs border rounded px-2 py-1 font-mono"
+                    placeholder="00101"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-gray-600 mb-0.5">Tax Amount (₹):</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={challanTax}
+                    onChange={e => setChallanTax(e.target.value)}
+                    className="w-full text-xs border rounded px-2 py-1 font-bold text-blue-900"
+                    placeholder="5000.00"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Dataset Preview */}
+            {tdsPreviewData && (
+              <div className="bg-blue-50/50 border border-blue-200 p-3 rounded space-y-2">
+                <h4 className="font-bold text-xs text-blue-900 flex justify-between">
+                  <span>2. Return Dataset Summary ({tdsPreviewData.quarter} - {tdsPreviewData.financial_year})</span>
+                  <span>Assessment Year: {tdsPreviewData.assessment_year}</span>
+                </h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-center text-xs">
+                  <div className="bg-white p-2 rounded border border-blue-100">
+                    <div className="text-gray-500 font-semibold">Locked Runs</div>
+                    <div className="font-bold text-slate-800">{tdsPreviewData.locked_runs_count} Run(s)</div>
+                  </div>
+                  <div className="bg-white p-2 rounded border border-blue-100">
+                    <div className="text-gray-500 font-semibold">Deductees</div>
+                    <div className="font-bold text-slate-800">{tdsPreviewData.employee_count} Employee(s)</div>
+                  </div>
+                  <div className="bg-white p-2 rounded border border-blue-100">
+                    <div className="text-gray-500 font-semibold">Taxable Salary</div>
+                    <div className="font-bold text-blue-900">₹{Number(tdsPreviewData.total_taxable_salary).toLocaleString('en-IN')}</div>
+                  </div>
+                  <div className="bg-white p-2 rounded border border-blue-100">
+                    <div className="text-gray-500 font-semibold">TDS Deducted</div>
+                    <div className="font-bold text-emerald-700">₹{Number(tdsPreviewData.total_tds_deducted).toLocaleString('en-IN')}</div>
+                  </div>
+                </div>
+
+                {tdsPreviewData.quarter === 'Q4' && (
+                  <div className="bg-emerald-50 border border-emerald-200 p-2 rounded text-xs text-emerald-900">
+                    <strong>Annexure-II Mandatory in Q4:</strong> Full-year annual salary & tax break-up will be compiled for <strong>{tdsPreviewData.q4_annual_employee_count} employee(s)</strong> across all 12 FY months.
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3 pt-2">
+              <Button variant="secondary" onClick={() => setIsTdsModalOpen(false)}>Close</Button>
+              <Button
+                variant="primary"
+                onClick={handleGenerateTds24q}
+                disabled={!selectedTdsClient || tdsGenerating}
+                className="bg-blue-900 hover:bg-blue-800 text-white font-bold"
+              >
+                {tdsGenerating ? 'Generating Return...' : 'Generate Form 24Q (.txt)'}
+              </Button>
+            </div>
+
+            {tdsError && (
+              <div className="bg-red-50 border border-red-300 text-red-700 p-3 rounded text-xs space-y-1">
+                <div className="font-bold flex items-center gap-1">
+                  <AlertTriangle className="w-4 h-4 text-red-600" /> Form 24Q Generation Blocked:
+                </div>
+                <div>{tdsError}</div>
+              </div>
+            )}
+
+            {lastTdsBatch && (
+              <div className="bg-green-50 border border-green-300 p-4 rounded-md text-center space-y-3">
+                <CheckCircle2 className="w-10 h-10 text-green-600 mx-auto" />
+                <h4 className="font-bold text-base text-green-900">Form 24Q e-TDS Return & Reconciliation Report Generated</h4>
+                <p className="text-xs text-green-800">
+                  {lastTdsBatch.quarter} ({lastTdsBatch.financial_year}) — {lastTdsBatch.employee_count} deductee(s), total tax deposited ₹{Number(lastTdsBatch.total_tax_deposited).toLocaleString('en-IN')}
+                </p>
+                <div className="text-[11px] font-bold text-amber-800 bg-amber-100/60 py-1 px-3 rounded inline-block">
+                  {lastTdsBatch.fvu_disclaimer}
+                </div>
+                <div className="flex justify-center gap-3 pt-1">
+                  <a
+                    href={lastTdsBatch.txt_download_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 bg-green-700 hover:bg-green-800 text-white text-xs font-bold px-4 py-2 rounded shadow"
+                  >
+                    <Download className="w-4 h-4" /> Download e-TDS Return (.TXT)
+                  </a>
+                  <a
+                    href={lastTdsBatch.xlsx_download_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 bg-slate-700 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2 rounded shadow"
+                  >
+                    <Download className="w-4 h-4" /> Download 4-Sheet Excel (.XLSX)
+                  </a>
+                </div>
+              </div>
+            )}
+
+            {tdsBatches.length > 0 && (
+              <div className="space-y-2 pt-4 border-t border-gray-200">
+                <h4 className="font-bold text-sm text-blue-900">Form 24Q Generation History</h4>
+                <div className="overflow-x-auto border border-gray-200 rounded">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-slate-100 text-gray-700 font-bold border-b">
+                      <tr>
+                        <th className="p-2">Batch #</th>
+                        <th className="p-2">Client</th>
+                        <th className="p-2">FY / Quarter</th>
+                        <th className="p-2">Deductees</th>
+                        <th className="p-2">Tax Deposited</th>
+                        <th className="p-2">Status</th>
+                        <th className="p-2">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tdsBatches.map(b => (
+                        <tr key={b.id} className="border-b hover:bg-slate-50">
+                          <td className="p-2 font-mono">#24Q-{b.id}</td>
+                          <td className="p-2">{b.client_name}</td>
+                          <td className="p-2 font-bold">{b.financial_year} ({b.quarter})</td>
+                          <td className="p-2">{b.employee_count}</td>
+                          <td className="p-2 font-bold text-blue-900">₹{Number(b.total_tax_deposited).toLocaleString('en-IN')}</td>
+                          <td className="p-2"><Badge variant={b.status === 'downloaded' ? 'success' : 'info'}>{b.status}</Badge></td>
+                          <td className="p-2 flex items-center gap-2">
+                            <a
+                              href={b.txt_download_url}
+                              className="text-blue-600 hover:underline flex items-center gap-1 font-bold"
+                              title="Download e-TDS Return (.TXT)"
+                            >
+                              <Download className="w-3.5 h-3.5" /> TXT
+                            </a>
+                            <a
+                              href={b.xlsx_download_url}
+                              className="text-emerald-700 hover:underline flex items-center gap-1 font-bold"
+                              title="Download 4-Sheet Excel Reconciliation"
                             >
                               <Download className="w-3.5 h-3.5" /> XLSX
                             </a>
