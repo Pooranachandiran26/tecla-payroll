@@ -326,6 +326,14 @@ Route::middleware(['auth', 'active'])->group(function () {
                 Route::post('/compliance/gstr1/generate', [\App\Http\Controllers\Gstr1Controller::class, 'generate'])->name('compliance.gstr1.generate');
                 Route::get('/compliance/gstr1/download/{id}', [\App\Http\Controllers\Gstr1Controller::class, 'download'])->name('compliance.gstr1.download');
                 Route::get('/compliance/gstr1/download-xlsx/{id}', [\App\Http\Controllers\Gstr1Controller::class, 'downloadXlsx'])->name('compliance.gstr1.download_xlsx');
+
+                // TDS Form 24Q Return Routes
+                Route::get('/compliance/tds-24q/metadata', [\App\Http\Controllers\Tds24qController::class, 'getMetadata'])->name('compliance.tds_24q.metadata');
+                Route::post('/compliance/tds-24q/preview', [\App\Http\Controllers\Tds24qController::class, 'preview'])->name('compliance.tds_24q.preview');
+                Route::post('/compliance/tds-24q/challan', [\App\Http\Controllers\Tds24qController::class, 'saveChallan'])->name('compliance.tds_24q.save_challan');
+                Route::post('/compliance/tds-24q/generate', [\App\Http\Controllers\Tds24qController::class, 'generate'])->name('compliance.tds_24q.generate');
+                Route::get('/compliance/tds-24q/download/{id}', [\App\Http\Controllers\Tds24qController::class, 'download'])->name('compliance.tds_24q.download');
+                Route::get('/compliance/tds-24q/download-xlsx/{id}', [\App\Http\Controllers\Tds24qController::class, 'downloadXlsx'])->name('compliance.tds_24q.download_xlsx');
             });
 
             // Reports Module (Gated by module:reports)
