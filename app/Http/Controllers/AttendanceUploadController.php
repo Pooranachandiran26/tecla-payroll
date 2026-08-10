@@ -348,20 +348,7 @@ class AttendanceUploadController extends Controller
         $targetMonthStr = $request->target_month;
         $user = $request->user();
 
-        // 1. Locked Payroll Run Period Guard Check (Lock Guard)
         $monthStart = Carbon::parse($targetMonthStr . '-01');
-        $hasLockedPeriod = DB::table('payroll_runs')
-            ->where('client_id', $clientId)
-            ->where('payroll_month', $monthStart->toDateString())
-            ->where('status', 'locked')
-            ->exists();
-
-        if ($hasLockedPeriod) {
-            $monthLabel = $monthStart->format('F Y');
-            return response()->json([
-                'error' => "⚠️ Already Locked Period — Payroll for {$monthLabel} is already locked for this client. Use Payroll Correction instead."
-            ], 422);
-        }
 
         $file = $request->file('file');
         $ext = $file->getClientOriginalExtension() ?: 'csv';
@@ -445,18 +432,6 @@ class AttendanceUploadController extends Controller
         $clientId = (int) $request->client_id;
         $targetMonthStr = $request->target_month;
         $monthStart = Carbon::parse($targetMonthStr . '-01');
-
-        // Check lock guard
-        $hasLockedPeriod = DB::table('payroll_runs')
-            ->where('client_id', $clientId)
-            ->where('payroll_month', $monthStart->toDateString())
-            ->where('status', 'locked')
-            ->exists();
-
-        if ($hasLockedPeriod) {
-            $monthLabel = $monthStart->format('F Y');
-            return back()->with('error', "⚠️ Already Locked Period — Payroll for {$monthLabel} is already locked for this client.");
-        }
 
         $file = $request->file('file');
         $ext = $file->getClientOriginalExtension() ?: 'csv';
