@@ -356,7 +356,7 @@ class Tds24qGeneratorService
             'FH',
             'SL',
             'R',
-            now()->format('d0mY'),
+            now()->format('dmY'),
             '1',
             strtoupper(trim($client->tan_number)),
             '1',

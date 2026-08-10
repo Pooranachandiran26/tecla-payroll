@@ -10,7 +10,6 @@ use App\Models\PtChallanBatch;
 use App\Models\Tds24qBatch;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\ValidationException;
 use ZipArchive;
 
 /**
@@ -40,12 +39,15 @@ class ClientAuditPackService
         $missing[] = ['folder' => 'GSTR1', 'label' => 'GSTR-1 Summary', 'reason' => self::GSTR1_UNAVAILABLE_MESSAGE];
 
         $generatedAt = now();
+
+        // Manifest never carries raw file bytes — only metadata + hash.
+        $manifestFiles = array_map(fn ($f) => collect($f)->except('_bytes')->all(), $included);
         $manifest = [
             'client_id' => $client->id,
             'client_name' => $client->company_name,
             'period' => $period,
             'generated_at' => $generatedAt->toIso8601String(),
-            'files' => $included,
+            'files' => $manifestFiles,
             'missing_items' => $missing,
         ];
 
@@ -160,6 +162,11 @@ class ClientAuditPackService
         return ["{$fyStart}-{$fyEnd}", $quarter];
     }
 
+    /**
+     * Reads the source file's real bytes now (kept only in-memory as '_bytes',
+     * stripped before anything is persisted to the manifest/DB) and records
+     * metadata + SHA-256 for the manifest.
+     */
     protected function includeFile(string $folder, string $sourcePath, string $originalName, string $sourceModel, int $sourceBatchId): array
     {
         $content = Storage::disk('local')->get($sourcePath);
@@ -170,6 +177,7 @@ class ClientAuditPackService
             'sha256' => hash('sha256', $content),
             'source_table' => (new $sourceModel())->getTable(),
             'source_batch_id' => $sourceBatchId,
+            '_bytes' => $content,
         ];
     }
 
@@ -182,37 +190,6 @@ class ClientAuditPackService
     }
 
     protected function buildZip(Client $client, string $period, array $manifest, array $included, array $missing, Carbon $generatedAt): string
-    {
-        $tempPath = tempnam(sys_get_temp_dir(), 'audit_pack_');
-        $zip = new ZipArchive();
-        $zip->open($tempPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
-
-        foreach (['PF', 'ESI', 'PT', 'TDS_24Q', 'GSTR1'] as $folder) {
-            $zip->addEmptyDir("Client_Audit_Pack/{$folder}");
-        }
-
-        foreach ($included as $file) {
-            $content = Storage::disk('local')->get(
-                collect([$file['source_table']])->isEmpty() ? '' : $this->reresolveSourcePath($file)
-            );
-        }
-
-        // Re-add real file bytes (source path was not retained on the manifest row by design —
-        // re-fetch directly from the originating batch to avoid storing raw paths twice).
-        $zip->close();
-        @unlink($tempPath);
-
-        // Build again, this time writing bytes as we go (single pass, kept above split
-        // only for clarity of what is/isn't persisted in the manifest).
-        return $this->buildZipSinglePass($client, $period, $manifest, $included, $missing, $generatedAt);
-    }
-
-    protected function reresolveSourcePath(array $file): string
-    {
-        return '';
-    }
-
-    protected function buildZipSinglePass(Client $client, string $period, array $manifest, array $included, array $missing, Carbon $generatedAt): string
     {
         $tempPath = tempnam(sys_get_temp_dir(), 'audit_pack_');
         $zip = new ZipArchive();
@@ -237,7 +214,7 @@ class ClientAuditPackService
         $zip->close();
 
         $binary = file_get_contents($tempPath);
-        @unlink($tempPath);
+        @unlink($tempPath); // temporary scratch file cleaned up immediately after read
 
         $periodClean = str_replace('-', '', $period);
         $cleanCompany = preg_replace('/[^A-Za-z0-9]/', '', $client->company_name);

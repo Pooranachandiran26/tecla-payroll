@@ -334,6 +334,11 @@ Route::middleware(['auth', 'active'])->group(function () {
                 Route::post('/compliance/tds-24q/generate', [\App\Http\Controllers\Tds24qController::class, 'generate'])->name('compliance.tds_24q.generate');
                 Route::get('/compliance/tds-24q/download/{id}', [\App\Http\Controllers\Tds24qController::class, 'download'])->name('compliance.tds_24q.download');
                 Route::get('/compliance/tds-24q/download-xlsx/{id}', [\App\Http\Controllers\Tds24qController::class, 'downloadXlsx'])->name('compliance.tds_24q.download_xlsx');
+
+                // Client Audit Pack Routes
+                Route::get('/compliance/audit-pack/clients', [\App\Http\Controllers\ClientAuditPackController::class, 'getClients'])->name('compliance.audit_pack.clients');
+                Route::post('/compliance/audit-pack/generate', [\App\Http\Controllers\ClientAuditPackController::class, 'generate'])->name('compliance.audit_pack.generate');
+                Route::get('/compliance/audit-pack/download/{id}', [\App\Http\Controllers\ClientAuditPackController::class, 'download'])->name('compliance.audit_pack.download');
             });
 
             // Reports Module (Gated by module:reports)
