@@ -207,6 +207,82 @@ export default function ComplianceReports() {
     }
   };
 
+  // GSTR-1 Modal & Feature State
+  const [isGstr1ModalOpen, setIsGstr1ModalOpen] = useState(false);
+  const [gstr1LoadingMonths, setGstr1LoadingMonths] = useState(false);
+  const [gstr1Months, setGstr1Months] = useState([]);
+  const [gstr1Batches, setGstr1Batches] = useState([]);
+  const [selectedGstr1Month, setSelectedGstr1Month] = useState('');
+  const [gstr1Generating, setGstr1Generating] = useState(false);
+  const [lastGstr1Batch, setLastGstr1Batch] = useState(null);
+  const [gstr1Error, setGstr1Error] = useState('');
+  const [gstr1PreviewData, setGstr1PreviewData] = useState(null);
+
+  const fetchGstr1Months = async () => {
+    setGstr1LoadingMonths(true);
+    try {
+      const response = await axios.get(route('compliance.gstr1.months'));
+      const fetchedMonths = response.data.months || [];
+      setGstr1Months(fetchedMonths);
+      setGstr1Batches(response.data.batches || []);
+      if (fetchedMonths.length > 0) {
+        setSelectedGstr1Month(fetchedMonths[0]);
+        handlePreviewGstr1(fetchedMonths[0]);
+      } else {
+        setSelectedGstr1Month('');
+        setGstr1PreviewData(null);
+      }
+    } catch (err) {
+      showToast('❌ Failed to fetch available invoice months for GSTR-1.', 'error');
+    } finally {
+      setGstr1LoadingMonths(false);
+    }
+  };
+
+  const handlePreviewGstr1 = async (monthToPreview) => {
+    const targetMonth = monthToPreview || selectedGstr1Month;
+    if (!targetMonth) return;
+    try {
+      const response = await axios.post(route('compliance.gstr1.preview'), {
+        return_period: targetMonth
+      });
+      setGstr1PreviewData(response.data);
+    } catch (err) {
+      setGstr1PreviewData(null);
+    }
+  };
+
+  useEffect(() => {
+    if (isGstr1ModalOpen) {
+      setLastGstr1Batch(null);
+      setGstr1Error('');
+      fetchGstr1Months();
+    }
+  }, [isGstr1ModalOpen]);
+
+  const handleGenerateGstr1 = async () => {
+    if (!selectedGstr1Month) return;
+    setGstr1Generating(true);
+    setGstr1Error('');
+    try {
+      const response = await axios.post(route('compliance.gstr1.generate'), {
+        return_period: selectedGstr1Month
+      });
+      if (response.data.success) {
+        showToast('🎉 GSTR-1 Official JSON & Excel Summary generated successfully!');
+        setLastGstr1Batch(response.data);
+        fetchGstr1Months();
+      }
+    } catch (err) {
+      const errorList = err.response?.data?.errors?.gstr1;
+      const errorMsg = Array.isArray(errorList) ? errorList.join(' ') : (err.response?.data?.message || 'GSTR-1 generation failed.');
+      setGstr1Error(errorMsg);
+      showToast(`❌ ${errorMsg}`, 'error');
+    } finally {
+      setGstr1Generating(false);
+    }
+  };
+
   const fetchEcrRuns = async (selectedMonth = monthFilter) => {
     setLoadingRuns(true);
     try {
@@ -363,7 +439,7 @@ export default function ComplianceReports() {
     { id: 'esi', title: 'ESI Monthly File', badge: 'ESIC Portal', color: 'success', desc: 'Monthly contribution file for ESI-eligible employees from locked payroll data. Standard 6-column ESIC bulk upload sheet (Excel 97-2003, no header).', action: 'ESI Contribution Excel', btnText: 'Generate ESI (.xls)', isFunctional: true },
     { id: 'pt', title: 'PT Challan Summary', badge: 'State-wise', color: 'success', desc: 'Aggregates Professional Tax deductions across state slabs (Maharashtra, Karnataka, Tamil Nadu) from locked payroll. Generates 2-sheet return helper report (.xlsx).', action: 'PT State-wise Challans', btnText: 'Generate PT Report (.xlsx)', isFunctional: true },
     { id: 'tds', title: 'TDS Form 24Q', badge: 'Quarterly', color: 'info', desc: 'Generates consolidated Annexure-II salary and tax declaration data for quarterly income tax filings.', action: 'TDS Q1 Return Dataset', btnText: 'Generate Form 24Q (.csv)', isFunctional: false },
-    { id: 'gstr1', title: 'GSTR-1 Summary', badge: 'Monthly', color: 'neutral', desc: 'Extracts outward supplies and agency service invoice summaries for GST filing (B2B transactions).', action: 'GSTR-1 Export', btnText: 'Export GSTR-1 (.csv)', isFunctional: false },
+    { id: 'gstr1', title: 'GSTR-1 Summary', badge: 'GST Portal', color: 'success', desc: 'Extracts B2B agency service invoices and HSN 9985 summaries. Generates official GSTN JSON payload and Excel offline tool helper.', action: 'GSTR-1 Export', btnText: 'Generate GSTR-1 (.json)', isFunctional: true },
     { id: 'audit', title: 'Client Audit Pack', badge: 'Consolidated', color: 'neutral', desc: 'Generates a complete compliance zip file per client including PF/ESI challan copies and registers.', action: 'Consolidated Client Audit Pack', btnText: 'Generate Audit Pack (.zip)', isFunctional: false }
   ];
 
@@ -482,6 +558,7 @@ export default function ComplianceReports() {
                     onClick={() => {
                       if (report.id === 'esi') setIsEsiModalOpen(true);
                       else if (report.id === 'pt') setIsPtModalOpen(true);
+                      else if (report.id === 'gstr1') setIsGstr1ModalOpen(true);
                       else setIsEcrModalOpen(true);
                     }}
                   >
@@ -1117,6 +1194,211 @@ export default function ComplianceReports() {
                               href={b.download_url}
                               className="text-blue-600 hover:underline flex items-center gap-1 font-bold"
                               title="Download .XLSX File"
+                            >
+                              <Download className="w-3.5 h-3.5" /> XLSX
+                            </a>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        </Modal>
+
+        {/* GSTR-1 Modal */}
+        <Modal
+          isOpen={isGstr1ModalOpen}
+          onClose={() => setIsGstr1ModalOpen(false)}
+          title="GSTR-1 Monthly Return Export (GSTN Official JSON & Excel)"
+          size="lg"
+        >
+          <div className="space-y-5">
+            <div className="bg-blue-50 border border-blue-200 p-3 rounded-md text-xs text-blue-900 leading-relaxed">
+              <strong>GSTR-1 Outward Supply Return:</strong> Extracts outward B2B agency service fee invoices and builds official Table 4A (B2B Invoices) and Table 12 (HSN/SAC 9985 Summary). Generates official <strong>GSTN JSON payload (`.json`)</strong> for direct portal upload and an <strong>Excel Offline Tool Helper (`.xlsx`)</strong>.
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-700 mb-1">
+                Select Billing Month:
+              </label>
+              {gstr1LoadingMonths ? (
+                <div className="text-xs text-gray-500 py-2">Loading billing months...</div>
+              ) : gstr1Months.length === 0 ? (
+                <div className="text-xs text-amber-700 bg-amber-50 p-2.5 rounded border border-amber-200">
+                  ⚠️ No finalized billing months with raised invoices found.
+                </div>
+              ) : (
+                <select
+                  value={selectedGstr1Month}
+                  onChange={(e) => {
+                    setSelectedGstr1Month(e.target.value);
+                    handlePreviewGstr1(e.target.value);
+                  }}
+                  className="w-full text-xs border border-gray-300 rounded px-3 py-2 bg-white focus:outline-none focus:border-blue-500 font-medium"
+                >
+                  {gstr1Months.map(m => (
+                    <option key={m} value={m}>
+                      Billing Month: {m}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+
+            {gstr1PreviewData && gstr1PreviewData.invoices && gstr1PreviewData.invoices.length > 0 && (
+              <div className="bg-slate-50 border border-slate-200 p-3 rounded space-y-3">
+                <h4 className="font-bold text-xs text-slate-800 flex justify-between">
+                  <span>Table 4A — B2B Outward Supplies ({gstr1PreviewData.invoice_count} Invoices)</span>
+                  <span>Total Tax Liability: ₹{Number(gstr1PreviewData.total_tax_liability).toLocaleString('en-IN')}</span>
+                </h4>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-center text-xs">
+                  <div className="bg-white p-2 rounded border border-slate-200">
+                    <div className="text-gray-500 font-semibold">Taxable Value</div>
+                    <div className="font-bold text-blue-900">₹{Number(gstr1PreviewData.total_taxable_value).toLocaleString('en-IN')}</div>
+                  </div>
+                  <div className="bg-white p-2 rounded border border-slate-200">
+                    <div className="text-gray-500 font-semibold">IGST</div>
+                    <div className="font-bold text-purple-700">₹{Number(gstr1PreviewData.total_igst).toLocaleString('en-IN')}</div>
+                  </div>
+                  <div className="bg-white p-2 rounded border border-slate-200">
+                    <div className="text-gray-500 font-semibold">CGST</div>
+                    <div className="font-bold text-indigo-700">₹{Number(gstr1PreviewData.total_cgst).toLocaleString('en-IN')}</div>
+                  </div>
+                  <div className="bg-white p-2 rounded border border-slate-200">
+                    <div className="text-gray-500 font-semibold">SGST</div>
+                    <div className="font-bold text-indigo-700">₹{Number(gstr1PreviewData.total_sgst).toLocaleString('en-IN')}</div>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto max-h-48">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-slate-200 text-slate-700 font-bold border-b sticky top-0">
+                      <tr>
+                        <th className="p-1.5">Invoice #</th>
+                        <th className="p-1.5">Client</th>
+                        <th className="p-1.5">GSTIN</th>
+                        <th className="p-1.5 text-right">Taxable</th>
+                        <th className="p-1.5 text-right">GST</th>
+                        <th className="p-1.5 text-right">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {gstr1PreviewData.invoices.map((inv, idx) => (
+                        <tr key={idx} className="border-b bg-white">
+                          <td className="p-1.5 font-mono font-semibold">{inv.invoice_number}</td>
+                          <td className="p-1.5">{inv.client_name}</td>
+                          <td className="p-1.5 font-mono text-gray-600">{inv.customer_gstin}</td>
+                          <td className="p-1.5 text-right">₹{Number(inv.taxable_value).toLocaleString('en-IN')}</td>
+                          <td className="p-1.5 text-right font-bold text-blue-900">₹{Number(inv.igst + inv.cgst + inv.sgst).toLocaleString('en-IN')}</td>
+                          <td className="p-1.5 text-right">₹{Number(inv.total_invoice_value).toLocaleString('en-IN')}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {gstr1PreviewData.hsn_summary && (
+                  <div className="bg-emerald-50 border border-emerald-200 p-2.5 rounded text-xs space-y-1">
+                    <div className="font-bold text-emerald-900 flex justify-between">
+                      <span>Table 12 — HSN/SAC Summary (SAC {gstr1PreviewData.hsn_summary.hsn_sc})</span>
+                      <span>Total Taxable: ₹{Number(gstr1PreviewData.hsn_summary.txval).toLocaleString('en-IN')}</span>
+                    </div>
+                    <div className="text-[11px] text-emerald-800">{gstr1PreviewData.hsn_summary.desc} (UQC: {gstr1PreviewData.hsn_summary.uqc})</div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3 pt-2">
+              <Button variant="secondary" onClick={() => setIsGstr1ModalOpen(false)}>Close</Button>
+              <Button
+                variant="primary"
+                onClick={handleGenerateGstr1}
+                disabled={!selectedGstr1Month || gstr1Generating || gstr1Months.length === 0}
+                className="bg-blue-900 hover:bg-blue-800 text-white font-bold"
+              >
+                {gstr1Generating ? 'Generating Payload...' : 'Generate GSTR-1 (.json)'}
+              </Button>
+            </div>
+
+            {gstr1Error && (
+              <div className="bg-red-50 border border-red-300 text-red-700 p-3 rounded text-xs space-y-1">
+                <div className="font-bold flex items-center gap-1">
+                  <AlertTriangle className="w-4 h-4 text-red-600" /> GSTR-1 Generation Blocked:
+                </div>
+                <div>{gstr1Error}</div>
+              </div>
+            )}
+
+            {lastGstr1Batch && (
+              <div className="bg-green-50 border border-green-300 p-4 rounded-md text-center space-y-3">
+                <CheckCircle2 className="w-10 h-10 text-green-600 mx-auto" />
+                <h4 className="font-bold text-base text-green-900">GSTR-1 Return Payload & Helper Generated</h4>
+                <p className="text-xs text-green-800">
+                  Generated period: <strong>{lastGstr1Batch.return_period}</strong> — {lastGstr1Batch.invoice_count} B2B invoice(s), total tax liability ₹{Number(lastGstr1Batch.total_tax_liability).toLocaleString('en-IN')}
+                </p>
+                <div className="flex justify-center gap-3">
+                  <a
+                    href={lastGstr1Batch.json_download_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 bg-green-700 hover:bg-green-800 text-white text-xs font-bold px-4 py-2 rounded shadow"
+                  >
+                    <Download className="w-4 h-4" /> Download Official .JSON Payload
+                  </a>
+                  <a
+                    href={lastGstr1Batch.xlsx_download_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 bg-slate-700 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2 rounded shadow"
+                  >
+                    <Download className="w-4 h-4" /> Download .XLSX Helper
+                  </a>
+                </div>
+              </div>
+            )}
+
+            {gstr1Batches.length > 0 && (
+              <div className="space-y-2 pt-4 border-t border-gray-200">
+                <h4 className="font-bold text-sm text-blue-900">GSTR-1 Generation History</h4>
+                <div className="overflow-x-auto border border-gray-200 rounded">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-slate-100 text-gray-700 font-bold border-b">
+                      <tr>
+                        <th className="p-2">Batch #</th>
+                        <th className="p-2">Return Period</th>
+                        <th className="p-2">Invoices</th>
+                        <th className="p-2">Taxable Value</th>
+                        <th className="p-2">Total Tax</th>
+                        <th className="p-2">Status</th>
+                        <th className="p-2">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {gstr1Batches.map(b => (
+                        <tr key={b.id} className="border-b hover:bg-slate-50">
+                          <td className="p-2 font-mono">#GSTR1-{b.id}</td>
+                          <td className="p-2 font-bold">{b.return_period}</td>
+                          <td className="p-2">{b.invoice_count}</td>
+                          <td className="p-2">₹{Number(b.total_taxable_value).toLocaleString('en-IN')}</td>
+                          <td className="p-2 font-bold text-blue-900">₹{Number(b.total_tax_liability).toLocaleString('en-IN')}</td>
+                          <td className="p-2"><Badge variant={b.status === 'downloaded' ? 'success' : 'info'}>{b.status}</Badge></td>
+                          <td className="p-2 flex items-center gap-2">
+                            <a
+                              href={b.json_download_url}
+                              className="text-blue-600 hover:underline flex items-center gap-1 font-bold"
+                              title="Download Official .JSON Payload"
+                            >
+                              <Download className="w-3.5 h-3.5" /> JSON
+                            </a>
+                            <a
+                              href={b.xlsx_download_url}
+                              className="text-emerald-700 hover:underline flex items-center gap-1 font-bold"
+                              title="Download .XLSX Helper"
                             >
                               <Download className="w-3.5 h-3.5" /> XLSX
                             </a>

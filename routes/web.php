@@ -319,6 +319,13 @@ Route::middleware(['auth', 'active'])->group(function () {
                 Route::get('/compliance/pt-challan/download/{id}', [\App\Http\Controllers\PtChallanController::class, 'download'])->name('compliance.pt_challan.download');
                 Route::post('/compliance/pt-challan/update-status/{id}', [\App\Http\Controllers\PtChallanController::class, 'updateStatus'])->name('compliance.pt_challan.update_status');
                 Route::delete('/compliance/pt-challan/{id}', [\App\Http\Controllers\PtChallanController::class, 'destroy'])->name('compliance.pt_challan.destroy');
+
+                // GSTR-1 Summary Routes
+                Route::get('/compliance/gstr1/months', [\App\Http\Controllers\Gstr1Controller::class, 'getMonths'])->name('compliance.gstr1.months');
+                Route::post('/compliance/gstr1/preview', [\App\Http\Controllers\Gstr1Controller::class, 'preview'])->name('compliance.gstr1.preview');
+                Route::post('/compliance/gstr1/generate', [\App\Http\Controllers\Gstr1Controller::class, 'generate'])->name('compliance.gstr1.generate');
+                Route::get('/compliance/gstr1/download/{id}', [\App\Http\Controllers\Gstr1Controller::class, 'download'])->name('compliance.gstr1.download');
+                Route::get('/compliance/gstr1/download-xlsx/{id}', [\App\Http\Controllers\Gstr1Controller::class, 'downloadXlsx'])->name('compliance.gstr1.download_xlsx');
             });
 
             // Reports Module (Gated by module:reports)
