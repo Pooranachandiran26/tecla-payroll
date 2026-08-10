@@ -60,6 +60,18 @@ class ComplianceController extends Controller
             $pfRegistration = $resolutionService->resolveClientRegistrationStatus($client, 'pf');
             $esiRegistration = $resolutionService->resolveClientRegistrationStatus($client, 'esi');
 
+            // Check generated batch tables dynamically
+            $hasPfBatch = DB::table('pf_ecr_batches')->where('client_id', $client->id)->exists();
+            $hasEsiBatch = DB::table('esi_monthly_batches')->where('client_id', $client->id)->exists();
+            $hasPtBatch = DB::table('pt_challan_batches')->where('client_id', $client->id)->exists();
+            $hasTdsBatch = DB::table('tds_24q_batches')->where('client_id', $client->id)->exists();
+
+            $pfStatus = ($hasPfBatch || ($filings->has('pf') && $filings['pf']->status === 'filed')) ? 'filed' : ($filings->has('pf') ? $filings['pf']->status : 'pending');
+            $esiStatus = ($hasEsiBatch || ($filings->has('esi') && $filings['esi']->status === 'filed')) ? 'filed' : ($filings->has('esi') ? $filings['esi']->status : 'pending');
+            $ptStatus = ($hasPtBatch || ($filings->has('pt') && $filings['pt']->status === 'filed')) ? 'filed' : ($filings->has('pt') ? $filings['pt']->status : 'pending');
+            $tdsStatus = ($hasTdsBatch || ($filings->has('tds') && $filings['tds']->status === 'filed')) ? 'filed' : ($filings->has('tds') ? $filings['tds']->status : 'pending');
+            $clraStatus = $filings->has('clra') ? $filings['clra']->status : 'pending';
+
             $clientData = [
                 'id' => $client->id,
                 'name' => $client->company_name,
@@ -67,25 +79,25 @@ class ComplianceController extends Controller
                 'headcount' => isset($clientHeadcounts[$client->id]) ? $clientHeadcounts[$client->id] : $client->employees()->where('status', 'active')->count(),
                 'filings' => [
                     'pf' => [
-                        'status' => $filings->has('pf') ? $filings['pf']->status : 'pending',
+                        'status' => $pfStatus,
                         'due_date' => $pfDue->format('d M Y'),
                         'registration' => $pfRegistration,
                     ],
                     'esi' => [
-                        'status' => $filings->has('esi') ? $filings['esi']->status : 'pending',
+                        'status' => $esiStatus,
                         'due_date' => $esiDue->format('d M Y'),
                         'registration' => $esiRegistration,
                     ],
                     'pt' => [
-                        'status' => $filings->has('pt') ? $filings['pt']->status : 'pending',
+                        'status' => $ptStatus,
                         'due_date' => $ptDue ? $ptDue->format('d M Y') : 'Not Applicable'
                     ],
                     'tds' => [
-                        'status' => $filings->has('tds') ? $filings['tds']->status : 'pending',
+                        'status' => $tdsStatus,
                         'due_date' => $tdsDue->format('d M Y')
                     ],
                     'clra' => [
-                        'status' => $filings->has('clra') ? $filings['clra']->status : 'pending',
+                        'status' => $clraStatus,
                         'due_date' => $client->clra_license_expiry 
                                         ? Carbon::parse($client->clra_license_expiry)->format('d M Y') 
                                         : 'Not Tracked'
