@@ -21,6 +21,7 @@ class EsiMonthlyBatch extends Model
         'downloaded_at' => 'datetime',
         'total_wages' => 'decimal:2',
         'employee_count' => 'integer',
+        'zero_day_reasons' => 'array',
     ];
 
     public function client()

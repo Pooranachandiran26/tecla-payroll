@@ -307,8 +307,18 @@ Route::middleware(['auth', 'active'])->group(function () {
 
                 // ESI Monthly Contribution Routes
                 Route::get('/compliance/esi-monthly/runs', [EsiMonthlyController::class, 'getRuns'])->name('compliance.esi_monthly.runs');
+                Route::get('/compliance/esi-monthly/reason-codes', [EsiMonthlyController::class, 'reasonCodes'])->name('compliance.esi_monthly.reason_codes');
+                Route::post('/compliance/esi-monthly/preview', [EsiMonthlyController::class, 'preview'])->name('compliance.esi_monthly.preview');
                 Route::post('/compliance/esi-monthly/generate', [EsiMonthlyController::class, 'generate'])->name('compliance.esi_monthly.generate');
                 Route::get('/compliance/esi-monthly/download/{id}', [EsiMonthlyController::class, 'download'])->name('compliance.esi_monthly.download');
+
+                // PT Challan Helper & Reconciliation Routes
+                Route::get('/compliance/pt-challan/runs', [\App\Http\Controllers\PtChallanController::class, 'getRuns'])->name('compliance.pt_challan.runs');
+                Route::post('/compliance/pt-challan/preview', [\App\Http\Controllers\PtChallanController::class, 'preview'])->name('compliance.pt_challan.preview');
+                Route::post('/compliance/pt-challan/generate', [\App\Http\Controllers\PtChallanController::class, 'generate'])->name('compliance.pt_challan.generate');
+                Route::get('/compliance/pt-challan/download/{id}', [\App\Http\Controllers\PtChallanController::class, 'download'])->name('compliance.pt_challan.download');
+                Route::post('/compliance/pt-challan/update-status/{id}', [\App\Http\Controllers\PtChallanController::class, 'updateStatus'])->name('compliance.pt_challan.update_status');
+                Route::delete('/compliance/pt-challan/{id}', [\App\Http\Controllers\PtChallanController::class, 'destroy'])->name('compliance.pt_challan.destroy');
             });
 
             // Reports Module (Gated by module:reports)

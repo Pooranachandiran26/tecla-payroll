@@ -47,19 +47,43 @@ export default function ComplianceReports() {
   const [esiGenerating, setEsiGenerating] = useState(false);
   const [lastEsiBatch, setLastEsiBatch] = useState(null);
   const [esiError, setEsiError] = useState('');
+  const [esiReasonCodes, setEsiReasonCodes] = useState([]);
+  const [esiZeroDayEmployees, setEsiZeroDayEmployees] = useState([]);
+  const [esiReasonSelections, setEsiReasonSelections] = useState({});
 
   const fetchEsiRuns = async () => {
     setEsiLoadingRuns(true);
     try {
-      const response = await axios.get(route('compliance.esi_monthly.runs'));
-      const fetchedRuns = response.data.runs || [];
+      const [runsRes, reasonRes] = await Promise.all([
+        axios.get(route('compliance.esi_monthly.runs')),
+        axios.get(route('compliance.esi_monthly.reason_codes')),
+      ]);
+      const fetchedRuns = runsRes.data.runs || [];
       setEsiRuns(fetchedRuns);
-      setEsiBatches(response.data.batches || []);
-      setSelectedEsiRunId(fetchedRuns.length > 0 ? String(fetchedRuns[0].id) : '');
+      setEsiBatches(runsRes.data.batches || []);
+      setEsiReasonCodes(reasonRes.data.codes || []);
+      const firstId = fetchedRuns.length > 0 ? String(fetchedRuns[0].id) : '';
+      setSelectedEsiRunId(firstId);
+      if (firstId) handlePreviewEsi(firstId);
     } catch (err) {
       showToast('❌ Failed to fetch locked payroll runs for ESI Monthly Contribution.', 'error');
     } finally {
       setEsiLoadingRuns(false);
+    }
+  };
+
+  const handlePreviewEsi = async (runIdToPreview) => {
+    const targetId = runIdToPreview || selectedEsiRunId;
+    if (!targetId) return;
+    setEsiZeroDayEmployees([]);
+    setEsiReasonSelections({});
+    try {
+      const response = await axios.post(route('compliance.esi_monthly.preview'), {
+        payroll_run_id: targetId
+      });
+      setEsiZeroDayEmployees(response.data.zero_day_employees || []);
+    } catch (err) {
+      // Non-fatal for the modal; generate() will surface any real error.
     }
   };
 
@@ -71,13 +95,25 @@ export default function ComplianceReports() {
     }
   }, [isEsiModalOpen]);
 
+  const handleEsiReasonChange = (employeeId, code) => {
+    setEsiReasonSelections(prev => ({ ...prev, [employeeId]: code === '' ? undefined : Number(code) }));
+  };
+
   const handleGenerateEsi = async () => {
     if (!selectedEsiRunId) return;
+
+    const missing = esiZeroDayEmployees.filter(e => esiReasonSelections[e.employee_id] === undefined);
+    if (missing.length > 0) {
+      setEsiError(`Select a Reason for 0 Wages for: ${missing.map(e => e.employee_name).join(', ')}`);
+      return;
+    }
+
     setEsiGenerating(true);
     setEsiError('');
     try {
       const response = await axios.post(route('compliance.esi_monthly.generate'), {
-        payroll_run_id: selectedEsiRunId
+        payroll_run_id: selectedEsiRunId,
+        reasons: esiReasonSelections,
       });
       if (response.data.success) {
         showToast('🎉 ESI Monthly Contribution .xls file generated successfully!');
@@ -91,6 +127,83 @@ export default function ComplianceReports() {
       showToast(`❌ ${errorMsg}`, 'error');
     } finally {
       setEsiGenerating(false);
+    }
+  };
+
+  // PT Challan Modal & Feature State
+  const [isPtModalOpen, setIsPtModalOpen] = useState(false);
+  const [ptLoadingRuns, setPtLoadingRuns] = useState(false);
+  const [ptRuns, setPtRuns] = useState([]);
+  const [ptBatches, setPtBatches] = useState([]);
+  const [selectedPtRunId, setSelectedPtRunId] = useState('');
+  const [ptGenerating, setPtGenerating] = useState(false);
+  const [lastPtBatch, setLastPtBatch] = useState(null);
+  const [ptError, setPtError] = useState('');
+  const [ptPreviewData, setPtPreviewData] = useState(null);
+
+  const fetchPtRuns = async () => {
+    setPtLoadingRuns(true);
+    try {
+      const response = await axios.get(route('compliance.pt_challan.runs'));
+      const fetchedRuns = response.data.runs || [];
+      setPtRuns(fetchedRuns);
+      setPtBatches(response.data.batches || []);
+      if (fetchedRuns.length > 0) {
+        const firstId = String(fetchedRuns[0].id);
+        setSelectedPtRunId(firstId);
+        handlePreviewPt(firstId);
+      } else {
+        setSelectedPtRunId('');
+        setPtPreviewData(null);
+      }
+    } catch (err) {
+      showToast('❌ Failed to fetch locked payroll runs for PT Challan.', 'error');
+    } finally {
+      setPtLoadingRuns(false);
+    }
+  };
+
+  const handlePreviewPt = async (runIdToPreview) => {
+    const targetId = runIdToPreview || selectedPtRunId;
+    if (!targetId) return;
+    try {
+      const response = await axios.post(route('compliance.pt_challan.preview'), {
+        payroll_run_id: targetId
+      });
+      setPtPreviewData(response.data);
+    } catch (err) {
+      setPtPreviewData(null);
+    }
+  };
+
+  useEffect(() => {
+    if (isPtModalOpen) {
+      setLastPtBatch(null);
+      setPtError('');
+      fetchPtRuns();
+    }
+  }, [isPtModalOpen]);
+
+  const handleGeneratePt = async () => {
+    if (!selectedPtRunId) return;
+    setPtGenerating(true);
+    setPtError('');
+    try {
+      const response = await axios.post(route('compliance.pt_challan.generate'), {
+        payroll_run_id: selectedPtRunId
+      });
+      if (response.data.success) {
+        showToast('🎉 PT State-wise Challan Report (.xlsx) generated successfully!');
+        setLastPtBatch(response.data);
+        fetchPtRuns();
+      }
+    } catch (err) {
+      const errorList = err.response?.data?.errors?.pt;
+      const errorMsg = Array.isArray(errorList) ? errorList.join(' ') : (err.response?.data?.message || 'PT report generation failed.');
+      setPtError(errorMsg);
+      showToast(`❌ ${errorMsg}`, 'error');
+    } finally {
+      setPtGenerating(false);
     }
   };
 
@@ -248,7 +361,7 @@ export default function ComplianceReports() {
       isFunctional: true
     },
     { id: 'esi', title: 'ESI Monthly File', badge: 'ESIC Portal', color: 'success', desc: 'Monthly contribution file for ESI-eligible employees from locked payroll data. Standard 6-column ESIC bulk upload sheet (Excel 97-2003, no header).', action: 'ESI Contribution Excel', btnText: 'Generate ESI (.xls)', isFunctional: true },
-    { id: 'pt', title: 'PT Challan Summary', badge: 'State-wise', color: 'warning', desc: 'Aggregates Professional Tax deductions across all applicable state slabs based on employee work locations.', action: 'PT State-wise Challans', btnText: 'Generate PT Summary (.pdf)', isFunctional: false },
+    { id: 'pt', title: 'PT Challan Summary', badge: 'State-wise', color: 'success', desc: 'Aggregates Professional Tax deductions across state slabs (Maharashtra, Karnataka, Tamil Nadu) from locked payroll. Generates 2-sheet return helper report (.xlsx).', action: 'PT State-wise Challans', btnText: 'Generate PT Report (.xlsx)', isFunctional: true },
     { id: 'tds', title: 'TDS Form 24Q', badge: 'Quarterly', color: 'info', desc: 'Generates consolidated Annexure-II salary and tax declaration data for quarterly income tax filings.', action: 'TDS Q1 Return Dataset', btnText: 'Generate Form 24Q (.csv)', isFunctional: false },
     { id: 'gstr1', title: 'GSTR-1 Summary', badge: 'Monthly', color: 'neutral', desc: 'Extracts outward supplies and agency service invoice summaries for GST filing (B2B transactions).', action: 'GSTR-1 Export', btnText: 'Export GSTR-1 (.csv)', isFunctional: false },
     { id: 'audit', title: 'Client Audit Pack', badge: 'Consolidated', color: 'neutral', desc: 'Generates a complete compliance zip file per client including PF/ESI challan copies and registers.', action: 'Consolidated Client Audit Pack', btnText: 'Generate Audit Pack (.zip)', isFunctional: false }
@@ -366,7 +479,11 @@ export default function ComplianceReports() {
                   <Button
                     variant="navy"
                     className="w-full justify-center bg-blue-900 hover:bg-blue-800 text-white font-bold"
-                    onClick={() => report.id === 'esi' ? setIsEsiModalOpen(true) : setIsEcrModalOpen(true)}
+                    onClick={() => {
+                      if (report.id === 'esi') setIsEsiModalOpen(true);
+                      else if (report.id === 'pt') setIsPtModalOpen(true);
+                      else setIsEcrModalOpen(true);
+                    }}
                   >
                     {report.btnText}
                   </Button>
@@ -733,7 +850,10 @@ export default function ComplianceReports() {
                 <Select
                   label="Select Payroll Run"
                   value={selectedEsiRunId}
-                  onChange={(e) => setSelectedEsiRunId(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedEsiRunId(e.target.value);
+                    handlePreviewEsi(e.target.value);
+                  }}
                   options={esiRuns.map(r => ({
                     value: String(r.id),
                     label: `${r.client_name} — Run ${r.run_code} (${r.payroll_month}) [LOCKED]`
@@ -742,6 +862,47 @@ export default function ComplianceReports() {
                 />
               )}
             </div>
+
+            {esiZeroDayEmployees.length > 0 && (
+              <div className="bg-amber-50 border border-amber-200 p-4 rounded-md space-y-2">
+                <h4 className="font-bold text-sm text-amber-900 m-0">
+                  {esiZeroDayEmployees.length} employee(s) with 0 paid days — Reason for 0 Wages required
+                </h4>
+                <div className="overflow-x-auto border border-amber-200 rounded bg-white">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-amber-100 text-amber-900 font-bold border-b">
+                      <tr>
+                        <th className="p-2">Employee</th>
+                        <th className="p-2">Days</th>
+                        <th className="p-2">Wages</th>
+                        <th className="p-2">ESIC Reason</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {esiZeroDayEmployees.map(emp => (
+                        <tr key={emp.employee_id} className="border-b">
+                          <td className="p-2">{emp.employee_name} ({emp.employee_code})</td>
+                          <td className="p-2">{emp.paid_days}</td>
+                          <td className="p-2">₹{Number(emp.gross_total).toLocaleString('en-IN')}</td>
+                          <td className="p-2">
+                            <select
+                              className="text-xs border border-gray-300 rounded px-2 py-1 bg-white w-full"
+                              value={esiReasonSelections[emp.employee_id] ?? ''}
+                              onChange={(e) => handleEsiReasonChange(emp.employee_id, e.target.value)}
+                            >
+                              <option value="">Select reason...</option>
+                              {esiReasonCodes.map(rc => (
+                                <option key={rc.code} value={rc.code}>{rc.code} - {rc.name}</option>
+                              ))}
+                            </select>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
 
             {esiError && (
               <div className="bg-red-50 border border-red-200 border-l-4 border-l-red-600 p-4 rounded-md text-xs text-red-800">
@@ -802,6 +963,162 @@ export default function ComplianceReports() {
                               title="Download .XLS File"
                             >
                               <Download className="w-3.5 h-3.5" /> XLS
+                            </a>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        </Modal>
+
+        {/* PT Challan Modal */}
+        <Modal
+          isOpen={isPtModalOpen}
+          onClose={() => setIsPtModalOpen(false)}
+          title="Professional Tax (PT) State-Wise Filing Helper"
+          size="lg"
+        >
+          <div className="space-y-5">
+            <div className="bg-blue-50 border border-blue-200 p-3 rounded-md text-xs text-blue-900 leading-relaxed">
+              <strong>Professional Tax (PT) Return Helper:</strong> Aggregates Professional Tax deductions across state slabs (Maharashtra, Karnataka, Tamil Nadu, etc.) from <strong>locked payroll runs</strong>. Generates a 2-sheet Excel report containing state slab summaries and an employee-level PT register.
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-700 mb-1">
+                Select Locked Payroll Run:
+              </label>
+              {ptLoadingRuns ? (
+                <div className="text-xs text-gray-500 py-2">Loading locked payroll runs...</div>
+              ) : ptRuns.length === 0 ? (
+                <div className="text-xs text-amber-700 bg-amber-50 p-2.5 rounded border border-amber-200">
+                  ⚠️ No locked payroll runs found. Please lock a payroll run first.
+                </div>
+              ) : (
+                <select
+                  value={selectedPtRunId}
+                  onChange={(e) => {
+                    setSelectedPtRunId(e.target.value);
+                    handlePreviewPt(e.target.value);
+                  }}
+                  className="w-full text-xs border border-gray-300 rounded px-3 py-2 bg-white focus:outline-none focus:border-blue-500"
+                >
+                  {ptRuns.map(r => (
+                    <option key={r.id} value={r.id}>
+                      {r.client_name} — Wage Month: {r.payroll_month} (Run #{r.id})
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+
+            {ptPreviewData && ptPreviewData.states && ptPreviewData.states.length > 0 && (
+              <div className="bg-slate-50 border border-slate-200 p-3 rounded space-y-2">
+                <h4 className="font-bold text-xs text-slate-800 flex justify-between">
+                  <span>State PT Summary Preview ({ptPreviewData.client_name})</span>
+                  <span>Total PT: ₹{Number(ptPreviewData.total_pt_amount).toLocaleString('en-IN')}</span>
+                </h4>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-slate-200 text-slate-700 font-bold border-b">
+                      <tr>
+                        <th className="p-1.5">State</th>
+                        <th className="p-1.5">PT Reg / TIN No</th>
+                        <th className="p-1.5 text-right">Employees</th>
+                        <th className="p-1.5 text-right">Total Gross</th>
+                        <th className="p-1.5 text-right">Total PT</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ptPreviewData.states.map((s, idx) => (
+                        <tr key={idx} className="border-b bg-white">
+                          <td className="p-1.5 font-bold">{s.state}</td>
+                          <td className="p-1.5 font-mono text-gray-600">{s.pt_reg_no}</td>
+                          <td className="p-1.5 text-right">{s.count}</td>
+                          <td className="p-1.5 text-right">₹{Number(s.total_gross).toLocaleString('en-IN')}</td>
+                          <td className="p-1.5 text-right font-bold text-blue-900">₹{Number(s.total_pt).toLocaleString('en-IN')}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3 pt-2">
+              <Button variant="secondary" onClick={() => setIsPtModalOpen(false)}>Close</Button>
+              <Button
+                variant="primary"
+                onClick={handleGeneratePt}
+                disabled={!selectedPtRunId || ptGenerating || ptRuns.length === 0}
+                className="bg-blue-900 hover:bg-blue-800 text-white font-bold"
+              >
+                {ptGenerating ? 'Generating...' : 'Generate PT Report (.xlsx)'}
+              </Button>
+            </div>
+
+            {ptError && (
+              <div className="bg-red-50 border border-red-300 text-red-700 p-3 rounded text-xs space-y-1">
+                <div className="font-bold flex items-center gap-1">
+                  <AlertTriangle className="w-4 h-4 text-red-600" /> PT Generation Blocked:
+                </div>
+                <div>{ptError}</div>
+              </div>
+            )}
+
+            {lastPtBatch && (
+              <div className="bg-green-50 border border-green-300 p-4 rounded-md text-center space-y-3">
+                <CheckCircle2 className="w-10 h-10 text-green-600 mx-auto" />
+                <h4 className="font-bold text-base text-green-900">PT State-Wise Report Generated</h4>
+                <p className="text-xs text-green-800">
+                  Generated file: <strong>{lastPtBatch.file_name}</strong> — {lastPtBatch.employee_count} employee(s), total PT ₹{Number(lastPtBatch.total_pt_amount).toLocaleString('en-IN')}
+                </p>
+                <a
+                  href={lastPtBatch.download_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 bg-green-700 hover:bg-green-800 text-white text-xs font-bold px-4 py-2 rounded shadow"
+                >
+                  <Download className="w-4 h-4" /> Download .XLSX Report
+                </a>
+              </div>
+            )}
+
+            {ptBatches.length > 0 && (
+              <div className="space-y-2 pt-4 border-t border-gray-200">
+                <h4 className="font-bold text-sm text-blue-900">PT Generation History</h4>
+                <div className="overflow-x-auto border border-gray-200 rounded">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-slate-100 text-gray-700 font-bold border-b">
+                      <tr>
+                        <th className="p-2">Batch #</th>
+                        <th className="p-2">Client</th>
+                        <th className="p-2">Month</th>
+                        <th className="p-2">Employees</th>
+                        <th className="p-2">Total PT</th>
+                        <th className="p-2">Status</th>
+                        <th className="p-2">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ptBatches.map(b => (
+                        <tr key={b.id} className="border-b hover:bg-slate-50">
+                          <td className="p-2 font-mono">#PT-{b.id}</td>
+                          <td className="p-2">{b.client_name}</td>
+                          <td className="p-2">{b.wage_month}</td>
+                          <td className="p-2">{b.employee_count}</td>
+                          <td className="p-2 font-bold">₹{Number(b.total_pt_amount).toLocaleString('en-IN')}</td>
+                          <td className="p-2"><Badge variant={b.status === 'downloaded' ? 'success' : 'info'}>{b.status}</Badge></td>
+                          <td className="p-2">
+                            <a
+                              href={b.download_url}
+                              className="text-blue-600 hover:underline flex items-center gap-1 font-bold"
+                              title="Download .XLSX File"
+                            >
+                              <Download className="w-3.5 h-3.5" /> XLSX
                             </a>
                           </td>
                         </tr>

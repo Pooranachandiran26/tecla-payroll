@@ -228,12 +228,201 @@ class EsiMonthlyContributionTest extends TestCase
         $this->assertNotEquals('IP Number', $ipNumberCell);
         $this->assertContains($ipNumberCell, ['3100223344000101', '3100223344000102']);
 
-        // Exactly 6 columns per row.
+        // Exactly 6 columns per row, all explicit Text; active employees -> Reason Code "0", blank Last Working Day.
         for ($row = 1; $row <= 2; $row++) {
             $rowData = $sheet->rangeToArray("A{$row}:G{$row}")[0];
             $this->assertNotEmpty($rowData[0], "Row {$row} column A (IP Number) should not be empty");
             $this->assertNull($rowData[6] ?? null, "Row {$row} must not have a 7th column");
+            $this->assertEquals('0', (string) $rowData[4], "Row {$row} active employee should have Reason Code '0'");
+            $this->assertEquals('', trim((string) ($rowData[5] ?? '')), "Row {$row} active employee should have blank Last Working Day");
+
+            foreach (['A', 'B', 'C', 'D', 'E', 'F'] as $colLetter) {
+                $this->assertEquals(
+                    \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING,
+                    $sheet->getCell("{$colLetter}{$row}")->getDataType(),
+                    "Cell {$colLetter}{$row} must be explicit Text type"
+                );
+            }
         }
+    }
+
+    /** @test */
+    public function active_employee_without_exit_gets_reason_code_zero()
+    {
+        $run = PayrollRun::create([
+            'client_id' => $this->client->id,
+            'payroll_month' => '2026-06-01',
+            'status' => 'draft',
+        ]);
+
+        $emp = $this->makeEmployee([
+            'employee_code' => 'ESI-045',
+            'esi_applicable' => true,
+            'last_working_day' => null,
+        ]);
+        PayrollRunItem::create(array_merge($this->baseRunItemAttrs(), [
+            'payroll_run_id' => $run->id,
+            'employee_id' => $emp->id,
+        ]));
+        $run->update(['status' => 'locked']);
+
+        $response = $this->actingAs($this->adminUser)
+            ->postJson(route('compliance.esi_monthly.generate'), ['payroll_run_id' => $run->id]);
+
+        $batch = EsiMonthlyBatch::find($response->json('batch_id'));
+        $sheet = IOFactory::load(Storage::disk('local')->path($batch->file_path))->getActiveSheet();
+
+        $this->assertEquals('0', (string) $sheet->getCell('E1')->getValue());
+        $this->assertEquals('', trim((string) $sheet->getCell('F1')->getValue()));
+    }
+
+    /** @test */
+    public function master_table_contains_all_fourteen_official_codes()
+    {
+        $this->assertDatabaseCount('esi_reason_codes', 14);
+        foreach (range(0, 13) as $code) {
+            $this->assertDatabaseHas('esi_reason_codes', ['code' => $code]);
+        }
+    }
+
+    /** @test */
+    public function zero_days_without_reason_selection_is_rejected()
+    {
+        $run = PayrollRun::create(['client_id' => $this->client->id, 'payroll_month' => '2026-06-01', 'status' => 'draft']);
+        $emp = $this->makeEmployee(['esi_applicable' => true]);
+        PayrollRunItem::create(array_merge($this->baseRunItemAttrs(), [
+            'payroll_run_id' => $run->id,
+            'employee_id' => $emp->id,
+            'paid_days' => 0,
+        ]));
+        $run->update(['status' => 'locked']);
+
+        $response = $this->actingAs($this->adminUser)
+            ->postJson(route('compliance.esi_monthly.generate'), ['payroll_run_id' => $run->id]);
+
+        $response->assertStatus(422);
+        $this->assertStringContainsString('Reason for 0 Wages must be selected', $response->json('errors.esi.0'));
+    }
+
+    /** @test */
+    public function invalid_reason_code_is_rejected()
+    {
+        $run = PayrollRun::create(['client_id' => $this->client->id, 'payroll_month' => '2026-06-01', 'status' => 'draft']);
+        $emp = $this->makeEmployee(['esi_applicable' => true]);
+        PayrollRunItem::create(array_merge($this->baseRunItemAttrs(), [
+            'payroll_run_id' => $run->id,
+            'employee_id' => $emp->id,
+            'paid_days' => 0,
+        ]));
+        $run->update(['status' => 'locked']);
+
+        $response = $this->actingAs($this->adminUser)
+            ->postJson(route('compliance.esi_monthly.generate'), [
+                'payroll_run_id' => $run->id,
+                'reasons' => [(string) $emp->id => 999],
+            ]);
+
+        $response->assertStatus(422);
+        $this->assertStringContainsString('invalid or inactive', $response->json('errors.esi.0'));
+    }
+
+    /** @test */
+    public function inactive_reason_code_is_rejected()
+    {
+        \App\Models\EsiReasonCode::where('code', 1)->update(['is_active' => false]);
+
+        $run = PayrollRun::create(['client_id' => $this->client->id, 'payroll_month' => '2026-06-01', 'status' => 'draft']);
+        $emp = $this->makeEmployee(['esi_applicable' => true]);
+        PayrollRunItem::create(array_merge($this->baseRunItemAttrs(), [
+            'payroll_run_id' => $run->id,
+            'employee_id' => $emp->id,
+            'paid_days' => 0,
+        ]));
+        $run->update(['status' => 'locked']);
+
+        $response = $this->actingAs($this->adminUser)
+            ->postJson(route('compliance.esi_monthly.generate'), [
+                'payroll_run_id' => $run->id,
+                'reasons' => [(string) $emp->id => 1],
+            ]);
+
+        $response->assertStatus(422);
+        $this->assertStringContainsString('invalid or inactive', $response->json('errors.esi.0'));
+    }
+
+    /** @test */
+    public function reason_requiring_last_working_day_without_one_is_rejected()
+    {
+        $run = PayrollRun::create(['client_id' => $this->client->id, 'payroll_month' => '2026-06-01', 'status' => 'draft']);
+        $emp = $this->makeEmployee(['esi_applicable' => true, 'last_working_day' => null]);
+        PayrollRunItem::create(array_merge($this->baseRunItemAttrs(), [
+            'payroll_run_id' => $run->id,
+            'employee_id' => $emp->id,
+            'paid_days' => 0,
+        ]));
+        $run->update(['status' => 'locked']);
+
+        // code 2 = Left Service, requires_last_working_day = true
+        $response = $this->actingAs($this->adminUser)
+            ->postJson(route('compliance.esi_monthly.generate'), [
+                'payroll_run_id' => $run->id,
+                'reasons' => [(string) $emp->id => 2],
+            ]);
+
+        $response->assertStatus(422);
+        $this->assertStringContainsString('requires a Last Working Day', $response->json('errors.esi.0'));
+    }
+
+    /** @test */
+    public function zero_days_with_valid_reason_and_last_working_day_generates_file()
+    {
+        $run = PayrollRun::create(['client_id' => $this->client->id, 'payroll_month' => '2026-06-01', 'status' => 'draft']);
+        $emp = $this->makeEmployee(['esi_applicable' => true, 'last_working_day' => '2026-06-10']);
+        PayrollRunItem::create(array_merge($this->baseRunItemAttrs(), [
+            'payroll_run_id' => $run->id,
+            'employee_id' => $emp->id,
+            'paid_days' => 0,
+        ]));
+        $run->update(['status' => 'locked']);
+
+        $response = $this->actingAs($this->adminUser)
+            ->postJson(route('compliance.esi_monthly.generate'), [
+                'payroll_run_id' => $run->id,
+                'reasons' => [(string) $emp->id => 2],
+            ]);
+
+        $response->assertStatus(200)->assertJson(['success' => true, 'employee_count' => 1]);
+
+        $batch = EsiMonthlyBatch::find($response->json('batch_id'));
+        $sheet = IOFactory::load(Storage::disk('local')->path($batch->file_path))->getActiveSheet();
+        $rowData = $sheet->rangeToArray('A1:F1')[0];
+
+        $this->assertEquals('0', (string) $rowData[2], 'No of Days should be 0');
+        $this->assertEquals('2', (string) $rowData[4], 'Reason code should be 2 (Left Service)');
+        $this->assertEquals('10-06-2026', (string) $rowData[5]);
+        $this->assertEquals([$emp->id => 2], $batch->zero_day_reasons);
+    }
+
+    /** @test */
+    public function reason_not_requiring_last_working_day_succeeds_without_one()
+    {
+        $run = PayrollRun::create(['client_id' => $this->client->id, 'payroll_month' => '2026-06-01', 'status' => 'draft']);
+        $emp = $this->makeEmployee(['esi_applicable' => true, 'last_working_day' => null]);
+        PayrollRunItem::create(array_merge($this->baseRunItemAttrs(), [
+            'payroll_run_id' => $run->id,
+            'employee_id' => $emp->id,
+            'paid_days' => 0,
+        ]));
+        $run->update(['status' => 'locked']);
+
+        // code 1 = On Leave, requires_last_working_day = false
+        $response = $this->actingAs($this->adminUser)
+            ->postJson(route('compliance.esi_monthly.generate'), [
+                'payroll_run_id' => $run->id,
+                'reasons' => [(string) $emp->id => 1],
+            ]);
+
+        $response->assertStatus(200)->assertJson(['success' => true]);
     }
 
     /** @test */
