@@ -14,6 +14,23 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
     const [month, setMonth] = useState(selectedMonth);
     const existingDraftRun = pendingSupplementaryRuns && pendingSupplementaryRuns.find(r => r.status === 'draft');
 
+    // Merge run items with newHires so newly uploaded employees appear in correction modals
+    const newHireItems = (newHires || []).map(nh => ({
+        employee_id: nh.id,
+        full_name: nh.full_name,
+        employee_code: nh.employee_code,
+        paid_days: 0,
+        lop_days: 0,
+        net_pay: 0,
+        gross_total: 0,
+        is_new_hire: true,
+    }));
+    const existingEmpIds = new Set((items || []).map(i => String(i.employee_id)));
+    const correctionItems = [
+        ...(items || []),
+        ...newHireItems.filter(nh => !existingEmpIds.has(String(nh.employee_id))),
+    ];
+
     const [showBreakdown, setShowBreakdown] = useState(false);
     const [showDisbursementModal, setShowDisbursementModal] = useState(false);
     const [showSingleCorrectionModal, setShowSingleCorrectionModal] = useState(false);
@@ -698,14 +715,14 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
                     isOpen={showSingleCorrectionModal} 
                     onClose={() => setShowSingleCorrectionModal(false)} 
                     parentRun={run} 
-                    items={items} 
+                    items={correctionItems} 
                 />
 
                 <BatchPayrollCorrectionModal 
                     isOpen={showBatchCorrectionModal} 
                     onClose={() => setShowBatchCorrectionModal(false)} 
                     parentRun={run} 
-                    items={items} 
+                    items={correctionItems} 
                 />
             </AuthenticatedLayout>
         </RoleGuard>
