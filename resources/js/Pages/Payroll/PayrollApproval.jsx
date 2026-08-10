@@ -8,11 +8,28 @@ import './PayrollApproval.css';
 import PayrollCorrectionModal from '../../Components/PayrollCorrectionModal';
 import BatchPayrollCorrectionModal from '../../Components/BatchPayrollCorrectionModal';
 
-export default function PayrollApproval({ clients, selectedClientId, selectedMonth, run, items, preflight, cycleInfo, newHires = [], pendingSupplementaryRuns = [] }) {
+export default function PayrollApproval({ clients, selectedClientId, selectedMonth, run, items, preflight, cycleInfo, newHires = [], pendingSupplementaryRuns = [], allowTestingBypass = false }) {
     const { showToast } = useToast();
     const [clientId, setClientId] = useState(selectedClientId);
     const [month, setMonth] = useState(selectedMonth);
     const existingDraftRun = pendingSupplementaryRuns && pendingSupplementaryRuns.find(r => r.status === 'draft');
+
+    // Merge run items with newHires so newly uploaded employees appear in correction modals
+    const newHireItems = (newHires || []).map(nh => ({
+        employee_id: nh.id,
+        full_name: nh.full_name,
+        employee_code: nh.employee_code,
+        paid_days: 0,
+        lop_days: 0,
+        net_pay: 0,
+        gross_total: 0,
+        is_new_hire: true,
+    }));
+    const existingEmpIds = new Set((items || []).map(i => String(i.employee_id)));
+    const correctionItems = [
+        ...(items || []),
+        ...newHireItems.filter(nh => !existingEmpIds.has(String(nh.employee_id))),
+    ];
 
     const [showBreakdown, setShowBreakdown] = useState(false);
     const [showDisbursementModal, setShowDisbursementModal] = useState(false);
@@ -23,10 +40,7 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
     const [showSupplementaryModal, setShowSupplementaryModal] = useState(() => {
         if (typeof window !== 'undefined') {
             const params = new URLSearchParams(window.location.search);
-            const val = params.get('open_supplementary_modal');
-            const hasDraft = pendingSupplementaryRuns && pendingSupplementaryRuns.some(r => r.status === 'draft');
-            if (hasDraft) return false;
-            return val === 'true' || val === '1';
+            return params.get('open_supplementary') === 'true';
         }
         return false;
     });
@@ -547,20 +561,30 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
                 {/* Supplementary Run Modal */}
                 {showSupplementaryModal && (() => {
                     const allCandidates = [
-                        ...excludedItems.map(item => ({
-                            ...item,
-                            candidateType: 'Excluded',
-                            isEligible: !item.exclusion_reason?.includes('No attendance data') && !item.exclusion_reason?.includes('Incomplete bank details'),
-                            statusText: item.exclusion_reason
-                        })),
-                        ...newHires.map(item => ({
-                            ...item,
-                            candidateType: 'New Hire',
-                            isEligible: item.is_eligible !== false,
-                            statusText: item.is_eligible === false 
-                                ? `Skipped: ${(item.exclusions || ['No attendance data']).join(', ')}` 
-                                : `New Hire (Joined ${item.date_of_joining})`
-                        }))
+                        ...excludedItems.map(item => {
+                            const isMissingAttendanceOnly = item.exclusion_reason?.includes('No attendance data') && !item.exclusion_reason?.includes('Incomplete bank details');
+                            const isEligible = allowTestingBypass || (!item.exclusion_reason?.includes('No attendance data') && !item.exclusion_reason?.includes('Incomplete bank details'));
+                            return {
+                                ...item,
+                                candidateType: 'Excluded',
+                                isEligible: isEligible,
+                                statusText: (allowTestingBypass && isMissingAttendanceOnly) ? 'Testing Mode Active (Attendance requirement bypassed)' : item.exclusion_reason
+                            };
+                        }),
+                        ...newHires.map(item => {
+                            const hasOnlyNoAttendanceExclusion = item.is_eligible === false && (item.exclusions || []).every(e => e.includes('No attendance data'));
+                            const isEligible = allowTestingBypass || item.is_eligible !== false;
+                            return {
+                                ...item,
+                                candidateType: 'New Hire',
+                                isEligible: isEligible,
+                                statusText: (allowTestingBypass && item.is_eligible === false && hasOnlyNoAttendanceExclusion)
+                                    ? 'Testing Mode Active (Attendance requirement bypassed)'
+                                    : (item.is_eligible === false 
+                                        ? `Skipped: ${(item.exclusions || ['No attendance data']).join(', ')}` 
+                                        : `New Hire (Joined ${item.date_of_joining})`)
+                            };
+                        })
                     ];
 
                     const eligibleCandidates = allCandidates.filter(c => c.isEligible);
@@ -691,14 +715,14 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
                     isOpen={showSingleCorrectionModal} 
                     onClose={() => setShowSingleCorrectionModal(false)} 
                     parentRun={run} 
-                    items={items} 
+                    items={correctionItems} 
                 />
 
                 <BatchPayrollCorrectionModal 
                     isOpen={showBatchCorrectionModal} 
                     onClose={() => setShowBatchCorrectionModal(false)} 
                     parentRun={run} 
-                    items={items} 
+                    items={correctionItems} 
                 />
             </AuthenticatedLayout>
         </RoleGuard>

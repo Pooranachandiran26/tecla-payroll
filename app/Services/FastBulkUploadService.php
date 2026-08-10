@@ -326,18 +326,34 @@ class FastBulkUploadService
         if (empty($normalizedRow['account_holder_name'])) $errors[] = "Account holder name is required.";
         if (empty($normalizedRow['pan_number'])) $errors[] = "PAN number is required.";
 
+        // Reporting Manager Resolution (Supports reporting_manager_code, reporting_to, reporting_manager_id)
         $reportingManagerId = null;
-        if (!empty($normalizedRow['reporting_manager_code'])) {
-            $managerCode = $normalizedRow['reporting_manager_code'];
-            $manager = $allManagers->get($managerCode);
-            if (!$manager) {
-                $errors[] = "Reporting manager code '{$managerCode}' not found.";
-            } elseif ($client && $manager->client_id !== $client->id) {
-                $managerClient = $allClients->first(fn($c) => $c->id === $manager->client_id);
-                $managerClientName = $managerClient ? $managerClient->company_name : 'Unknown';
-                $errors[] = "Reporting manager '{$managerCode}' belongs to a different client ('{$managerClientName}'). Reporting manager must belong to the same client.";
+        $rawManagerVal = $normalizedRow['reporting_manager_code'] 
+            ?? $normalizedRow['reporting_to'] 
+            ?? $normalizedRow['reporting_manager_id'] 
+            ?? $normalizedRow['reporting_manager'] 
+            ?? null;
+
+        if (!empty($rawManagerVal)) {
+            $managerCodeStr = trim((string)$rawManagerVal);
+            $manager = $allManagers->get($managerCodeStr);
+
+            if (!$manager && is_numeric($managerCodeStr)) {
+                $manager = $allManagers->first(fn($m) => (int)$m->id === (int)$managerCodeStr);
+            }
+
+            if ($manager) {
+                if ($client && $manager->client_id !== $client->id) {
+                    $managerClient = $allClients->first(fn($c) => $c->id === $manager->client_id);
+                    $managerClientName = $managerClient ? $managerClient->company_name : 'Unknown';
+                    $warnings[] = "Reporting manager '{$managerCodeStr}' belongs to a different client ('{$managerClientName}'). Assigned reporting_manager_id set to null.";
+                    $reportingManagerId = null;
+                } else {
+                    $reportingManagerId = $manager->id;
+                }
             } else {
-                $reportingManagerId = $manager->id;
+                $warnings[] = "Reporting manager '{$managerCodeStr}' not found in active employees. Field left unassigned.";
+                $reportingManagerId = null;
             }
         }
 
@@ -363,10 +379,17 @@ class FastBulkUploadService
             }
         }
 
-        $doj = $normalizedRow['date_of_joining'] ?? null;
-        $attendanceTrackingStartDate = !empty($normalizedRow['attendance_tracking_start_date']) ? $normalizedRow['attendance_tracking_start_date'] : $doj;
+        $dob = $this->formatExcelDate($normalizedRow['date_of_birth'] ?? null);
+        $doj = $this->formatExcelDate($normalizedRow['date_of_joining'] ?? null);
+        $probationEndDate = $this->formatExcelDate($normalizedRow['probation_end_date'] ?? null);
+        $attendanceTrackingStartDate = $this->formatExcelDate($normalizedRow['attendance_tracking_start_date'] ?? null) ?: $doj;
+        $esiPeriodEnd = $this->formatExcelDate($normalizedRow['esi_contribution_period_end'] ?? null);
 
         $validationData = array_merge($normalizedRow, [
+            'client_id' => $client ? $client->id : null,
+            'branch_id' => $branchId ?: ($client && $client->branches->first() ? $client->branches->first()->id : 1),
+            'date_of_birth' => $dob,
+            'date_of_joining' => $doj,
             'employment_model' => $employmentModel,
             'pf_applicable' => $pfApplicable,
             'eps_applicable' => $epsApplicable,
@@ -383,9 +406,10 @@ class FastBulkUploadService
             'uan_mode' => in_array(strtolower(trim((string)($normalizedRow['uan_mode'] ?? ''))), ['new', 'existing_transfer'], true) ? strtolower(trim((string)$normalizedRow['uan_mode'])) : 'new',
             'esi_mode' => $normalizedRow['esi_mode'] ?? 'new',
             'declarations_accepted' => true,
-            'reporting_manager_id' => $reportingManagerId,
-            'probation_end_date' => !empty($normalizedRow['probation_end_date']) ? $normalizedRow['probation_end_date'] : null,
+            'reporting_manager_id' => (!empty($reportingManagerId) && is_numeric($reportingManagerId) && (int)$reportingManagerId > 0) ? (int)$reportingManagerId : null,
+            'probation_end_date' => $probationEndDate,
             'attendance_tracking_start_date' => $attendanceTrackingStartDate,
+            'esi_contribution_period_end' => $esiPeriodEnd,
         ]);
 
         $salaryPreview = null;
@@ -433,6 +457,10 @@ class FastBulkUploadService
         $dbPayload = null;
         if ($status !== 'error') {
             $dbPayload = $validationData;
+            $currentUserId = \Illuminate\Support\Facades\Auth::id();
+            $validUserId = ($currentUserId && DB::table('users')->where('id', $currentUserId)->exists()) ? $currentUserId : null;
+            $dbPayload['created_by'] = $validUserId;
+            $dbPayload['updated_by'] = $validUserId;
             $dbPayload['client_id'] = $client ? $client->id : null;
             $dbPayload['branch_id'] = $branchId;
             $dbPayload['status'] = 'onboarding';
@@ -466,7 +494,7 @@ class FastBulkUploadService
                 $dbPayload['aadhaar_number'] = $this->fastEncrypt($dbPayload['aadhaar_number']);
             }
 
-            unset($dbPayload['client_code'], $dbPayload['branch_name'], $dbPayload['branch_code'], $dbPayload['reporting_manager_code']);
+            unset($dbPayload['client_code'], $dbPayload['branch_name'], $dbPayload['branch_code'], $dbPayload['reporting_manager_code'], $dbPayload['reporting_to'], $dbPayload['reporting_manager']);
 
             // Safely filter $dbPayload to contain ONLY valid columns in the employees table
             static $validEmployeeColumns = null;
@@ -590,8 +618,15 @@ class FastBulkUploadService
                 $dbPayload['created_at'] = $now;
                 $dbPayload['updated_at'] = $now;
                 $dbPayload['entry_source'] = 'bulk_upload';
-                $dbPayload['created_by'] = $userId ?: ($dbPayload['created_by'] ?? 1);
-                $dbPayload['updated_by'] = $userId ?: ($dbPayload['updated_by'] ?? 1);
+                $effectiveUserId = null;
+                if ($userId && DB::table('users')->where('id', $userId)->exists()) {
+                    $effectiveUserId = $userId;
+                } elseif (!empty($dbPayload['created_by']) && DB::table('users')->where('id', $dbPayload['created_by'])->exists()) {
+                    $effectiveUserId = $dbPayload['created_by'];
+                }
+
+                $dbPayload['created_by'] = $effectiveUserId;
+                $dbPayload['updated_by'] = $effectiveUserId;
 
                 foreach ($dbPayload as $k => $v) {
                     if (is_bool($v)) {
@@ -764,5 +799,37 @@ class FastBulkUploadService
         }
         $xmlReader->close();
         return $rows;
+    }
+
+    /**
+     * Convert Excel serial numbers (e.g. 46235, 44927, 34834) or date strings into Y-m-d format.
+     */
+    protected function formatExcelDate($value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        $valStr = trim((string)$value);
+        if ($valStr === '') {
+            return null;
+        }
+
+        // 1. Handle numeric Excel Serial Date (e.g. 46235 -> 2026-08-01)
+        if (is_numeric($valStr) && (float)$valStr > 1000 && (float)$valStr < 100000) {
+            try {
+                $excelEpoch = \Carbon\Carbon::create(1899, 12, 30);
+                return $excelEpoch->addDays((int)$valStr)->format('Y-m-d');
+            } catch (\Throwable $e) {
+                return null;
+            }
+        }
+
+        // 2. Handle standard date strings
+        try {
+            return \Carbon\Carbon::parse($valStr)->format('Y-m-d');
+        } catch (\Throwable $e) {
+            return $valStr;
+        }
     }
 }

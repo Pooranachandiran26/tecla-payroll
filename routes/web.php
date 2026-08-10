@@ -22,6 +22,8 @@ use App\Http\Controllers\ClientHolidayController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmployeeLoanController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\PfEcrController;
+use App\Http\Controllers\EsiMonthlyController;
 
 // -----------------------------------------------------------------------
 // GUEST ROUTES (Unauthenticated)
@@ -293,6 +295,20 @@ Route::middleware(['auth', 'active'])->group(function () {
             // Compliance Module (Gated by module:compliance)
             Route::middleware('module:compliance')->group(function () {
                 Route::get('/compliance', [\App\Http\Controllers\ComplianceController::class, 'index'])->name('compliance.index');
+                Route::post('/compliance/mark-filed', [\App\Http\Controllers\ComplianceController::class, 'markFiled'])->name('compliance.mark_filed');
+                
+                // PF ECR Routes
+                Route::get('/compliance/pf-ecr/runs', [PfEcrController::class, 'getRuns'])->name('compliance.pf_ecr.runs');
+                Route::post('/compliance/pf-ecr/preview', [PfEcrController::class, 'preview'])->name('compliance.pf_ecr.preview');
+                Route::post('/compliance/pf-ecr/generate', [PfEcrController::class, 'generate'])->name('compliance.pf_ecr.generate');
+                Route::get('/compliance/pf-ecr/download/{id}', [PfEcrController::class, 'download'])->name('compliance.pf_ecr.download');
+                Route::post('/compliance/pf-ecr/update-status/{id}', [PfEcrController::class, 'updateStatus'])->name('compliance.pf_ecr.update_status');
+                Route::delete('/compliance/pf-ecr/{id}', [PfEcrController::class, 'destroy'])->name('compliance.pf_ecr.destroy');
+
+                // ESI Monthly Contribution Routes
+                Route::get('/compliance/esi-monthly/runs', [EsiMonthlyController::class, 'getRuns'])->name('compliance.esi_monthly.runs');
+                Route::post('/compliance/esi-monthly/generate', [EsiMonthlyController::class, 'generate'])->name('compliance.esi_monthly.generate');
+                Route::get('/compliance/esi-monthly/download/{id}', [EsiMonthlyController::class, 'download'])->name('compliance.esi_monthly.download');
             });
 
             // Reports Module (Gated by module:reports)

@@ -1,0 +1,235 @@
+TECLA PAYROLL - SCREEN LOADING AND SLOW QUERY REPORT
+Generated: 2026-08-04
+Method: static code review (no production timings or database EXPLAIN plans were run)
+
+IMPORTANT
+This report identifies code paths that are likely to make screens slow as records grow.
+It does not prove that every listed query is slow in the current database. Confirm the
+order of work with Laravel query timing/slow-query logs and database EXPLAIN ANALYZE.
+
+1. EXECUTIVE SUMMARY
+The largest likely delays are server-side data aggregation and repeated queries rather
+than the React UI itself. The greatest-risk pages are:
+
+1. Dashboard: many independent aggregate queries and full employee hydration.
+2. Attendance Review: 4-5 queries per client (an N+1 pattern).
+3. Compliance dashboard: 1-2 queries per client plus lazy employee counts (N+1).
+4. Payroll Processing and Payroll Approval: queries inside loops over supplementary
+   payroll runs and, for each payroll item with a revision, a separate salary-revision query.
+5. Activity Log: repeated full-table category counts combined with non-index-friendly
+   wildcard searches.
+
+Search fields using LIKE '%text%' are also expected to degrade with employee, client
+and audit-log growth, because a normal B-tree index cannot efficiently search a leading
+wildcard.
+
+2. CONFIRMED HIGH-PRIORITY BACKEND ISSUES
+
+A. Dashboard performs many separate database operations
+Location: app/Http/Controllers/DashboardController.php, index()
+
+The dashboard calculates many counters separately: employee statuses, gender, employee
+model, tax regime, verification, statutory membership, client categories, approvals,
+leave, attendance and loans. It also loads every active employee's salary columns into
+PHP to calculate estimated employer PF and ESI.
+
+Likely impact:
+- Approximately 30+ database operations for a typical request, plus schema metadata
+  checks and relationship/subquery work for a manager-scoped request.
+- Memory and response time grow linearly with the number of active employees because
+  activeEmpList is fetched entirely, then summed in PHP.
+- The request is repeated each time a filter is changed or the dashboard is revisited.
+
+Recommended correction:
+- Combine compatible counts with conditional aggregate SQL (SUM(CASE WHEN ... THEN 1 END)).
+- Calculate estimated PF/ESI in SQL where the statutory rule permits it, or cache a
+  precomputed monthly dashboard summary.
+- Cache dashboard metrics by user scope/client/month for a short TTL and invalidate on
+  relevant employee/payroll changes.
+- Replace Schema::hasColumn checks in a request path with a fixed capability/configuration
+  decision; schema inspection should not be part of normal screen rendering.
+
+B. Attendance Review has a client-by-client query loop (N+1)
+Location: app/Http/Controllers/AttendanceReviewController.php, index(), around lines 50-96
+
+For every active client, the code runs:
+- active employee COUNT
+- attendance-upload-batch EXISTS
+- attendance-record EXISTS through employee relation
+- verification query with verifier relation
+- latest upload batch query when an upload exists
+
+Likely impact:
+- For N clients, roughly 4N to 5N queries, in addition to the initial client query.
+- 100 clients can therefore create roughly 400-500 operations for one screen load.
+
+Recommended correction:
+- Fetch active employee totals grouped by client_id in one query.
+- Fetch upload states/latest batches grouped by client_id in one query.
+- Fetch attendance states grouped by employee/client in one aggregated query.
+- Fetch all month verifications with verifier in one query, key them by client_id, and
+  build screen rows in PHP without querying inside the loop.
+- Add/confirm indexes for attendance date access and batch client/month status lookups.
+
+C. Compliance dashboard has query-per-client work (N+1)
+Location: app/Http/Controllers/ComplianceController.php, index(), around lines 40-105
+
+The client list is loaded with branches, but each client then queries compliance filings.
+When no payroll headcount was found, it additionally performs a relationship count for
+that client.
+
+Likely impact:
+- At least one query for every client, potentially two.
+- Response time rises sharply for a multi-client payroll provider.
+
+Recommended correction:
+- Load all filings for the selected period once and group them by client_id/statute.
+- Use withCount for active employees or a grouped employee count query for fallback
+  headcount; do not call employees()->count() in the loop.
+- Build the client register from keyed collections.
+
+D. Payroll screen runs queries inside collection loops (N+1)
+Locations: app/Http/Controllers/PayrollController.php
+- indexProcessing(), around lines 738-800
+- indexApproval(), around lines 925-987 (a near duplicate)
+
+For every supplementary run the screen asks whether a correction exists, fetches its
+items, and separately fetches its employees. For each displayed payroll item with a
+salary revision, it queries salary_revisions again.
+
+Likely impact:
+- 3 queries per supplementary run.
+- Up to 1 salary-revision query for every payroll item marked salary_revision_applied.
+- Payroll pages also return all selected run items rather than a paginated/lightweight
+  payload, increasing database transfer, PHP work and Inertia JSON size.
+
+Recommended correction:
+- Fetch correction flags and all supplementary-run items in bulk, grouped by payroll_run_id.
+- Load all relevant employees once by the union of employee IDs.
+- Load approved revisions for the selected month in one query keyed by employee_id.
+- Paginate large employee-item tables or return a summary initially and load row detail
+  on demand.
+- Extract shared processing/approval context construction so improvements apply once.
+
+E. Activity Log page performs expensive repeat counts and searches
+Location: app/Http/Controllers/Admin/ActivityLogController.php, index(), around lines 110-124
+
+The page executes a full AuditLog::count() plus one separate count for each of seven
+categories. Category predicates use LIKE '%pattern%'. Search also uses leading-wildcard
+LIKE on action, IP address and a user subquery.
+
+Likely impact:
+- Eight aggregate scans on each Activity Log screen load before loading the paginated list.
+- Searches get slower as audit data grows; audit logs normally grow continuously.
+
+Recommended correction:
+- Compute category tabs only on demand, cache summary counts, or maintain counters.
+- Add a normalized/indexed category column when logs are written, instead of deriving
+  category with wildcard matching during every read.
+- Index created_at and common filter columns; consider full-text search if substring
+  search remains a requirement.
+
+3. OTHER LIKELY SLOW AREAS
+
+Employee directory/search
+Location: app/Http/Controllers/EmployeeController.php, index() and suggestions()
+- The directory eager-loads client, documents, salaryRevisions and creator for each row.
+  Documents and revisions can be large child collections that are not needed for a list.
+- Search predicates use multiple LIKE '%query%' conditions and a LOWER(CONCAT(...))
+  expression, which normally bypasses standard indexes.
+- Load only the list columns/counts needed (withCount where suitable); use prefix search,
+  generated/search columns, or full-text search for broad text search.
+
+Client/employee form background requests
+Locations: EmployeeForm.jsx, Client form sections/hooks
+- Selecting a client triggers separate active-employees and statutory-default requests.
+- Uniqueness checks can be triggered while typing. Ensure debounce (300-500 ms), cancel
+  stale requests and only validate after sufficient input length.
+- The IFSC lookup uses an external Razorpay endpoint. Slow third-party network responses
+  can make the screen feel slow; show independent field-level loading and a timeout.
+
+Bulk upload status polling
+Location: resources/js/Pages/Employees/BulkUpload.jsx, around lines 500-513
+- The browser requests batch status every second until completion.
+- This is acceptable for a few users but causes steady database traffic when many users
+  import files. Poll every 3-5 seconds, apply exponential backoff, or use server-sent
+  events/websockets for job progress.
+
+Live Attendance Monitor
+Location: resources/js/Pages/Payroll/LiveAttendanceMonitor.jsx
+- It reloads the full page on each filter/refresh rather than requesting only the
+  table data. Client/date changes are immediate; search is client-side only for the
+  current pagination page.
+- Use debounced filters and Inertia partial reloads (only: ['punches']) or a small JSON
+  endpoint. Ensure the underlying attendance query has a date/client-oriented index.
+
+Shared Inertia props
+Location: app/Http/Middleware/HandleInertiaRequests.php
+- Each authenticated admin/manager page evaluates an unread-notification COUNT.
+- Branding/auth-security settings use SettingsService cache, so they are not a recurring
+  database issue after cache warm-up. The notification count should be monitored and may
+  be cached briefly or returned with the notification endpoint if it becomes material.
+- Branding URLs include '?v=' + time(), which prevents browser caching of logo/favicon
+  assets on every page response. Use the file's updated timestamp or content hash instead.
+
+4. INDEX REVIEW
+
+Existing useful indexes observed:
+- attendance_records has unique(employee_id, attendance_date).
+- app_notifications has indexes on (user_id, read_at) and (user_id, created_at).
+- compliance_filings has unique(client_id, statute, period).
+- client attendance verification has unique(client_id, target_month).
+- upload staging/batch tables have several operational indexes.
+
+Potential missing composite indexes to validate with EXPLAIN before adding:
+- employees: (client_id, status), and perhaps (client_id, employment_model/status)
+  based on actual filter use.
+- payroll_runs: (client_id, payroll_month), and possibly (status, payroll_month).
+- payroll_run_items: (payroll_run_id, is_excluded), (payroll_run_id, employee_id), and
+  a separate plan for correction queries if is_correction is queried frequently.
+- attendance_records: a client-focused path is not directly indexed because client_id is
+  on employees. Consider a query rewrite or a supported index strategy after EXPLAIN.
+- attendance_upload_batches: (client_id, target_month, created_at/status).
+- salary_revisions: (employee_id, status, effective_date).
+- audit_logs: (created_at), (user_id, created_at), and normalized category/action fields.
+
+Do not add all indexes blindly: indexes increase write time and disk usage. Use real
+slow-query samples and EXPLAIN ANALYZE to choose the smallest useful set.
+
+5. FRONTEND/NETWORK IMPROVEMENTS
+- Use Inertia partial reloads for filters when only table/list props change.
+- Keep paginated page payloads narrow: select fields explicitly and avoid full child
+  relationship collections unless they are displayed.
+- Lazy-load heavy page modules/charts and defer noncritical requests until a tab opens.
+- Enable production Vite build, PHP OPcache, Laravel config/route/view caching, and a
+  persistent cache driver (Redis/database as appropriate).
+- Compress responses at the web server and inspect Inertia response sizes in browser
+  DevTools Network. Large JSON payloads can make a "loading screen" slow even when SQL is fast.
+
+6. HOW TO MEASURE AND CONFIRM
+For each slow screen, capture:
+1. Browser Network: TTFB, total response time and response size.
+2. Laravel: request duration, query count, individual SQL duration and bindings (only in
+   a safe non-production diagnostic environment; do not log sensitive values).
+3. Database: EXPLAIN/EXPLAIN ANALYZE for the top slow SQL statements.
+4. PHP: CPU/memory profile for dashboard and payroll context construction.
+
+Suggested acceptance targets:
+- Normal paginated list: under 500 ms server time and under 1 MB Inertia JSON.
+- Dashboard: under 1 second from warm cache for expected tenant sizes.
+- Payroll list/detail: progressive rendering; initial summary under 1 second, large row
+  detail paginated or loaded on demand.
+
+7. IMPLEMENTATION ORDER
+1. Rewrite Attendance Review and Compliance loops into bulk/grouped queries.
+2. Reduce Dashboard aggregates and cache computed metrics.
+3. Bulk-load payroll supplementary/revision data and paginate payroll item payloads.
+4. Reduce Activity Log category count scans and add an indexed category strategy.
+5. Narrow employee list eager loads/searches and verify selected indexes with EXPLAIN.
+6. Add runtime monitoring so subsequent regressions are visible.
+
+CONCLUSION
+The project has several concrete N+1 patterns and request paths with many aggregate
+queries. These will become noticeable as clients, employees, payroll history and audit
+logs grow. Addressing the first four priorities should substantially reduce loading time
+without changing payroll business logic.

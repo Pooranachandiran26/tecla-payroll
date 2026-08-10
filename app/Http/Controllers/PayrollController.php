@@ -408,6 +408,7 @@ class PayrollController extends Controller
         $eligibilityService = app(\App\Services\PayrollEligibilityService::class);
 
         // Pre-flight check: ensure at least 1 candidate is eligible before persisting PayrollRun
+        $allowTestingBypass = filter_var(env('ALLOW_EARLY_PAYROLL_PROCESSING', false), FILTER_VALIDATE_BOOLEAN);
         $eligibleCount = 0;
         foreach ($employees as $employee) {
             $elig = $eligibilityService->checkEmployee($employee, $client, $monthStart, $monthEnd);
@@ -416,7 +417,7 @@ class PayrollController extends Controller
             }
         }
 
-        if ($eligibleCount === 0) {
+        if ($eligibleCount === 0 && !$allowTestingBypass) {
             return redirect()->back()->with('error', 'Cannot create supplementary run: None of the candidate employees have attendance or valid eligibility data. Please upload attendance first.');
         }
 
@@ -1044,6 +1045,7 @@ class PayrollController extends Controller
             'clients' => $clients,
             'selectedClientId' => (int) $selectedClientId,
             'selectedMonth' => $selectedMonth,
+            'allowTestingBypass' => filter_var(env('ALLOW_EARLY_PAYROLL_PROCESSING', false), FILTER_VALIDATE_BOOLEAN),
             'run' => $run ? array_merge($run->load('client')->toArray(), $run->getCombinedStats(), [
                 'released_by_user_name' => $run->payslip_released_by ? optional(\App\Models\User::find($run->payslip_released_by))->name : null,
             ]) : null,
