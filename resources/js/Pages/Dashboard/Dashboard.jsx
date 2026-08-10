@@ -175,6 +175,24 @@ function SearchableClientDropdown({ allClientsList, selectedClientId, selectedCl
   );
 }
 
+const formatDateStr = (dateVal) => {
+  if (!dateVal) return '—';
+  const str = String(dateVal).split('T')[0];
+  if (!str || str.length < 10) return String(dateVal);
+  const parts = str.split('-');
+  if (parts.length < 3) return String(dateVal);
+  const year = parts[0];
+  const month = parts[1];
+  const day = parts[2];
+  
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const monthIdx = parseInt(month, 10) - 1;
+  if (monthIdx >= 0 && monthIdx < 12) {
+    return `${parseInt(day, 10)} ${monthNames[monthIdx]} ${year}`;
+  }
+  return str;
+};
+
 function LeaveRequestsTable({ items = [], processingId, onApprove, onReject }) {
   if (!items || items.length === 0) {
     return (
@@ -233,8 +251,8 @@ function LeaveRequestsTable({ items = [], processingId, onApprove, onReject }) {
                 </span>
               </td>
               <td className="py-3 px-4">
-                <div className="font-bold text-slate-900">{item.from_date} ➔ {item.to_date}</div>
-                <div className="text-[11px] text-indigo-700 font-semibold">{item.days_count} Working Day(s)</div>
+                <div className="font-bold text-slate-900">{formatDateStr(item.from_date || item.start_date)} ➔ {formatDateStr(item.to_date || item.end_date)}</div>
+                <div className="text-[11px] text-indigo-700 font-semibold">{parseFloat(item.days_count || item.leave_days || 1)} Working Day(s)</div>
               </td>
               <td className="py-3 px-4 max-w-xs truncate text-slate-600" title={item.reason}>
                 {item.reason}
@@ -312,10 +330,10 @@ function DaySwapsTable({ items = [], processingId, onApprove, onReject }) {
                 {item.employee?.client?.company_name || 'N/A'}
               </td>
               <td className="py-3 px-4 font-bold text-slate-900">
-                {item.attendance_date}
+                {formatDateStr(item.attendance_date)}
               </td>
               <td className="py-3 px-4 font-bold text-purple-700">
-                {item.swap_target_date || 'N/A'}
+                {formatDateStr(item.swap_target_date)}
               </td>
               <td className="py-3 px-4 max-w-xs truncate text-slate-600" title={item.notes}>
                 {item.notes || 'No details provided'}
@@ -393,7 +411,7 @@ function AttendanceCorrectionsTable({ items = [], processingId, onApprove, onRej
                 {item.employee?.client?.company_name || 'N/A'}
               </td>
               <td className="py-3 px-4 font-bold text-slate-900">
-                {item.attendance_date}
+                {formatDateStr(item.attendance_date)}
               </td>
               <td className="py-3 px-4">
                 <div className="font-bold text-blue-700">In: {item.requested_punch_in_time ? new Date(item.requested_punch_in_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A'}</div>
@@ -458,6 +476,12 @@ function BankRequestsTable({ items = [], processingId, onApprove, onReject }) {
       <tbody className="divide-y divide-slate-100">
         {items.map((item) => {
           const isProcessing = processingId === `bank_change-${item.id}`;
+          const bankName = item.new_bank_name || item.bank_name || 'Bank Account';
+          const bankBranch = item.new_bank_branch || item.bank_branch || '';
+          const accountNumber = item.new_bank_account_number || item.account_number || 'N/A';
+          const ifscCode = item.new_bank_ifsc || item.ifsc_code || 'N/A';
+          const holderName = item.new_account_holder_name || item.account_holder_name || '';
+
           return (
             <tr key={item.id} className="hover:bg-amber-50/30 transition-colors">
               <td className="py-3 px-4">
@@ -472,15 +496,17 @@ function BankRequestsTable({ items = [], processingId, onApprove, onReject }) {
                 </div>
               </td>
               <td className="py-3 px-4 font-semibold text-slate-700">
-                {item.employee?.client?.company_name || 'N/A'}
+                <div>{item.employee?.client?.company_name || 'N/A'}</div>
+                {item.created_at && <div className="text-[10px] text-slate-400 font-normal mt-0.5">Submitted: {formatDateStr(item.created_at)}</div>}
               </td>
               <td className="py-3 px-4 font-bold text-slate-900">
-                <div>{item.bank_name}</div>
-                <div className="text-[11px] text-slate-500 font-normal">{item.bank_branch}</div>
+                <div>{bankName}</div>
+                {bankBranch && <div className="text-[11px] text-slate-500 font-normal">{bankBranch}</div>}
+                {holderName && <div className="text-[10px] text-indigo-700 font-medium mt-0.5">Holder: {holderName}</div>}
               </td>
               <td className="py-3 px-4">
-                <div className="font-mono font-bold text-amber-900">A/C: {item.account_number}</div>
-                <div className="text-[11px] text-slate-500 font-mono">IFSC: {item.ifsc_code}</div>
+                <div className="font-mono font-bold text-amber-900">A/C: {accountNumber}</div>
+                <div className="text-[11px] text-slate-500 font-mono">IFSC: {ifscCode}</div>
               </td>
               <td className="py-3 px-4 text-right">
                 <div className="flex items-center justify-end gap-1.5">
@@ -567,7 +593,7 @@ function SalaryRevisionsTable({ items = [], processingId, onApprove, onReject })
                 )}
               </td>
               <td className="py-3 px-4 font-semibold text-slate-800">
-                {item.effective_date}
+                {formatDateStr(item.effective_date)}
               </td>
               <td className="py-3 px-4 text-right">
                 <div className="flex items-center justify-end gap-1.5">
@@ -638,7 +664,8 @@ function EmployeeQueriesTable({ items = [], processingId, onRespond }) {
                 </div>
               </td>
               <td className="py-3 px-4 font-semibold text-slate-700">
-                {item.employee?.client?.company_name || item.client?.company_name || 'N/A'}
+                <div>{item.employee?.client?.company_name || item.client?.company_name || 'N/A'}</div>
+                {item.created_at && <div className="text-[10px] text-slate-400 font-normal mt-0.5">Submitted: {formatDateStr(item.created_at)}</div>}
               </td>
               <td className="py-3 px-4">
                 <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-indigo-100 text-indigo-800 border border-indigo-200 mb-1">

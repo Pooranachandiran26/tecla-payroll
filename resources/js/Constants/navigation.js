@@ -60,7 +60,6 @@ export const subNavs = {
     { name: 'Live Attendance Monitor', url: safeRoute('payroll.live-monitor', '/payroll/live-monitor'), key: 'payroll_live_monitor' },
     { name: 'Attendance Upload', url: safeRoute('payroll.attendance-upload', '/payroll/attendance-upload'), key: 'payroll_attendance_upload' },
     { name: 'Attendance Review', url: safeRoute('payroll.attendance-review', '/payroll/attendance-review'), key: 'payroll_attendance_review' },
-    { name: 'Leave Settings', url: safeRoute('payroll.leave-settings', '/payroll/leave-settings'), key: 'payroll_leave_settings' },
     { name: 'Processing', url: safeRoute('payroll.processing', '/payroll/processing'), key: 'payroll_processing' },
     { name: 'Approval', url: safeRoute('payroll.approval', '/payroll/approval'), key: 'payroll_approval' },
     { name: 'Payslips', url: safeRoute('payroll.payslips', '/payroll/payslips'), key: 'payroll_payslips' },
