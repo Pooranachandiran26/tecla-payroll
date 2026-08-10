@@ -38,6 +38,62 @@ export default function ComplianceReports() {
   const [challanInput, setChallanInput] = useState('');
   const [statusSelect, setStatusSelect] = useState('submitted');
 
+  // ESI Monthly Contribution Modal & Feature State
+  const [isEsiModalOpen, setIsEsiModalOpen] = useState(false);
+  const [esiLoadingRuns, setEsiLoadingRuns] = useState(false);
+  const [esiRuns, setEsiRuns] = useState([]);
+  const [esiBatches, setEsiBatches] = useState([]);
+  const [selectedEsiRunId, setSelectedEsiRunId] = useState('');
+  const [esiGenerating, setEsiGenerating] = useState(false);
+  const [lastEsiBatch, setLastEsiBatch] = useState(null);
+  const [esiError, setEsiError] = useState('');
+
+  const fetchEsiRuns = async () => {
+    setEsiLoadingRuns(true);
+    try {
+      const response = await axios.get(route('compliance.esi_monthly.runs'));
+      const fetchedRuns = response.data.runs || [];
+      setEsiRuns(fetchedRuns);
+      setEsiBatches(response.data.batches || []);
+      setSelectedEsiRunId(fetchedRuns.length > 0 ? String(fetchedRuns[0].id) : '');
+    } catch (err) {
+      showToast('❌ Failed to fetch locked payroll runs for ESI Monthly Contribution.', 'error');
+    } finally {
+      setEsiLoadingRuns(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isEsiModalOpen) {
+      setLastEsiBatch(null);
+      setEsiError('');
+      fetchEsiRuns();
+    }
+  }, [isEsiModalOpen]);
+
+  const handleGenerateEsi = async () => {
+    if (!selectedEsiRunId) return;
+    setEsiGenerating(true);
+    setEsiError('');
+    try {
+      const response = await axios.post(route('compliance.esi_monthly.generate'), {
+        payroll_run_id: selectedEsiRunId
+      });
+      if (response.data.success) {
+        showToast('🎉 ESI Monthly Contribution .xls file generated successfully!');
+        setLastEsiBatch(response.data);
+        fetchEsiRuns();
+      }
+    } catch (err) {
+      const errorList = err.response?.data?.errors?.esi;
+      const errorMsg = Array.isArray(errorList) ? errorList.join(' ') : (err.response?.data?.message || 'ESI file generation failed.');
+      setEsiError(errorMsg);
+      showToast(`❌ ${errorMsg}`, 'error');
+    } finally {
+      setEsiGenerating(false);
+    }
+  };
+
   const fetchEcrRuns = async (selectedMonth = monthFilter) => {
     setLoadingRuns(true);
     try {
@@ -191,7 +247,7 @@ export default function ComplianceReports() {
       btnText: 'Generate ECR (.txt)',
       isFunctional: true
     },
-    { id: 'esi', title: 'ESI Monthly File', badge: 'ESIC Portal', color: 'success', desc: 'Monthly contribution file for employees earning gross ≤ ₹21,000. Formats standard bulk upload Excel.', action: 'ESI Contribution Excel', btnText: 'Generate ESI (.xlsx)', isFunctional: false },
+    { id: 'esi', title: 'ESI Monthly File', badge: 'ESIC Portal', color: 'success', desc: 'Monthly contribution file for ESI-eligible employees from locked payroll data. Standard 6-column ESIC bulk upload sheet (Excel 97-2003, no header).', action: 'ESI Contribution Excel', btnText: 'Generate ESI (.xls)', isFunctional: true },
     { id: 'pt', title: 'PT Challan Summary', badge: 'State-wise', color: 'warning', desc: 'Aggregates Professional Tax deductions across all applicable state slabs based on employee work locations.', action: 'PT State-wise Challans', btnText: 'Generate PT Summary (.pdf)', isFunctional: false },
     { id: 'tds', title: 'TDS Form 24Q', badge: 'Quarterly', color: 'info', desc: 'Generates consolidated Annexure-II salary and tax declaration data for quarterly income tax filings.', action: 'TDS Q1 Return Dataset', btnText: 'Generate Form 24Q (.csv)', isFunctional: false },
     { id: 'gstr1', title: 'GSTR-1 Summary', badge: 'Monthly', color: 'neutral', desc: 'Extracts outward supplies and agency service invoice summaries for GST filing (B2B transactions).', action: 'GSTR-1 Export', btnText: 'Export GSTR-1 (.csv)', isFunctional: false },
@@ -307,10 +363,10 @@ export default function ComplianceReports() {
               <p className="text-xs text-gray-500 mb-5 flex-1">{report.desc}</p>
               <div className="mt-auto">
                 {report.isFunctional ? (
-                  <Button 
-                    variant="navy" 
+                  <Button
+                    variant="navy"
                     className="w-full justify-center bg-blue-900 hover:bg-blue-800 text-white font-bold"
-                    onClick={() => setIsEcrModalOpen(true)}
+                    onClick={() => report.id === 'esi' ? setIsEsiModalOpen(true) : setIsEcrModalOpen(true)}
                   >
                     {report.btnText}
                   </Button>
@@ -635,6 +691,126 @@ export default function ComplianceReports() {
               onChange={(e) => setChallanInput(e.target.value)}
               placeholder="e.g. CHN-2026-08-9999"
             />
+          </div>
+        </Modal>
+
+        {/* ESI MONTHLY CONTRIBUTION MODAL */}
+        <Modal
+          isOpen={isEsiModalOpen}
+          onClose={() => setIsEsiModalOpen(false)}
+          title="ESI Monthly Contribution (.xls)"
+          size="lg"
+          footer={
+            <div className="flex justify-between w-full items-center">
+              <div className="text-xs text-gray-500 flex items-center gap-1">
+                <ShieldCheck className="w-4 h-4 text-green-600" />
+                Read-only reader of locked payroll data only
+              </div>
+              <div className="flex gap-2">
+                <Button variant="secondary" onClick={() => setIsEsiModalOpen(false)}>Close</Button>
+                <Button
+                  variant="primary"
+                  className="bg-green-700 hover:bg-green-800 font-bold"
+                  onClick={handleGenerateEsi}
+                  disabled={esiGenerating || !selectedEsiRunId}
+                >
+                  {esiGenerating ? 'Generating File...' : 'Generate & Download ESI (.xls)'}
+                </Button>
+              </div>
+            </div>
+          }
+        >
+          <div className="space-y-4">
+            <div className="bg-slate-50 border border-gray-200 p-4 rounded-md space-y-3">
+              <h4 className="font-bold text-sm text-blue-900 m-0">Select Locked Payroll Run</h4>
+              {esiLoadingRuns ? (
+                <div className="text-xs text-gray-500">Loading locked payroll runs...</div>
+              ) : esiRuns.length === 0 ? (
+                <div className="text-xs text-amber-700 bg-amber-50 p-3 rounded border border-amber-200">
+                  No locked payroll runs found. ESI Monthly Contribution can only be generated from a payroll run whose status is LOCKED.
+                </div>
+              ) : (
+                <Select
+                  label="Select Payroll Run"
+                  value={selectedEsiRunId}
+                  onChange={(e) => setSelectedEsiRunId(e.target.value)}
+                  options={esiRuns.map(r => ({
+                    value: String(r.id),
+                    label: `${r.client_name} — Run ${r.run_code} (${r.payroll_month}) [LOCKED]`
+                  }))}
+                  noMargin
+                />
+              )}
+            </div>
+
+            {esiError && (
+              <div className="bg-red-50 border border-red-200 border-l-4 border-l-red-600 p-4 rounded-md text-xs text-red-800">
+                <div className="flex items-center gap-2 font-bold mb-1">
+                  <AlertTriangle className="w-4 h-4 text-red-600" /> Generation Blocked
+                </div>
+                {esiError}
+              </div>
+            )}
+
+            {lastEsiBatch && (
+              <div className="bg-green-50 border border-green-300 p-4 rounded-md text-center space-y-3">
+                <CheckCircle2 className="w-10 h-10 text-green-600 mx-auto" />
+                <h4 className="font-bold text-base text-green-900">ESI Monthly Contribution File Created</h4>
+                <p className="text-xs text-green-800">
+                  Generated file: <strong>{lastEsiBatch.file_name}</strong> — {lastEsiBatch.employee_count} eligible employee(s), total wages ₹{Number(lastEsiBatch.total_wages).toLocaleString('en-IN')}
+                </p>
+                <a
+                  href={lastEsiBatch.download_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 bg-green-700 hover:bg-green-800 text-white text-xs font-bold px-4 py-2 rounded shadow"
+                >
+                  <Download className="w-4 h-4" /> Download .XLS File
+                </a>
+              </div>
+            )}
+
+            {esiBatches.length > 0 && (
+              <div className="space-y-2 pt-4 border-t border-gray-200">
+                <h4 className="font-bold text-sm text-blue-900">ESI Monthly Generation History</h4>
+                <div className="overflow-x-auto border border-gray-200 rounded">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-slate-100 text-gray-700 font-bold border-b">
+                      <tr>
+                        <th className="p-2">Batch #</th>
+                        <th className="p-2">Client</th>
+                        <th className="p-2">Month</th>
+                        <th className="p-2">Employees</th>
+                        <th className="p-2">Total Wages</th>
+                        <th className="p-2">Status</th>
+                        <th className="p-2">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {esiBatches.map(b => (
+                        <tr key={b.id} className="border-b hover:bg-slate-50">
+                          <td className="p-2 font-mono">#ESI-{b.id}</td>
+                          <td className="p-2">{b.client?.company_name || 'N/A'}</td>
+                          <td className="p-2">{b.wage_month ? b.wage_month.substring(0, 7) : ''}</td>
+                          <td className="p-2">{b.employee_count}</td>
+                          <td className="p-2">₹{Number(b.total_wages).toLocaleString('en-IN')}</td>
+                          <td className="p-2"><Badge variant={b.status === 'downloaded' ? 'success' : 'info'}>{b.status}</Badge></td>
+                          <td className="p-2">
+                            <a
+                              href={route('compliance.esi_monthly.download', b.id)}
+                              className="text-blue-600 hover:underline flex items-center gap-1 font-bold"
+                              title="Download .XLS File"
+                            >
+                              <Download className="w-3.5 h-3.5" /> XLS
+                            </a>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
         </Modal>
       </AuthenticatedLayout>
