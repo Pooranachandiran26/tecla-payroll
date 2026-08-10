@@ -183,11 +183,41 @@ class AttendanceBulkUploadQueuedTest extends TestCase
      */
     public function test_locked_period_guard_blocks_attendance_uploads()
     {
-        // Lock August 2026 for Client A
-        DB::table('payroll_runs')->insert([
+        // Lock August 2026 for Client A and create locked item for EMP-A01
+        $runId = DB::table('payroll_runs')->insertGetId([
             'client_id' => $this->clientA->id,
             'payroll_month' => '2026-08-01',
             'status' => 'locked',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $emp = Employee::where('employee_code', 'EMP-A01')->first();
+        DB::table('payroll_run_items')->insert([
+            'payroll_run_id' => $runId,
+            'employee_id' => $emp->id,
+            'paid_days' => 22,
+            'lop_days' => 0,
+            'basic_pay' => 10000,
+            'hra' => 0,
+            'conveyance' => 0,
+            'da' => 0,
+            'medical_allowance' => 0,
+            'special_allowance' => 0,
+            'other_additions' => 0,
+            'gross_total' => 10000,
+            'employee_pf' => 1200,
+            'employee_esi' => 0,
+            'professional_tax' => 200,
+            'lwf_deduction' => 0,
+            'lop_deduction' => 0,
+            'tds_deduction' => 0,
+            'loan_emi_deduction' => 0,
+            'net_pay' => 8600,
+            'employer_pf' => 1300,
+            'employer_esi' => 0,
+            'is_excluded' => 0,
+            'attendance_source' => 'uploaded',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -203,8 +233,10 @@ class AttendanceBulkUploadQueuedTest extends TestCase
             'file' => $file,
         ]);
 
-        $response->assertStatus(422);
-        $this->assertStringContainsString('already locked', $response->json('error'));
+        $response->assertStatus(200);
+        $rows = $response->json('rows');
+        $this->assertEquals('blocked_locked', $rows[0]['status']);
+        $this->assertStringContainsString('already locked', $rows[0]['notes']);
     }
 
     /**
