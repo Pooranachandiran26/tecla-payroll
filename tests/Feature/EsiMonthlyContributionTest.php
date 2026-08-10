@@ -27,6 +27,8 @@ class EsiMonthlyContributionTest extends TestCase
     {
         parent::setUp();
 
+        $this->seed(\Database\Seeders\EsiReasonCodeSeeder::class);
+
         Storage::fake('local');
 
         $this->adminUser = User::factory()->create([
