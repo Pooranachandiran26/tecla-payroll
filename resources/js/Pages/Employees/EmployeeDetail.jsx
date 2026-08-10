@@ -508,7 +508,7 @@ const renderDocumentRows = () => {
                     <span className={`badge badge-${employee.pf_applicable ? 'success' : 'neutral'}`}>{employee.pf_applicable ? 'PF Active' : 'Not Applicable'}</span>
                   </div>
                   <div style={{"fontSize":"0.75rem","color":"var(--text-muted)","marginTop":"-0.5rem","textAlign":"right"}}>
-                    UAN: {employee.uan_number || 'N/A'}
+                    UAN: {employee.uan_number || 'N/A'} | Member ID: {employee.pf_member_id || 'Pending'} ({employee.member_relationship === 'S' ? 'Spouse' : 'Father'})
                   </div>
 
                   <div style={{"display":"flex","justifyContent":"space-between","alignItems":"center","marginTop":"0.25rem"}}>

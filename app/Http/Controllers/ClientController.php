@@ -760,11 +760,25 @@ class ClientController extends Controller
 
         $employees = \App\Models\Employee::where('client_id', $client->id)
             ->where('status', 'active')
-            ->select('id', 'full_name', 'employee_code')
+            ->select('id', 'full_name', 'employee_code', 'designation')
             ->orderBy('full_name')
             ->get();
 
-        return response()->json($employees);
+        $contacts = \App\Models\ClientContact::where('client_id', $client->id)
+            ->select('id', 'full_name', 'contact_type', 'designation')
+            ->orderBy('full_name')
+            ->get()
+            ->map(function ($c) {
+                return [
+                    'id' => 'contact_' . $c->id,
+                    'full_name' => $c->full_name . ' (' . ucfirst($c->contact_type ?? 'Contact Person') . ')',
+                    'employee_code' => 'CLIENT-POC',
+                    'designation' => $c->designation ?? 'Client Contact Person',
+                    'is_contact' => true,
+                ];
+            });
+
+        return response()->json($employees->concat($contacts)->values());
     }
 
     /**

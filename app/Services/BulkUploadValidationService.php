@@ -261,19 +261,34 @@ class BulkUploadValidationService
                 }
             }
 
-            // Reporting Manager Resolution (Same Client Enforcement)
+            // Reporting Manager Resolution (Supports reporting_manager_code, reporting_to, reporting_manager_id)
             $reportingManagerId = null;
-            if (!empty($normalizedRow['reporting_manager_code'])) {
-                $managerCode = $normalizedRow['reporting_manager_code'];
-                $manager = $allManagers->get($managerCode);
-                if (!$manager) {
-                    $errors[] = "Reporting manager code '{$managerCode}' not found.";
-                } elseif ($client && $manager->client_id !== $client->id) {
-                    $managerClient = $allClients->first(fn($c) => $c->id === $manager->client_id);
-                    $managerClientName = $managerClient ? $managerClient->company_name : 'Unknown';
-                    $errors[] = "Reporting manager '{$managerCode}' belongs to a different client ('{$managerClientName}'). Reporting manager must belong to the same client.";
+            $rawManagerVal = $normalizedRow['reporting_manager_code'] 
+                ?? $normalizedRow['reporting_to'] 
+                ?? $normalizedRow['reporting_manager_id'] 
+                ?? $normalizedRow['reporting_manager'] 
+                ?? null;
+
+            if (!empty($rawManagerVal)) {
+                $managerCodeStr = trim((string)$rawManagerVal);
+                $manager = $allManagers->get($managerCodeStr);
+
+                if (!$manager && is_numeric($managerCodeStr)) {
+                    $manager = $allManagers->first(fn($m) => (int)$m->id === (int)$managerCodeStr);
+                }
+
+                if ($manager) {
+                    if ($client && $manager->client_id !== $client->id) {
+                        $managerClient = $allClients->first(fn($c) => $c->id === $manager->client_id);
+                        $managerClientName = $managerClient ? $managerClient->company_name : 'Unknown';
+                        $warnings[] = "Reporting manager '{$managerCodeStr}' belongs to a different client ('{$managerClientName}'). Assigned reporting_manager_id set to null.";
+                        $reportingManagerId = null;
+                    } else {
+                        $reportingManagerId = $manager->id;
+                    }
                 } else {
-                    $reportingManagerId = $manager->id;
+                    $warnings[] = "Reporting manager '{$managerCodeStr}' not found in active employees. Field left unassigned.";
+                    $reportingManagerId = null;
                 }
             }
 
@@ -304,12 +319,11 @@ class BulkUploadValidationService
                 }
             }
 
-            // Attendance tracking start date defaults to Date of Joining if omitted
-            $doj = $normalizedRow['date_of_joining'] ?? null;
-            $attendanceTrackingStartDate = $normalizedRow['attendance_tracking_start_date'] ?? null;
-            if (empty($attendanceTrackingStartDate)) {
-                $attendanceTrackingStartDate = $doj;
-            }
+            $dob = $this->formatExcelDate($normalizedRow['date_of_birth'] ?? null);
+            $doj = $this->formatExcelDate($normalizedRow['date_of_joining'] ?? null);
+            $probationEndDate = $this->formatExcelDate($normalizedRow['probation_end_date'] ?? null);
+            $attendanceTrackingStartDate = $this->formatExcelDate($normalizedRow['attendance_tracking_start_date'] ?? null) ?: $doj;
+            $esiPeriodEnd = $this->formatExcelDate($normalizedRow['esi_contribution_period_end'] ?? null);
 
             $healthInsuranceProvider = !empty($normalizedRow['health_insurance_provider']) ? trim($normalizedRow['health_insurance_provider']) : null;
             $healthInsurancePolicyNo = !empty($normalizedRow['health_insurance_policy_no']) ? trim($normalizedRow['health_insurance_policy_no']) : null;
@@ -318,6 +332,10 @@ class BulkUploadValidationService
                 : null;
 
             $validationData = array_merge($normalizedRow, [
+                'client_id' => $client ? $client->id : null,
+                'branch_id' => $branchId ?: ($client && $client->branches->first() ? $client->branches->first()->id : 1),
+                'date_of_birth' => $dob,
+                'date_of_joining' => $doj,
                 'employment_model' => $employmentModel,
                 'pf_applicable' => $pfApplicable,
                 'eps_applicable' => $epsApplicable,
@@ -334,16 +352,16 @@ class BulkUploadValidationService
                 'uan_mode' => $normalizedRow['uan_mode'] ?? 'new',
                 'esi_mode' => $normalizedRow['esi_mode'] ?? 'new',
                 'declarations_accepted' => $declarationsAccepted,
-                'reporting_manager_id' => $reportingManagerId,
+                'reporting_manager_id' => (!empty($reportingManagerId) && is_numeric($reportingManagerId) && (int)$reportingManagerId > 0) ? (int)$reportingManagerId : null,
                 'emergency_contact_name' => $normalizedRow['emergency_contact_name'] ?? null,
                 'previous_employer_name' => $normalizedRow['previous_employer_name'] ?? null,
                 'previous_employer_uan' => $normalizedRow['previous_employer_uan'] ?? null,
-                'probation_end_date' => !empty($normalizedRow['probation_end_date']) ? $normalizedRow['probation_end_date'] : null,
+                'probation_end_date' => $probationEndDate,
                 'attendance_tracking_start_date' => $attendanceTrackingStartDate,
                 'health_insurance_provider' => $healthInsuranceProvider,
                 'health_insurance_policy_no' => $healthInsurancePolicyNo,
                 'health_insurance_sum_insured' => $healthInsuranceSumInsured,
-                'esi_contribution_period_end' => $normalizedRow['esi_contribution_period_end'] ?? null,
+                'esi_contribution_period_end' => $esiPeriodEnd,
             ]);
 
             $rules = [
@@ -541,7 +559,7 @@ class BulkUploadValidationService
                 }
 
                 // Remove non-employee table fields
-                unset($dbPayload['client_code'], $dbPayload['branch_name'], $dbPayload['branch_code'], $dbPayload['reporting_manager_code']);
+                unset($dbPayload['client_code'], $dbPayload['branch_name'], $dbPayload['branch_code'], $dbPayload['reporting_manager_code'], $dbPayload['reporting_to'], $dbPayload['reporting_manager']);
                 
                 $rowData['db_payload'] = $dbPayload;
             }
@@ -555,5 +573,37 @@ class BulkUploadValidationService
         }
 
         return $results;
+    }
+
+    /**
+     * Convert Excel serial numbers (e.g. 46235, 44927, 34834) or date strings into Y-m-d format.
+     */
+    protected function formatExcelDate($value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        $valStr = trim((string)$value);
+        if ($valStr === '') {
+            return null;
+        }
+
+        // 1. Handle numeric Excel Serial Date (e.g. 46235 -> 2026-08-01)
+        if (is_numeric($valStr) && (float)$valStr > 1000 && (float)$valStr < 100000) {
+            try {
+                $excelEpoch = \Carbon\Carbon::create(1899, 12, 30);
+                return $excelEpoch->addDays((int)$valStr)->format('Y-m-d');
+            } catch (\Throwable $e) {
+                return null;
+            }
+        }
+
+        // 2. Handle standard date strings
+        try {
+            return \Carbon\Carbon::parse($valStr)->format('Y-m-d');
+        } catch (\Throwable $e) {
+            return $valStr;
+        }
     }
 }

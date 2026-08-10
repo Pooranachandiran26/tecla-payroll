@@ -81,6 +81,8 @@ class UpdateEmployeeRequest extends FormRequest
             'aadhaar_number' => $this->aadhaar,
             'uan_mode' => $this->uanMode,
             'uan_number' => $this->uan,
+            'pf_member_id' => $this->pfMemberId ?? $this->pf_member_id ?? null,
+            'member_relationship' => $this->memberRelationship ?? $this->member_relationship ?? 'F',
             'esi_mode' => $this->esiMode ?? 'new',
             'esic_number' => $this->esiNo,
             'basic_pay' => $this->basicSal,
@@ -110,7 +112,7 @@ class UpdateEmployeeRequest extends FormRequest
             'previous_employer_name' => $this->prevEmployerName,
             'previous_employer_uan' => $this->prevEmployerUAN,
             'probation_end_date' => $this->probationEndDate,
-            'reporting_manager_id' => $this->reportingManagerId,
+            'reporting_manager_id' => is_numeric($this->reportingManagerId ?? $this->reporting_manager_id) ? (int)($this->reportingManagerId ?? $this->reporting_manager_id) : null,
             'notice_period_days' => $this->noticePeriodDays,
             'joint_declaration_status' => $this->jointDeclarationStatus ?? $this->joint_declaration_status ?? 'not_required',
             'esi_contribution_period_end' => $this->esiPeriodEnd,
@@ -199,6 +201,8 @@ class UpdateEmployeeRequest extends FormRequest
                 'digits:12',
                 Rule::requiredIf(fn() => $this->pf_applicable && $this->uan_mode === 'existing_transfer')
             ],
+            'pf_member_id' => 'nullable|string|max:50',
+            'member_relationship' => 'nullable|in:F,S',
             'esi_mode' => 'nullable|in:new,existing_transfer',
             'esic_number' => [
                 'nullable',

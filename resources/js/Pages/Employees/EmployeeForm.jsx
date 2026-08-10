@@ -74,6 +74,8 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       aadhaar: emp?.aadhaar_number || '',
       uanMode: emp?.uan_mode || 'new',
       uan: emp?.uan_number || '',
+      pfMemberId: emp?.pf_member_id || '',
+      memberRelationship: emp?.member_relationship || 'F',
       esiMode: emp?.esi_mode || 'new',
       esiNo: emp?.esic_number || '',
       basicSal: emp?.basic_pay ?? '',
@@ -183,16 +185,28 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
 
   const [activeClientDefaults, setActiveClientDefaults] = useState(null);
   const [clientActiveEmployees, setClientActiveEmployees] = useState([]);
+  const [clientContactPersons, setClientContactPersons] = useState([]);
 
-  // Fetch active employees for Reporting Manager dropdown
+  // Fetch active employees & contact persons for Reporting Manager / Reporting To dropdown
   useEffect(() => {
     if (!formData.clientPartner) {
       setClientActiveEmployees([]);
+      setClientContactPersons([]);
       return;
     }
     axios.get(route('clients.activeEmployees', formData.clientPartner))
-      .then(res => setClientActiveEmployees(res.data || []))
-      .catch(() => setClientActiveEmployees([]));
+      .then(res => {
+        const rawData = Array.isArray(res.data) ? res.data : (res.data?.all || res.data?.employees || []);
+        const contactsList = rawData.filter(item => item.is_contact || String(item.id).startsWith('contact_'));
+        const employeesList = rawData.filter(item => !item.is_contact && !String(item.id).startsWith('contact_'));
+        
+        setClientContactPersons(contactsList);
+        setClientActiveEmployees(employeesList);
+      })
+      .catch(() => {
+        setClientActiveEmployees([]);
+        setClientContactPersons([]);
+      });
   }, [formData.clientPartner]);
 
   // Sync logic on client change
@@ -753,7 +767,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       'residential_address': 'address', 'bank_account_number': 'accountNo', 'bank_ifsc': 'ifsc',
       'bank_name': 'bankName', 'bank_branch': 'bankBranch', 'account_holder_name': 'accountHolder',
       'gender': 'gender', 'blood_group': 'bloodGroup', 'marital_status': 'maritalStatus',
-      'pan_number': 'pan', 'aadhaar_number': 'aadhaar', 'uan_mode': 'uanMode', 'uan_number': 'uan',
+      'pan_number': 'pan', 'aadhaar_number': 'aadhaar', 'uan_mode': 'uanMode', 'uan_number': 'uan', 'pf_member_id': 'pfMemberId', 'member_relationship': 'memberRelationship',
       'esi_mode': 'esiMode', 'esic_number': 'esiNo', 'basic_pay': 'basicSal', 'hra': 'hraSal', 'conveyance': 'conveyanceSal',
       'da': 'daSal', 'medical_allowance': 'medicalSal', 'special_allowance': 'specialSal',
       'other_additions': 'otherSal', 'pt_deduction_override': 'ptDeduction', 'tds_regime': 'taxRegime',
@@ -1016,6 +1030,35 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                     <label>Designation <span style={{ color: "var(--status-danger)" }}>*</span></label>
                     <input type="text" className={`form-control ${errors.designation ? `is-${errors.designation.type || 'error'}` : ''}`} value={formData.designation} onChange={e => handleInputChange('designation', e.target.value)} onBlur={e => validateDesignation(e.target.value)} required />
                     {errors.designation && <div className={`field-msg ${errors.designation.type || 'error'} show`}>{errors.designation.msg}</div>}
+                  </div>
+
+                  <div className="form-group">
+                    <label>Reporting To / Manager</label>
+                    <select 
+                      className="form-control" 
+                      value={formData.reportingManagerId} 
+                      onChange={e => handleInputChange('reportingManagerId', e.target.value)}
+                    >
+                      <option value="">-- Select Reporting Manager / Contact Person --</option>
+                      {clientContactPersons && clientContactPersons.length > 0 && (
+                        <optgroup label="Client Contact Persons">
+                          {clientContactPersons.map(c => (
+                            <option key={c.id} value={c.id}>
+                              {c.full_name} {c.designation ? `— ${c.designation}` : ''}
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                      {clientActiveEmployees && clientActiveEmployees.length > 0 && (
+                        <optgroup label="Active Employees">
+                          {clientActiveEmployees.map(empItem => (
+                            <option key={empItem.id} value={empItem.id}>
+                              {empItem.full_name} ({empItem.employee_code}) {empItem.designation ? `— ${empItem.designation}` : ''}
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                    </select>
                   </div>
                 </div>
 
@@ -1387,6 +1430,38 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                             {errors.uan && <div className={`field-msg ${errors.uan.type || 'error'} show`}>{errors.uan.msg || errors.uan}</div>}
                           </div>
                         )}
+                      </div>
+
+                      <div className="form-row" style={{ marginTop: "0.75rem" }}>
+                        <div className="form-group" style={{ marginBottom: "0" }}>
+                          <label>PF Member ID (Member Account No.) <span style={{ color: "var(--status-danger)" }}>*</span></label>
+                          <input 
+                            type="text" 
+                            className={`form-control ${errors.pfMemberId ? 'is-invalid' : ''}`} 
+                            value={formData.pfMemberId} 
+                            onChange={e => handleInputChange('pfMemberId', e.target.value)} 
+                            placeholder="e.g. DLCPM00123450000000271" 
+                            maxLength="50" 
+                          />
+                          {errors.pfMemberId && <div className={`field-msg ${errors.pfMemberId.type || 'error'} show`}>{errors.pfMemberId.msg || errors.pfMemberId}</div>}
+                          <small style={{ color: "var(--text-muted)", display: "block", marginTop: "4px" }}>
+                            EPFO Member ID required for PF ECR Return filing. From EPFO Employer Portal.
+                          </small>
+                        </div>
+                        <div className="form-group" style={{ marginBottom: "0" }}>
+                          <label>Member Relationship (for ECR Return)</label>
+                          <select 
+                            className="form-control" 
+                            value={formData.memberRelationship} 
+                            onChange={e => handleInputChange('memberRelationship', e.target.value)}
+                          >
+                            <option value="F">Father (F)</option>
+                            <option value="S">Spouse (S)</option>
+                          </select>
+                          <small style={{ color: "var(--text-muted)", display: "block", marginTop: "4px" }}>
+                            Official EPFO Field #13 (F = Father, S = Spouse).
+                          </small>
+                        </div>
                       </div>
                       <div style={{ marginTop: "0.75rem", paddingTop: "0.75rem", borderTop: "1px dashed var(--border-color)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                         <div>
