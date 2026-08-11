@@ -307,8 +307,38 @@ Route::middleware(['auth', 'active'])->group(function () {
 
                 // ESI Monthly Contribution Routes
                 Route::get('/compliance/esi-monthly/runs', [EsiMonthlyController::class, 'getRuns'])->name('compliance.esi_monthly.runs');
+                Route::get('/compliance/esi-monthly/reason-codes', [EsiMonthlyController::class, 'reasonCodes'])->name('compliance.esi_monthly.reason_codes');
+                Route::post('/compliance/esi-monthly/preview', [EsiMonthlyController::class, 'preview'])->name('compliance.esi_monthly.preview');
                 Route::post('/compliance/esi-monthly/generate', [EsiMonthlyController::class, 'generate'])->name('compliance.esi_monthly.generate');
                 Route::get('/compliance/esi-monthly/download/{id}', [EsiMonthlyController::class, 'download'])->name('compliance.esi_monthly.download');
+
+                // PT Challan Helper & Reconciliation Routes
+                Route::get('/compliance/pt-challan/runs', [\App\Http\Controllers\PtChallanController::class, 'getRuns'])->name('compliance.pt_challan.runs');
+                Route::post('/compliance/pt-challan/preview', [\App\Http\Controllers\PtChallanController::class, 'preview'])->name('compliance.pt_challan.preview');
+                Route::post('/compliance/pt-challan/generate', [\App\Http\Controllers\PtChallanController::class, 'generate'])->name('compliance.pt_challan.generate');
+                Route::get('/compliance/pt-challan/download/{id}', [\App\Http\Controllers\PtChallanController::class, 'download'])->name('compliance.pt_challan.download');
+                Route::post('/compliance/pt-challan/update-status/{id}', [\App\Http\Controllers\PtChallanController::class, 'updateStatus'])->name('compliance.pt_challan.update_status');
+                Route::delete('/compliance/pt-challan/{id}', [\App\Http\Controllers\PtChallanController::class, 'destroy'])->name('compliance.pt_challan.destroy');
+
+                // GSTR-1 Summary Routes
+                Route::get('/compliance/gstr1/months', [\App\Http\Controllers\Gstr1Controller::class, 'getMonths'])->name('compliance.gstr1.months');
+                Route::post('/compliance/gstr1/preview', [\App\Http\Controllers\Gstr1Controller::class, 'preview'])->name('compliance.gstr1.preview');
+                Route::post('/compliance/gstr1/generate', [\App\Http\Controllers\Gstr1Controller::class, 'generate'])->name('compliance.gstr1.generate');
+                Route::get('/compliance/gstr1/download/{id}', [\App\Http\Controllers\Gstr1Controller::class, 'download'])->name('compliance.gstr1.download');
+                Route::get('/compliance/gstr1/download-xlsx/{id}', [\App\Http\Controllers\Gstr1Controller::class, 'downloadXlsx'])->name('compliance.gstr1.download_xlsx');
+
+                // TDS Form 24Q Return Routes
+                Route::get('/compliance/tds-24q/metadata', [\App\Http\Controllers\Tds24qController::class, 'getMetadata'])->name('compliance.tds_24q.metadata');
+                Route::post('/compliance/tds-24q/preview', [\App\Http\Controllers\Tds24qController::class, 'preview'])->name('compliance.tds_24q.preview');
+                Route::post('/compliance/tds-24q/challan', [\App\Http\Controllers\Tds24qController::class, 'saveChallan'])->name('compliance.tds_24q.save_challan');
+                Route::post('/compliance/tds-24q/generate', [\App\Http\Controllers\Tds24qController::class, 'generate'])->name('compliance.tds_24q.generate');
+                Route::get('/compliance/tds-24q/download/{id}', [\App\Http\Controllers\Tds24qController::class, 'download'])->name('compliance.tds_24q.download');
+                Route::get('/compliance/tds-24q/download-xlsx/{id}', [\App\Http\Controllers\Tds24qController::class, 'downloadXlsx'])->name('compliance.tds_24q.download_xlsx');
+
+                // Client Audit Pack Routes
+                Route::get('/compliance/audit-pack/clients', [\App\Http\Controllers\ClientAuditPackController::class, 'getClients'])->name('compliance.audit_pack.clients');
+                Route::post('/compliance/audit-pack/generate', [\App\Http\Controllers\ClientAuditPackController::class, 'generate'])->name('compliance.audit_pack.generate');
+                Route::get('/compliance/audit-pack/download/{id}', [\App\Http\Controllers\ClientAuditPackController::class, 'download'])->name('compliance.audit_pack.download');
             });
 
             // Reports Module (Gated by module:reports)

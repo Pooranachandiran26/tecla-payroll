@@ -69,9 +69,20 @@ class EsiMonthlyController extends Controller
     }
 
     /**
-     * Generate the official ESIC Monthly Contribution .xls file.
+     * Active ESIC "Reason for 0 Wages" codes for the UI dropdown.
      */
-    public function generate(Request $request)
+    public function reasonCodes()
+    {
+        return response()->json([
+            'codes' => $this->generatorService->activeReasonCodes(),
+        ]);
+    }
+
+    /**
+     * Preview eligible employees for a run, split into normal (auto code 0)
+     * and zero-day employees requiring an explicit reason selection.
+     */
+    public function preview(Request $request)
     {
         $request->validate([
             'payroll_run_id' => 'required|exists:payroll_runs,id',
@@ -80,7 +91,24 @@ class EsiMonthlyController extends Controller
         $run = PayrollRun::findOrFail($request->payroll_run_id);
         $this->authorizeClientAccess($run->client_id);
 
-        $result = $this->generatorService->generate($run->id, Auth::id());
+        return response()->json($this->generatorService->preview($run->id));
+    }
+
+    /**
+     * Generate the official ESIC Monthly Contribution .xls file.
+     */
+    public function generate(Request $request)
+    {
+        $request->validate([
+            'payroll_run_id' => 'required|exists:payroll_runs,id',
+            'reasons' => 'nullable|array',
+            'reasons.*' => 'integer',
+        ]);
+
+        $run = PayrollRun::findOrFail($request->payroll_run_id);
+        $this->authorizeClientAccess($run->client_id);
+
+        $result = $this->generatorService->generate($run->id, $request->input('reasons', []), Auth::id());
 
         return response()->json($result);
     }

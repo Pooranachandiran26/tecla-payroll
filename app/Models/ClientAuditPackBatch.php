@@ -7,31 +7,25 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\BlameableTrait;
 
-class EsiMonthlyBatch extends Model
+class ClientAuditPackBatch extends Model
 {
     use HasFactory, SoftDeletes, BlameableTrait;
 
-    protected $table = 'esi_monthly_batches';
+    protected $table = 'client_audit_pack_batches';
 
     protected $guarded = [];
 
     protected $casts = [
-        'wage_month' => 'date',
+        'manifest' => 'array',
         'generated_at' => 'datetime',
         'downloaded_at' => 'datetime',
-        'total_wages' => 'decimal:2',
-        'employee_count' => 'integer',
-        'zero_day_reasons' => 'array',
+        'included_count' => 'integer',
+        'missing_count' => 'integer',
     ];
 
     public function client()
     {
         return $this->belongsTo(Client::class, 'client_id');
-    }
-
-    public function payrollRun()
-    {
-        return $this->belongsTo(PayrollRun::class, 'payroll_run_id');
     }
 
     public function generator()

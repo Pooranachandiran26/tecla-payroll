@@ -31,6 +31,7 @@ class DatabaseSeeder extends Seeder
             EmailSettingsSeeder::class,
             GstSettingsSeeder::class,
             TestUsersSeeder::class,
+            EsiReasonCodeSeeder::class,
         ]);
 
         if (app()->environment() !== 'testing') {
