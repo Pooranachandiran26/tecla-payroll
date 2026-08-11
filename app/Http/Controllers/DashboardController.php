@@ -36,7 +36,14 @@ class DashboardController extends Controller
         }
 
         $todayStr = Carbon::today()->toDateString();
-        $selectedClientId = $request->input('client_id');
+        $activeSessionClientId = $request->session()->get('active_client_id', 'all');
+        $selectedClientId = $request->has('client_id')
+            ? $request->input('client_id')
+            : ($activeSessionClientId !== 'all' ? $activeSessionClientId : null);
+
+        if ($selectedClientId === 'all' || $selectedClientId === '') {
+            $selectedClientId = null;
+        }
 
         $managedClientIds = $user->getManagedClientIds();
 

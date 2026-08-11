@@ -24,6 +24,8 @@ class EmployeeController extends Controller
         if ($user && $user->role === 'manager') {
             $managedClientIds = $user->getManagedClientIds();
             $query->whereIn('client_id', $managedClientIds);
+        } elseif ($user && $user->role === 'client' && $user->client_id) {
+            $query->where('client_id', $user->client_id);
         }
 
         if (strlen($q) > 0) {
@@ -77,8 +79,12 @@ class EmployeeController extends Controller
             });
         }
         
-        if ($request->client_id) {
-            $query->where('client_id', $request->client_id);
+        $selectedClientId = $request->has('client_id')
+            ? $request->client_id
+            : $request->session()->get('active_client_id', 'all');
+
+        if ($selectedClientId && $selectedClientId !== 'all') {
+            $query->where('client_id', $selectedClientId);
         }
         
         if ($request->status) {
@@ -114,7 +120,10 @@ class EmployeeController extends Controller
         return \Inertia\Inertia::render('Employees/EmployeesList', [
             'employees' => \App\Http\Resources\EmployeeResource::collection($employees),
             'clients' => $clients,
-            'filters' => $request->only(['search', 'client_id', 'employment_model', 'status', 'revision_status'])
+            'filters' => array_merge(
+                $request->only(['search', 'employment_model', 'status', 'revision_status']),
+                ['client_id' => ($selectedClientId && $selectedClientId !== 'all') ? (string)$selectedClientId : '']
+            )
         ]);
     }
 
@@ -190,6 +199,8 @@ class EmployeeController extends Controller
     public function resendInvitation($id)
     {
         $employee = \App\Models\Employee::findOrFail($id);
+        $this->authorizeEmployeeAccess(request()->user(), $employee);
+
         $user = \App\Models\User::where('employee_id', $employee->id)
             ->orWhere(function ($q) use ($employee) {
                 if (!empty($employee->personal_email)) {
@@ -238,6 +249,10 @@ class EmployeeController extends Controller
         if ($user && $user->role === 'manager') {
             $managedClientIds = $user->getManagedClientIds();
             if (!in_array((int)$employee->client_id, array_map('intval', $managedClientIds))) {
+                abort(403, 'Unauthorized access to this employee record.');
+            }
+        } elseif ($user && $user->role === 'client') {
+            if ((int)$employee->client_id !== (int)$user->client_id) {
                 abort(403, 'Unauthorized access to this employee record.');
             }
         }

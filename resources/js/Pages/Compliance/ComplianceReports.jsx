@@ -1,4 +1,4 @@
-import { Head, router, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import AuthenticatedLayout from '../../Layouts/AuthenticatedLayout';
@@ -573,6 +573,25 @@ export default function ComplianceReports() {
     setIsStatusModalOpen(true);
   };
 
+  const handleUpdateEmployeeValidationStatus = (employeeId, newStatus) => {
+    axios.post(route('compliance.pf_ecr.update_employee_status', employeeId), { status: newStatus })
+      .then(res => {
+        showToast(res.data.message || '✅ Validation status updated in database.');
+        setPreviewData(prev => {
+          if (!prev || !prev.line_items) return prev;
+          return {
+            ...prev,
+            line_items: prev.line_items.map(item => 
+              item.employee_id === employeeId ? { ...item, validation_status: newStatus } : item
+            )
+          };
+        });
+      })
+      .catch(() => {
+        showToast('❌ Failed to update employee status in database.', 'error');
+      });
+  };
+
   const handleSaveStatus = async () => {
     if (!editingBatch) return;
     try {
@@ -650,7 +669,9 @@ export default function ComplianceReports() {
       </div>
     ) },
     { key: 'action', label: 'Action', render: (_, row) => (
-      <Button variant="secondary" size="xs" onClick={() => showToast(`ℹ️ Opening compliance register for ${row.name}...`)}>View</Button>
+      <Link href={route('compliance.client_details', row.id)}>
+        <Button variant="secondary" size="xs">View</Button>
+      </Link>
     ) }
   ];
 
@@ -684,8 +705,8 @@ export default function ComplianceReports() {
               {stats?.completed_filings}/{stats?.total_filings}
             </div>
             <div>
-              <h3 className="text-xl font-bold mb-1">Overall Compliance</h3>
-              <p className="text-sm opacity-90 m-0">Standing: {stats?.completed_filings} of {stats?.total_filings} required filings completed.</p>
+              <h3 className="text-xl font-bold mb-1 text-white" style={{ color: '#ffffff' }}>Overall Compliance</h3>
+              <p className="text-sm text-white m-0" style={{ color: '#ffffff', opacity: 0.95 }}>Standing: {stats?.completed_filings} of {stats?.total_filings} required filings completed.</p>
             </div>
           </div>
           
@@ -911,6 +932,7 @@ export default function ComplianceReports() {
                             <th className="p-2">ER EPF</th>
                             <th className="p-2">EPS</th>
                             <th className="p-2">NCP</th>
+                            <th className="p-2">Validation Status</th>
                             <th className="p-2">Action</th>
                           </tr>
                         </thead>
@@ -925,6 +947,22 @@ export default function ComplianceReports() {
                               <td className="p-2 font-semibold text-purple-700">₹{Number(emp.er_epf).toLocaleString('en-IN')}</td>
                               <td className="p-2">₹{Number(emp.eps_contribution).toLocaleString('en-IN')}</td>
                               <td className="p-2">{emp.ncp_days}</td>
+                              <td className="p-2">
+                                <select
+                                  className={`px-2 py-0.5 rounded text-xs font-semibold border cursor-pointer ${
+                                    emp.validation_status === 'Valid'
+                                      ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                                      : 'bg-red-50 text-red-800 border-red-300'
+                                  }`}
+                                  value={emp.validation_status || 'Valid'}
+                                  onChange={(e) => handleUpdateEmployeeValidationStatus(emp.employee_id, e.target.value)}
+                                  title={emp.validation_reason || 'Click to change validation status in DB'}
+                                >
+                                  <option value="Valid">✓ Valid</option>
+                                  <option value="Validation Error">⚠ Validation Error</option>
+                                  <option value="Invalid">❌ Invalid</option>
+                                </select>
+                              </td>
                               <td className="p-2 flex items-center gap-2">
                                 <button 
                                   onClick={() => handleRefreshSingleUser(emp)}
@@ -977,10 +1015,10 @@ export default function ComplianceReports() {
                         <th className="p-2">Batch #</th>
                         <th className="p-2">Client</th>
                         <th className="p-2">Month</th>
-                        <th className="p-2">EE EPF</th>
-                        <th className="p-2">ER EPF</th>
-                        <th className="p-2">TRRN / Challan</th>
-                        <th className="p-2">Status</th>
+                        <th className="p-2">Employee Count</th>
+                        <th className="p-2">ECR Status</th>
+                        <th className="p-2">TRRN</th>
+                        <th className="p-2">Payment Status</th>
                         <th className="p-2">Action</th>
                       </tr>
                     </thead>
@@ -990,10 +1028,20 @@ export default function ComplianceReports() {
                           <td className="p-2 font-mono">#ECR-{b.id}</td>
                           <td className="p-2">{b.client?.company_name || 'N/A'}</td>
                           <td className="p-2">{b.wage_month ? b.wage_month.substring(0, 7) : ''}</td>
-                          <td className="p-2">₹{Number(b.total_employee_epf).toLocaleString('en-IN')}</td>
-                          <td className="p-2">₹{Number(b.total_employer_epf).toLocaleString('en-IN')}</td>
-                          <td className="p-2 font-mono">{b.trrn || b.challan_number || '—'}</td>
-                          <td className="p-2"><Badge variant={b.status === 'filed' ? 'success' : 'info'}>{b.status}</Badge></td>
+                          <td className="p-2 font-semibold text-center">{b.employee_count || '—'}</td>
+                          <td className="p-2">
+                            <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-800 border border-blue-200 px-2 py-0.5 rounded font-medium">
+                              {b.status === 'generated' ? 'ECR Generated' : (b.status || 'ECR Generated')}
+                            </span>
+                          </td>
+                          <td className="p-2 font-mono">{b.trrn ? b.trrn : <span className="text-gray-400 italic">Not Synced / Pending</span>}</td>
+                          <td className="p-2">
+                            {b.payment_status ? (
+                              <Badge variant={b.payment_status === 'completed' ? 'success' : 'warning'}>{b.payment_status}</Badge>
+                            ) : (
+                              <span className="text-gray-500 text-[11px] italic">Not Synced (Manual EPFO Portal)</span>
+                            )}
+                          </td>
                           <td className="p-2 flex items-center gap-2">
                             <a 
                               href={route('compliance.pf_ecr.download', b.id)} 

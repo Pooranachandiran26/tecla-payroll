@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { 
   ArrowLeft, 
   Landmark, 
@@ -24,10 +24,17 @@ import { runJQueryValidation } from '../../Utils/jqueryValidation';
 
 
 export default function EmployeeForm({ clients = [], errors: serverErrors, employee = null }) {
+  const { activeClientId } = usePage().props;
   const [formMode, setFormMode] = useState('add');
   const [empId, setEmpId] = useState(employee ? employee.data?.id || employee.id : null);
   const { showToast } = useToast();
   const emp = employee ? (employee.data || employee) : null;
+
+  useEffect(() => {
+    if (!emp && activeClientId && activeClientId !== 'all') {
+      setFormData(prev => ({ ...prev, clientPartner: String(activeClientId) }));
+    }
+  }, [activeClientId, emp]);
 
   const maxDobDate = useMemo(() => {
     const d = new Date();
@@ -42,6 +49,8 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       clientIdParam = urlParams.get('client_id') || '';
     }
     
+    const defaultClient = (activeClientId && activeClientId !== 'all') ? String(activeClientId) : '';
+
     return {
       firstName: emp?.first_name || (emp?.full_name ? emp.full_name.split(' ')[0] : ''),
       lastName: emp?.last_name || (emp?.full_name ? emp.full_name.split(' ').slice(1).join(' ') : ''),
@@ -56,7 +65,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       personalEmail: emp?.personal_email || '',
       phone: emp?.phone_number || '',
       emergencyContact: emp?.emergency_contact_phone || '',
-      clientPartner: emp?.client_id || clientIdParam || '',
+      clientPartner: emp?.client_id || clientIdParam || defaultClient || '',
       branchPartner: emp?.branch_id || emp?.branchId || '',
       designation: emp?.designation || '',
       doj: emp?.date_of_joining || '',

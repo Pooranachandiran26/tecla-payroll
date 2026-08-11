@@ -90,6 +90,10 @@ class HandleInertiaRequests extends Middleware
             'notificationCount' => fn () => ($request->user() && in_array($request->user()->role, ['admin', 'manager']))
                 ? \App\Models\AppNotification::where('user_id', $request->user()->id)->whereNull('read_at')->count()
                 : 0,
+            'activeClients' => fn () => ($request->user() && in_array($request->user()->role, ['admin', 'manager']))
+                ? \App\Models\Client::where('status', 'active')->select('id', 'company_name', 'client_code')->orderBy('company_name')->get()
+                : [],
+            'activeClientId' => fn () => $request->session()->get('active_client_id', 'all'),
         ];
     }
 }

@@ -1,5 +1,5 @@
 import { Head, router, Link } from '@inertiajs/react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import AuthenticatedLayout from '../../../Layouts/AuthenticatedLayout';
 import RoleGuard from '../../../Components/RoleGuard.jsx';
 import Card from '../../../Components/ui/Card';
@@ -19,6 +19,10 @@ export default function ReportsShow({
 }) {
   const [search, setSearch] = useState(filters.search || '');
   const [selectedClient, setSelectedClient] = useState(filters.client_id || '');
+
+  useEffect(() => {
+    setSelectedClient(filters.client_id || '');
+  }, [filters.client_id]);
   const [selectedMonth, setSelectedMonth] = useState(filters.month || '');
   const [fromDate, setFromDate] = useState(filters.from || '');
   const [toDate, setToDate] = useState(filters.to || '');

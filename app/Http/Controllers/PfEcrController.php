@@ -186,6 +186,30 @@ class PfEcrController extends Controller
     }
 
     /**
+     * Update employee validation status in database.
+     */
+    public function updateEmployeeValidationStatus(Request $request, $employeeId)
+    {
+        $request->validate([
+            'status' => 'required|string|in:Valid,Validation Error,Invalid',
+        ]);
+
+        $emp = \App\Models\Employee::findOrFail($employeeId);
+        $this->authorizeClientAccess($emp->client_id);
+
+        $emp->update([
+            'pf_validation_status' => $request->status,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Employee #{$emp->employee_code} validation status updated to {$request->status}.",
+            'employee_id' => $emp->id,
+            'status' => $request->status,
+        ]);
+    }
+
+    /**
      * Authorize user access to client resources.
      */
     private function authorizeClientAccess(int $clientId): void
