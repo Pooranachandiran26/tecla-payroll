@@ -14,11 +14,21 @@ import { ShieldCheck, CheckCircle2, AlertTriangle, HelpCircle, Loader2 } from 'l
 export default function AttendanceReview({ initialBatches, clients, selectedMonth }) {
   const { showToast } = useToast();
   const [batches, setBatches] = useState(initialBatches || []);
-  const [targetMonth, setTargetMonth] = useState(selectedMonth || '2026-07');
+  const [targetMonth, setTargetMonth] = useState(selectedMonth || '');
+
+  React.useEffect(() => {
+    setBatches(initialBatches || []);
+  }, [initialBatches]);
+
+  React.useEffect(() => {
+    if (selectedMonth) {
+      setTargetMonth(selectedMonth);
+    }
+  }, [selectedMonth]);
 
   const getMonthOptions = () => {
     const options = [];
-    const startDate = new Date(2026, 4, 1); // May 2026 (index 4)
+    const startDate = new Date(2025, 0, 1); // Jan 2025
     const endDate = new Date();
     endDate.setMonth(endDate.getMonth() + 2); // Current date + 2 months
 
@@ -50,7 +60,7 @@ export default function AttendanceReview({ initialBatches, clients, selectedMont
   const handleMonthChange = (e) => {
     const nextMonth = e.target.value;
     setTargetMonth(nextMonth);
-    router.get(route('payroll.attendance-review'), { month: nextMonth }, { preserveState: true });
+    router.get(route('payroll.attendance-review'), { month: nextMonth }, { preserveState: false, preserveScroll: true });
   };
 
   const openDetails = (clientId, clientName) => {

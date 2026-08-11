@@ -36,13 +36,22 @@ class AttendanceReviewController extends Controller
             abort(403, 'Unauthorized');
         }
 
-        $targetMonth = $request->query('month', '2026-07');
+        $currentMonthDefault = now()->format('Y-m');
+        $targetMonth = $request->query('month', $currentMonthDefault);
         $monthStart = Carbon::parse($targetMonth . '-01');
         $monthEnd = $monthStart->copy()->endOfMonth();
+
+        $activeSessionClientId = $request->session()->get('active_client_id', 'all');
+        $selectedClientId = $request->has('client_id')
+            ? $request->query('client_id')
+            : ($activeSessionClientId !== 'all' ? $activeSessionClientId : null);
 
         $clientsQuery = Client::where('status', 'active');
         if ($request->user()->role === 'manager') {
             $clientsQuery->whereIn('id', $request->user()->getManagedClientIds());
+        }
+        if ($selectedClientId && $selectedClientId !== 'all') {
+            $clientsQuery->where('id', $selectedClientId);
         }
         $clients = $clientsQuery->orderBy('id', 'desc')->get();
         $rows = [];

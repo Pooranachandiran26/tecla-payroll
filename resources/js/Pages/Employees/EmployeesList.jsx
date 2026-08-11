@@ -17,6 +17,10 @@ export default function EmployeesList({ employees = { data: [], links: [] }, cli
     const [suggestions, setSuggestions] = useState([]);
     const [searchingSuggestions, setSearchingSuggestions] = useState(false);
 
+    useEffect(() => {
+        setClientId(filters.client_id || '');
+    }, [filters.client_id]);
+
     const applyFilters = () => {
         setShowSuggestions(false);
         router.get(route('employees.index'), {

@@ -696,7 +696,18 @@ class PayrollController extends Controller
             ->orderBy('id', 'desc')
             ->get();
         
-        $selectedClientId = $request->query('client_id', $clients->first()?->id);
+        $activeSessionClientId = $request->session()->get('active_client_id', 'all');
+        $defaultClientId = ($activeSessionClientId && $activeSessionClientId !== 'all') 
+            ? (int)$activeSessionClientId 
+            : $clients->first()?->id;
+
+        $selectedClientId = $request->has('client_id') 
+            ? $request->query('client_id') 
+            : $defaultClientId;
+
+        if ($selectedClientId === 'all' || $selectedClientId === '') {
+            $selectedClientId = $defaultClientId;
+        }
         
         $defaultMonth = now()->subMonth()->startOfMonth()->toDateString();
         $selectedMonth = $request->query('payroll_month', $defaultMonth);
@@ -883,7 +894,18 @@ class PayrollController extends Controller
             ->orderBy('id', 'desc')
             ->get();
 
-        $selectedClientId = $request->query('client_id', $clients->first()?->id);
+        $activeSessionClientId = $request->session()->get('active_client_id', 'all');
+        $defaultClientId = ($activeSessionClientId && $activeSessionClientId !== 'all') 
+            ? (int)$activeSessionClientId 
+            : $clients->first()?->id;
+
+        $selectedClientId = $request->has('client_id') 
+            ? $request->query('client_id') 
+            : $defaultClientId;
+
+        if ($selectedClientId === 'all' || $selectedClientId === '') {
+            $selectedClientId = $defaultClientId;
+        }
         
         $defaultMonth = now()->subMonth()->startOfMonth()->toDateString();
         $selectedMonth = $request->query('payroll_month', $defaultMonth);
@@ -1088,7 +1110,11 @@ class PayrollController extends Controller
             ->orderBy('id', 'desc')
             ->get();
 
-        $selectedClientId = $request->query('client_id');
+        $activeSessionClientId = $request->session()->get('active_client_id', 'all');
+        $selectedClientId = $request->has('client_id')
+            ? $request->query('client_id')
+            : ($activeSessionClientId !== 'all' ? $activeSessionClientId : null);
+
         if (!$selectedClientId && $clients->isNotEmpty()) {
             $selectedClientId = $clients->first()->id;
         }
@@ -1213,7 +1239,10 @@ class PayrollController extends Controller
             ->orderBy('id', 'desc')
             ->get();
 
-        $selectedClientId = $request->query('client_id');
+        $activeSessionClientId = $request->session()->get('active_client_id', 'all');
+        $selectedClientId = $request->has('client_id')
+            ? $request->query('client_id')
+            : ($activeSessionClientId !== 'all' ? $activeSessionClientId : null);
         $selectedDate = $request->query('date', \Carbon\Carbon::today()->toDateString());
 
         $query = \App\Models\Employee::where('employees.status', 'active')

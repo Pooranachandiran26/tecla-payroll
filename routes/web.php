@@ -89,6 +89,12 @@ Route::middleware(['auth', 'active'])->group(function () {
 
             Route::post('/export/employees', [\App\Http\Controllers\ExportController::class, 'exportEmployeeData'])->name('employees.export');
 
+            Route::post('/active-client/switch', function (\Illuminate\Http\Request $request) {
+                $request->validate(['client_id' => 'required']);
+                $request->session()->put('active_client_id', $request->client_id);
+                return back();
+            })->name('active-client.switch');
+
             // Clients Module (Gated by module:clients)
             Route::middleware('module:clients')->group(function () {
                 Route::get('/clients', [ClientController::class,'index'])->middleware('can:viewAny,App\Models\Client')->name('clients.index');
@@ -295,6 +301,7 @@ Route::middleware(['auth', 'active'])->group(function () {
             // Compliance Module (Gated by module:compliance)
             Route::middleware('module:compliance')->group(function () {
                 Route::get('/compliance', [\App\Http\Controllers\ComplianceController::class, 'index'])->name('compliance.index');
+                Route::get('/compliance/clients/{client}', [\App\Http\Controllers\ComplianceController::class, 'showClientDetails'])->name('compliance.client_details');
                 Route::post('/compliance/mark-filed', [\App\Http\Controllers\ComplianceController::class, 'markFiled'])->name('compliance.mark_filed');
                 
                 // PF ECR Routes
@@ -303,6 +310,7 @@ Route::middleware(['auth', 'active'])->group(function () {
                 Route::post('/compliance/pf-ecr/generate', [PfEcrController::class, 'generate'])->name('compliance.pf_ecr.generate');
                 Route::get('/compliance/pf-ecr/download/{id}', [PfEcrController::class, 'download'])->name('compliance.pf_ecr.download');
                 Route::post('/compliance/pf-ecr/update-status/{id}', [PfEcrController::class, 'updateStatus'])->name('compliance.pf_ecr.update_status');
+                Route::post('/compliance/pf-ecr/update-employee-status/{employeeId}', [PfEcrController::class, 'updateEmployeeValidationStatus'])->name('compliance.pf_ecr.update_employee_status');
                 Route::delete('/compliance/pf-ecr/{id}', [PfEcrController::class, 'destroy'])->name('compliance.pf_ecr.destroy');
 
                 // ESI Monthly Contribution Routes

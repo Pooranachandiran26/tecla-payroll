@@ -244,7 +244,19 @@ class AdminReportController extends Controller
             abort(403, "Access to '{$reportKey}' is restricted to Administrator role.");
         }
 
-        $filters = $request->only(['month', 'from', 'to', 'client_id', 'search', 'status', 'page', 'per_page']);
+        $activeSessionClientId = $request->session()->get('active_client_id', 'all');
+        $selectedClientId = $request->has('client_id')
+            ? $request->client_id
+            : ($activeSessionClientId !== 'all' ? $activeSessionClientId : null);
+
+        if ($selectedClientId === 'all' || $selectedClientId === '') {
+            $selectedClientId = null;
+        }
+
+        $filters = array_merge(
+            $request->only(['month', 'from', 'to', 'search', 'status', 'page', 'per_page']),
+            ['client_id' => $selectedClientId ? (string)$selectedClientId : '']
+        );
 
         // Resolve clients dropdown for filter (Scoped for Manager)
         $managedIds = $user->getManagedClientIds();
@@ -421,7 +433,19 @@ class AdminReportController extends Controller
             abort(403, "Access to '{$reportKey}' is restricted to Administrator role.");
         }
 
-        $filters = $request->only(['month', 'from', 'to', 'client_id', 'search', 'status']);
+        $activeSessionClientId = $request->session()->get('active_client_id', 'all');
+        $selectedClientId = $request->has('client_id')
+            ? $request->client_id
+            : ($activeSessionClientId !== 'all' ? $activeSessionClientId : null);
+
+        if ($selectedClientId === 'all' || $selectedClientId === '') {
+            $selectedClientId = null;
+        }
+
+        $filters = array_merge(
+            $request->only(['month', 'from', 'to', 'search', 'status']),
+            ['client_id' => $selectedClientId ? (string)$selectedClientId : '']
+        );
 
         $service = $this->getServiceForReport($reportKey);
         if (!$service) {
@@ -445,7 +469,19 @@ class AdminReportController extends Controller
             abort(403, "Access to '{$reportKey}' is restricted to Administrator role.");
         }
 
-        $filters = $request->only(['month', 'from', 'to', 'client_id', 'search', 'status']);
+        $activeSessionClientId = $request->session()->get('active_client_id', 'all');
+        $selectedClientId = $request->has('client_id')
+            ? $request->client_id
+            : ($activeSessionClientId !== 'all' ? $activeSessionClientId : null);
+
+        if ($selectedClientId === 'all' || $selectedClientId === '') {
+            $selectedClientId = null;
+        }
+
+        $filters = array_merge(
+            $request->only(['month', 'from', 'to', 'search', 'status']),
+            ['client_id' => $selectedClientId ? (string)$selectedClientId : '']
+        );
 
         $service = $this->getServiceForReport($reportKey);
         if (!$service) {
