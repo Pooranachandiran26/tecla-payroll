@@ -156,6 +156,23 @@ class PfEcrGeneratorService
             $totalEmployerEps += $epsInt;
             $totalNcpDays += $ncpInt;
 
+            $itemValidationErrors = [];
+            if (empty($uan)) {
+                $itemValidationErrors[] = "Missing UAN";
+            } elseif (!preg_match('/^\d{12}$/', $uan)) {
+                $itemValidationErrors[] = "Invalid UAN: Must be 12 digits";
+            }
+            if ($epfWageInt <= 0 && $ncpInt < $daysInMonth) {
+                $itemValidationErrors[] = "Zero EPF wages with non-zero attendance";
+            }
+
+            if (!empty($emp->pf_validation_status)) {
+                $validationStatus = $emp->pf_validation_status;
+            } else {
+                $validationStatus = empty($itemValidationErrors) ? 'Valid' : 'Validation Error';
+            }
+            $validationReason = empty($itemValidationErrors) ? '' : implode('; ', $itemValidationErrors);
+
             $lineItems[] = [
                 'employee_id' => $emp->id,
                 'employee_code' => $empCode,
@@ -170,6 +187,8 @@ class PfEcrGeneratorService
                 'er_epf' => $erEpfInt,
                 'ncp_days' => $ncpInt,
                 'refund_advances' => 0,
+                'validation_status' => $validationStatus,
+                'validation_reason' => $validationReason,
             ];
         }
 

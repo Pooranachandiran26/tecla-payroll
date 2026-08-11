@@ -37,7 +37,26 @@ class ComplianceController extends Controller
 
         $totalHeadcount = $clientHeadcounts->sum();
 
-        $clients = Client::with('branches')->orderBy('company_name')->get();
+        $activeSessionClientId = $request->session()->get('active_client_id', 'all');
+        $selectedClientId = $request->has('client_id')
+            ? $request->query('client_id')
+            : ($activeSessionClientId !== 'all' ? $activeSessionClientId : null);
+
+        if ($selectedClientId === 'all' || $selectedClientId === '') {
+            $selectedClientId = null;
+        }
+
+        $clientsQuery = Client::with('branches')->orderBy('company_name');
+
+        if ($request->user()->role === 'manager') {
+            $clientsQuery->whereIn('id', $request->user()->getManagedClientIds());
+        }
+
+        if ($selectedClientId) {
+            $clientsQuery->where('id', $selectedClientId);
+        }
+
+        $clients = $clientsQuery->get();
 
         $clientRegister = collect();
         $totalFilingsNeeded = 0;
@@ -174,5 +193,125 @@ class ComplianceController extends Controller
         );
 
         return back()->with('success', strtoupper($request->statute) . ' filing status updated successfully.');
+    }
+
+    public function showClientDetails(Request $request, $clientId)
+    {
+        $user = $request->user();
+        // SECURITY: enforce strict client isolation for all non-admin roles
+        if ($user->role === 'manager' && !$user->isManagerForClient($clientId)) {
+            abort(403, 'Unauthorized access to client compliance details.');
+        }
+        if ($user->role === 'client' && (int)$user->client_id !== (int)$clientId) {
+            abort(403, 'Unauthorized access to client compliance details.');
+        }
+
+        $client = Client::with(['branches', 'employees' => function($q) {
+            $q->where('status', 'active');
+        }])->findOrFail($clientId);
+
+        $monthParam = $request->query('month', Carbon::now()->startOfMonth()->format('Y-m'));
+        $period = Carbon::parse($monthParam)->startOfMonth();
+        $periodString = $period->format('Y-m-d');
+
+        $filings = ComplianceFiling::where('client_id', $client->id)
+            ->where('period', $periodString)
+            ->get()
+            ->keyBy('statute');
+
+        $resolutionService = new \App\Services\StatutoryFilingResolutionService();
+        $pfRegistration = $resolutionService->resolveClientRegistrationStatus($client, 'pf');
+        $esiRegistration = $resolutionService->resolveClientRegistrationStatus($client, 'esi');
+
+        $hasPfBatch = DB::table('pf_ecr_batches')->where('client_id', $client->id)->exists();
+        $hasEsiBatch = DB::table('esi_monthly_batches')->where('client_id', $client->id)->exists();
+        $hasPtBatch = DB::table('pt_challan_batches')->where('client_id', $client->id)->exists();
+        $hasTdsBatch = DB::table('tds_24q_batches')->where('client_id', $client->id)->exists();
+
+        $pfStatus = ($hasPfBatch || ($filings->has('pf') && $filings['pf']->status === 'filed')) ? 'filed' : ($filings->has('pf') ? $filings['pf']->status : 'pending');
+        $esiStatus = ($hasEsiBatch || ($filings->has('esi') && $filings['esi']->status === 'filed')) ? 'filed' : ($filings->has('esi') ? $filings['esi']->status : 'pending');
+        $ptStatus = ($hasPtBatch || ($filings->has('pt') && $filings['pt']->status === 'filed')) ? 'filed' : ($filings->has('pt') ? $filings['pt']->status : 'pending');
+        $tdsStatus = ($hasTdsBatch || ($filings->has('tds') && $filings['tds']->status === 'filed')) ? 'filed' : ($filings->has('tds') ? $filings['tds']->status : 'pending');
+
+        $pfDue = StatutoryDueDateService::getPfDueDate($period)->format('d M Y');
+        $esiDue = StatutoryDueDateService::getEsiDueDate($period)->format('d M Y');
+        $states = $client->branches->pluck('state')->filter()->unique()->toArray();
+        $ptDue = StatutoryDueDateService::getPtDueDate($period, $states);
+        $ptDueStr = $ptDue ? $ptDue->format('d M Y') : 'Not Applicable';
+        $tdsDue = StatutoryDueDateService::getTdsDueDate($period)->format('d M Y');
+
+        // SERVER-SIDE PAGINATION: load only first page (10 records) — prevents loading 1000s of records
+        $perPage = (int)$request->query('per_page', 10);
+        $pfPage  = (int)$request->query('pf_page', 1);
+        $search  = trim($request->query('search', ''));
+        $statusFilter = $request->query('status', 'all');
+
+        $pfQuery = DB::table('pf_ecr_batches')
+            ->where('client_id', $client->id)
+            ->when($search, fn($q) => $q->where(fn($s) =>
+                $s->where('id', 'like', "%{$search}%")
+                  ->orWhere('trrn', 'like', "%{$search}%")
+                  ->orWhere('challan_number', 'like', "%{$search}%")
+            ))
+            ->when($statusFilter !== 'all', fn($q) => $q->where('status', $statusFilter))
+            ->orderBy('id', 'desc');
+
+        $pfPaginated = $pfQuery->paginate($perPage, ['*'], 'pf_page', $pfPage);
+
+        return Inertia::render('Compliance/ClientComplianceDetails', [
+            'client' => [
+                'id'       => $client->id,
+                'name'     => $client->company_name,
+                'code'     => $client->client_code,
+                'status'   => $client->status,
+                'headcount'=> $client->employees->count(),
+                'pf_code'  => $client->pf_establishment_code ?? 'Not Configured',
+                'esi_code' => $client->esi_establishment_code ?? 'Not Configured',
+                'pan'      => $client->pan_number ?? 'N/A',
+                'tan'      => $client->tan_number ?? 'N/A',
+                'gstin'    => $client->gstin ?? 'N/A',
+            ],
+            'period' => $period->format('Y-m'),
+            'statutory_statuses' => [
+                'pf'   => [
+                    'status'      => $pfStatus,
+                    'registration'=> $pfRegistration,
+                    'due_date'    => $pfDue,
+                    'filed_on'    => $filings->has('pf') && $filings['pf']->filed_at ? Carbon::parse($filings['pf']->filed_at)->format('d M Y') : null,
+                ],
+                'esi'  => [
+                    'status'      => $esiStatus,
+                    'registration'=> $esiRegistration,
+                    'due_date'    => $esiDue,
+                    'filed_on'    => $filings->has('esi') && $filings['esi']->filed_at ? Carbon::parse($filings['esi']->filed_at)->format('d M Y') : null,
+                ],
+                'pt'   => [
+                    'status'   => $ptStatus,
+                    'due_date' => $ptDueStr,
+                    'filed_on' => $filings->has('pt') && $filings['pt']->filed_at ? Carbon::parse($filings['pt']->filed_at)->format('d M Y') : null,
+                ],
+                'tds'  => [
+                    'status'   => $tdsStatus,
+                    'due_date' => $tdsDue,
+                    'filed_on' => $filings->has('tds') && $filings['tds']->filed_at ? Carbon::parse($filings['tds']->filed_at)->format('d M Y') : null,
+                ],
+                'clra' => [
+                    'status'   => $filings->has('clra') ? $filings['clra']->status : 'pending',
+                    'due_date' => $client->clra_license_expiry ? Carbon::parse($client->clra_license_expiry)->format('d M Y') : 'Not Tracked',
+                    'filed_on' => $filings->has('clra') && $filings['clra']->filed_at ? Carbon::parse($filings['clra']->filed_at)->format('d M Y') : null,
+                ],
+                'gstr1'=> ['status' => 'not_generated', 'due_date' => '20 ' . $period->addMonth()->format('M Y')],
+            ],
+            // True server-side pagination: only current page data is sent to frontend
+            'pf_batches' => [
+                'data'         => $pfPaginated->items(),
+                'current_page' => $pfPaginated->currentPage(),
+                'last_page'    => $pfPaginated->lastPage(),
+                'per_page'     => $pfPaginated->perPage(),
+                'total'        => $pfPaginated->total(),
+                'from'         => $pfPaginated->firstItem() ?? 0,
+                'to'           => $pfPaginated->lastItem() ?? 0,
+            ],
+        ]);
     }
 }

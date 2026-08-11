@@ -14,7 +14,7 @@ export default function AuthenticatedLayout({ children, hideSubNav = false }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   // Use auth, branding, flash, and pendingQueryCount from usePage().props
-  const { auth, branding, flash, notificationCount } = usePage().props;
+  const { auth, branding, flash, notificationCount, activeClients, activeClientId } = usePage().props;
   const unreadCount = Number(notificationCount || 0);
 
   const { showToast } = useToast();
@@ -159,10 +159,46 @@ export default function AuthenticatedLayout({ children, hideSubNav = false }) {
             ))}
           </nav>
 
-          <div className="user-actions">
+          <div className="user-actions" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             {/* Notification Bell — fully wired via NotificationPanel */}
             {(role === 'admin' || role === 'manager') && (
               <NotificationPanel unreadCount={unreadCount} />
+            )}
+
+            {/* Global Active Client Selector */}
+            {(role === 'admin' || role === 'manager') && activeClients && activeClients.length > 0 && (
+              <div className="active-client-selector" style={{ position: 'relative' }}>
+                <select
+                  value={activeClientId || 'all'}
+                  onChange={(e) => {
+                    const targetUrl = typeof route === 'function' && route().has('active-client.switch')
+                      ? route('active-client.switch')
+                      : '/active-client/switch';
+                    router.post(targetUrl, { client_id: e.target.value }, { preserveState: true, preserveScroll: true });
+                  }}
+                  title="Global Active Client Selector"
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.12)',
+                    color: '#FFFFFF',
+                    border: '1px solid rgba(255, 255, 255, 0.25)',
+                    borderRadius: '6px',
+                    padding: '0.35rem 0.65rem',
+                    fontSize: '0.82rem',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    outline: 'none',
+                    maxWidth: '180px',
+                    textOverflow: 'ellipsis'
+                  }}
+                >
+                  <option value="all" style={{ color: '#1E293B' }}>All Clients</option>
+                  {activeClients.map(c => (
+                    <option key={c.id} value={c.id} style={{ color: '#1E293B' }}>
+                      {c.company_name} ({c.client_code})
+                    </option>
+                  ))}
+                </select>
+              </div>
             )}
 
             
