@@ -721,10 +721,32 @@ export default function Settings() {
                       <Input label="ESI Code Number" value={companySettings.esi_code_number || ''} onChange={e => handleCompanyChange('esi_code_number', e.target.value)} placeholder="e.g. 31001234560001001" noMargin />
                       <p className="text-xs text-gray-500 mt-1">📌 Required for statutory ESI return filing for <strong>Agency Contract</strong> employees.</p>
                     </div>
-                    <div className="flex-1">
-                      {/* Placeholder for future expansion */}
+                    <div className="flex-1"></div>
+                  </div>
+
+                  <div className="border-t border-gray-200 my-6 pt-5">
+                    <h4 className="text-md font-bold text-[#1F3864] mb-1">Bank Account Details (For Client Invoice Remittance)</h4>
+                    <p className="text-xs text-gray-500 mb-4">These bank details appear at the bottom of all generated client tax invoices for NEFT / RTGS payments.</p>
+
+                    <div className="flex gap-4 mb-4">
+                      <div className="flex-1">
+                        <Input label="Bank Name" value={companySettings.bank_name || ''} onChange={e => handleCompanyChange('bank_name', e.target.value)} placeholder="e.g. HDFC Bank" noMargin />
+                      </div>
+                      <div className="flex-1">
+                        <Input label="Bank Account Number" value={companySettings.bank_account_number || ''} onChange={e => handleCompanyChange('bank_account_number', e.target.value)} placeholder="e.g. 50200012345678" noMargin />
+                      </div>
+                    </div>
+
+                    <div className="flex gap-4 mb-4">
+                      <div className="flex-1">
+                        <Input label="IFSC Code" value={companySettings.bank_ifsc_code || ''} onChange={e => handleCompanyChange('bank_ifsc_code', e.target.value)} placeholder="e.g. HDFC0000240" noMargin />
+                      </div>
+                      <div className="flex-1">
+                        <Input label="Bank Branch & City" value={companySettings.bank_branch || ''} onChange={e => handleCompanyChange('bank_branch', e.target.value)} placeholder="e.g. Bandra East Branch, Mumbai" noMargin />
+                      </div>
                     </div>
                   </div>
+
                   <Button type="submit" variant="primary" className="mt-4">Update Basic Profile</Button>
                 </form>
               )}

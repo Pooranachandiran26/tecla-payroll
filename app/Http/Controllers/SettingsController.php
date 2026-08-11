@@ -162,6 +162,10 @@ class SettingsController extends Controller
             'agency_gstin' => 'nullable|string',
             'pf_establishment_code' => 'nullable|string|max:255',
             'esi_code_number' => 'nullable|string|max:255',
+            'bank_name' => 'nullable|string|max:255',
+            'bank_account_number' => 'nullable|string|max:255',
+            'bank_ifsc_code' => 'nullable|string|max:255',
+            'bank_branch' => 'nullable|string|max:255',
         ]);
 
         $changes = [];

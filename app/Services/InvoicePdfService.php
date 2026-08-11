@@ -55,12 +55,12 @@ class InvoicePdfService
         $billedToGstin = $client->decrypted_gstin ?: ($branch->gstin ?: '—');
         $branchName = $branch ? $branch->branch_name : 'Head Office';
 
-        // Bank Details from Settings
+        // Bank Details from Settings (prioritize company profile, fallback to invoicing or default)
         $bankDetails = [
-            'bank_name' => SettingsService::get('invoicing.bank_name', 'HDFC Bank'),
-            'account_number' => SettingsService::get('invoicing.account_number', '50200012345678'),
-            'ifsc_code' => SettingsService::get('invoicing.ifsc_code', 'HDFC0000240'),
-            'branch_name' => SettingsService::get('invoicing.branch_name', 'Bandra East Branch, Mumbai'),
+            'bank_name' => SettingsService::get('company_profile.bank_name') ?: SettingsService::get('invoicing.bank_name', 'HDFC Bank'),
+            'account_number' => SettingsService::get('company_profile.bank_account_number') ?: SettingsService::get('invoicing.account_number', '50200012345678'),
+            'ifsc_code' => SettingsService::get('company_profile.bank_ifsc_code') ?: SettingsService::get('invoicing.ifsc_code', 'HDFC0000240'),
+            'branch_name' => SettingsService::get('company_profile.bank_branch') ?: SettingsService::get('invoicing.branch_name', 'Bandra East Branch, Mumbai'),
         ];
 
         // Payment Instructions & Terms
