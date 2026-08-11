@@ -118,7 +118,10 @@ class InvoiceGenerationService
 
             $branchGross = round($branchGross, 2);
             $branchServiceFee = round($branchServiceFee, 2);
-            $gstAmount = round($branchServiceFee * 0.18, 2);
+            $cgstAmount = ($gstType === 'cgst_sgst') ? round($branchServiceFee * 0.09, 2) : 0.00;
+            $sgstAmount = ($gstType === 'cgst_sgst') ? round($branchServiceFee * 0.09, 2) : 0.00;
+            $igstAmount = ($gstType === 'igst') ? round($branchServiceFee * 0.18, 2) : 0.00;
+            $gstAmount = ($gstType === 'cgst_sgst') ? round($cgstAmount + $sgstAmount, 2) : $igstAmount;
             $grandTotal = round($branchGross + $branchServiceFee + $gstAmount, 2);
 
             // Check if a parent invoice already exists for this branch + target run
@@ -149,10 +152,19 @@ class InvoiceGenerationService
                 }
 
                 // MERGE: Update existing invoice totals and add new line items
+                $newServiceFee = round((float) $existingInvoice->agency_service_fee + $branchServiceFee, 2);
+                $newCgst = ($gstType === 'cgst_sgst') ? round($newServiceFee * 0.09, 2) : 0.00;
+                $newSgst = ($gstType === 'cgst_sgst') ? round($newServiceFee * 0.09, 2) : 0.00;
+                $newIgst = ($gstType === 'igst') ? round($newServiceFee * 0.18, 2) : 0.00;
+                $newGst = ($gstType === 'cgst_sgst') ? round($newCgst + $newSgst, 2) : $newIgst;
+
                 $updatePayload = [
                     'gross_salary_passthrough' => round((float) $existingInvoice->gross_salary_passthrough + $branchGross, 2),
-                    'agency_service_fee' => round((float) $existingInvoice->agency_service_fee + $branchServiceFee, 2),
-                    'gst_amount' => round((float) $existingInvoice->gst_amount + $gstAmount, 2),
+                    'agency_service_fee' => $newServiceFee,
+                    'cgst_amount' => $newCgst,
+                    'sgst_amount' => $newSgst,
+                    'igst_amount' => $newIgst,
+                    'gst_amount' => $newGst,
                     'grand_total' => $newGrandTotal,
                     'warning_notes' => $warningNotes,
                 ];
@@ -204,6 +216,9 @@ class InvoiceGenerationService
                     'gst_type' => $gstType,
                     'gross_salary_passthrough' => $branchGross,
                     'agency_service_fee' => $branchServiceFee,
+                    'cgst_amount' => $cgstAmount,
+                    'sgst_amount' => $sgstAmount,
+                    'igst_amount' => $igstAmount,
                     'gst_amount' => $gstAmount,
                     'grand_total' => $grandTotal,
                     'status' => 'draft',

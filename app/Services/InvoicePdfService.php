@@ -72,7 +72,7 @@ class InvoicePdfService
         $formattedDueDate = Carbon::parse($invoice->due_date)->format('d M Y');
         $formattedMonth = Carbon::parse($invoice->invoice_month)->format('F Y');
 
-        $grandTotalWords = $this->numberToEnglishWords((int)round((float)$invoice->grand_total));
+        $grandTotalWords = $this->amountToIndianWords((float)$invoice->grand_total);
 
         $data = [
             'invoice' => $invoice,
@@ -108,35 +108,53 @@ class InvoicePdfService
         return view('pdf.invoice', $data)->render();
     }
 
-    private function numberToEnglishWords(int $number): string
+    private function amountToIndianWords(float $amount): string
     {
-        if ($number === 0) return 'Zero Rupees Only';
-        $words = [];
-        $words[0] = ''; $words[1] = 'One'; $words[2] = 'Two'; $words[3] = 'Three'; $words[4] = 'Four';
-        $words[5] = 'Five'; $words[6] = 'Six'; $words[7] = 'Seven'; $words[8] = 'Eight'; $words[9] = 'Nine';
-        $words[10] = 'Ten'; $words[11] = 'Eleven'; $words[12] = 'Twelve'; $words[13] = 'Thirteen';
-        $words[14] = 'Fourteen'; $words[15] = 'Fifteen'; $words[16] = 'Sixteen'; $words[17] = 'Seventeen';
-        $words[18] = 'Eighteen'; $words[19] = 'Nineteen'; $words[20] = 'Twenty'; $words[30] = 'Thirty';
-        $words[40] = 'Forty'; $words[50] = 'Fifty'; $words[60] = 'Sixty'; $words[70] = 'Seventy';
-        $words[80] = 'Eighty'; $words[90] = 'Ninety';
+        $rupees = (int) floor($amount);
+        $paise = (int) round(($amount - $rupees) * 100);
 
-        if ($number < 0) return 'Negative ' . $this->numberToEnglishWords(abs($number));
+        if ($rupees === 0 && $paise === 0) return 'Zero Rupees Only';
+
+        $words = '';
+        if ($rupees > 0) {
+            $words .= 'Rupees ' . trim($this->convertNumberToWords($rupees));
+        }
+        if ($paise > 0) {
+            if ($rupees > 0) $words .= ' and ';
+            $words .= trim($this->convertNumberToWords($paise)) . ' Paise';
+        }
+        return trim($words) . ' Only';
+    }
+
+    private function convertNumberToWords(int $number): string
+    {
+        $words = [
+            0 => '', 1 => 'One', 2 => 'Two', 3 => 'Three', 4 => 'Four',
+            5 => 'Five', 6 => 'Six', 7 => 'Seven', 8 => 'Eight', 9 => 'Nine',
+            10 => 'Ten', 11 => 'Eleven', 12 => 'Twelve', 13 => 'Thirteen',
+            14 => 'Fourteen', 15 => 'Fifteen', 16 => 'Sixteen', 17 => 'Seventeen',
+            18 => 'Eighteen', 19 => 'Nineteen', 20 => 'Twenty', 30 => 'Thirty',
+            40 => 'Forty', 50 => 'Fifty', 60 => 'Sixty', 70 => 'Seventy',
+            80 => 'Eighty', 90 => 'Ninety'
+        ];
+
+        if ($number < 0) return 'Negative ' . $this->convertNumberToWords(abs($number));
 
         $result = '';
         if ($number >= 10000000) {
-            $result .= $this->numberToEnglishWords(intval($number / 10000000)) . ' Crore ';
+            $result .= $this->convertNumberToWords(intval($number / 10000000)) . ' Crore ';
             $number %= 10000000;
         }
         if ($number >= 100000) {
-            $result .= $this->numberToEnglishWords(intval($number / 100000)) . ' Lakh ';
+            $result .= $this->convertNumberToWords(intval($number / 100000)) . ' Lakh ';
             $number %= 100000;
         }
         if ($number >= 1000) {
-            $result .= $this->numberToEnglishWords(intval($number / 1000)) . ' Thousand ';
+            $result .= $this->convertNumberToWords(intval($number / 1000)) . ' Thousand ';
             $number %= 1000;
         }
         if ($number >= 100) {
-            $result .= $this->numberToEnglishWords(intval($number / 100)) . ' Hundred ';
+            $result .= $this->convertNumberToWords(intval($number / 100)) . ' Hundred ';
             $number %= 100;
         }
         if ($number > 0) {
@@ -149,6 +167,6 @@ class InvoicePdfService
                 }
             }
         }
-        return trim($result) . ' Rupees Only';
+        return trim($result);
     }
 }

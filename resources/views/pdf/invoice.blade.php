@@ -239,18 +239,18 @@
             <tr>
                 <td>Central Goods & Services Tax (CGST)</td>
                 <td style="text-align: center;">9.00%</td>
-                <td style="text-align: right; font-weight: bold;">{{ number_format((float)($invoice->cgst_amount ?: round($taxableServiceFeeTotal * 0.09, 2)), 2) }}</td>
+                <td style="text-align: right; font-weight: bold;">{{ number_format((float)((float)$invoice->cgst_amount > 0 ? $invoice->cgst_amount : round($taxableServiceFeeTotal * 0.09, 2)), 2) }}</td>
             </tr>
             <tr>
                 <td>State Goods & Services Tax (SGST)</td>
                 <td style="text-align: center;">9.00%</td>
-                <td style="text-align: right; font-weight: bold;">{{ number_format((float)($invoice->sgst_amount ?: round($taxableServiceFeeTotal * 0.09, 2)), 2) }}</td>
+                <td style="text-align: right; font-weight: bold;">{{ number_format((float)((float)$invoice->sgst_amount > 0 ? $invoice->sgst_amount : round($taxableServiceFeeTotal * 0.09, 2)), 2) }}</td>
             </tr>
             @else
             <tr>
                 <td>Integrated Goods & Services Tax (IGST)</td>
                 <td style="text-align: center;">18.00%</td>
-                <td style="text-align: right; font-weight: bold;">{{ number_format((float)($invoice->igst_amount ?: round($taxableServiceFeeTotal * 0.18, 2)), 2) }}</td>
+                <td style="text-align: right; font-weight: bold;">{{ number_format((float)((float)$invoice->igst_amount > 0 ? $invoice->igst_amount : ((float)$invoice->gst_amount > 0 ? $invoice->gst_amount : round($taxableServiceFeeTotal * 0.18, 2))), 2) }}</td>
             </tr>
             @endif
             <tr style="background-color: #fff5f5; font-weight: bold;">
