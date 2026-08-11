@@ -207,7 +207,7 @@ export default function EmployeesList({ employees = { data: [], links: [] }, cli
         </div>
         <div>
           <select className="form-control" style={{"padding":"0.4rem 0.75rem"}} title="Select Client" value={clientId} onChange={e => setClientId(e.target.value)}>
-            <option value="">All Clients</option>
+            <option value="">Select Client</option>
             {clients && clients.map(c => (
                <option key={c.id} value={c.id}>{c.company_name}</option>
             ))}
@@ -215,7 +215,7 @@ export default function EmployeesList({ employees = { data: [], links: [] }, cli
         </div>
         <div>
           <select className="form-control" style={{"padding":"0.4rem 0.75rem"}} title="Select Employment Type" value={empModel} onChange={e => setEmpModel(e.target.value)}>
-            <option value="">All Employment Types</option>
+            <option value="">Select Employment Type</option>
             <option value="agency_contract">Agency Contract</option>
             <option value="eor">Pass-through EOR</option>
             <option value="internal">Internal Staff</option>
@@ -223,7 +223,7 @@ export default function EmployeesList({ employees = { data: [], links: [] }, cli
         </div>
         <div>
           <select className="form-control" style={{"padding":"0.4rem 0.75rem"}} title="Select Status" value={status} onChange={e => setStatus(e.target.value)}>
-            <option value="">All Statuses</option>
+            <option value="">Select Status</option>
             <option value="active">Active</option>
             <option value="exited">Exited</option>
             <option value="onboarding">Onboarding</option>
@@ -231,7 +231,7 @@ export default function EmployeesList({ employees = { data: [], links: [] }, cli
         </div>
         <div>
           <select className="form-control" style={{"padding":"0.4rem 0.75rem"}} title="Select Revision Status" value={revisionStatus} onChange={e => setRevisionStatus(e.target.value)}>
-            <option value="">All Revisions</option>
+            <option value="">Select Revision</option>
             <option value="pending_approval">Pending Revision Approval</option>
             <option value="approved">Approved Revisions</option>
             <option value="none">No Revisions</option>
