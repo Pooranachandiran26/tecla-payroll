@@ -328,6 +328,27 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
     handleInputChange('lumpsumFee', '');
     handleInputChange('hourlyRate', '');
     handleInputChange('standardHours', '');
+    // In-House mode: auto-set contractType and clear all billing/invoice fields
+    if (value === 'inhouse') {
+      handleInputChange('contractType', 'agency');
+      handleInputChange('markupPct', '');
+      handleInputChange('contractEnd', '');
+      handleInputChange('autoRenewal', false);
+      handleInputChange('poRequired', false);
+      handleInputChange('poNumber', '');
+      handleInputChange('poValue', '');
+      handleInputChange('poValidity', '');
+      handleInputChange('invoiceCycle', 'monthly');
+      handleInputChange('paymentTerms', 'net30');
+      handleInputChange('noticePeriod', '');
+      handleInputChange('creditLimit', '');
+      handleInputChange('latePenalty', '');
+      handleInputChange('gstRate', '18');
+      handleInputChange('reverseCharge', false);
+      handleInputChange('tdsApplicableAgency', 'na');
+      handleInputChange('invoiceFooterNotes', '');
+      handleInputChange('portalAccess', false);
+    }
     if (value) markProgress(4);
   }, [handleInputChange, markProgress]);
 
@@ -708,25 +729,33 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
         { key: 'poc1.phone', label: 'Primary POC Phone' },
       );
     } else if (stepNum === 4) {
-      requiredFields.push(
-        { key: 'contractType', label: 'Contract Type' },
-        { key: 'billingModel', label: 'Billing Model' },
-        { key: 'contractStart', label: 'Contract Start Date' },
-      );
-      if (formData.poRequired) {
-        requiredFields.push({ key: 'poNumber', label: 'PO Number' });
-      }
-      if (formData.billingModel === 'markup') {
-        requiredFields.push({ key: 'markupPct', label: 'Markup Percentage' });
-      }
-      if (formData.billingModel === 'fixed_per_candidate') {
-        requiredFields.push({ key: 'fixedFeeCandidate', label: 'Fixed Fee Per Candidate' });
-      }
-      if (formData.billingModel === 'fixed_per_month') {
-        requiredFields.push({ key: 'fixedMonthlyRetainer', label: 'Monthly Retainer Amount' });
-      }
-      if (formData.billingModel === 'lumpsum') {
-        requiredFields.push({ key: 'lumpsumFee', label: 'Lump Sum Project Fee' });
+      // In-House mode: only billingModel + contractStart are required (contractType is auto-set)
+      if (formData.billingModel === 'inhouse') {
+        requiredFields.push(
+          { key: 'billingModel', label: 'Billing Model' },
+          { key: 'contractStart', label: 'Contract Start Date' },
+        );
+      } else {
+        requiredFields.push(
+          { key: 'contractType', label: 'Contract Type' },
+          { key: 'billingModel', label: 'Billing Model' },
+          { key: 'contractStart', label: 'Contract Start Date' },
+        );
+        if (formData.poRequired) {
+          requiredFields.push({ key: 'poNumber', label: 'PO Number' });
+        }
+        if (formData.billingModel === 'markup') {
+          requiredFields.push({ key: 'markupPct', label: 'Markup Percentage' });
+        }
+        if (formData.billingModel === 'fixed_per_candidate') {
+          requiredFields.push({ key: 'fixedFeeCandidate', label: 'Fixed Fee Per Candidate' });
+        }
+        if (formData.billingModel === 'fixed_per_month') {
+          requiredFields.push({ key: 'fixedMonthlyRetainer', label: 'Monthly Retainer Amount' });
+        }
+        if (formData.billingModel === 'lumpsum') {
+          requiredFields.push({ key: 'lumpsumFee', label: 'Lump Sum Project Fee' });
+        }
       }
     }
 
@@ -808,16 +837,34 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
     setCurrentStep(stepNum);
   }, [currentStep, validateStep, markProgress]);
 
+  // Compute In-House mode flag
+  const isInhouse = formData.billingModel === 'inhouse';
+
+  // Get the list of active steps (skip Documents tab 6 for In-House)
+  const getActiveSteps = useCallback(() => {
+    const allSteps = [1, 2, 3, 4, 5, 6, 7, 8];
+    if (isInhouse) return allSteps.filter(s => s !== 6); // Skip Documents tab
+    return allSteps;
+  }, [isInhouse]);
+
   const nextStep = useCallback(() => {
-    if (validateStep(currentStep) && currentStep < 8) {
+    if (validateStep(currentStep)) {
       markProgress(currentStep);
-      setCurrentStep(prev => prev + 1);
+      const activeSteps = getActiveSteps();
+      const currentIdx = activeSteps.indexOf(currentStep);
+      if (currentIdx < activeSteps.length - 1) {
+        setCurrentStep(activeSteps[currentIdx + 1]);
+      }
     }
-  }, [currentStep, validateStep, markProgress]);
+  }, [currentStep, validateStep, markProgress, getActiveSteps]);
 
   const prevStep = useCallback(() => {
-    if (currentStep > 1) setCurrentStep(prev => prev - 1);
-  }, [currentStep]);
+    const activeSteps = getActiveSteps();
+    const currentIdx = activeSteps.indexOf(currentStep);
+    if (currentIdx > 0) {
+      setCurrentStep(activeSteps[currentIdx - 1]);
+    }
+  }, [currentStep, getActiveSteps]);
 
   // ═══ COMPLETION TRACKING ══════════════════════════
 
@@ -1424,6 +1471,7 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
     formData, errors, hints, currentStep, sectionProgress,
     uploadedDocs, extraContacts, clientBranches, agencyBranches, stateRegistrations,
     isEditMode, editId, pendingDocType, fileInputRef, logoInputRef,
+    isInhouse, getActiveSteps,
 
     // Generic handlers
     handleInputChange, handlePocChange, handlePocPrefChange,

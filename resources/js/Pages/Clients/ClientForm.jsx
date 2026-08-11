@@ -81,7 +81,7 @@ export default function ClientForm({ client, defaultLopBasis, gstSettings }) {
           </div>
 
           {/* Progress Bar */}
-          <FormProgress currentStep={currentStep} sectionProgress={sectionProgress} onTabClick={goToStep} />
+          <FormProgress currentStep={currentStep} sectionProgress={sectionProgress} onTabClick={goToStep} isInhouse={hook.isInhouse} />
 
           <div className="grid-layout">
             {/* ═══════════════ MAIN FORM ═══════════════ */}
@@ -107,9 +107,11 @@ export default function ClientForm({ client, defaultLopBasis, gstSettings }) {
                   <StatutorySection formData={formData} onChange={handleChange} hook={hook} />
                 </div>
                 
+                {!hook.isInhouse && (
                 <div className={`form-step-section ${currentStep === 6 ? 'active' : ''}`} style={{ display: currentStep === 6 ? 'block' : 'none' }}>
                   <DocumentsSection formData={formData} hook={hook} />
                 </div>
+                )}
                 
                 <div className={`form-step-section ${currentStep === 7 ? 'active' : ''}`} style={{ display: currentStep === 7 ? 'block' : 'none' }}>
                   <PortalSection formData={formData} onChange={handleChange} hook={hook} />
@@ -137,7 +139,7 @@ export default function ClientForm({ client, defaultLopBasis, gstSettings }) {
                     </button>
                   )}
                   
-                  {currentStep < 8 ? (
+                  {currentStep < hook.getActiveSteps()[hook.getActiveSteps().length - 1] ? (
                     <button type="button" className="btn btn-primary" onClick={nextStep} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                       Next Step <ArrowRight size={15} />
                     </button>
@@ -222,7 +224,7 @@ export default function ClientForm({ client, defaultLopBasis, gstSettings }) {
                 </>
               )}
 
-              {currentStep === 4 && (
+              {currentStep === 4 && !hook.isInhouse && (
                 <>
                   <div className="card" style={{ background: '#FDF4FF', border: '1px solid #F5D0FE' }}>
                     <h4 style={{ marginBottom: '0.75rem', fontSize: '0.9rem', color: '#86198F', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -246,6 +248,28 @@ export default function ClientForm({ client, defaultLopBasis, gstSettings }) {
                       <Receipt size={16} /> Taxation & RCM
                     </h4>
                     <p style={{ fontSize: '0.78rem', color: '#701A75', margin: 0, lineHeight: '1.6' }}>Configure RCM if the client is liable to pay GST directly, and define TDS applicability on your agency invoices.</p>
+                  </div>
+                </>
+              )}
+
+              {currentStep === 4 && hook.isInhouse && (
+                <>
+                  <div className="card" style={{ background: '#EFF6FF', border: '1px solid #93C5FD' }}>
+                    <h4 style={{ marginBottom: '0.75rem', fontSize: '0.9rem', color: '#1E40AF', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Building2 size={16} /> In-House Payroll Mode
+                    </h4>
+                    <p style={{ fontSize: '0.78rem', color: '#1E3A8A', margin: 0, lineHeight: '1.6' }}>This entity is configured for internal staff payroll only. No invoicing, markup, or billing configuration is required.</p>
+                  </div>
+                  <div className="card" style={{ background: '#EFF6FF', border: '1px solid #93C5FD' }}>
+                    <h4 style={{ marginBottom: '0.75rem', fontSize: '0.9rem', color: '#1E40AF', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <CheckCircle size={16} /> What's Included
+                    </h4>
+                    <div style={{ fontSize: '0.78rem', color: '#1E3A8A', lineHeight: '1.7' }}>
+                      <div>✅ Full salary processing</div>
+                      <div>✅ PF, ESI, PT compliance</div>
+                      <div>✅ Payslip & Form 16</div>
+                      <div>✅ TDS computation</div>
+                    </div>
                   </div>
                 </>
               )}
@@ -276,7 +300,7 @@ export default function ClientForm({ client, defaultLopBasis, gstSettings }) {
                 </>
               )}
 
-              {currentStep === 6 && (
+              {currentStep === 6 && !hook.isInhouse && (
                 <>
                   <div className="card" style={{ background: '#FFF7ED', border: '1px solid #FDBA74' }}>
                     <h4 style={{ marginBottom: '0.75rem', fontSize: '0.9rem', color: '#9A3412', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -303,7 +327,7 @@ export default function ClientForm({ client, defaultLopBasis, gstSettings }) {
                 </>
               )}
 
-              {currentStep === 7 && (
+              {currentStep === 7 && !hook.isInhouse && (
                 <>
                   <div className="card" style={{ background: '#F5F3FF', border: '1px solid #C4B5FD' }}>
                     <h4 style={{ marginBottom: '0.75rem', fontSize: '0.9rem', color: '#5B21B6', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -326,7 +350,18 @@ export default function ClientForm({ client, defaultLopBasis, gstSettings }) {
                 </>
               )}
 
-              {currentStep === 8 && (
+              {currentStep === 7 && hook.isInhouse && (
+                <>
+                  <div className="card" style={{ background: '#FFF7ED', border: '1px solid #FDBA74' }}>
+                    <h4 style={{ marginBottom: '0.75rem', fontSize: '0.9rem', color: '#9A3412', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      🎨 Payslip Branding
+                    </h4>
+                    <p style={{ fontSize: '0.78rem', color: '#9A3412', margin: 0, lineHeight: '1.6' }}>Customize how your internal payslips appear — upload your company logo and set brand colors for a professional look.</p>
+                  </div>
+                </>
+              )}
+
+              {currentStep === 8 && !hook.isInhouse && (
                 <>
                   <div className="card" style={{ background: '#ECFEFF', border: '1px solid #67E8F9' }}>
                     <h4 style={{ marginBottom: '0.75rem', fontSize: '0.9rem', color: '#155E75', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -345,6 +380,17 @@ export default function ClientForm({ client, defaultLopBasis, gstSettings }) {
                       <Star size={16} /> SLA Tiers
                     </h4>
                     <p style={{ fontSize: '0.78rem', color: '#164E63', margin: 0, lineHeight: '1.6' }}>Premium SLA tiers guarantee faster response times and dedicated dispute resolution windows for high-value clients.</p>
+                  </div>
+                </>
+              )}
+
+              {currentStep === 8 && hook.isInhouse && (
+                <>
+                  <div className="card" style={{ background: '#ECFEFF', border: '1px solid #67E8F9' }}>
+                    <h4 style={{ marginBottom: '0.75rem', fontSize: '0.9rem', color: '#155E75', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Calendar size={16} /> Payroll Calendar
+                    </h4>
+                    <p style={{ fontSize: '0.78rem', color: '#164E63', margin: 0, lineHeight: '1.6' }}>Set the payroll lock day and salary credit date for your internal staff. These drive the monthly payroll processing cycle.</p>
                   </div>
                 </>
               )}
