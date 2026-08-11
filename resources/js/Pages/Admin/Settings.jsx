@@ -305,19 +305,19 @@ export default function Settings() {
       setIfscLoading(true);
       try {
         const res = await axios.get(`https://ifsc.razorpay.com/${clean}`);
-        if (res.data) {
+        if (res.data && res.data.BANK) {
           const bank = res.data.BANK || '';
           const branch = (res.data.BRANCH || '') + (res.data.CITY ? `, ${res.data.CITY}` : '');
           setCompanySettings(prev => ({
             ...prev,
             bank_ifsc_code: clean,
-            bank_name: bank || prev.bank_name,
-            bank_branch: branch || prev.bank_branch
+            bank_name: bank,
+            bank_branch: branch
           }));
           showToast({ type: 'success', title: 'Bank Found', message: `${bank} (${res.data.BRANCH || ''}) auto-filled!` });
         }
       } catch (err) {
-        showToast({ type: 'warning', title: 'IFSC Notice', message: 'Could not auto-fetch bank details. Please enter manually.' });
+        // Silent: Allow user to manually type bank name and branch without intrusive toast
       } finally {
         setIfscLoading(false);
       }
@@ -329,7 +329,6 @@ export default function Settings() {
     try {
       await axios.put(route('admin.settings.company.update'), companySettings);
       showToast({ type: 'success', title: 'Success', message: 'Company Profile updated successfully!' });
-      router.reload({ preserveScroll: true });
     } catch (err) {
       showToast({ type: 'error', title: 'Error', message: err.response?.data?.message || 'Failed to save company settings' });
     }
