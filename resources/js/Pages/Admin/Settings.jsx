@@ -52,6 +52,7 @@ export default function Settings() {
   // Company Settings State
   const [companySettings, setCompanySettings] = useState({});
   const [companyLoading, setCompanyLoading] = useState(false);
+  const [ifscLoading, setIfscLoading] = useState(false);
 
   // Localization State
   const [localizationSettings, setLocalizationSettings] = useState({
@@ -294,6 +295,33 @@ export default function Settings() {
 
   const handleCompanyChange = (key, value) => {
     setCompanySettings(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleIfscChange = async (val) => {
+    const clean = val.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 11);
+    handleCompanyChange('bank_ifsc_code', clean);
+
+    if (clean.length === 11) {
+      setIfscLoading(true);
+      try {
+        const res = await axios.get(`https://ifsc.razorpay.com/${clean}`);
+        if (res.data) {
+          const bank = res.data.BANK || '';
+          const branch = (res.data.BRANCH || '') + (res.data.CITY ? `, ${res.data.CITY}` : '');
+          setCompanySettings(prev => ({
+            ...prev,
+            bank_ifsc_code: clean,
+            bank_name: bank || prev.bank_name,
+            bank_branch: branch || prev.bank_branch
+          }));
+          showToast({ type: 'success', title: 'Bank Found', message: `${bank} (${res.data.BRANCH || ''}) auto-filled!` });
+        }
+      } catch (err) {
+        showToast({ type: 'warning', title: 'IFSC Notice', message: 'Could not auto-fetch bank details. Please enter manually.' });
+      } finally {
+        setIfscLoading(false);
+      }
+    }
   };
 
   const saveCompanySettings = async (e) => {
@@ -739,10 +767,26 @@ export default function Settings() {
 
                     <div className="flex gap-4 mb-4">
                       <div className="flex-1">
-                        <Input label="IFSC Code" value={companySettings.bank_ifsc_code || ''} onChange={e => handleCompanyChange('bank_ifsc_code', e.target.value)} placeholder="e.g. HDFC0000240" noMargin />
+                        <Input 
+                          label="IFSC Code" 
+                          value={companySettings.bank_ifsc_code || ''} 
+                          onChange={e => handleIfscChange(e.target.value)} 
+                          placeholder="e.g. HDFC0000240" 
+                          maxLength={11}
+                          noMargin 
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          {ifscLoading ? '🔄 Looking up bank details...' : '⚡ Type 11-digit IFSC to auto-fill Bank Name & Branch.'}
+                        </p>
                       </div>
                       <div className="flex-1">
-                        <Input label="Bank Branch & City" value={companySettings.bank_branch || ''} onChange={e => handleCompanyChange('bank_branch', e.target.value)} placeholder="e.g. Bandra East Branch, Mumbai" noMargin />
+                        <Input 
+                          label="Bank Branch & City" 
+                          value={companySettings.bank_branch || ''} 
+                          onChange={e => handleCompanyChange('bank_branch', e.target.value)} 
+                          placeholder="e.g. Bandra East Branch, Mumbai" 
+                          noMargin 
+                        />
                       </div>
                     </div>
                   </div>
