@@ -354,6 +354,7 @@ Route::middleware(['auth', 'active'])->group(function () {
             Route::middleware('module:reports')->group(function () {
                 Route::get('/reports', fn() => redirect('/admin/reports/payroll_register'))->name('reports.index');
                 Route::get('/admin/reports', [\App\Http\Controllers\Admin\AdminReportController::class, 'index'])->name('admin.reports.index');
+                Route::get('/admin/reports/payroll_register', [\App\Http\Controllers\Admin\AdminReportController::class, 'show'])->name('admin.reports.payroll_register');
                 Route::get('/admin/reports/{reportKey}', [\App\Http\Controllers\Admin\AdminReportController::class, 'show'])->name('admin.reports.show');
                 Route::get('/admin/reports/{reportKey}/export', [\App\Http\Controllers\Admin\AdminReportController::class, 'export'])->name('admin.reports.export');
                 Route::get('/admin/reports/{reportKey}/pdf', [\App\Http\Controllers\Admin\AdminReportController::class, 'pdf'])->name('admin.reports.pdf');
