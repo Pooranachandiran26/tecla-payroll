@@ -84,28 +84,28 @@ export default function AttendanceUpload({ clients, upload_history = [] }) {
   const categorizeRowNote = (row) => {
     const note = (row.notes || '').toLowerCase();
     const status = row.status;
-    if (status === 'blocked_locked' || note.includes('already locked')) {
+    if (status === 'blocked_locked' || note.includes('already locked') || note.includes('locked')) {
       return { key: 'locked', label: 'Payroll Locked', color: 'bg-purple-50 text-purple-700 border-purple-200', icon: '🔒', severity: 'danger' };
     }
-    if (note.includes('not found')) {
-      return { key: 'missing_emp', label: 'Missing Employee Code', color: 'bg-red-50 text-red-700 border-red-200', icon: '🔴', severity: 'danger' };
+    if (note.includes('not found') || note.includes('employee code not found')) {
+      return { key: 'missing_emp', label: 'Employee Code Not Found', color: 'bg-red-50 text-red-700 border-red-200', icon: '🔴', severity: 'danger' };
     }
-    if (note.includes('invalid days_present') || note.includes('invalid days_lop')) {
+    if (note.includes('invalid present days') || note.includes('invalid lop days') || note.includes('invalid days_present') || note.includes('invalid days_lop') || note.includes('invalid number')) {
       return { key: 'format', label: 'Invalid Number Format', color: 'bg-rose-50 text-rose-700 border-rose-200', icon: '⛔', severity: 'danger' };
     }
-    if (note.includes("numbers don't match") || note.includes('working days total')) {
-      return { key: 'mismatch', label: 'Working Days Mismatch', color: 'bg-amber-50 text-amber-800 border-amber-200', icon: '⚠️', severity: 'danger' };
+    if (note.includes('total days exceeded') || note.includes("numbers don't match") || note.includes('working days total') || note.includes('mismatch')) {
+      return { key: 'mismatch', label: 'Total Days Exceeded', color: 'bg-amber-50 text-amber-800 border-amber-200', icon: '⚠️', severity: 'danger' };
     }
-    if (status === 'skipped' || note.includes('not yet joined')) {
+    if (status === 'skipped' || note.includes('future joining date') || note.includes('not yet joined')) {
       return { key: 'future_doj', label: 'Future Joining Date', color: 'bg-blue-50 text-blue-700 border-blue-200', icon: 'ℹ️', severity: 'info' };
     }
-    if (note.includes('adjusted') || note.includes('capped')) {
-      return { key: 'adjusted', label: 'Auto-Adjusted (Capped)', color: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: '⚡', severity: 'warning' };
+    if (note.includes('capped to month limit') || note.includes('capped') || note.includes('adjusted')) {
+      return { key: 'adjusted', label: 'Capped to Month Limit', color: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: '⚡', severity: 'warning' };
     }
-    if (note.includes('shortfall')) {
-      return { key: 'shortfall', label: 'Shortfall Auto-Reconciled', color: 'bg-teal-50 text-teal-700 border-teal-200', icon: '⚡', severity: 'warning' };
+    if (note.includes('missing days auto-filled') || note.includes('shortfall') || note.includes('auto-filled')) {
+      return { key: 'shortfall', label: 'Missing Days Auto-Filled', color: 'bg-teal-50 text-teal-700 border-teal-200', icon: '⚡', severity: 'warning' };
     }
-    if (note.includes('target month mismatch')) {
+    if (note.includes('sheet month mismatch') || note.includes('target month mismatch')) {
       return { key: 'month_mismatch', label: 'Month Mismatch Warning', color: 'bg-orange-50 text-orange-700 border-orange-200', icon: '🗓️', severity: 'warning' };
     }
     if (status === 'valid') {
@@ -1055,12 +1055,22 @@ export default function AttendanceUpload({ clients, upload_history = [] }) {
 
                               {/* Uploaded Days */}
                               <td className="py-3 px-4 text-center">
-                                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gray-100 border border-gray-200 font-mono text-[11px]">
-                                  <span className="text-green-700 font-bold" title="Days Present">{row.daysPresent}P</span>
-                                  <span className="text-gray-400">/</span>
-                                  <span className="text-amber-700 font-bold" title="Days LOP">{row.daysLOP}L</span>
-                                  <span className="text-gray-400">|</span>
-                                  <span className="font-semibold text-gray-600" title="Total Entered">Σ{totalDays}</span>
+                                <div className="flex flex-col items-center gap-1">
+                                  <div className="flex items-center gap-1.5 font-semibold text-[11px]">
+                                    <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold" title="Days Present">
+                                      {row.daysPresent} Present
+                                    </span>
+                                    <span className={`px-2 py-0.5 rounded border font-bold ${
+                                      Number(row.daysLOP) > 0 
+                                        ? 'bg-rose-50 text-rose-800 border-rose-200' 
+                                        : 'bg-gray-50 text-gray-600 border-gray-200'
+                                    }`} title="Days Absent / Loss of Pay">
+                                      {row.daysLOP} LOP
+                                    </span>
+                                  </div>
+                                  <span className="text-[10px] text-gray-500 font-medium">
+                                    Total: {totalDays} / {contextData?.working_days_slots || totalDays} Days
+                                  </span>
                                 </div>
                               </td>
 
@@ -1087,7 +1097,7 @@ export default function AttendanceUpload({ clients, upload_history = [] }) {
                                 ) : (
                                   <span className="text-green-600 font-semibold flex items-center gap-1 text-[11px]">
                                     <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
-                                    <span>Matches required {contextData?.working_days_slots || 0} working days. Ready to save.</span>
+                                    <span>Perfect match ({contextData?.working_days_slots || totalDays} working days). Ready to save.</span>
                                   </span>
                                 )}
                               </td>
