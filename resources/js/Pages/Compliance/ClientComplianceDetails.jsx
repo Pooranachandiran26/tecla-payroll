@@ -8,34 +8,67 @@ import {
   AlertTriangle, Users, TrendingUp, ShieldCheck, Calendar, Filter
 } from 'lucide-react';
 
-/* ─── Reusable metric card matching Dashboard style ─── */
-const MetricCard = ({ label, value, iconBg, icon, footerLeft, footerRight, footerLeftColor = 'text-emerald-700' }) => (
-  <div className="card metric-card hover-lift">
-    <div>
-      <div className="flex items-center justify-between mb-2">
-        <span className="metric-label">{label}</span>
-        <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${iconBg}`}>
-          {icon}
+/* ─── Reusable metric card matching Dashboard style with overflow protection ─── */
+const MetricCard = ({ label, value, iconBg, icon, footerLeft, footerRight, footerLeftColor = 'text-emerald-700', isCode = false }) => {
+  const isNotConfigured = value === 'Not Configured' || value === 'N/A' || !value;
+
+  return (
+    <div className="card metric-card hover-lift min-w-0" style={{ overflow: 'hidden', padding: '1rem' }}>
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <span className="metric-label text-xs uppercase tracking-wider font-semibold text-slate-500">{label}</span>
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${iconBg}`}>
+            {icon}
+          </div>
+        </div>
+
+        <div className="min-h-[2.25rem] flex items-center">
+          {isCode ? (
+            isNotConfigured ? (
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                Not Configured
+              </span>
+            ) : (
+              <span 
+                className="font-mono text-xs sm:text-sm font-bold text-slate-800 bg-slate-50 border border-slate-200/80 rounded px-2 py-1 truncate block w-full"
+                title={String(value)}
+              >
+                {value}
+              </span>
+            )
+          ) : (
+            <div className="metric-value text-2xl font-bold text-slate-800 tracking-tight truncate w-full" title={String(value)}>
+              {value}
+            </div>
+          )}
         </div>
       </div>
-      <div className="metric-value">{value}</div>
+
+      <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs mt-3">
+        <span className={`font-semibold flex items-center gap-1 truncate ${footerLeftColor}`}>{footerLeft}</span>
+        <span className="text-slate-400 font-normal whitespace-nowrap ml-2">{footerRight}</span>
+      </div>
     </div>
-    <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs mt-3">
-      <span className={`font-semibold flex items-center gap-1 ${footerLeftColor}`}>{footerLeft}</span>
-      <span className="text-slate-400 font-normal">{footerRight}</span>
-    </div>
-  </div>
-);
+  );
+};
 
 /* ─── Status pill ─── */
 const StatusPill = ({ status }) => {
   if (status === 'filed') return (
-    <span className="badge badge-success">Filed</span>
+    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Filed
+    </span>
   );
   if (status === 'not_generated') return (
-    <span className="badge" style={{ background: '#f1f5f9', color: '#64748b' }}>Not Generated</span>
+    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
+      Not Generated
+    </span>
   );
-  return <span className="badge badge-danger">Pending</span>;
+  return (
+    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200/60">
+      <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span> Pending
+    </span>
+  );
 };
 
 /* ─── Tab list ─── */
@@ -50,18 +83,38 @@ const TABS = [
   { key: 'audit',   label: 'Audit Pack' },
 ];
 
-/* ─── Statutory summary row ─── */
-const StatRow = ({ abbr, status, dueDate, filedOn }) => (
-  <div className="flex items-center gap-3 p-3 bg-white border border-gray-100 rounded-lg hover:border-blue-200 transition">
-    <div className="w-12 text-xs font-bold text-gray-700 uppercase">{abbr}</div>
-    <StatusPill status={status} />
-    <div className="flex-1 text-xs text-gray-500">Due: <strong>{dueDate}</strong></div>
-    {filedOn
-      ? <span className="text-xs text-emerald-600 font-semibold">Filed on: {filedOn}</span>
-      : <span className="text-xs text-gray-400">Status: Pending</span>
-    }
-  </div>
-);
+/* ─── Statutory summary row with clean non-contradictory status ─── */
+const StatRow = ({ abbr, status, dueDate, filedOn }) => {
+  const isFiled = status === 'filed';
+  const isNotGenerated = status === 'not_generated';
+
+  return (
+    <div className="flex items-center justify-between gap-3 p-3 bg-white border border-slate-100 rounded-xl hover:border-blue-200 transition-all shadow-sm">
+      <div className="flex items-center gap-2.5 min-w-0">
+        <div className="w-16 text-xs font-bold text-slate-700 uppercase tracking-wider truncate" title={abbr}>
+          {abbr}
+        </div>
+        <StatusPill status={status} />
+      </div>
+      <div className="flex items-center gap-3 text-xs text-right flex-shrink-0">
+        <span className="text-slate-400 font-normal">Due: <strong className="text-slate-600 font-semibold">{dueDate || '—'}</strong></span>
+        {filedOn ? (
+          <span className="text-emerald-700 font-semibold flex items-center gap-1">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> {filedOn}
+          </span>
+        ) : isFiled ? (
+          <span className="text-emerald-700 font-semibold flex items-center gap-1">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Auto-Filed
+          </span>
+        ) : isNotGenerated ? (
+          <span className="text-slate-400 italic">Not Generated</span>
+        ) : (
+          <span className="text-amber-600 font-medium">Pending Filing</span>
+        )}
+      </div>
+    </div>
+  );
+};
 
 export default function ClientComplianceDetails({
   client = {},
@@ -77,7 +130,7 @@ export default function ClientComplianceDetails({
   // SERVER-SIDE pagination: navigate via Inertia with query params
   const navigate = useCallback((params = {}) => {
     router.get(
-      route('compliance.client.details', client.id),
+      route('compliance.client_details', client.id),
       { ...params },
       { preserveState: true, preserveScroll: true, replace: true }
     );
@@ -202,7 +255,7 @@ export default function ClientComplianceDetails({
               <ArrowLeft className="w-3.5 h-3.5" /> Back to Register
             </Link>
             <div className="flex items-center gap-3">
-              <h1 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--primary-navy)' }}>
+              <h1 style={{ fontSize: '1.35rem', fontWeight: 700, color: 'var(--primary-navy)' }}>
                 {client.name}
               </h1>
               <span className={`badge ${client.status === 'active' ? 'badge-success' : 'badge-warning'}`}>
@@ -219,7 +272,7 @@ export default function ClientComplianceDetails({
           </button>
         </div>
 
-        {/* ── KPI Metric Cards (Dashboard style) ── */}
+        {/* ── KPI Metric Cards with Strict Grid Overflow Protection ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <MetricCard
             label="Total Employees"
@@ -232,21 +285,23 @@ export default function ClientComplianceDetails({
           />
           <MetricCard
             label="PF Establishment"
-            value={client.pf_code || 'N/A'}
+            value={client.pf_code || 'Not Configured'}
             iconBg="bg-blue-50 text-blue-700"
             icon={<ShieldCheck className="w-4 h-4" />}
             footerLeft={ss.pf?.status === 'filed' ? 'Filed' : 'Pending Filing'}
             footerRight={ss.pf?.due_date ? `Due: ${ss.pf.due_date}` : ''}
             footerLeftColor={ss.pf?.status === 'filed' ? 'text-emerald-700' : 'text-red-600'}
+            isCode={true}
           />
           <MetricCard
             label="ESI Code"
-            value={client.esi_code || 'N/A'}
+            value={client.esi_code || 'Not Configured'}
             iconBg="bg-emerald-50 text-emerald-700"
             icon={<ShieldCheck className="w-4 h-4" />}
             footerLeft={ss.esi?.status === 'filed' ? 'Filed' : 'Pending Filing'}
             footerRight={ss.esi?.due_date ? `Due: ${ss.esi.due_date}` : ''}
             footerLeftColor={ss.esi?.status === 'filed' ? 'text-emerald-700' : 'text-red-600'}
+            isCode={true}
           />
           <MetricCard
             label="ECR Batches Filed"
@@ -264,7 +319,7 @@ export default function ClientComplianceDetails({
           <h3 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--primary-navy)', marginBottom: '0.75rem' }}>
             Statutory Filing Status — {period}
           </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <StatRow abbr="PF (ECR)"   status={ss.pf?.status}    dueDate={ss.pf?.due_date}    filedOn={ss.pf?.filed_on} />
             <StatRow abbr="ESI"        status={ss.esi?.status}   dueDate={ss.esi?.due_date}   filedOn={ss.esi?.filed_on} />
             <StatRow abbr="PT"         status={ss.pt?.status}    dueDate={ss.pt?.due_date}    filedOn={ss.pt?.filed_on} />
@@ -421,7 +476,7 @@ export default function ClientComplianceDetails({
               <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--primary-navy)', marginBottom: '1rem' }}>
                 Client Statutory Profile
               </h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                 {[
                   { label: 'PF Est. Code', value: client.pf_code },
                   { label: 'ESI Code', value: client.esi_code },
@@ -430,9 +485,15 @@ export default function ClientComplianceDetails({
                   { label: 'GSTIN', value: client.gstin },
                   { label: 'Headcount', value: `${client.headcount} Employees` },
                 ].map(item => (
-                  <div key={item.label} className="card p-3" style={{ background: '#f8fafc' }}>
+                  <div key={item.label} className="card p-3 min-w-0" style={{ background: '#f8fafc' }}>
                     <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4 }}>{item.label}</div>
-                    <div style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--primary-navy)', fontSize: '0.9rem' }}>{item.value || '—'}</div>
+                    <div className="font-mono font-bold text-slate-800 text-sm truncate" title={item.value || '—'}>
+                      {item.value === 'Not Configured' ? (
+                        <span className="badge badge-warning text-xs font-normal">Not Configured</span>
+                      ) : (
+                        item.value || '—'
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
