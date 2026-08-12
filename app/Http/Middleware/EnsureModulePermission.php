@@ -14,17 +14,28 @@ class EnsureModulePermission
      *
      * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
      */
-    public function handle(Request $request, Closure $next, string $moduleKey): Response
+    public function handle(Request $request, Closure $next, string $moduleKey, ?string $subPermission = null): Response
     {
         if (!Auth::check()) {
             return redirect('/login');
         }
 
         $user = Auth::user();
-        
+
+        if ($user->role === 'admin' || $user->role === 'client') {
+            return $next($request);
+        }
+
         if (!$user->hasModulePermission($moduleKey)) {
             if ($request->expectsJson() || $request->inertia()) {
                 abort(403, 'Access Restricted: You do not have permission to access the ' . ucfirst($moduleKey) . ' module.');
+            }
+            abort(403, 'Access Restricted');
+        }
+
+        if ($subPermission && !$user->hasModulePermission($subPermission, $moduleKey)) {
+            if ($request->expectsJson() || $request->inertia()) {
+                abort(403, 'Access Restricted: You do not have permission for sub-feature ' . $subPermission . '.');
             }
             abort(403, 'Access Restricted');
         }

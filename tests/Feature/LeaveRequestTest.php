@@ -57,10 +57,13 @@ class LeaveRequestTest extends TestCase
 
     public function test_submit_leave_computes_days_correctly()
     {
+        $fromDate = Carbon::parse('next Monday')->toDateString();
+        $toDate = Carbon::parse('next Monday')->addDays(2)->toDateString();
+
         $response = $this->actingAs($this->employeeUser)->post('/employee/leave-requests', [
             'leave_type' => 'casual',
-            'from_date' => '2026-07-01',
-            'to_date' => '2026-07-03',
+            'from_date' => $fromDate,
+            'to_date' => $toDate,
             'reason' => 'Going out of town for a few days.'
         ]);
 
@@ -73,13 +76,32 @@ class LeaveRequestTest extends TestCase
         $this->assertEquals('pending', $leave->status);
     }
 
+    public function test_past_from_date_is_rejected()
+    {
+        $pastDate = now()->subDays(2)->toDateString();
+        $toDate = now()->addDays(1)->toDateString();
+
+        $response = $this->actingAs($this->employeeUser)->post('/employee/leave-requests', [
+            'leave_type' => 'casual',
+            'from_date' => $pastDate,
+            'to_date' => $toDate,
+            'reason' => 'Trying to submit past leave request.'
+        ]);
+
+        $response->assertSessionHasErrors('from_date');
+        $this->assertEquals(0, LeaveRequest::count());
+    }
+
     public function test_overlapping_request_is_rejected()
     {
+        $fromDate = Carbon::parse('next Monday')->toDateString();
+        $toDate = Carbon::parse('next Monday')->addDays(2)->toDateString();
+
         LeaveRequest::create([
             'employee_id' => $this->employee->id,
             'leave_type' => 'casual',
-            'from_date' => '2026-07-01',
-            'to_date' => '2026-07-03',
+            'from_date' => $fromDate,
+            'to_date' => $toDate,
             'days_count' => 3,
             'reason' => 'First request.',
             'status' => 'pending'
@@ -87,8 +109,8 @@ class LeaveRequestTest extends TestCase
 
         $response = $this->actingAs($this->employeeUser)->post('/employee/leave-requests', [
             'leave_type' => 'sick',
-            'from_date' => '2026-07-02',
-            'to_date' => '2026-07-04',
+            'from_date' => Carbon::parse($fromDate)->addDay()->toDateString(),
+            'to_date' => Carbon::parse($toDate)->addDay()->toDateString(),
             'reason' => 'Overlapping sick leave.'
         ]);
 

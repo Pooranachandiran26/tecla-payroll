@@ -83,6 +83,111 @@ export async function generateErrorRowsXlsxBuffer(rows) {
   return await workbook.xlsx.writeBuffer();
 }
 
+export async function generateAllRowsXlsxBuffer(rows) {
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('Total Records');
+
+  const headers = [...TEMPLATE_COLUMNS, 'validation_status', 'validation_notes'];
+  
+  worksheet.columns = headers.map(header => ({
+    header: header,
+    key: header,
+    width: Math.max(header.length + 6, 22)
+  }));
+
+  const headerRow = worksheet.getRow(1);
+  headerRow.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+  headerRow.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FF1F3864' }
+  };
+  headerRow.alignment = { vertical: 'middle', horizontal: 'left' };
+  headerRow.height = 26;
+
+  (rows || []).forEach(row => {
+    const rawData = row.raw_data || {};
+    const rowValues = {};
+    TEMPLATE_COLUMNS.forEach(col => {
+      rowValues[col] = rawData[col] !== undefined ? rawData[col] : '';
+    });
+    rowValues['validation_status'] = row.status === 'ready' || row.status === 'valid' ? 'Valid' : (row.status === 'warning' ? 'Warning' : 'Error');
+    rowValues['validation_notes'] = row.message || '';
+    
+    const addedRow = worksheet.addRow(rowValues);
+    addedRow.font = { name: 'Calibri', size: 10 };
+    addedRow.height = 20;
+  });
+
+  return await workbook.xlsx.writeBuffer();
+}
+
+export async function downloadAllRowsXlsx(rows) {
+  const buffer = await generateAllRowsXlsxBuffer(rows);
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.setAttribute('hidden', '');
+  a.setAttribute('href', url);
+  a.setAttribute('download', 'bulk_upload_total_records.xlsx');
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+export async function generateSuccessRowsXlsxBuffer(rows) {
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('Success Rows');
+
+  const headers = [...TEMPLATE_COLUMNS, 'validation_status'];
+  
+  worksheet.columns = headers.map(header => ({
+    header: header,
+    key: header,
+    width: Math.max(header.length + 6, 22)
+  }));
+
+  const headerRow = worksheet.getRow(1);
+  headerRow.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+  headerRow.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FF0D9488' }
+  };
+  headerRow.alignment = { vertical: 'middle', horizontal: 'left' };
+  headerRow.height = 26;
+
+  const validRows = (rows || []).filter(r => r.status === 'ready' || r.status === 'valid');
+
+  validRows.forEach(row => {
+    const rawData = row.raw_data || {};
+    const rowValues = {};
+    TEMPLATE_COLUMNS.forEach(col => {
+      rowValues[col] = rawData[col] !== undefined ? rawData[col] : '';
+    });
+    rowValues['validation_status'] = 'Valid';
+    
+    const addedRow = worksheet.addRow(rowValues);
+    addedRow.font = { name: 'Calibri', size: 10 };
+    addedRow.height = 20;
+  });
+
+  return await workbook.xlsx.writeBuffer();
+}
+
+export async function downloadSuccessRowsXlsx(rows) {
+  const buffer = await generateSuccessRowsXlsxBuffer(rows);
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.setAttribute('hidden', '');
+  a.setAttribute('href', url);
+  a.setAttribute('download', 'bulk_upload_success_rows.xlsx');
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
 export async function downloadErrorRowsXlsx(rows) {
   const buffer = await generateErrorRowsXlsxBuffer(rows);
   const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });

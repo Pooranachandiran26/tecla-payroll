@@ -23,6 +23,9 @@ class BankChangeRequestController extends Controller
         }
 
         $user = $request->user();
+        if ($user && $user->role === 'manager' && !$user->hasModulePermission('emp_bank_change', 'candidates')) {
+            abort(403, 'You do not have permission to access Bank Change Requests.');
+        }
         $query = BankChangeRequest::with(['employee.client']);
 
         if ($user && $user->role === 'manager') {
@@ -128,6 +131,8 @@ class BankChangeRequestController extends Controller
             'new_bank_branch' => $validated['new_bank_branch'] ?? null,
             'new_account_holder_name' => $validated['new_account_holder_name'],
             'reason' => $validated['reason'],
+            'created_by' => auth()->id(),
+            'updated_by' => auth()->id(),
         ]);
 
         // Email watchers (pre-existing watcher system — unchanged)
@@ -143,7 +148,7 @@ class BankChangeRequestController extends Controller
             type: 'bank_change',
             title: 'Bank Change Request Submitted',
             body: "{$employee->full_name} ({$employee->employee_code}) has submitted a bank account change request.",
-            url: route('employees.bank-change-requests'),
+            url: route('employees.bank-change-requests', [], false),
             data: ['employee_id' => $employee->id]
         );
 
@@ -175,6 +180,7 @@ class BankChangeRequestController extends Controller
                 'status' => 'approved',
                 'processed_by' => auth()->id(),
                 'processed_at' => now(),
+                'updated_by' => auth()->id(),
             ]);
 
             if ($req->employee) {
@@ -233,6 +239,7 @@ class BankChangeRequestController extends Controller
             'rejection_reason' => $validated['rejection_reason'],
             'processed_by' => auth()->id(),
             'processed_at' => now(),
+            'updated_by' => auth()->id(),
         ]);
 
         if ($req->employee && $req->employee->personal_email) {

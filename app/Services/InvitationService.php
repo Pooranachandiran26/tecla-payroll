@@ -20,9 +20,15 @@ class InvitationService
         $token = Str::random(64);
         $expiryDays = $this->settings->getAuthSecurity('invitation_expiry_days', 7);
         
+        // Generate a 100% unique per-user 60-character valid BCrypt payload structure ($2y$04$...)
+        // Ensures Hash::check() inspects valid BCrypt headers and returns FALSE cleanly without RuntimeException
+        $uniqueSalt = substr(md5(Str::random(32)), 0, 22);
+        $uniqueDigest = substr(hash('sha256', Str::random(64)), 0, 31);
+        $bcryptPlaceholder = '$2y$04$' . $uniqueSalt . $uniqueDigest;
+
         $user = User::create(array_merge($userData, [
             'status' => 'invited',
-            'password' => Hash::make(Str::random(32)), // dummy password since users.password is not null
+            'password' => $bcryptPlaceholder,
             'invitation_token' => hash('sha256', $token),
             'invitation_expires_at' => now()->addDays($expiryDays),
             'must_change_password' => true,
@@ -48,14 +54,11 @@ class InvitationService
 
     public function resendInvitation(User $user): void
     {
-        if ($user->status !== 'invited') {
-            throw new \Exception('Cannot resend invitation to an active user.');
-        }
-
         $token = Str::random(64);
         $expiryDays = $this->settings->getAuthSecurity('invitation_expiry_days', 7);
         
         $user->update([
+            'status' => 'invited',
             'invitation_token' => hash('sha256', $token),
             'invitation_expires_at' => now()->addDays($expiryDays),
         ]);

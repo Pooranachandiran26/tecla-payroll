@@ -110,10 +110,6 @@ export default function PayrollCorrectionModal({ isOpen, onClose, parentRun, ite
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (!reason.trim()) {
-            showToast({ type: 'error', title: 'Validation Error', message: 'Correction reason is mandatory.' });
-            return;
-        }
 
         const safePaid = Math.max(0, parseFloat(correctedPaidDays || 0));
         const safeLop = Math.max(0, parseFloat(correctedLopDays || 0));
@@ -124,7 +120,7 @@ export default function PayrollCorrectionModal({ isOpen, onClose, parentRun, ite
             employee_id: selectedEmpId,
             corrected_paid_days: safePaid,
             corrected_lop_days: safeLop,
-            reason: reason.trim(),
+            reason: reason.trim() || 'Manual payroll correction',
             employee_query_id: queryId || null,
         }, {
             onSuccess: () => {
@@ -287,12 +283,11 @@ export default function PayrollCorrectionModal({ isOpen, onClose, parentRun, ite
 
                 <div>
                     <label style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#334155' }}>
-                        <Icons.FileText /> Correction Reason <span style={{ color: '#DC2626' }}>*</span>
+                        <Icons.FileText /> Correction Reason <span style={{ color: '#64748B', fontWeight: 'normal' }}>(Optional)</span>
                     </label>
                     <textarea 
                         rows="2" 
-                        required 
-                        placeholder="Reason for attendance/payroll correction..."
+                        placeholder="Reason for attendance/payroll correction (optional)..."
                         value={reason} 
                         onChange={e => setReason(e.target.value)}
                         style={{ ...inputStyle, resize: 'vertical' }}

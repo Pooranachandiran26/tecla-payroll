@@ -5,8 +5,8 @@
     <title>Tax Invoice - {{ $invoice->invoice_number }}</title>
     <style>
         body {
-            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-            font-size: 11px;
+            font-family: DejaVu Sans, sans-serif;
+            font-size: 10px;
             color: #1e293b;
             margin: 0;
             padding: 15px;
@@ -145,7 +145,7 @@
         <tr>
             <td class="meta-box" style="margin-right: 2%;">
                 <div style="font-weight: bold; color: #1F3864; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin-bottom: 6px;">
-                    📌 BILLED TO (CLIENT DETAILS)
+                    BILLED TO (CLIENT DETAILS)
                 </div>
                 <div class="meta-val">{{ $billedToName }} ({{ $billedToCode }})</div>
                 <div style="margin-top: 3px; font-size: 9.5px; color: #334155;">
@@ -158,7 +158,7 @@
             <td style="width: 2%;"></td>
             <td class="meta-box">
                 <div style="font-weight: bold; color: #1F3864; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin-bottom: 6px;">
-                    🗓️ INVOICE METADATA
+                    INVOICE METADATA
                 </div>
                 <table style="width: 100%; font-size: 9.5px;" cellpadding="2">
                     <tr><td class="meta-label">Invoice Date:</td><td class="meta-val">{{ $formattedDate }}</td></tr>
@@ -239,18 +239,18 @@
             <tr>
                 <td>Central Goods & Services Tax (CGST)</td>
                 <td style="text-align: center;">9.00%</td>
-                <td style="text-align: right; font-weight: bold;">{{ number_format((float)($invoice->cgst_amount ?: round($taxableServiceFeeTotal * 0.09, 2)), 2) }}</td>
+                <td style="text-align: right; font-weight: bold;">{{ number_format((float)((float)$invoice->cgst_amount > 0 ? $invoice->cgst_amount : round($taxableServiceFeeTotal * 0.09, 2)), 2) }}</td>
             </tr>
             <tr>
                 <td>State Goods & Services Tax (SGST)</td>
                 <td style="text-align: center;">9.00%</td>
-                <td style="text-align: right; font-weight: bold;">{{ number_format((float)($invoice->sgst_amount ?: round($taxableServiceFeeTotal * 0.09, 2)), 2) }}</td>
+                <td style="text-align: right; font-weight: bold;">{{ number_format((float)((float)$invoice->sgst_amount > 0 ? $invoice->sgst_amount : round($taxableServiceFeeTotal * 0.09, 2)), 2) }}</td>
             </tr>
             @else
             <tr>
                 <td>Integrated Goods & Services Tax (IGST)</td>
                 <td style="text-align: center;">18.00%</td>
-                <td style="text-align: right; font-weight: bold;">{{ number_format((float)($invoice->igst_amount ?: round($taxableServiceFeeTotal * 0.18, 2)), 2) }}</td>
+                <td style="text-align: right; font-weight: bold;">{{ number_format((float)((float)$invoice->igst_amount > 0 ? $invoice->igst_amount : ((float)$invoice->gst_amount > 0 ? $invoice->gst_amount : round($taxableServiceFeeTotal * 0.18, 2))), 2) }}</td>
             </tr>
             @endif
             <tr style="background-color: #fff5f5; font-weight: bold;">
@@ -274,9 +274,14 @@
         </tr>
     </table>
 
-    @if(isset($client) && $client->client_tds_percentage !== null)
     @php
-        $tdsRate = (float) $client->client_tds_percentage;
+        $tdsRate = $client->client_tds_percentage !== null 
+            ? (float) $client->client_tds_percentage 
+            : (is_numeric($client->tds_applicable_on_agency_fee) ? (float)$client->tds_applicable_on_agency_fee : null);
+    @endphp
+
+    @if(isset($client) && $tdsRate !== null && $tdsRate > 0)
+    @php
         $taxableFee = (float) $invoice->agency_service_fee;
         $estTds = round($taxableFee * ($tdsRate / 100), 2);
         $netReceivable = round((float)$invoice->grand_total - $estTds, 2);
@@ -284,7 +289,7 @@
     <div style="margin-top: 4px; padding: 5px 10px; background-color: #f8fafc; border: 1px dashed #cbd5e1; font-size: 9px; text-align: right;">
         <span style="color: #64748b;">Est. Client TDS Deduction ({{ number_format($tdsRate, 2) }}%): -₹{{ number_format($estTds, 2) }}</span>
         &nbsp;&nbsp;|&nbsp;&nbsp;
-        <strong style="color: #0f172a;">Est. Net Cash Receivable: ₹{{ number_format($netReceivable, 2) }}</strong>
+        <strong style="color: #0f172a;">Est. Net Cash Received in Bank (Post TDS): ₹{{ number_format($netReceivable, 2) }}</strong>
     </div>
     @endif
 
@@ -293,7 +298,7 @@
         <tr>
             <td class="bank-box" style="margin-right: 2%;">
                 <div style="font-weight: bold; color: #1F3864; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px; margin-bottom: 5px;">
-                    🏦 BANK ACCOUNT DETAILS FOR REMITTANCE
+                    BANK ACCOUNT DETAILS FOR REMITTANCE
                 </div>
                 <div><strong>Bank Name:</strong> {{ $bankDetails['bank_name'] }}</div>
                 <div><strong>Account Number:</strong> {{ $bankDetails['account_number'] }}</div>
@@ -303,7 +308,7 @@
             <td style="width: 2%;"></td>
             <td class="bank-box">
                 <div style="font-weight: bold; color: #1F3864; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px; margin-bottom: 5px;">
-                    📋 PAYMENT TERMS & INSTRUCTIONS
+                    PAYMENT TERMS & INSTRUCTIONS
                 </div>
                 <div style="color: #475569; margin-bottom: 4px;">{{ $paymentInstructions }}</div>
                 <div style="white-space: pre-line; color: #64748b; font-size: 8.5px;">{{ $termsAndConditions }}</div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { 
   ArrowLeft, 
   Landmark, 
@@ -20,13 +20,21 @@ import './EmployeeForm.css';
 import RoleGuard from '../../Components/RoleGuard.jsx';
 import axios from 'axios';
 import useToast from '../../Hooks/useToast';
+import { runJQueryValidation } from '../../Utils/jqueryValidation';
 
 
 export default function EmployeeForm({ clients = [], errors: serverErrors, employee = null }) {
+  const { activeClientId } = usePage().props;
   const [formMode, setFormMode] = useState('add');
   const [empId, setEmpId] = useState(employee ? employee.data?.id || employee.id : null);
   const { showToast } = useToast();
   const emp = employee ? (employee.data || employee) : null;
+
+  useEffect(() => {
+    if (!emp && activeClientId && activeClientId !== 'all') {
+      setFormData(prev => ({ ...prev, clientPartner: String(activeClientId) }));
+    }
+  }, [activeClientId, emp]);
 
   const maxDobDate = useMemo(() => {
     const d = new Date();
@@ -41,6 +49,8 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       clientIdParam = urlParams.get('client_id') || '';
     }
     
+    const defaultClient = (activeClientId && activeClientId !== 'all') ? String(activeClientId) : '';
+
     return {
       firstName: emp?.first_name || (emp?.full_name ? emp.full_name.split(' ')[0] : ''),
       lastName: emp?.last_name || (emp?.full_name ? emp.full_name.split(' ').slice(1).join(' ') : ''),
@@ -55,7 +65,8 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       personalEmail: emp?.personal_email || '',
       phone: emp?.phone_number || '',
       emergencyContact: emp?.emergency_contact_phone || '',
-      clientPartner: emp?.client_id || clientIdParam || '',
+      clientPartner: emp?.client_id || clientIdParam || defaultClient || '',
+      branchPartner: emp?.branch_id || emp?.branchId || '',
       designation: emp?.designation || '',
       doj: emp?.date_of_joining || '',
       attendanceTrackingStartDate: emp?.attendance_tracking_start_date || '',
@@ -72,6 +83,8 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       aadhaar: emp?.aadhaar_number || '',
       uanMode: emp?.uan_mode || 'new',
       uan: emp?.uan_number || '',
+      pfMemberId: emp?.pf_member_id || '',
+      memberRelationship: emp?.member_relationship || 'F',
       esiMode: emp?.esi_mode || 'new',
       esiNo: emp?.esic_number || '',
       basicSal: emp?.basic_pay ?? '',
@@ -181,16 +194,28 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
 
   const [activeClientDefaults, setActiveClientDefaults] = useState(null);
   const [clientActiveEmployees, setClientActiveEmployees] = useState([]);
+  const [clientContactPersons, setClientContactPersons] = useState([]);
 
-  // Fetch active employees for Reporting Manager dropdown
+  // Fetch active employees & contact persons for Reporting Manager / Reporting To dropdown
   useEffect(() => {
     if (!formData.clientPartner) {
       setClientActiveEmployees([]);
+      setClientContactPersons([]);
       return;
     }
     axios.get(route('clients.activeEmployees', formData.clientPartner))
-      .then(res => setClientActiveEmployees(res.data || []))
-      .catch(() => setClientActiveEmployees([]));
+      .then(res => {
+        const rawData = Array.isArray(res.data) ? res.data : (res.data?.all || res.data?.employees || []);
+        const contactsList = rawData.filter(item => item.is_contact || String(item.id).startsWith('contact_'));
+        const employeesList = rawData.filter(item => !item.is_contact && !String(item.id).startsWith('contact_'));
+        
+        setClientContactPersons(contactsList);
+        setClientActiveEmployees(employeesList);
+      })
+      .catch(() => {
+        setClientActiveEmployees([]);
+        setClientContactPersons([]);
+      });
   }, [formData.clientPartner]);
 
   // Sync logic on client change
@@ -218,6 +243,9 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
             const next = { ...prev };
             if (d.contractType) {
               next.empType = d.contractType === 'agency' ? 'agency_contract' : 'eor';
+            }
+            if (d.branches && d.branches.length > 0 && !next.branchPartner) {
+              next.branchPartner = d.branches[0].id;
             }
             if (!overrides.pf) next.pfToggle = d.pfApplicable;
             if (!overrides.esi) next.esiToggle = d.esiApplicable;
@@ -310,6 +338,21 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     clearErrorMsg(field);
+
+    // Live validation triggers for fields as user types / edits
+    if (field === 'firstName') validateFirstName(value);
+    if (field === 'lastName') validateLastName(value);
+    if (field === 'fatherName') validateFatherName(value);
+    if (field === 'dob') validateDOB(value);
+    if (field === 'clientPartner') validateClientPartner(value);
+    if (field === 'designation') validateDesignation(value);
+    if (field === 'doj') validateDOJ(value);
+    if (field === 'address') validateAddress(value);
+    if (field === 'accountNo') validateAccountNo(value);
+    if (field === 'accountNoConfirm') validateAccountNoConfirm(value, formData.accountNo);
+    if (field === 'accountHolder') validateAccountHolder(value);
+    if (field === 'pan') validatePAN(value);
+    if (field === 'basicSal') validateBasicSal(value);
   };
 
   // Initialization (URL parse)
@@ -339,6 +382,54 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       setNameChangeUploadVisible(false);
       removeBlocker('Name change requires supporting document upload');
     }
+  };
+
+  const validateFirstName = (val = formData.firstName) => {
+    if (!val || !val.trim()) {
+      setErrorMsg('firstName', '⛔ First name is required.', 'error');
+      addBlocker('First name is required');
+      return false;
+    }
+    clearErrorMsg('firstName');
+    removeBlocker('First name is required');
+    validateNameFields();
+    return true;
+  };
+
+  const validateLastName = (val = formData.lastName) => {
+    if (!val || !val.trim()) {
+      setErrorMsg('lastName', '⛔ Last name is required.', 'error');
+      addBlocker('Last name is required');
+      return false;
+    }
+    clearErrorMsg('lastName');
+    removeBlocker('Last name is required');
+    validateNameFields();
+    return true;
+  };
+
+  const validateFatherName = (val = formData.fatherName) => {
+    if (!val || !val.trim()) {
+      setErrorMsg('fatherName', '⛔ Father\'s name is required.', 'error');
+      addBlocker('Father\'s name is required');
+      return false;
+    }
+    clearErrorMsg('fatherName');
+    removeBlocker('Father\'s name is required');
+    return true;
+  };
+
+  const validateDOB = (val = formData.dob) => {
+    if (isAdd && (!val || !val.trim())) {
+      setErrorMsg('dob', '⛔ Date of birth is required.', 'error');
+      addBlocker('Date of birth is required');
+      return false;
+    }
+    if (!val) return true;
+    clearErrorMsg('dob');
+    removeBlocker('Date of birth is required');
+    validateAgeAtJoining();
+    return true;
   };
 
   const validateAgeAtJoining = () => {
@@ -382,15 +473,16 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
     if (!formData.personalEmail) {
       setErrorMsg('personalEmail', '⛔ Personal email is required.', 'error');
       addBlocker('Personal email is required and must be valid');
-      return;
+      return false;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.personalEmail)) {
       setErrorMsg('personalEmail', '⛔ Enter a valid email address.', 'error');
       addBlocker('Personal email is required and must be valid');
-      return;
+      return false;
     }
     removeBlocker('Personal email is required and must be valid');
     await checkLiveUniqueness('personal_email', formData.personalEmail);
+    return true;
   };
 
   const validatePhone = async () => {
@@ -399,10 +491,56 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
     if (!formData.phone || !/^\d{10}$/.test(formData.phone)) {
       setErrorMsg('phone', '⛔ Phone number must be exactly 10 digits.', 'error');
       addBlocker('Phone number must be exactly 10 digits');
-      return;
+      return false;
     }
     clearErrorMsg('phone');
     await checkLiveUniqueness('phone_number', formData.phone);
+    return true;
+  };
+
+  const validateClientPartner = (val = formData.clientPartner) => {
+    if (isAdd && (!val || !String(val).trim())) {
+      setErrorMsg('clientPartner', '⛔ Client partner is required.', 'error');
+      addBlocker('Client partner is required');
+      return false;
+    }
+    clearErrorMsg('clientPartner');
+    removeBlocker('Client partner is required');
+    return true;
+  };
+
+  const validateDesignation = (val = formData.designation) => {
+    if (!val || !val.trim()) {
+      setErrorMsg('designation', '⛔ Designation is required.', 'error');
+      addBlocker('Designation is required');
+      return false;
+    }
+    clearErrorMsg('designation');
+    removeBlocker('Designation is required');
+    return true;
+  };
+
+  const validateDOJ = (val = formData.doj) => {
+    if (!val || !val.trim()) {
+      setErrorMsg('doj', '⛔ Date of joining is required.', 'error');
+      addBlocker('Date of joining is required');
+      return false;
+    }
+    clearErrorMsg('doj');
+    removeBlocker('Date of joining is required');
+    validateAgeAtJoining();
+    return true;
+  };
+
+  const validateAddress = (val = formData.address) => {
+    if (!val || !val.trim()) {
+      setErrorMsg('address', '⛔ Residential address is required.', 'error');
+      addBlocker('Residential address is required');
+      return false;
+    }
+    clearErrorMsg('address');
+    removeBlocker('Residential address is required');
+    return true;
   };
 
   const acceptDuplicatePhone = () => {
@@ -415,6 +553,42 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
     setPhoneDupChoiceVisible(false);
   };
 
+  const validateAccountNo = (val = formData.accountNo) => {
+    if (isActive) return true;
+    if (!val || !val.trim()) {
+      setErrorMsg('accountNo', '⛔ Bank account number is required.', 'error');
+      addBlocker('Bank account number is required');
+      return false;
+    }
+    if (!/^\d{9,18}$/.test(val.trim())) {
+      setErrorMsg('accountNo', '⛔ Account number must be 9 to 18 digits.', 'error');
+      addBlocker('Account number format is invalid');
+      return false;
+    }
+    clearErrorMsg('accountNo');
+    removeBlocker('Bank account number is required');
+    removeBlocker('Account number format is invalid');
+    validateAccountMatch();
+    return true;
+  };
+
+  const validateAccountNoConfirm = (valConfirm = formData.accountNoConfirm, valAcc = formData.accountNo) => {
+    if (isActive) return true;
+    if (!valConfirm || !valConfirm.trim()) {
+      setErrorMsg('accountNoConfirm', '⛔ Confirm account number is required.', 'error');
+      addBlocker('Account numbers do not match');
+      return false;
+    }
+    if (valConfirm !== valAcc) {
+      setErrorMsg('accountNoConfirm', '⛔ Account numbers do not match.', 'error');
+      addBlocker('Account numbers do not match');
+      return false;
+    }
+    clearErrorMsg('accountNoConfirm');
+    removeBlocker('Account numbers do not match');
+    return true;
+  };
+
   const validateAccountMatch = () => {
     removeBlocker('Account numbers do not match');
     if (!formData.accountNo || !formData.accountNoConfirm) return;
@@ -424,19 +598,35 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
     }
   };
 
+  const validateAccountHolder = (val = formData.accountHolder) => {
+    if (isActive) return true;
+    if (!val || !val.trim()) {
+      setErrorMsg('accountHolder', '⛔ Account holder name is required.', 'error');
+      addBlocker('Account holder name is required');
+      return false;
+    }
+    clearErrorMsg('accountHolder');
+    removeBlocker('Account holder name is required');
+    return true;
+  };
+
   const validateIFSC = async () => {
+    if (isActive) return true;
     removeBlocker('IFSC code format is invalid');
     removeBlocker('IFSC code not found');
+    removeBlocker('IFSC code is required');
     if (!formData.ifsc) {
+      setErrorMsg('ifsc', '⛔ IFSC code is required.', 'error');
+      addBlocker('IFSC code is required');
       setFormData(prev => ({ ...prev, bankName: '', bankBranch: '' }));
-      return;
+      return false;
     }
     const ifscUpper = formData.ifsc.toUpperCase();
     if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifscUpper)) {
       setErrorMsg('ifsc', '⛔ IFSC must be 4 letters + 0 + 6 alphanumeric chars (e.g. HDFC0000060).', 'error');
       addBlocker('IFSC code format is invalid');
       setFormData(prev => ({ ...prev, bankName: '', bankBranch: '' }));
-      return;
+      return false;
     }
     
     try {
@@ -444,26 +634,47 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       if (res.data) {
         setFormData(prev => ({ ...prev, bankName: res.data.BANK, bankBranch: res.data.BRANCH }));
         setErrorMsg('ifsc', '✅ Verified', 'success');
+        return true;
       }
     } catch (err) {
       setFormData(prev => ({ ...prev, bankName: '', bankBranch: '' }));
       setErrorMsg('ifsc', '⛔ Invalid IFSC code or not found.', 'error');
       addBlocker('IFSC code not found');
+      return false;
     }
+    return true;
   };
 
-  const validatePAN = () => {
-    removeBlocker('PAN format is invalid');
-    if (!formData.pan) return;
-    
-    if (!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(formData.pan.toUpperCase())) {
+  const validatePAN = (val = formData.pan) => {
+    if (!val || !val.trim()) {
+      setErrorMsg('pan', '⛔ Permanent Account Number (PAN) is required.', 'error');
+      addBlocker('PAN is required');
+      return false;
+    }
+    if (!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(val.toUpperCase())) {
       setErrorMsg('pan', '⛔ Invalid PAN format. Must be 5 letters + 4 digits + 1 letter (e.g. ABCDE1234F).', 'error');
       addBlocker('PAN format is invalid');
-      return;
+      return false;
     }
-    // Real duplicate PAN checks happen server-side via SHA-256 hash uniqueness.
     clearErrorMsg('pan');
+    removeBlocker('PAN is required');
+    removeBlocker('PAN format is invalid');
     validateNameFields();
+    return true;
+  };
+
+  const validateBasicSal = (val = formData.basicSal) => {
+    if (isActive) return true;
+    const num = Number(val);
+    if (val === '' || val === null || val === undefined || isNaN(num) || num <= 0) {
+      setErrorMsg('basicSal', '⛔ Basic Pay is mandatory for salary structure and must be greater than 0.', 'error');
+      addBlocker('Basic Pay is required for salary structure');
+      return false;
+    }
+    clearErrorMsg('basicSal');
+    removeBlocker('Basic Pay is required for salary structure');
+    validateBasicPct();
+    return true;
   };
 
   const validateBasicPct = () => {
@@ -473,6 +684,36 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
     if (pct < 50) {
       setErrorMsg('basicSal', `⚠ Basic Pay (₹${formData.basicSal.toLocaleString('en-IN')}) is ${pct.toFixed(1)}% of CTC — usually should be at least 50% as per new wage code rules, but you can proceed.`, 'warn');
     }
+  };
+
+  const validateAllFields = async () => {
+    let valid = true;
+    if (!validateFirstName(formData.firstName)) valid = false;
+    if (!validateLastName(formData.lastName)) valid = false;
+    if (!validateFatherName(formData.fatherName)) valid = false;
+    if (!validateDOB(formData.dob)) valid = false;
+    if (!validateClientPartner(formData.clientPartner)) valid = false;
+    if (!validateDesignation(formData.designation)) valid = false;
+    if (!validateDOJ(formData.doj)) valid = false;
+    if (!validateAddress(formData.address)) valid = false;
+    if (!validatePAN(formData.pan)) valid = false;
+    
+    const emailValid = await validatePersonalEmail();
+    if (!emailValid) valid = false;
+
+    const phoneValid = await validatePhone();
+    if (!phoneValid) valid = false;
+
+    if (!isActive) {
+      if (!validateAccountNo(formData.accountNo)) valid = false;
+      if (!validateAccountNoConfirm(formData.accountNoConfirm, formData.accountNo)) valid = false;
+      if (!validateAccountHolder(formData.accountHolder)) valid = false;
+      if (!validateBasicSal(formData.basicSal)) valid = false;
+      const ifscValid = await validateIFSC();
+      if (!ifscValid) valid = false;
+    }
+
+    return valid;
   };
 
   // ESI limits check
@@ -518,22 +759,13 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
     if (processing) return;
     setProcessing(true);
     
-    validatePersonalEmail();
-    validatePhone();
-    validatePAN();
-    validateAccountMatch();
-    await validateIFSC();
-    validateBasicPct();
-    validateAgeAtJoining();
+    const isValid = await validateAllFields();
 
-    if (blockingErrors.size > 0) {
+    if (!isValid || blockingErrors.size > 0) {
       setProcessing(false);
-      showToast({ 
-        type: 'error', 
-        title: 'Cannot Save Employee', 
-        message: 'Please resolve the blocking errors indicated in the form fields before saving.' 
-      });
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      setTimeout(() => {
+        runJQueryValidation('#emp-form', errors);
+      }, 50);
       return;
     }
     
@@ -544,7 +776,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       'residential_address': 'address', 'bank_account_number': 'accountNo', 'bank_ifsc': 'ifsc',
       'bank_name': 'bankName', 'bank_branch': 'bankBranch', 'account_holder_name': 'accountHolder',
       'gender': 'gender', 'blood_group': 'bloodGroup', 'marital_status': 'maritalStatus',
-      'pan_number': 'pan', 'aadhaar_number': 'aadhaar', 'uan_mode': 'uanMode', 'uan_number': 'uan',
+      'pan_number': 'pan', 'aadhaar_number': 'aadhaar', 'uan_mode': 'uanMode', 'uan_number': 'uan', 'pf_member_id': 'pfMemberId', 'member_relationship': 'memberRelationship',
       'esi_mode': 'esiMode', 'esic_number': 'esiNo', 'basic_pay': 'basicSal', 'hra': 'hraSal', 'conveyance': 'conveyanceSal',
       'da': 'daSal', 'medical_allowance': 'medicalSal', 'special_allowance': 'specialSal',
       'other_additions': 'otherSal', 'pt_deduction_override': 'ptDeduction', 'tds_regime': 'taxRegime',
@@ -552,7 +784,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       'emergency_contact_name': 'emergencyContactName', 'previous_employer_name': 'prevEmployerName',
       'previous_employer_uan': 'prevEmployerUAN', 'probation_end_date': 'probationEndDate',
       'reporting_manager_id': 'reportingManagerId', 'notice_period_days': 'noticePeriodDays',
-      'esi_contribution_period_end': 'esiPeriodEnd', 'designation': 'designation', 'branch_id': 'branch_id',
+      'esi_contribution_period_end': 'esiPeriodEnd', 'designation': 'designation', 'branch_id': 'branchPartner',
       'health_insurance_provider': 'insuranceProvider', 'health_insurance_policy_no': 'insurancePolicyNo', 'health_insurance_sum_insured': 'insuranceSumInsured',
       'joint_declaration_status': 'jointDeclarationStatus',
     };
@@ -573,8 +805,9 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
           errorMessages.push(msgText);
         });
         setErrors(prev => ({ ...prev, ...mappedErrors }));
-        showToast({ type: 'error', title: 'Validation Failed', message: errorMessages.join(' | ') });
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        setTimeout(() => {
+          runJQueryValidation('#emp-form', mappedErrors);
+        }, 50);
       }
     });
   };
@@ -666,7 +899,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                   <div className="form-group">
                     <label>Father's Name <span style={{ color: "var(--status-danger)" }}>*</span></label>
                     <input type="text" className={`form-control ${errors.fatherName ? `is-${errors.fatherName.type || 'error'}` : ''}`} value={formData.fatherName}
-                      onChange={e => handleInputChange('fatherName', e.target.value)} required />
+                      onChange={e => handleInputChange('fatherName', e.target.value)} onBlur={e => validateFatherName(e.target.value)} required />
                     {errors.fatherName && <div className={`field-msg ${errors.fatherName.type || 'error'} show`}>{errors.fatherName.msg}</div>}
 
                     {nameChangeUploadVisible && (
@@ -701,7 +934,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                     <div className="form-group">
                       <label>Date of Birth <span style={{ color: "var(--status-danger)" }}>*</span></label>
                       <input type="date" max={maxDobDate} className={`form-control ${errors.dob ? `is-${errors.dob.type || 'error'}` : ''}`} value={formData.dob}
-                        onChange={e => { handleInputChange('dob', e.target.value); validateAgeAtJoining(); }} required />
+                        onChange={e => { handleInputChange('dob', e.target.value); validateAgeAtJoining(); }} onBlur={e => validateDOB(e.target.value)} required />
                       {errors.dob && <div className={`field-msg ${errors.dob.type || 'error'} show`}>{errors.dob.msg}</div>}
                     </div>
                   )}
@@ -779,17 +1012,62 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                   {isAdd && (
                     <div className="form-group">
                       <label>Client Partner <span style={{ color: "var(--status-danger)" }}>*</span></label>
-                      <select className="form-control" value={formData.clientPartner} onChange={e => handleInputChange('clientPartner', e.target.value)} disabled={isActive} required>
+                      <select className={`form-control ${errors.clientPartner ? `is-${errors.clientPartner.type || 'error'}` : ''}`} value={formData.clientPartner} onChange={e => handleInputChange('clientPartner', e.target.value)} onBlur={e => validateClientPartner(e.target.value)} disabled={isActive} required>
                         <option value="">-- Select Client --</option>
                         {clients && clients.map(c => (
                           <option key={c.id} value={c.id}>{c.company_name}</option>
                         ))}
                       </select>
+                      {errors.clientPartner && <div className={`field-msg ${errors.clientPartner.type || 'error'} show`}>{errors.clientPartner.msg}</div>}
                     </div>
                   )}
+
+                  {formData.clientPartner && activeClientDefaults?.branches && activeClientDefaults.branches.length > 0 && (
+                    <div className="form-group">
+                      <label>Work Location / Branch <span style={{ color: "var(--status-danger)" }}>*</span></label>
+                      <select className="form-control" value={formData.branchPartner} onChange={e => handleInputChange('branchPartner', e.target.value)} required>
+                        {activeClientDefaults.branches.map(b => (
+                          <option key={b.id} value={b.id}>
+                            {b.name} ({b.state || 'Head Office'}) {b.is_head_office ? '★ Primary' : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
                   <div className="form-group">
                     <label>Designation <span style={{ color: "var(--status-danger)" }}>*</span></label>
-                    <input type="text" className="form-control" value={formData.designation} onChange={e => handleInputChange('designation', e.target.value)} required />
+                    <input type="text" className={`form-control ${errors.designation ? `is-${errors.designation.type || 'error'}` : ''}`} value={formData.designation} onChange={e => handleInputChange('designation', e.target.value)} onBlur={e => validateDesignation(e.target.value)} required />
+                    {errors.designation && <div className={`field-msg ${errors.designation.type || 'error'} show`}>{errors.designation.msg}</div>}
+                  </div>
+
+                  <div className="form-group">
+                    <label>Reporting To / Manager</label>
+                    <select 
+                      className="form-control" 
+                      value={formData.reportingManagerId} 
+                      onChange={e => handleInputChange('reportingManagerId', e.target.value)}
+                    >
+                      <option value="">-- Select Reporting Manager / Contact Person --</option>
+                      {clientContactPersons && clientContactPersons.length > 0 && (
+                        <optgroup label="Client Contact Persons">
+                          {clientContactPersons.map(c => (
+                            <option key={c.id} value={c.id}>
+                              {c.full_name} {c.designation ? `— ${c.designation}` : ''}
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                      {clientActiveEmployees && clientActiveEmployees.length > 0 && (
+                        <optgroup label="Active Employees">
+                          {clientActiveEmployees.map(empItem => (
+                            <option key={empItem.id} value={empItem.id}>
+                              {empItem.full_name} ({empItem.employee_code}) {empItem.designation ? `— ${empItem.designation}` : ''}
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                    </select>
                   </div>
                 </div>
 
@@ -798,7 +1076,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                   <div className="form-group">
                       <label>Date of Joining <span style={{ color: "var(--status-danger)" }}>*</span></label>
                       <input type="date" className={`form-control ${isActive ? 'read-only-field' : ''} ${errors.doj ? `is-${errors.doj.type || 'error'}` : ''}`} value={formData.doj}
-                        onChange={e => { handleInputChange('doj', e.target.value); validateAgeAtJoining(); }} readOnly={isActive} required />
+                        onChange={e => { handleInputChange('doj', e.target.value); validateAgeAtJoining(); }} onBlur={e => validateDOJ(e.target.value)} readOnly={isActive} required />
                       {errors.doj && <div className={`field-msg ${errors.doj.type || 'error'} show`}>{errors.doj.msg}</div>}
                     </div>
                     <div className="form-group">
@@ -848,7 +1126,16 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                     </div>
                   <div className="form-group" style={{ flex: 1 }}>
                     <label>Residential Address <span style={{ color: "var(--status-danger)" }}>*</span></label>
-                    <input type="text" className="form-control" value={formData.address} onChange={e => handleInputChange('address', e.target.value)} required />
+                    <textarea
+                      className={`form-control ${errors.address ? `is-${errors.address.type || 'error'}` : ''}`}
+                      rows={3}
+                      value={formData.address}
+                      onChange={e => handleInputChange('address', e.target.value)}
+                      onBlur={e => validateAddress(e.target.value)}
+                      placeholder="Enter complete residential address..."
+                      required
+                    />
+                    {errors.address && <div className={`field-msg ${errors.address.type || 'error'} show`}>{errors.address.msg}</div>}
                   </div>
                 </div>
 
@@ -967,12 +1254,13 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                       <div className="form-group">
                         <label>Account Number <span style={{ color: "var(--status-danger)" }}>*</span></label>
                         <input type="text" className={`form-control ${errors.accountNo ? `is-${errors.accountNo.type || 'error'}` : ''}`} value={formData.accountNo}
-                          onChange={e => handleInputChange('accountNo', e.target.value)} onBlur={validateAccountMatch} required />
+                          onChange={e => handleInputChange('accountNo', e.target.value)} onBlur={e => validateAccountNo(e.target.value)} required />
+                        {errors.accountNo && <div className={`field-msg ${errors.accountNo.type || 'error'} show`}>{errors.accountNo.msg}</div>}
                       </div>
                       <div className="form-group" style={{ marginBottom: "0" }}>
                         <label>Confirm Account Number <span style={{ color: "var(--status-danger)" }}>*</span></label>
                         <input type="text" className={`form-control ${errors.accountNoConfirm ? `is-${errors.accountNoConfirm.type || 'error'}` : ''}`} value={formData.accountNoConfirm}
-                          onChange={e => handleInputChange('accountNoConfirm', e.target.value)} onBlur={validateAccountMatch} required />
+                          onChange={e => handleInputChange('accountNoConfirm', e.target.value)} onBlur={e => validateAccountNoConfirm(e.target.value, formData.accountNo)} required />
                         {errors.accountNoConfirm && <div className={`field-msg ${errors.accountNoConfirm.type || 'error'} show`}>{errors.accountNoConfirm.msg}</div>}
                       </div>
                     </div>
@@ -997,7 +1285,8 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                       </div>
                       <div className="form-group">
                         <label>Account Holder Name <span style={{ color: "var(--status-danger)" }}>*</span></label>
-                        <input type="text" className="form-control" value={formData.accountHolder} onChange={e => handleInputChange('accountHolder', e.target.value)} required />
+                        <input type="text" className={`form-control ${errors.accountHolder ? `is-${errors.accountHolder.type || 'error'}` : ''}`} value={formData.accountHolder} onChange={e => handleInputChange('accountHolder', e.target.value)} onBlur={e => validateAccountHolder(e.target.value)} required />
+                        {errors.accountHolder && <div className={`field-msg ${errors.accountHolder.type || 'error'} show`}>{errors.accountHolder.msg}</div>}
                       </div>
                     </div>
                   </div>
@@ -1012,7 +1301,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                   <div className="form-group">
                     <label>Permanent Account Number (PAN) <span style={{ color: "var(--status-danger)" }}>*</span></label>
                     <input type="text" className={`form-control ${errors.pan ? `is-${errors.pan.type || 'error'}` : ''}`} value={formData.pan}
-                      onChange={e => handleInputChange('pan', e.target.value.toUpperCase())} onBlur={validatePAN} required />
+                      onChange={e => handleInputChange('pan', e.target.value.toUpperCase())} onBlur={e => validatePAN(e.target.value)} required />
                     {errors.pan && <div className={`field-msg ${errors.pan.type || 'error'} show`}>{errors.pan.msg}</div>}
                     <small style={{ color: "var(--text-muted)", display: "block", marginTop: "4px" }}>Note: Name on PAN must exactly match the Full Name entered above to avoid statutory rejection.</small>
                   </div>
@@ -1050,9 +1339,9 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                     <h4 style={{ fontSize: "0.95rem", color: "var(--primary-navy)", marginBottom: "1rem" }}>Earnings Breakdown</h4>
                     <div className="form-row">
                       <div className="form-group">
-                        <label>1. Basic Pay (₹)</label>
+                        <label>1. Basic Pay (₹) <span style={{ color: "var(--status-danger)" }}>*</span></label>
                         <input type="number" className={`form-control ${errors.basicSal ? `is-${errors.basicSal.type || 'error'}` : ''}`} value={formData.basicSal}
-                          onChange={e => handleInputChange('basicSal', e.target.value)} onWheel={e => e.target.blur()} onBlur={validateBasicPct} min="0" required />
+                          onChange={e => handleInputChange('basicSal', e.target.value)} onWheel={e => e.target.blur()} onBlur={e => validateBasicSal(e.target.value)} min="0" required />
                         {errors.basicSal && <div className={`field-msg ${errors.basicSal.type || 'error'} show`}>{errors.basicSal.msg}</div>}
                       </div>
                       <div className="form-group">
@@ -1150,6 +1439,38 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                             {errors.uan && <div className={`field-msg ${errors.uan.type || 'error'} show`}>{errors.uan.msg || errors.uan}</div>}
                           </div>
                         )}
+                      </div>
+
+                      <div className="form-row" style={{ marginTop: "0.75rem" }}>
+                        <div className="form-group" style={{ marginBottom: "0" }}>
+                          <label>PF Member ID (Member Account No.) <span style={{ color: "var(--status-danger)" }}>*</span></label>
+                          <input 
+                            type="text" 
+                            className={`form-control ${errors.pfMemberId ? 'is-invalid' : ''}`} 
+                            value={formData.pfMemberId} 
+                            onChange={e => handleInputChange('pfMemberId', e.target.value)} 
+                            placeholder="e.g. DLCPM00123450000000271" 
+                            maxLength="50" 
+                          />
+                          {errors.pfMemberId && <div className={`field-msg ${errors.pfMemberId.type || 'error'} show`}>{errors.pfMemberId.msg || errors.pfMemberId}</div>}
+                          <small style={{ color: "var(--text-muted)", display: "block", marginTop: "4px" }}>
+                            EPFO Member ID required for PF ECR Return filing. From EPFO Employer Portal.
+                          </small>
+                        </div>
+                        <div className="form-group" style={{ marginBottom: "0" }}>
+                          <label>Member Relationship (for ECR Return)</label>
+                          <select 
+                            className="form-control" 
+                            value={formData.memberRelationship} 
+                            onChange={e => handleInputChange('memberRelationship', e.target.value)}
+                          >
+                            <option value="F">Father (F)</option>
+                            <option value="S">Spouse (S)</option>
+                          </select>
+                          <small style={{ color: "var(--text-muted)", display: "block", marginTop: "4px" }}>
+                            Official EPFO Field #13 (F = Father, S = Spouse).
+                          </small>
+                        </div>
                       </div>
                       <div style={{ marginTop: "0.75rem", paddingTop: "0.75rem", borderTop: "1px dashed var(--border-color)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                         <div>
@@ -1656,7 +1977,9 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                   </Link>
                   <button type="submit" className="btn btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }} disabled={processing} onClick={() => {
                     if (blockingErrors.size > 0) {
-                      showToast({ type: 'error', title: 'Cannot Save Employee', message: Array.from(blockingErrors).join(' | ') });
+                      setTimeout(() => {
+                        runJQueryValidation('#emp-form', errors);
+                      }, 50);
                     }
                   }}>
                     <Save size={15} /> {processing ? 'Saving...' : 'Save Employee Configuration'}

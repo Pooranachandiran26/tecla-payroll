@@ -577,4 +577,67 @@ class MonthlyPayrollCalculatorTest extends TestCase
         // Verify the salary revision flag is NOT set
         $this->assertFalse($result['salary_revision_applied']);
     }
+
+    /**
+     * Test 10: Genuinely NEW employee joining mid-period with STARTING gross above 21k
+     * gets NO ESI (0.00), distinct from an existing employee mid-period raise.
+     */
+    public function test_new_hire_joining_mid_period_above_21k_gets_zero_esi()
+    {
+        // 1. Create a brand new employee joining mid-period (DOJ = June 1, 2026, in Apr-Sep period)
+        // with starting gross = 25000 + 10000 = 35000 (> 21000) and esi_applicable = true
+        $newEmp = Employee::create([
+            'client_id' => $this->client->id,
+            'branch_id' => $this->branch->id,
+            'full_name' => 'New High Earner',
+            'personal_email' => 'new.highearner@example.com',
+            'phone_number' => '9988770011',
+            'date_of_birth' => '1995-05-05',
+            'date_of_joining' => '2026-06-01', // Joined mid-period
+            'designation' => 'Lead Developer',
+            'employment_model' => 'eor',
+            'prior_employment_flag' => 0,
+            'residential_address' => '789 High St',
+            'bank_account_number' => '987654321099',
+            'bank_ifsc' => 'SBIN0001234',
+            'bank_name' => 'SBI',
+            'bank_branch' => 'Main',
+            'account_holder_name' => 'New High Earner',
+            'pan_number' => 'XYZDE1234K',
+            'employee_code' => 'TEC-999',
+            'status' => 'active',
+            'basic_pay' => 25000,
+            'hra' => 10000,
+            'conveyance' => 0,
+            'da' => 0,
+            'medical_allowance' => 0,
+            'special_allowance' => 0,
+            'other_additions' => 0,
+            'tds_regime' => 'new',
+            'gratuity_mode' => 'part_of_ctc',
+            'lop_basis_days' => '30',
+            'declarations_accepted' => 1,
+            'uan_mode' => 'new',
+            'pf_applicable' => true,
+            'esi_applicable' => true, // Profile toggle is true
+            'pt_applicable' => true,
+            'lwf_applicable' => false,
+            'esi_threshold_crossed_month' => null,
+        ]);
+
+        $this->seedAttendanceForMonth($newEmp->id, '2026-06-01');
+
+        $payrollRunJune = (object)[
+            'id' => $this->payrollRun->id,
+            'payroll_month' => '2026-06-01'
+        ];
+
+        // 2. Run June payroll for this new employee
+        $result = $this->calculator->calculateForEmployee($newEmp, $payrollRunJune);
+
+        // 3. MUST evaluate to 0.00 employee ESI because starting gross > 21000
+        $this->assertEquals(0.00, $result['employee_esi']);
+        $this->assertEquals(0.00, $result['employer_esi']);
+        $this->assertNull($newEmp->fresh()->esi_threshold_crossed_month);
+    }
 }

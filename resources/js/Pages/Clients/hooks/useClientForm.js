@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { router } from '@inertiajs/react';
 import useToast from '@/Hooks/useToast';
+import { runJQueryValidation } from '@/Utils/jqueryValidation';
 import {
   PATTERNS, PIN_MAPPING, GST_STATE_CODES, ALLOWED_FILE_TYPES,
   MAX_FILE_SIZE, DOC_TYPE_LABELS, DOC_TYPE_ICONS, REQUIRED_DOC_TYPES,
@@ -62,7 +63,27 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
       delete next[field];
       return next;
     });
-  }, []);
+
+    // Live validation triggers for step 1 & step 2 fields
+    if (field === 'companyName' && (!value || !value.trim())) {
+      setErrors(prev => ({ ...prev, companyName: { msg: 'Legal company name is required.', type: 'error' } }));
+    }
+    if (field === 'companyType' && !value) {
+      setErrors(prev => ({ ...prev, companyType: { msg: 'Company type is required.', type: 'error' } }));
+    }
+    if (field === 'trustRegNo' && formData.companyType === 'trust' && (!value || !value.trim())) {
+      setErrors(prev => ({ ...prev, trustRegNo: { msg: 'Trust/NGO registration number is required.', type: 'error' } }));
+    }
+    if (field === 'regAddressLine1' && (!value || !value.trim())) {
+      setErrors(prev => ({ ...prev, regAddressLine1: { msg: 'Registered address line 1 is required.', type: 'error' } }));
+    }
+    if (field === 'regCity' && (!value || !value.trim())) {
+      setErrors(prev => ({ ...prev, regCity: { msg: 'City is required.', type: 'error' } }));
+    }
+    if (field === 'regState' && (!value || !value.trim())) {
+      setErrors(prev => ({ ...prev, regState: { msg: 'State is required.', type: 'error' } }));
+    }
+  }, [formData.companyType]);
 
   // ── Nested object updater (for poc1, poc2, poc3) ─
   const handlePocChange = useCallback((pocKey, field, value) => {
@@ -70,7 +91,53 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
       ...prev,
       [pocKey]: { ...prev[pocKey], [field]: value },
     }));
+
+    if (pocKey === 'poc1') {
+      const errKey = `poc1.${field}`;
+      setErrors(prev => {
+        const next = { ...prev };
+        delete next[errKey];
+        return next;
+      });
+
+      if (field === 'name' && (!value || !value.trim())) {
+        setErrors(prev => ({ ...prev, 'poc1.name': { msg: 'Primary POC name is required.', type: 'error' } }));
+      }
+      if (field === 'email') {
+        if (!value || !value.trim()) {
+          setErrors(prev => ({ ...prev, 'poc1.email': { msg: 'Primary POC email is required.', type: 'error' } }));
+        } else if (!PATTERNS.EMAIL.test(value)) {
+          setErrors(prev => ({ ...prev, 'poc1.email': { msg: 'Enter a valid email address.', type: 'error' } }));
+        }
+      }
+      if (field === 'phone') {
+        const digits = value.replace(/\D/g, '');
+        if (!digits || digits.length !== 10) {
+          setErrors(prev => ({ ...prev, 'poc1.phone': { msg: 'Phone number must be exactly 10 digits.', type: 'error' } }));
+        }
+      }
+    }
   }, []);
+
+  const checkLiveUniqueness = useCallback(async (field, value, errorKey) => {
+    if (!value || !value.trim()) return;
+    try {
+      const ignoreId = editId ? `&ignore_id=${editId}` : '';
+      const res = await fetch(`/clients/check-unique?field=${field}&value=${encodeURIComponent(value.trim())}${ignoreId}`);
+      const data = await res.json();
+      if (data && data.available === false) {
+        setErrors(prev => ({ ...prev, [errorKey]: { msg: data.message, type: 'error' } }));
+      } else {
+        setErrors(prev => {
+          const next = { ...prev };
+          delete next[errorKey];
+          return next;
+        });
+      }
+    } catch (e) {
+      // Ignore network UX helper errors
+    }
+  }, [editId]);
 
   const handlePocPrefChange = useCallback((pocKey, pref, value) => {
     setFormData(prev => ({
@@ -261,6 +328,27 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
     handleInputChange('lumpsumFee', '');
     handleInputChange('hourlyRate', '');
     handleInputChange('standardHours', '');
+    // In-House mode: auto-set contractType and clear all billing/invoice fields
+    if (value === 'inhouse') {
+      handleInputChange('contractType', 'agency');
+      handleInputChange('markupPct', '');
+      handleInputChange('contractEnd', '');
+      handleInputChange('autoRenewal', false);
+      handleInputChange('poRequired', false);
+      handleInputChange('poNumber', '');
+      handleInputChange('poValue', '');
+      handleInputChange('poValidity', '');
+      handleInputChange('invoiceCycle', 'monthly');
+      handleInputChange('paymentTerms', 'net30');
+      handleInputChange('noticePeriod', '');
+      handleInputChange('creditLimit', '');
+      handleInputChange('latePenalty', '');
+      handleInputChange('gstRate', '18');
+      handleInputChange('reverseCharge', false);
+      handleInputChange('tdsApplicableAgency', 'na');
+      handleInputChange('invoiceFooterNotes', '');
+      handleInputChange('portalAccess', false);
+    }
     if (value) markProgress(4);
   }, [handleInputChange, markProgress]);
 
@@ -283,8 +371,9 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
     if (val === '1') return 'Net receivable = Invoice Amount - 1% TDS';
     if (val === '2') return 'Net receivable = Invoice Amount - 2% TDS';
     if (val === '10') return 'Net receivable = Invoice Amount - 10% TDS';
+    if (formData.customTdsPercentage) return `Net receivable = Invoice Amount - ${formData.customTdsPercentage}% TDS`;
     return 'Net receivable = Invoice Amount - Custom TDS%';
-  }, [formData.tdsApplicableAgency]);
+  }, [formData.tdsApplicableAgency, formData.customTdsPercentage]);
 
   const handlePFCeiling = useCallback((value) => {
     handleInputChange('pfCeiling', value);
@@ -357,27 +446,28 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
   // ═══ CLIENT BRANCHES ══════════════════════════════
 
   const addClientBranch = useCallback((seedData = null) => {
-    const newBranch = {
-      id: `branch-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-      name: seedData?.name || '',
-      code: seedData?.code || '',
-      addr1: seedData?.addr1 || '',
-      addr2: seedData?.addr2 || '',
-      city: seedData?.city || '',
-      state: seedData?.state || '',
-      pin: seedData?.pin || '',
-      gstin: seedData?.gstin || '',
-      gstType: seedData?.gstType || 'Regular',
-      pocName: seedData?.pocName || '',
-      pocEmail: seedData?.pocEmail || '',
-      pocPhone: seedData?.pocPhone || '',
-      isPrimary: seedData?.isPrimary || false,
-      gstinError: '',
-      gstinValid: false,
-    };
     setClientBranches(prev => {
+      const idx = prev.length + 1;
+      const newBranch = {
+        id: `branch-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+        name: seedData?.name || `Branch ${idx}`,
+        code: seedData?.code || `BR-${String(idx).padStart(2, '0')}`,
+        addr1: seedData?.addr1 || '',
+        addr2: seedData?.addr2 || '',
+        city: seedData?.city || '',
+        state: seedData?.state || '',
+        pin: seedData?.pin || '',
+        gstin: seedData?.gstin || '',
+        gstType: seedData?.gstType || 'Regular',
+        pocName: seedData?.pocName || '',
+        pocEmail: seedData?.pocEmail || '',
+        pocPhone: seedData?.pocPhone || '',
+        isPrimary: seedData?.isPrimary || prev.length === 0,
+        gstinError: '',
+        gstinValid: false,
+      };
       const next = [...prev, newBranch];
-      if (next.length === 1) next[0].isPrimary = true;
+      setFormData(f => ({ ...f, workLocationsCount: next.length }));
       return next;
     });
   }, []);
@@ -388,11 +478,37 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
       const removedWasPrimary = prev.find(b => b.id === branchId)?.isPrimary;
       if (removedWasPrimary && filtered.length > 0) {
         filtered[0].isPrimary = true;
-        showToast('⚠️ Removing the primary branch — first remaining branch set as primary.');
+        showToast('⚠️ Primary branch updated.');
       }
+      setFormData(f => ({ ...f, workLocationsCount: Math.max(1, filtered.length) }));
       return filtered;
     });
   }, [showToast]);
+
+  const handleWorkLocationsCountChange = useCallback((value) => {
+    const rawVal = parseInt(value, 10);
+    const count = isNaN(rawVal) || rawVal < 1 ? 1 : rawVal;
+    setFormData(prev => ({ ...prev, workLocationsCount: count }));
+    
+    setClientBranches(prev => {
+      if (count > prev.length) {
+        const next = [...prev];
+        while (next.length < count) {
+          const idx = next.length + 1;
+          next.push({
+            id: `branch-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+            name: `Branch ${idx}`,
+            code: `BR-${String(idx).padStart(2, '0')}`,
+            addr1: '', addr2: '', city: '', state: '', pin: '', gstin: '',
+            gstType: 'Regular', pocName: '', pocEmail: '', pocPhone: '',
+            isPrimary: false, gstinError: '', gstinValid: false,
+          });
+        }
+        return next;
+      }
+      return prev;
+    });
+  }, []);
 
   const updateClientBranch = useCallback((branchId, field, value) => {
     setClientBranches(prev => prev.map(b => {
@@ -640,25 +756,33 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
         { key: 'poc1.phone', label: 'Primary POC Phone' },
       );
     } else if (stepNum === 4) {
-      requiredFields.push(
-        { key: 'contractType', label: 'Contract Type' },
-        { key: 'billingModel', label: 'Billing Model' },
-        { key: 'contractStart', label: 'Contract Start Date' },
-      );
-      if (formData.poRequired) {
-        requiredFields.push({ key: 'poNumber', label: 'PO Number' });
-      }
-      if (formData.billingModel === 'markup') {
-        requiredFields.push({ key: 'markupPct', label: 'Markup Percentage' });
-      }
-      if (formData.billingModel === 'fixed_per_candidate') {
-        requiredFields.push({ key: 'fixedFeeCandidate', label: 'Fixed Fee Per Candidate' });
-      }
-      if (formData.billingModel === 'fixed_per_month') {
-        requiredFields.push({ key: 'fixedMonthlyRetainer', label: 'Monthly Retainer Amount' });
-      }
-      if (formData.billingModel === 'lumpsum') {
-        requiredFields.push({ key: 'lumpsumFee', label: 'Lump Sum Project Fee' });
+      // In-House mode: only billingModel + contractStart are required (contractType is auto-set)
+      if (formData.billingModel === 'inhouse') {
+        requiredFields.push(
+          { key: 'billingModel', label: 'Billing Model' },
+          { key: 'contractStart', label: 'Contract Start Date' },
+        );
+      } else {
+        requiredFields.push(
+          { key: 'contractType', label: 'Contract Type' },
+          { key: 'billingModel', label: 'Billing Model' },
+          { key: 'contractStart', label: 'Contract Start Date' },
+        );
+        if (formData.poRequired) {
+          requiredFields.push({ key: 'poNumber', label: 'PO Number' });
+        }
+        if (formData.billingModel === 'markup') {
+          requiredFields.push({ key: 'markupPct', label: 'Markup Percentage' });
+        }
+        if (formData.billingModel === 'fixed_per_candidate') {
+          requiredFields.push({ key: 'fixedFeeCandidate', label: 'Fixed Fee Per Candidate' });
+        }
+        if (formData.billingModel === 'fixed_per_month') {
+          requiredFields.push({ key: 'fixedMonthlyRetainer', label: 'Monthly Retainer Amount' });
+        }
+        if (formData.billingModel === 'lumpsum') {
+          requiredFields.push({ key: 'lumpsumFee', label: 'Lump Sum Project Fee' });
+        }
       }
     }
 
@@ -721,12 +845,9 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
     setErrors(newErrors);
 
     if (!isValid) {
-      const msg = `Missing required fields: ${missingLabels.join(', ')}`;
-      if (isTabNavigation) {
-        showToast({ message: `Cannot navigate: ${msg}`, type: 'error' });
-      } else {
-        showToast({ message: msg, type: 'error' });
-      }
+      setTimeout(() => {
+        runJQueryValidation('.card form, form', newErrors);
+      }, 50);
     }
 
     return isValid;
@@ -743,16 +864,34 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
     setCurrentStep(stepNum);
   }, [currentStep, validateStep, markProgress]);
 
+  // Compute In-House mode flag
+  const isInhouse = formData.billingModel === 'inhouse';
+
+  // Get the list of active steps (skip Documents tab 6 for In-House)
+  const getActiveSteps = useCallback(() => {
+    const allSteps = [1, 2, 3, 4, 5, 6, 7, 8];
+    if (isInhouse) return allSteps.filter(s => s !== 6); // Skip Documents tab
+    return allSteps;
+  }, [isInhouse]);
+
   const nextStep = useCallback(() => {
-    if (validateStep(currentStep) && currentStep < 8) {
+    if (validateStep(currentStep)) {
       markProgress(currentStep);
-      setCurrentStep(prev => prev + 1);
+      const activeSteps = getActiveSteps();
+      const currentIdx = activeSteps.indexOf(currentStep);
+      if (currentIdx < activeSteps.length - 1) {
+        setCurrentStep(activeSteps[currentIdx + 1]);
+      }
     }
-  }, [currentStep, validateStep, markProgress]);
+  }, [currentStep, validateStep, markProgress, getActiveSteps]);
 
   const prevStep = useCallback(() => {
-    if (currentStep > 1) setCurrentStep(prev => prev - 1);
-  }, [currentStep]);
+    const activeSteps = getActiveSteps();
+    const currentIdx = activeSteps.indexOf(currentStep);
+    if (currentIdx > 0) {
+      setCurrentStep(activeSteps[currentIdx - 1]);
+    }
+  }, [currentStep, getActiveSteps]);
 
   // ═══ COMPLETION TRACKING ══════════════════════════
 
@@ -783,6 +922,8 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
       locationsCount: formData.workLocationsCount,
       isGroupCompany: formData.isGroupCompany,
       parentCompany: formData.parentCompany,
+      pfEstablishmentCode: formData.pfEstablishmentCode,
+      esiCodeNumber: formData.esiCodeNumber,
       regAddressLine1: formData.regAddressLine1,
       regAddressLine2: formData.regAddressLine2,
       regCity: formData.regCity,
@@ -796,12 +937,52 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
       billCity: formData.billCity,
       billState: formData.billState,
       billPin: formData.billPin,
-      branches: formData.workLocationsCount === 1 ? [] : clientBranches.map(b => ({
-        id: b.id, name: b.name, code: b.code, addr1: b.addr1, addr2: b.addr2,
-        city: b.city, state: b.state, pin: b.pin, gstin: b.gstin,
-        gstType: b.gstType, pocName: b.pocName, pocEmail: b.pocEmail,
-        pocPhone: b.pocPhone, isPrimary: b.isPrimary,
-      })),
+      branches: (function() {
+        if (clientBranches.length === 0) {
+          return [{
+            id: null,
+            name: formData.companyName ? `${formData.companyName} - Head Office` : 'Head Office',
+            code: formData.clientCode ? `${formData.clientCode}-HO` : 'HO-01',
+            addr1: formData.regAddressLine1 || '',
+            addr2: formData.regAddressLine2 || '',
+            city: formData.regCity || '',
+            state: formData.regState || '',
+            pin: formData.regPin || '',
+            gstin: formData.gstin || '',
+            gstType: formData.gstType || 'Regular',
+            pocName: formData.poc1?.name || '',
+            pocEmail: formData.poc1?.email || '',
+            pocPhone: formData.poc1?.phone || '',
+            isPrimary: true,
+          }];
+        }
+        return clientBranches.map((b, idx) => {
+          if (idx === 0 && (formData.workLocationsCount <= 1 || clientBranches.length <= 1)) {
+            return {
+              id: b.id,
+              name: b.name || 'Head Office',
+              code: b.code || 'HO-01',
+              addr1: formData.regAddressLine1 || b.addr1 || '',
+              addr2: formData.regAddressLine2 || b.addr2 || '',
+              city: formData.regCity || b.city || '',
+              state: formData.regState || b.state || '',
+              pin: formData.regPin || b.pin || '',
+              gstin: formData.gstin || b.gstin || '',
+              gstType: b.gstType || 'Regular',
+              pocName: b.pocName || formData.poc1?.name || '',
+              pocEmail: b.pocEmail || formData.poc1?.email || '',
+              pocPhone: b.pocPhone || formData.poc1?.phone || '',
+              isPrimary: true,
+            };
+          }
+          return {
+            id: b.id, name: b.name, code: b.code, addr1: b.addr1, addr2: b.addr2,
+            city: b.city, state: b.state, pin: b.pin, gstin: b.gstin,
+            gstType: b.gstType, pocName: b.pocName, pocEmail: b.pocEmail,
+            pocPhone: b.pocPhone, isPrimary: b.isPrimary,
+          };
+        });
+      })(),
       poc1: { ...formData.poc1, preferences: Object.entries(formData.poc1?.prefs || {}).filter(([, v]) => v).map(([k]) => k === 'wa' ? 'WhatsApp' : k === 'sms' ? 'SMS' : 'Email') },
       poc2: { ...formData.poc2, preferences: Object.entries(formData.poc2?.prefs || {}).filter(([, v]) => v).map(([k]) => k === 'wa' ? 'WhatsApp' : k === 'sms' ? 'SMS' : 'Email') },
       poc3: { ...formData.poc3, preferences: Object.entries(formData.poc3?.prefs || {}).filter(([, v]) => v).map(([k]) => k === 'wa' ? 'WhatsApp' : k === 'sms' ? 'SMS' : 'Email') },
@@ -835,6 +1016,8 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
       lutRefNo: formData.lutRefNo,
       reverseCharge: formData.reverseCharge,
       tdsApplicableAgency: formData.tdsApplicableAgency,
+      customTdsPercentage: formData.customTdsPercentage,
+      clientTdsPercentage: formData.customTdsPercentage || (['1', '2', '10'].includes(formData.tdsApplicableAgency) ? formData.tdsApplicableAgency : null),
       prefFormatPDF: formData.prefFormatPDF,
       prefFormatXLSX: formData.prefFormatXLSX,
       invoiceFooterNotes: formData.invoiceFooterNotes,
@@ -979,7 +1162,17 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
   }, []);
 
   const submitForm = useCallback(() => {
-    if (isSubmitting) return;
+    if (isSubmitting) return false;
+
+    // Run client-side pre-flight validation across steps 1 through 4
+    for (let s = 1; s <= 4; s++) {
+      if (!validateStep(s)) {
+        setCurrentStep(s);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        showToast(`⚠️ Please complete required fields in Step ${s} before saving.`);
+        return false;
+      }
+    }
 
     const payload = getFormPayload();
 
@@ -999,7 +1192,6 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
 
     const handleSuccess = (page) => {
       setIsSubmitting(false);
-      showToast('✅ Client saved & activated successfully!');
       Object.keys(localStorage).forEach(k => {
         if (k.startsWith('tecla_client_draft_')) {
           localStorage.removeItem(k);
@@ -1029,14 +1221,15 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
         }));
       }
 
-      // Jump to first error step
+      // Jump to first error step & apply jQuery field validation
       if (Object.keys(mapped).length > 0) {
         const firstErrorKey = Object.keys(mapped)[0];
         const step = getStepForField(firstErrorKey);
         setCurrentStep(step);
+        setTimeout(() => {
+          runJQueryValidation('.card form, form', mapped);
+        }, 100);
       }
-
-      showToast(`❌ Required fields missing or invalid. Please check the highlighted errors.`);
     };
 
     if (isEditMode && editId) {
@@ -1078,11 +1271,13 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
       workLocationsCount: client.branches ? Math.max(1, client.branches.length) : 1,
       isGroupCompany: client.is_group_company || false,
       parentCompany: client.parent_company || '',
+      pfEstablishmentCode: client.pf_establishment_code || '',
+      esiCodeNumber: client.esi_code_number || '',
       regAddressLine1: client.registered_address_line_1 || '',
       regAddressLine2: client.registered_address_line_2 || '',
       regCity: client.registered_city || '',
       regState: client.registered_state || '',
-      regPin: client.registered_pin || '',
+      regPin: client.registered_pin || client.registered_pin_code || '',
       country: client.country || 'India',
       taxId: client.tax_id || '',
       regNo: client.registration_number || '',
@@ -1116,7 +1311,17 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
       gstRate: client.gst_rate || '18',
       lutRefNo: client.lut_reference_number || '',
       reverseCharge: client.is_reverse_charge_applicable || false,
-      tdsApplicableAgency: client.tds_applicable_on_agency_fee || 'na',
+      tdsApplicableAgency: (function() {
+        const fee = client.tds_applicable_on_agency_fee;
+        if (['1', '2', '10', 'na'].includes(fee)) return fee;
+        if (client.client_tds_percentage !== null && client.client_tds_percentage !== undefined) {
+          const pctStr = String(client.client_tds_percentage);
+          if (['1', '2', '10'].includes(pctStr)) return pctStr;
+          return 'other';
+        }
+        return fee || 'na';
+      })(),
+      customTdsPercentage: client.client_tds_percentage !== null && client.client_tds_percentage !== undefined ? client.client_tds_percentage : '',
       prefFormatPDF: client.invoice_format_pdf !== undefined ? client.invoice_format_pdf : true,
       prefFormatXLSX: client.invoice_format_xlsx || false,
       invoiceFooterNotes: client.invoice_footer_notes || '',
@@ -1213,24 +1418,52 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
 
     // Branches Reverse-Mapping
     if (client.branches && client.branches.length > 0) {
-      setClientBranches(client.branches.map(branch => ({
-        id: branch.id,
-        name: branch.branch_name || '',
-        code: branch.branch_code || '',
-        addr1: branch.address_line_1 || '',
-        addr2: branch.address_line_2 || '', // if it exists, else empty
-        city: branch.city || '',
-        state: branch.state || '',
-        pin: branch.pin_code || '', // if exists in DB
-        gstin: branch.gstin || '',
-        gstType: branch.gst_registration_type || 'Regular',
-        pocName: branch.finance_poc_name || '',
-        pocEmail: branch.finance_poc_email || '',
-        pocPhone: branch.finance_poc_phone || '',
-        isPrimary: branch.is_primary_billing_branch === 1 || branch.is_primary_billing_branch === true,
+      let hasPrimary = false;
+      const mappedBranches = client.branches.map((branch, idx) => {
+        const isPrim = branch.is_primary_billing_branch === 1 || branch.is_primary_billing_branch === true || branch.is_head_office === 1 || branch.is_head_office === true;
+        if (isPrim) hasPrimary = true;
+        return {
+          id: branch.id,
+          name: branch.branch_name || (idx === 0 ? 'Head Office' : `Branch ${idx + 1}`),
+          code: branch.branch_code || `BR-${String(idx + 1).padStart(2, '0')}`,
+          addr1: branch.address_line_1 || '',
+          addr2: branch.address_line_2 || '',
+          city: branch.city || '',
+          state: branch.state || '',
+          pin: branch.pin_code || '',
+          gstin: branch.gstin || '',
+          gstType: branch.gst_registration_type || 'Regular',
+          pocName: branch.finance_poc_name || '',
+          pocEmail: branch.finance_poc_email || '',
+          pocPhone: branch.finance_poc_phone || '',
+          isPrimary: isPrim,
+          gstinError: '',
+          gstinValid: !!branch.gstin,
+        };
+      });
+      if (!hasPrimary && mappedBranches.length > 0) {
+        mappedBranches[0].isPrimary = true;
+      }
+      setClientBranches(mappedBranches);
+    } else {
+      setClientBranches([{
+        id: `branch-ho-${client.id || Date.now()}`,
+        name: 'Head Office',
+        code: 'HO-01',
+        addr1: client.registered_address_line_1 || '',
+        addr2: client.registered_address_line_2 || '',
+        city: client.registered_city || '',
+        state: client.registered_state || '',
+        pin: client.registered_pin || client.registered_pin_code || '',
+        gstin: client.gstin || '',
+        gstType: 'Regular',
+        pocName: client.primary_poc_name || '',
+        pocEmail: client.primary_poc_email || '',
+        pocPhone: client.primary_poc_phone || '',
+        isPrimary: true,
         gstinError: '',
-        gstinValid: !!branch.gstin,
-      })));
+        gstinValid: !!client.gstin,
+      }]);
     }
 
     // Documents Reverse-Mapping
@@ -1338,10 +1571,11 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
     formData, errors, hints, currentStep, sectionProgress,
     uploadedDocs, extraContacts, clientBranches, agencyBranches, stateRegistrations,
     isEditMode, editId, pendingDocType, fileInputRef, logoInputRef,
+    isInhouse, getActiveSteps,
 
     // Generic handlers
     handleInputChange, handlePocChange, handlePocPrefChange,
-    showToast, markProgress,
+    showToast, markProgress, setErrors, checkLiveUniqueness,
 
     // Validators
     validateGSTIN, validatePAN, validateTAN, validateCIN, validatePIN,
@@ -1357,7 +1591,7 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
 
     // Branch handlers
     addClientBranch, removeClientBranch, updateClientBranch,
-    handlePrimaryBranchChange,
+    handlePrimaryBranchChange, handleWorkLocationsCountChange,
 
     // Agency branch handlers
     addAgencyBranch, removeAgencyBranch, updateAgencyBranch,

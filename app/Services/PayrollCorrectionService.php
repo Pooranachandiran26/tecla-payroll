@@ -57,7 +57,7 @@ class PayrollCorrectionService
 
         $monthStart = Carbon::parse($parentRun->payroll_month)->startOfMonth();
         $monthEnd = Carbon::parse($parentRun->payroll_month)->endOfMonth();
-        $calendarDays = $monthStart->diffInDays($monthEnd) + 1;
+        $calendarDays = $monthStart->daysInMonth;
         $lopBasisDays = (int)$employee->lop_basis_days ?: 30;
 
         // Check for mid-month salary revision
@@ -106,13 +106,11 @@ class PayrollCorrectionService
             foreach ($components as $key => $column) {
                 $currentVal = (float)($employee->$column ?? 0);
 
-                if ($correctedLopDays == 0) {
-                    $proRatedComponents[$key] = $isMidMonthHire
-                        ? round($currentVal * min(1.0, $correctedPaidDays / $calendarDays), 2)
-                        : round($currentVal, 2);
+                if ($isMidMonthHire) {
+                    $proRatedComponents[$key] = round($currentVal * min(1.0, $correctedPaidDays / $calendarDays), 2);
                 } else {
-                    if ($isMidMonthHire) {
-                        $proRatedComponents[$key] = round($currentVal * ($correctedPaidDays / $lopBasisDays), 2);
+                    if ($correctedLopDays == 0) {
+                        $proRatedComponents[$key] = round($currentVal, 2);
                     } else {
                         $componentLopDeduction = round($currentVal * ($correctedLopDays / $lopBasisDays), 2);
                         $proRatedComponents[$key] = max(0.00, round($currentVal - $componentLopDeduction, 2));
@@ -704,6 +702,8 @@ class PayrollCorrectionService
                     'total_gross_earnings' => 0.00,
                     'total_net_disbursement' => 0.00,
                     'total_employer_statutory_cost' => 0.00,
+                    'created_by' => \Illuminate\Support\Facades\Auth::id(),
+                    'updated_by' => \Illuminate\Support\Facades\Auth::id(),
                 ]);
             }
 
@@ -750,6 +750,8 @@ class PayrollCorrectionService
                 'correction_reason' => $reason,
                 'original_payroll_run_item_id' => $originalItem->id,
                 'employee_query_id' => $queryId,
+                'created_by' => \Illuminate\Support\Facades\Auth::id(),
+                'updated_by' => \Illuminate\Support\Facades\Auth::id(),
             ];
 
             if ($existingItem) {
@@ -803,6 +805,8 @@ class PayrollCorrectionService
                     'total_gross_earnings' => 0.00,
                     'total_net_disbursement' => 0.00,
                     'total_employer_statutory_cost' => 0.00,
+                    'created_by' => \Illuminate\Support\Facades\Auth::id(),
+                    'updated_by' => \Illuminate\Support\Facades\Auth::id(),
                 ]);
             }
 
@@ -875,6 +879,8 @@ class PayrollCorrectionService
                     'correction_reason' => $reason,
                     'original_payroll_run_item_id' => $originalItem->id,
                     'employee_query_id' => $queryId,
+                    'created_by' => \Illuminate\Support\Facades\Auth::id(),
+                    'updated_by' => \Illuminate\Support\Facades\Auth::id(),
                 ];
 
                 if ($existingItem) {

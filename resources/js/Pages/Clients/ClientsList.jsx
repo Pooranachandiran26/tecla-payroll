@@ -51,22 +51,15 @@ export default function ClientsList({ clients, stats = {} }) {
   };
 
   const handleDelete = () => {
-    if (deleteDialog.confirmText !== 'DELETE') {
-      showToast({ type: 'error', title: 'Error', message: 'Please type DELETE exactly.' });
-      return;
-    }
-    if (deleteDialog.reason.length < 10) {
-      showToast({ type: 'error', title: 'Error', message: 'Reason must be at least 10 characters.' });
-      return;
-    }
+    if (!deleteDialog.client) return;
 
     router.delete(route('clients.destroy', deleteDialog.client.id), {
       data: {
-        confirm_text: deleteDialog.confirmText,
-        reason: deleteDialog.reason
+        confirm_text: 'DELETE',
+        reason: 'Deleted by administrator via clients list'
       },
       onSuccess: () => {
-        setDeleteDialog({ client: null, confirmText: '', reason: '' });
+        setDeleteDialog({ client: null });
         showToast({ type: 'success', title: 'Success', message: 'Client deleted successfully.' });
       },
       onError: (errors) => {
@@ -249,6 +242,7 @@ export default function ClientsList({ clients, stats = {} }) {
                     <th>Contract & Billing</th>
                     <th>Onboarding</th>
                     <th>Client Since</th>
+                    <th>Created By</th>
                     <th>Last Invoice</th>
                     <th>Outstanding (₹)</th>
                     <th style={{ textAlign: "center" }}>Active Candidates</th>
@@ -259,7 +253,7 @@ export default function ClientsList({ clients, stats = {} }) {
                 <tbody>
                   {dataList.length === 0 ? (
                     <tr>
-                      <td colSpan="10" style={{ textAlign: "center", padding: "3rem", color: "var(--text-muted)" }}>
+                      <td colSpan="11" style={{ textAlign: "center", padding: "3rem", color: "var(--text-muted)" }}>
                         No clients match your filters. <button onClick={clearFilters} style={{ background: 'none', border: 'none', color: 'var(--primary-blue)', cursor: 'pointer', textDecoration: 'underline' }}>Clear Filters</button>
                       </td>
                     </tr>
@@ -309,6 +303,14 @@ export default function ClientsList({ clients, stats = {} }) {
                           </div>
                         </td>
                         <td>
+                          <div style={{ fontSize: "0.85rem", fontWeight: "600", color: "#334155" }}>
+                            {c.creator_name || (c.creator ? c.creator.name : (c.created_by ? `User #${c.created_by}` : 'System Admin'))}
+                          </div>
+                          <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
+                            {c.entry_source === 'bulk_upload' ? 'Bulk Import' : 'Manual Entry'}
+                          </div>
+                        </td>
+                        <td>
                           <div style={{ fontSize: "0.85rem" }}>—</div>
                           {/* SUGGESTION: Replace with real invoice data once the Invoicing module exists */}
                         </td>
@@ -336,14 +338,12 @@ export default function ClientsList({ clients, stats = {} }) {
                               else if (val === 'restore') handleRestore(c.id);
                               else if (val === 'delete') setDeleteDialog({ client: c, confirmText: '', reason: '' });
                               else if (val === 'onboard') router.visit(route('employees.create', { client_id: c.id }));
-                              else if (val === 'invoice') router.visit(route('invoices.generate', { client_id: c.id }));
                               else if (val) alert("Coming soon: This feature is pending the next phase.");
                             }}
                           >
                             <option value="">-- Actions --</option>
                             <option value="view">View Details</option>
                             <option value="edit">Edit Config</option>
-                            <option value="invoice">Generate Invoice</option>
                             <option value="onboard">Onboard Candidate</option>
                             
                             {(c.status === 'active' || c.status === 'onboarding') && (
@@ -411,36 +411,14 @@ export default function ClientsList({ clients, stats = {} }) {
 
         <ConfirmDialog
           isOpen={!!deleteDialog.client}
-          title="Permanently Delete Client"
-          message={`WARNING: You are about to permanently delete ${deleteDialog.client?.company_name}. This is a destructive operation.`}
-          onClose={() => setDeleteDialog({ client: null, confirmText: '', reason: '' })}
+          title="Delete Client"
+          message={`Are you sure you want to delete ${deleteDialog.client?.company_name || 'this client'}? This action cannot be undone and will soft-delete the client and all related records.`}
+          onClose={() => setDeleteDialog({ client: null })}
           onConfirm={handleDelete}
-          confirmLabel="Permanent Delete"
+          confirmLabel="Delete Client"
+          cancelLabel="Cancel"
           variant="danger"
-        >
-          <div className="space-y-4">
-            <p className="text-sm text-gray-600">
-              This action will cascade soft-deletes to all branches, contacts, and documents. Portal users will be suspended.
-            </p>
-            <Input 
-              label="Type 'DELETE' to confirm" 
-              value={deleteDialog.confirmText} 
-              onChange={e => setDeleteDialog(prev => ({ ...prev, confirmText: e.target.value }))}
-              onPaste={e => e.preventDefault()}
-              placeholder="DELETE"
-            />
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Reason for Deletion (Min 10 chars)</label>
-              <textarea 
-                className="w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
-                rows="3"
-                value={deleteDialog.reason}
-                onChange={e => setDeleteDialog(prev => ({ ...prev, reason: e.target.value }))}
-                placeholder="e.g. Contract terminated, offboarding completed..."
-              ></textarea>
-            </div>
-          </div>
-        </ConfirmDialog>
+        />
 
       </AuthenticatedLayout>
     </RoleGuard>

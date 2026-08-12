@@ -76,7 +76,7 @@ class MonthlyPayrollCalculator
             'other_additions' => 'other_additions'
         ];
 
-        $calendarDays = $monthStart->diffInDays($monthEnd) + 1;
+        $calendarDays = $monthStart->daysInMonth;
 
         // Determine employee's effective start date in target month (check date_of_joining & attendance_tracking_start_date)
         $doj = Carbon::parse($employee->date_of_joining)->startOfDay();
@@ -140,13 +140,15 @@ class MonthlyPayrollCalculator
             foreach ($components as $key => $column) {
                 $currentVal = (float)($employee->$column ?? 0);
 
-                if ($lopDays == 0) {
-                    $proRatedComponents[$key] = $isMidMonthHire
-                        ? round($currentVal * ($paidDays / $calendarDays), 2)
-                        : round($currentVal, 2);
+                if ($isMidMonthHire) {
+                    $proRatedComponents[$key] = round($currentVal * ($paidDays / $calendarDays), 2);
                 } else {
-                    $componentLopDeduction = round($currentVal * ($lopDays / $lopBasisDays), 2);
-                    $proRatedComponents[$key] = max(0.00, round($currentVal - $componentLopDeduction, 2));
+                    if ($lopDays == 0) {
+                        $proRatedComponents[$key] = round($currentVal, 2);
+                    } else {
+                        $componentLopDeduction = round($currentVal * ($lopDays / $lopBasisDays), 2);
+                        $proRatedComponents[$key] = max(0.00, round($currentVal - $componentLopDeduction, 2));
+                    }
                 }
             }
             $salaryRevisionApplied = false;
@@ -168,8 +170,7 @@ class MonthlyPayrollCalculator
             'employee_pf_wage_basis' => $employee->employee_pf_wage_basis,
             'employer_pf_wage_basis' => $employee->employer_pf_wage_basis,
             'esi_applicable' => $isEsiActive,
-            // If ESI is active but gross > 21000, bypass the limit check by setting a huge limit
-            'esi_limit' => $grossTotal > 21000 ? 99999999.00 : 21000.00,
+            'esi_limit' => ($isEsiActive && $grossTotal > 21000) ? 99999999.00 : 21000.00,
             'pt_applicable' => false, // We handle PT calculation separately below
             'pt_deduction_override' => 0.00,
         ]);
@@ -372,6 +373,8 @@ class MonthlyPayrollCalculator
             'warning_notes' => implode(' | ', array_filter([$ptWarning, isset($midCycleNote) ? $midCycleNote : null])),
             'attendance_source' => $attendanceSource,
             'salary_revision_applied' => $salaryRevisionApplied,
+            'created_by' => \Illuminate\Support\Facades\Auth::id(),
+            'updated_by' => \Illuminate\Support\Facades\Auth::id(),
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -450,8 +453,16 @@ class MonthlyPayrollCalculator
             if ($firstRunItem) {
                 $wasEsiActiveAtStart = $firstRunItem->employee_esi > 0;
             } else {
-                // If there's no history in this period, we assume they entered period active.
-                $wasEsiActiveAtStart = true;
+                // If there's no prior payroll history in the current contribution period:
+                $doj = Carbon::parse($employee->date_of_joining)->startOfDay();
+                if ($doj->greaterThanOrEqualTo($periodStart)) {
+                    // Genuinely NEW employee joining mid-period: ESI active ONLY if initial gross <= 21,000
+                    $wasEsiActiveAtStart = ($grossTotal <= 21000);
+                } else {
+                    // Existing employee who joined in a prior period with ESI enabled:
+                    // They entered ESI active in a prior period and crossed threshold
+                    $wasEsiActiveAtStart = (bool)$employee->esi_applicable;
+                }
             }
         }
 

@@ -1,0 +1,128 @@
+TECLA PAYROLL MANAGEMENT SYSTEM - PROJECT ANALYSIS
+Generated: 2026-08-04
+
+1. PURPOSE
+Tecla Payroll is a multi-role payroll and HR operations web application, primarily
+oriented toward Indian statutory payroll requirements. It supports internal payroll
+teams (administrators and managers), client users, and employees through separate
+portals and role-aware navigation.
+
+2. TECHNOLOGY STACK
+- Backend: PHP 8.2+, Laravel 12, Eloquent ORM and Laravel queues.
+- Frontend: React 19, Inertia.js, Vite and Tailwind CSS.
+- Database: Laravel migrations; the repository contains 115 migrations.
+- Documents/data: DomPDF for PDF generation and Spatie Simple Excel / ExcelJS for
+  spreadsheet import and export.
+- Supporting packages: Ziggy for route use in React, Axios, Lucide icons, and
+  jenssegers/agent.
+
+3. APPLICATION ARCHITECTURE
+The project follows a conventional Laravel + Inertia single-page application design:
+
+Browser -> React/Inertia pages -> Laravel routes/controllers -> services/models -> database
+                                      |                   -> queued import/notification jobs
+                                      -> PDF/Excel exports and email notifications
+
+- Controllers coordinate requests and return Inertia pages or file responses.
+- Service classes hold core business operations such as salary calculation, payroll
+  correction, full-and-final settlement, invoices, attendance resolution, bulk
+  uploads, reporting, notifications and statutory deadlines.
+- Models represent the main domain tables and their relationships.
+- Form Request classes centralize validation for sensitive master-data workflows.
+- Policies and middleware enforce role, module, active-user, password freshness,
+  IP/session and security-header requirements.
+- React pages are organized by business domain, with a reusable UI component library.
+
+4. PRIMARY BUSINESS MODULES
+- Identity and administration: login with OTP, invitations, password reset/change,
+  user management, sessions, module permissions, notifications and audit logs.
+- Client onboarding: client/company records, branches, contacts, documents,
+  holidays, leave policies, statutory defaults and contractual/invoicing details.
+- Employee lifecycle: employee onboarding, documents, salary revisions, loans,
+  tax declarations, bank-change requests, exit/full-and-final settlement and queries.
+- Attendance and leave: imports, staged/queued processing, attendance corrections,
+  approvals, live monitoring, day-swap requests, leave balances and policy handling.
+- Payroll: attendance review, salary calculation, payroll runs/items, corrections,
+  approval workflow, payslips and reconciliation.
+- Indian statutory compliance: PF, ESI, PT, LWF, TDS, GST-related reporting and
+  compliance filing/calendar functions.
+- Commercial operations: invoice creation, line items/additional fees, payment
+  tracking, invoice PDF/email delivery and receivables reporting.
+- Reporting: payroll, statutory, margin/profitability, FNF, headcount, invoice,
+  compliance, audit, access-matrix and master-data reports.
+- Self-service portals: dedicated client and employee dashboards/functions.
+
+5. CURRENT IMPLEMENTATION SIGNALS
+- 37 controller files, 44 service files and 85 React page files indicate a broad,
+  feature-rich application rather than a simple CRUD project.
+- The latest migrations add audit attributes across onboarding, financial and
+  compliance records, and add statutory-bonus fields for employee exits.
+- Bulk-upload operations can run through Laravel jobs, which is appropriate for
+  large employee and attendance imports. A continuously running queue worker is
+  therefore an operational requirement.
+- The existing src.md describes recent development around audit propagation, ESI
+  contribution-period rules, bulk-upload auditing, PDF export recovery and FNF fixes.
+
+6. SECURITY AND GOVERNANCE
+Positive controls already present in the codebase include OTP/throttled authentication,
+active-user checks, forced/fresh-password middleware, role/module middleware,
+authorization policies, notification watcher policies, audit logs, password history,
+security headers, client IP whitelisting and session-timeout enforcement.
+
+Important follow-up checks:
+- Verify every state-changing route uses authorization/policy checks consistently;
+  some routes rely on role middleware while others use explicit policies.
+- Review encryption, masking and access logging for PII such as Aadhaar/PAN, bank
+  account data, salary information and employee documents.
+- Confirm backups and the untracked local `env` file never enter source control.
+  The `env` filename is not Laravel's usual `.env`, so it should be deliberately
+  reviewed for secrets and added to .gitignore if it is environment-specific.
+- Ensure production queue, mail, storage, database backup and log-retention settings
+  are documented and monitored.
+
+7. MAINTAINABILITY OBSERVATIONS
+Strengths:
+- Good separation of controllers, services, requests, policies, jobs and frontend pages.
+- Significant domain coverage with dedicated calculation/reporting services.
+- Reusable frontend controls reduce duplication and improve UI consistency.
+- Migrations provide a detailed evolution history of the data model.
+
+Risks / technical debt:
+- The root README is still the default Laravel README. Replace it with project-specific
+  installation, configuration, role, queue, scheduled-task and deployment guidance.
+- The repository root contains many one-off test/debug/repair scripts, SQL backups,
+  spreadsheets and generated artifacts. Move supported utilities into scripts/ and
+  archive or remove obsolete artifacts from the application root.
+- routes/web.php is large and includes at least one repeated bulk-upload template
+  route. Split routes by domain and eliminate duplicates to make authorization review
+  easier.
+- Client and employee frontend domains contain large page/logic/CSS files. Continue
+  extracting feature-level components, hooks and API/form adapters.
+- Automated tests exist, but there are also many ad hoc root-level test scripts.
+  Consolidate essential checks into Laravel PHPUnit and frontend test commands so
+  they run reliably in CI.
+- A PHP warning reports that OpenSSL is loaded more than once. Fix the local PHP
+  configuration before treating command output as clean verification evidence.
+
+8. RECOMMENDED PRIORITIES
+1. Replace README.md with an operational project README and create a documented
+   local/production setup checklist.
+2. Protect sensitive configuration and remove/archive non-production backups and
+   debugging artifacts from the repository root.
+3. Split route definitions by domain; standardize policy authorization on writes.
+4. Establish CI for PHP tests, frontend build/lint/tests, migration checks and
+   dependency/security auditing.
+5. Add regression tests around statutory edge cases, payroll approval/correction,
+   bulk-import error handling and portal data isolation.
+6. Define retention and access policies for documents, audit logs, imports and PII.
+
+9. RUNNING THE PROJECT (from composer scripts)
+- Initial setup: composer setup
+- Development: composer dev
+- Backend test suite: composer test
+- Frontend production build: npm run build
+
+Summary: this is a substantial payroll operations platform with a solid Laravel/
+React foundation and meaningful security/audit features. The highest-value next work
+is operational hardening: documentation, repository hygiene, repeatable automated
+verification, and a focused review of authorization and sensitive-data handling.

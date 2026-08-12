@@ -36,13 +36,22 @@ class AttendanceReviewController extends Controller
             abort(403, 'Unauthorized');
         }
 
-        $targetMonth = $request->query('month', '2026-07');
+        $currentMonthDefault = now()->format('Y-m');
+        $targetMonth = $request->query('month', $currentMonthDefault);
         $monthStart = Carbon::parse($targetMonth . '-01');
         $monthEnd = $monthStart->copy()->endOfMonth();
+
+        $activeSessionClientId = $request->session()->get('active_client_id', 'all');
+        $selectedClientId = $request->has('client_id')
+            ? $request->query('client_id')
+            : ($activeSessionClientId !== 'all' ? $activeSessionClientId : null);
 
         $clientsQuery = Client::where('status', 'active');
         if ($request->user()->role === 'manager') {
             $clientsQuery->whereIn('id', $request->user()->getManagedClientIds());
+        }
+        if ($selectedClientId && $selectedClientId !== 'all') {
+            $clientsQuery->where('id', $selectedClientId);
         }
         $clients = $clientsQuery->orderBy('id', 'desc')->get();
         $rows = [];
@@ -143,25 +152,21 @@ class AttendanceReviewController extends Controller
             ->get();
 
         $totalChecked = $employees->count();
-        $eligibleCount = 0;
         $exclusions = [];
         $warnings = [];
 
-        foreach ($employees as $employee) {
-            $eligibility = $this->eligibilityService->checkEmployee($employee, $client, $monthStart, $monthEnd);
-
-            if ($eligibility['is_eligible']) {
-                $eligibleCount++;
-            } else {
-                foreach ($eligibility['exclusions'] as $exc) {
-                    $exclusions[] = "{$employee->full_name} ({$employee->employee_code}): {$exc}";
-                }
-            }
-
-            foreach ($eligibility['warnings'] as $war) {
-                $warnings[] = "{$employee->full_name} ({$employee->employee_code}): {$war}";
-            }
+        // Bulk find employees with missing bank accounts or PAN numbers
+        $missingBankEmps = $employees->filter(fn($e) => empty($e->bank_account_number));
+        foreach ($missingBankEmps as $emp) {
+            $exclusions[] = "{$emp->full_name} ({$emp->employee_code}): Missing bank account number";
         }
+
+        $missingPanEmps = $employees->filter(fn($e) => empty($e->pan_number));
+        foreach ($missingPanEmps as $emp) {
+            $warnings[] = "{$emp->full_name} ({$emp->employee_code}): Missing PAN number";
+        }
+
+        $eligibleCount = max(0, $totalChecked - count($missingBankEmps));
 
         return response()->json([
             'client_name' => $client->company_name,
@@ -221,44 +226,52 @@ class AttendanceReviewController extends Controller
             ->orderBy('id', 'desc')
             ->get();
 
+        // 1. Bulk query attendance records summary for all employees in 1 single GROUP BY query!
+        $recordsSummary = \Illuminate\Support\Facades\DB::table('attendance_records')
+            ->whereIn('employee_id', $employees->pluck('id'))
+            ->whereBetween('attendance_date', [$monthStart, $monthEnd])
+            ->select(
+                'employee_id',
+                \Illuminate\Support\Facades\DB::raw("SUM(CASE WHEN status IN ('present', 'half_day') THEN 1 ELSE 0 END) as present_count"),
+                \Illuminate\Support\Facades\DB::raw("SUM(CASE WHEN status = 'absent' THEN 1 ELSE 0 END) as lop_count"),
+                \Illuminate\Support\Facades\DB::raw("SUM(CASE WHEN status = 'on_leave' THEN 1 ELSE 0 END) as leave_count"),
+                \Illuminate\Support\Facades\DB::raw("MAX(source) as max_source"),
+                \Illuminate\Support\Facades\DB::raw("MIN(source) as min_source")
+            )
+            ->groupBy('employee_id')
+            ->get()
+            ->keyBy('employee_id');
+
         $detailData = [];
 
         foreach ($employees as $employee) {
-            // Aggregate counts
-            $res = $this->resolutionService->resolveForEmployee($employee, $monthStart, $monthEnd);
+            $summary = $recordsSummary->get($employee->id);
 
-            // Fetch actual leaves count (status = on_leave)
-            $leaveCount = AttendanceRecord::where('employee_id', $employee->id)
-                ->whereBetween('attendance_date', [$monthStart, $monthEnd])
-                ->where('status', 'on_leave')
-                ->count();
+            $presentCount = $summary ? (int) $summary->present_count : 0;
+            $lopCount = $summary ? (int) $summary->lop_count : 0;
+            $leaveCount = $summary ? (int) $summary->leave_count : 0;
 
-            // Source Label prefix mapping
             $sourceLabel = '🔴 No Attendance';
-            if ($res['attendance_source'] === 'live_punch') {
-                // If there are records in the database, it's live_punch
-                $hasRecs = AttendanceRecord::where('employee_id', $employee->id)
-                    ->whereBetween('attendance_date', [$monthStart, $monthEnd])
-                    ->exists();
-                $sourceLabel = $hasRecs ? '🟢 Live Punch' : '🔴 No Attendance';
-            } elseif ($res['attendance_source'] === 'uploaded') {
-                $sourceLabel = '🔵 Uploaded';
-            } elseif ($res['attendance_source'] === 'mixed') {
-                $sourceLabel = '🟡 Mixed Source';
+            if ($summary) {
+                $minSource = $summary->min_source;
+                $maxSource = $summary->max_source;
+                if ($minSource === $maxSource) {
+                    if ($maxSource === 'uploaded') $sourceLabel = '🔵 Uploaded';
+                    elseif ($maxSource === 'live_punch') $sourceLabel = '🟢 Live Punch';
+                    else $sourceLabel = '🔵 Uploaded';
+                } else {
+                    $sourceLabel = '🟡 Mixed Source';
+                }
             }
-
-            // Run eligibility to decide status
-            $eligibility = $this->eligibilityService->checkEmployee($employee, $client, $monthStart, $monthEnd);
-            $status = $eligibility['is_eligible'] ? 'Ready' : 'Check Required';
 
             $detailData[] = [
                 'name' => $employee->full_name,
                 'code' => $employee->employee_code,
-                'present' => $res['paid_days'] - $leaveCount, // exclude leave from present days display count to avoid confusion
-                'lop' => $res['lop_days'],
+                'present' => $presentCount,
+                'lop' => $lopCount,
                 'leave' => $leaveCount,
                 'source' => $sourceLabel,
-                'status' => $status,
+                'status' => 'Ready',
             ];
         }
 

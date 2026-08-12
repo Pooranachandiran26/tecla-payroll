@@ -7,11 +7,11 @@ body.tpl-elegant {
     background-color: #ffffff;
 }
 
-/* Elegant Template: Top Curved Brand Header Box */
+/* Elegant Template: Emerald Green Curved Header */
 .tpl-elegant .header-table {
     width: 100%;
-    background-color: #ecfdf5;
-    border: 1px solid #a7f3d0;
+    background-color: {{ $accentColor ? $accentColor.'0F' : '#ecfdf5' }};
+    border: 1px solid {{ $accentColor ? $accentColor.'33' : '#a7f3d0' }};
     border-radius: 8px;
     padding: 15px;
     margin-bottom: 18px;
@@ -27,7 +27,7 @@ body.tpl-elegant {
 
 .tpl-elegant .company-address {
     font-size: 9.5px;
-    color: #065f46;
+    color: {{ $accentColor ?: '#065f46' }};
     margin-top: 3px;
 }
 
@@ -42,18 +42,18 @@ body.tpl-elegant {
 /* Rounded Soft Infoboxes */
 .tpl-elegant .employee-info-table {
     width: 100%;
-    background-color: #f0fdf4;
-    border: 1px solid #bbf7d0;
+    background-color: {{ $accentColor ? $accentColor.'0A' : '#f0fdf4' }};
+    border: 1px solid {{ $accentColor ? $accentColor.'26' : '#bbf7d0' }};
     border-radius: 6px;
     border-collapse: separate;
     margin-bottom: 18px;
 }
 
 .tpl-elegant .employee-info-table th {
-    background-color: #d1fae5 !important;
-    color: #065f46 !important;
+    background-color: {{ $accentColor ? $accentColor.'1F' : '#d1fae5' }} !important;
+    color: {{ $accentColor ?: '#065f46' }} !important;
     font-weight: 700;
-    border-bottom: 1px solid #a7f3d0 !important;
+    border-bottom: 1px solid {{ $accentColor ? $accentColor.'33' : '#a7f3d0' }} !important;
 }
 
 .tpl-elegant .employee-info-table td {
@@ -62,7 +62,7 @@ body.tpl-elegant {
 }
 
 .tpl-elegant .meta-label {
-    color: #047857;
+    color: {{ $accentColor ?: '#047857' }};
     font-weight: 600;
 }
 
@@ -81,7 +81,7 @@ body.tpl-elegant {
 }
 
 .tpl-elegant .components-table th {
-    background-color: {{ $accentColor ?: '#059669' }};
+    background-color: {{ $accentColor ?: '#047857' }};
     color: #ffffff;
     padding: 8px 10px;
     font-size: 10px;
@@ -90,15 +90,15 @@ body.tpl-elegant {
 }
 
 .tpl-elegant .components-table td {
-    border: 1px solid #d1fae5;
+    border: 1px solid {{ $accentColor ? $accentColor.'26' : '#d1fae5' }};
     padding: 7px 10px;
     font-size: 10px;
 }
 
 /* Elegant Net Pay Pill Highlight */
 .tpl-elegant .net-pay-box {
-    background-color: #ecfdf5;
-    border: 2px solid {{ $accentColor ?: '#059669' }};
+    background-color: {{ $accentColor ? $accentColor.'0D' : '#ecfdf5' }};
+    border: 2px solid {{ $accentColor ?: '#047857' }};
     color: #064e3b;
     padding: 12px 18px;
     margin-bottom: 18px;
@@ -115,14 +115,14 @@ body.tpl-elegant {
     font-size: 9.5px;
     font-style: italic;
     text-align: right;
-    color: #047857;
+    color: {{ $accentColor ?: '#047857' }};
 }
 
 .tpl-elegant .footer-note {
     text-align: center;
     font-size: 8.5px;
-    color: #059669;
+    color: {{ $accentColor ?: '#059669' }};
     margin-top: 20px;
-    border-top: 1px dashed #a7f3d0;
+    border-top: 1px dashed {{ $accentColor ? $accentColor.'40' : '#a7f3d0' }};
     padding-top: 8px;
 }

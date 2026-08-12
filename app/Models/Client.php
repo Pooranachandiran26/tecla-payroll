@@ -6,14 +6,30 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
+use App\Traits\BlameableTrait;
+
 class Client extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, BlameableTrait;
     protected $guarded = [];
 
     protected $attributes = [
         'weekly_off_pattern' => 'sat,sun',
     ];
+
+    protected static function booted()
+    {
+        static::saving(function ($client) {
+            $agencyTds = $client->tds_applicable_on_agency_fee;
+            if ($agencyTds !== null && $agencyTds !== '') {
+                if (is_numeric($agencyTds) && (float)$agencyTds > 0) {
+                    $client->client_tds_percentage = (float) $agencyTds;
+                } elseif ($agencyTds === 'na') {
+                    $client->client_tds_percentage = null;
+                }
+            }
+        });
+    }
 
     /**
      * Fields safe to include in watcher notification emails.
@@ -238,6 +254,14 @@ class Client extends Model
         $day = (int) $this->salary_credit_day;
         $clampedDay = min($day, $target->daysInMonth);
         return $target->day($clampedDay)->format('M j, Y');
+    }
+
+    /**
+     * Check if the client is an internal in-house entity (no client billing/invoicing).
+     */
+    public function isInhouse(): bool
+    {
+        return $this->billing_model === 'inhouse';
     }
 }
 

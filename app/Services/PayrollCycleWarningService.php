@@ -61,6 +61,13 @@ class PayrollCycleWarningService
      */
     public function ensureCycleEnded(Client $client, string $payrollMonth, ?Carbon $today = null): void
     {
+        // Testing Bypass Toggle:
+        // Set ALLOW_EARLY_PAYROLL_PROCESSING=true in .env to allow early processing during testing.
+        // Set to false (or remove env) to enforce strict production hard blocking.
+        if (filter_var(env('ALLOW_EARLY_PAYROLL_PROCESSING', false), FILTER_VALIDATE_BOOLEAN)) {
+            return;
+        }
+
         $todayDate = $today ? $today->copy()->startOfDay() : Carbon::today()->startOfDay();
         $cycleEnd = $client->getCycleEndDate($payrollMonth)->startOfDay();
 

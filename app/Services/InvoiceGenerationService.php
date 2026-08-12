@@ -24,6 +24,11 @@ class InvoiceGenerationService
         // 1. Load the client
         $client = Client::findOrFail($payrollRun->client_id);
 
+        // 1a. In-House Client Check (No Client Billing / Invoice Generation)
+        if ($client->isInhouse()) {
+            return [];
+        }
+
         // 1b. Contract Expiry Check
         if ($client->contract_end_date && \Carbon\Carbon::parse($client->contract_end_date)->startOfDay()->isPast() && !(bool)$client->auto_renewal) {
             $formattedEnd = \Carbon\Carbon::parse($client->contract_end_date)->format('Y-m-d');
@@ -91,7 +96,8 @@ class InvoiceGenerationService
             $lineItemData = [];
             foreach ($branchItems as $item) {
                 $itemGross = (float) $item->gross_total;
-                $branchGross += $itemGross;
+                $itemCtc = $itemGross + (float) data_get($item, 'employer_pf', 0) + (float) data_get($item, 'employer_esi', 0) + (float) data_get($item, 'employer_lwf', 0);
+                $branchGross += $itemCtc;
 
                 // Calculate per-item agency fee based on billing model
                 $itemFee = $this->calculateItemAgencyFee($client, $item);
@@ -99,9 +105,9 @@ class InvoiceGenerationService
 
                 $lineItemData[] = [
                     'employee_id' => $item->employee_id,
-                    'gross_pay' => round($itemGross, 2),
+                    'gross_pay' => round($itemCtc, 2),
                     'agency_fee' => round($itemFee, 2),
-                    'line_total' => round($itemGross + $itemFee, 2),
+                    'line_total' => round($itemCtc + $itemFee, 2),
                 ];
             }
 
@@ -112,7 +118,10 @@ class InvoiceGenerationService
 
             $branchGross = round($branchGross, 2);
             $branchServiceFee = round($branchServiceFee, 2);
-            $gstAmount = round($branchServiceFee * 0.18, 2);
+            $cgstAmount = ($gstType === 'cgst_sgst') ? round($branchServiceFee * 0.09, 2) : 0.00;
+            $sgstAmount = ($gstType === 'cgst_sgst') ? round($branchServiceFee * 0.09, 2) : 0.00;
+            $igstAmount = ($gstType === 'igst') ? round($branchServiceFee * 0.18, 2) : 0.00;
+            $gstAmount = ($gstType === 'cgst_sgst') ? round($cgstAmount + $sgstAmount, 2) : $igstAmount;
             $grandTotal = round($branchGross + $branchServiceFee + $gstAmount, 2);
 
             // Check if a parent invoice already exists for this branch + target run
@@ -133,7 +142,7 @@ class InvoiceGenerationService
                 $warningNotes = null;
                 if ($creditLimit > 0) {
                     $outstanding = Invoice::where('client_id', $client->id)
-                        ->whereIn('status', ['draft', 'raised', 'overdue'])
+                        ->whereIn('status', ['draft', 'finalized', 'raised', 'sent', 'overdue', 'partially_paid'])
                         ->where('id', '!=', $existingInvoice->id)
                         ->sum('grand_total');
                     $totalOutstanding = $outstanding + $newGrandTotal;
@@ -143,10 +152,19 @@ class InvoiceGenerationService
                 }
 
                 // MERGE: Update existing invoice totals and add new line items
+                $newServiceFee = round((float) $existingInvoice->agency_service_fee + $branchServiceFee, 2);
+                $newCgst = ($gstType === 'cgst_sgst') ? round($newServiceFee * 0.09, 2) : 0.00;
+                $newSgst = ($gstType === 'cgst_sgst') ? round($newServiceFee * 0.09, 2) : 0.00;
+                $newIgst = ($gstType === 'igst') ? round($newServiceFee * 0.18, 2) : 0.00;
+                $newGst = ($gstType === 'cgst_sgst') ? round($newCgst + $newSgst, 2) : $newIgst;
+
                 $updatePayload = [
                     'gross_salary_passthrough' => round((float) $existingInvoice->gross_salary_passthrough + $branchGross, 2),
-                    'agency_service_fee' => round((float) $existingInvoice->agency_service_fee + $branchServiceFee, 2),
-                    'gst_amount' => round((float) $existingInvoice->gst_amount + $gstAmount, 2),
+                    'agency_service_fee' => $newServiceFee,
+                    'cgst_amount' => $newCgst,
+                    'sgst_amount' => $newSgst,
+                    'igst_amount' => $newIgst,
+                    'gst_amount' => $newGst,
                     'grand_total' => $newGrandTotal,
                     'warning_notes' => $warningNotes,
                 ];
@@ -169,7 +187,7 @@ class InvoiceGenerationService
                 $warningNotes = null;
                 if ($creditLimit > 0) {
                     $outstanding = Invoice::where('client_id', $client->id)
-                        ->whereIn('status', ['draft', 'raised', 'overdue'])
+                        ->whereIn('status', ['draft', 'finalized', 'raised', 'sent', 'overdue', 'partially_paid'])
                         ->sum('grand_total');
                     $totalOutstanding = $outstanding + $grandTotal;
                     if ($totalOutstanding > $creditLimit) {
@@ -198,6 +216,9 @@ class InvoiceGenerationService
                     'gst_type' => $gstType,
                     'gross_salary_passthrough' => $branchGross,
                     'agency_service_fee' => $branchServiceFee,
+                    'cgst_amount' => $cgstAmount,
+                    'sgst_amount' => $sgstAmount,
+                    'igst_amount' => $igstAmount,
                     'gst_amount' => $gstAmount,
                     'grand_total' => $grandTotal,
                     'status' => 'draft',

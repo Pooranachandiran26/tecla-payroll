@@ -377,7 +377,7 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
                                             <th className="col-group-earn">DA</th>
                                             <th className="col-group-earn">Med.</th>
                                             <th className="col-group-earn">Special</th>
-                                            <th className="col-group-earn">Arrears</th>
+                                            <th className="col-group-earn">Other Add.</th>
                                         </>
                                     )}
                                     {deductVisible && (
@@ -519,7 +519,7 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
                             <Link href={route('dashboard')} className="btn btn-secondary" style={{ marginRight: '0.5rem' }}>Dashboard</Link>
                             {run && (run.status === 'draft') && (
                                 <Link 
-                                    href={`/payroll/approval?client_id=${clientId}&payroll_month=${month}`} 
+                                    href={route('payroll.approval', { client_id: clientId, payroll_month: month })} 
                                     className="btn btn-primary"
                                     style={{ padding: "0.6rem 1.5rem" }}
                                 >

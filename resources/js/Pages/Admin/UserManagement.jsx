@@ -1,8 +1,10 @@
-import { Head, useForm, router } from '@inertiajs/react';
+import { Head, useForm, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import AuthenticatedLayout from '../../Layouts/AuthenticatedLayout';
 import RoleGuard from '../../Components/RoleGuard.jsx';
 import Modal from '../../Components/ui/Modal';
+import ConfirmDialog from '../../Components/ui/ConfirmDialog';
+import useToast from '../../Hooks/useToast';
 import { 
     UserPlus, 
     Search, 
@@ -12,10 +14,17 @@ import {
     Users, 
     Edit2, 
     CheckCircle2, 
-    AlertTriangle 
+    AlertTriangle,
+    RotateCw,
+    Trash2,
+    Send
 } from 'lucide-react';
 
 export default function UserManagement({ users = {}, unlinkedEmployees = [], unlinkedClients = [], allClients = [], filters = {} }) {
+  const { auth } = usePage().props;
+  const { showToast } = useToast();
+  const currentUserId = auth?.user?.id;
+
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [editingManager, setEditingManager] = useState(null);
   const [editClientIds, setEditClientIds] = useState([]);
@@ -23,28 +32,154 @@ export default function UserManagement({ users = {}, unlinkedEmployees = [], unl
 
   const [editingPermissionsUser, setEditingPermissionsUser] = useState(null);
   const [selectedPermissions, setSelectedPermissions] = useState([]);
+  const [deletingUser, setDeletingUser] = useState(null);
+  const [resendingUserId, setResendingUserId] = useState(null);
+
+  const handleResendInvite = (targetUser) => {
+    setResendingUserId(targetUser.id);
+    router.post(
+      route('admin.users.resend-invite', targetUser.id),
+      {},
+      {
+        onFinish: () => setResendingUserId(null),
+        onError: (errs) => {
+          showToast({ type: 'error', title: 'Error', message: errs.message || 'Failed to resend invitation.' });
+        }
+      }
+    );
+  };
+
+  const handleDeleteUser = () => {
+    if (!deletingUser) return;
+    router.delete(route('admin.users.destroy', deletingUser.id), {
+      onSuccess: () => {
+        setDeletingUser(null);
+      },
+      onError: (errs) => {
+        setDeletingUser(null);
+        showToast({ type: 'error', title: 'Error', message: errs.message || 'Failed to delete user account.' });
+      },
+      onFinish: () => setDeletingUser(null),
+    });
+  };
 
   const AVAILABLE_MODULES = [
     { key: 'dashboard', label: 'Dashboard Overview', desc: 'Main executive dashboard metrics & pending queues' },
     { key: 'quick-access', label: 'Quick Access Navigation', desc: 'Quick launcher shortcuts' },
-    { key: 'clients', label: 'Clients Directory', desc: 'Client profiles, branch locations, and statutory setups' },
-    { key: 'candidates', label: 'Employees Directory', desc: 'Employee master data, bulk upload & salary revisions' },
-    { key: 'payroll', label: 'Payroll & Invoicing', desc: 'Attendance review, payroll processing, approvals, payslips & invoices' },
+    { 
+      key: 'clients', 
+      label: 'Clients Directory', 
+      desc: 'Client profiles, branch locations, and statutory setups',
+      children: [
+        { key: 'clients_index', label: 'All Clients Directory' },
+        { key: 'clients_create', label: 'Add New Client' },
+      ]
+    },
+    { 
+      key: 'candidates', 
+      label: 'Employees Directory', 
+      desc: 'Employee master data, bulk upload, salary revisions & queues',
+      children: [
+        { key: 'emp_all', label: 'All Employees' },
+        { key: 'emp_create', label: 'Add New Employee' },
+        { key: 'emp_bulk_upload', label: 'Bulk Upload Employees' },
+        { key: 'emp_salary_revisions', label: 'Salary Revisions Queue' },
+        { key: 'emp_bank_change', label: 'Bank Change Requests' },
+        { key: 'emp_day_swaps', label: 'Day Swap Requests' },
+        { key: 'emp_leave_approval', label: 'Leave Approval Queue' },
+        { key: 'emp_leave_settings', label: 'Client Leave Settings' },
+        { key: 'emp_queries', label: 'Employee Queries' },
+      ]
+    },
+    { 
+      key: 'payroll', 
+      label: 'Payroll & Invoicing', 
+      desc: 'Attendance review, processing, approvals, payslips & invoices',
+      children: [
+        { key: 'payroll_live_monitor', label: 'Live Attendance Monitor' },
+        { key: 'payroll_attendance_upload', label: 'Attendance Upload' },
+        { key: 'payroll_attendance_review', label: 'Attendance Review' },
+        { key: 'payroll_processing', label: 'Payroll Processing' },
+        { key: 'payroll_approval', label: 'Payroll Approval' },
+        { key: 'payroll_payslips', label: 'Payslips Viewer' },
+        { key: 'payroll_invoices', label: 'Invoices List' },
+      ]
+    },
     { key: 'compliance', label: 'Compliance Reports', desc: 'PF, ESI, LWF, PT & Statutory tax reports' },
     { key: 'reports', label: 'Analytics Reports', desc: 'Executive payroll analytics & export reports' },
-    { key: 'admin', label: 'Admin System Control', desc: 'Activity logs, user management, sessions, templates' },
+    { 
+      key: 'admin', 
+      label: 'Admin System Control', 
+      desc: 'Activity logs, user management, sessions, templates',
+      children: [
+        { key: 'admin_activity_log', label: 'Activity Log' },
+        { key: 'admin_users', label: 'User Management' },
+        { key: 'admin_sessions', label: 'Active Sessions' },
+        { key: 'admin_payslip_templates', label: 'Payslip Templates Customizer' },
+        { key: 'admin_settings', label: 'System Settings' },
+      ]
+    },
   ];
+
+  const getAllModuleKeys = () => {
+    const keys = [];
+    AVAILABLE_MODULES.forEach(m => {
+      keys.push(m.key);
+      if (m.children) {
+        m.children.forEach(c => keys.push(c.key));
+      }
+    });
+    return keys;
+  };
 
   const openPermissionsModal = (user) => {
     setEditingPermissionsUser(user);
     const existing = user.module_permissions || [];
-    setSelectedPermissions(existing.length > 0 ? existing : AVAILABLE_MODULES.map(m => m.key));
+    if (existing.length === 0) {
+      setSelectedPermissions(getAllModuleKeys());
+      return;
+    }
+
+    const normalized = [...existing];
+    AVAILABLE_MODULES.forEach(mod => {
+      if (mod.children && normalized.includes(mod.key)) {
+        const childKeys = mod.children.map(c => c.key);
+        const hasChildInExisting = childKeys.some(ck => normalized.includes(ck));
+        if (!hasChildInExisting) {
+          childKeys.forEach(ck => {
+            if (!normalized.includes(ck)) normalized.push(ck);
+          });
+        }
+      }
+    });
+
+    setSelectedPermissions(normalized);
   };
 
-  const togglePermission = (moduleKey) => {
-    setSelectedPermissions(prev => 
-      prev.includes(moduleKey) ? prev.filter(k => k !== moduleKey) : [...prev, moduleKey]
-    );
+  const togglePermission = (key, parentKey = null) => {
+    setSelectedPermissions(prev => {
+      const isSelected = prev.includes(key);
+      const mod = AVAILABLE_MODULES.find(m => m.key === key);
+
+      if (mod && mod.children) {
+        const childKeys = mod.children.map(c => c.key);
+        if (isSelected) {
+          return prev.filter(k => k !== key && !childKeys.includes(k));
+        } else {
+          return Array.from(new Set([...prev, key, ...childKeys]));
+        }
+      } else {
+        if (isSelected) {
+          return prev.filter(k => k !== key);
+        } else {
+          const next = [...prev, key];
+          if (parentKey && !next.includes(parentKey)) {
+            next.push(parentKey);
+          }
+          return next;
+        }
+      }
+    });
   };
 
   const handleSavePermissions = () => {
@@ -275,7 +410,7 @@ export default function UserManagement({ users = {}, unlinkedEmployees = [], unl
                     {tab === 'employees' && <th>Client Partner</th>}
                     {tab === 'clients' && <th>Company</th>}
                     {tab === 'system' && <th>Assigned Scope / Access</th>}
-                    {tab === 'system' && <th style={{ textAlign: 'right' }}>Actions</th>}
+                    <th style={{ textAlign: 'right' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -329,10 +464,24 @@ export default function UserManagement({ users = {}, unlinkedEmployees = [], unl
                             )}
                           </td>
                         )}
-                        {tab === 'system' && (
-                          <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                            {row.role === 'manager' ? (
-                              <div style={{ display: 'inline-flex', gap: '0.4rem', justifyContent: 'flex-end' }}>
+                        <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          <div style={{ display: 'inline-flex', gap: '0.4rem', justifyContent: 'flex-end', alignItems: 'center' }}>
+                            {row.status === 'invited' && (
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-xs"
+                                disabled={resendingUserId === row.id}
+                                onClick={() => handleResendInvite(row)}
+                                title="Resend invitation email"
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                              >
+                                <RotateCw size={11} className={resendingUserId === row.id ? 'spin' : ''} />
+                                {resendingUserId === row.id ? 'Sending...' : 'Resend Invite'}
+                              </button>
+                            )}
+
+                            {tab === 'system' && row.role === 'manager' && (
+                              <>
                                 <button
                                   type="button"
                                   className="btn btn-secondary btn-xs"
@@ -349,12 +498,21 @@ export default function UserManagement({ users = {}, unlinkedEmployees = [], unl
                                 >
                                   <Shield size={11} /> Module Permissions
                                 </button>
-                              </div>
-                            ) : (
-                              '—'
+                              </>
                             )}
-                          </td>
-                        )}
+
+                            <button
+                              type="button"
+                              className="btn btn-danger btn-xs"
+                              disabled={row.id === currentUserId}
+                              onClick={() => setDeletingUser(row)}
+                              title={row.id === currentUserId ? "Cannot delete your logged-in account" : "Delete user account"}
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', opacity: row.id === currentUserId ? 0.5 : 1 }}
+                            >
+                              <Trash2 size={11} /> Delete
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     ))
                   ) : (
@@ -639,58 +797,134 @@ export default function UserManagement({ users = {}, unlinkedEmployees = [], unl
           isOpen={!!editingPermissionsUser} 
           onClose={() => setEditingPermissionsUser(null)}
           title={`Custom Module Permissions — ${editingPermissionsUser?.name}`}
+          size="xl"
         >
           {editingPermissionsUser && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              <p style={{ fontSize: '0.85rem', color: '#64748B', margin: 0 }}>
-                Select which top-level module tabs <strong>{editingPermissionsUser.name}</strong> is authorized to access:
-              </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#F8FAFC', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
+                <span style={{ fontSize: '0.82rem', color: '#475569' }}>
+                  Select top-level module tabs & sub-features authorized for <strong>{editingPermissionsUser.name}</strong>:
+                </span>
+                <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#1E3A8A', backgroundColor: '#EFF6FF', padding: '0.2rem 0.5rem', borderRadius: '4px', border: '1px solid #BFDBFE' }}>
+                  {selectedPermissions.length} / {getAllModuleKeys().length} Selected
+                </span>
+              </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', maxHeight: '340px', overflowY: 'auto', paddingRight: '0.25rem' }}>
+              {/* 2-Column Grid Layout — No Vertical Scrollbar */}
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(2, 1fr)', 
+                gap: '0.6rem'
+              }}>
                 {AVAILABLE_MODULES.map(mod => {
                   const isChecked = selectedPermissions.includes(mod.key);
+                  const hasChildren = mod.children && mod.children.length > 0;
+
                   return (
-                    <label 
+                    <div 
                       key={mod.key}
                       style={{
                         display: 'flex',
-                        alignItems: 'flex-start',
-                        gap: '0.75rem',
-                        padding: '0.75rem',
+                        flexDirection: 'column',
                         border: '1px solid ' + (isChecked ? '#93C5FD' : '#E2E8F0'),
-                        borderRadius: '8px',
-                        backgroundColor: isChecked ? '#EFF6FF' : '#F8FAFC',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease'
+                        borderRadius: '6px',
+                        backgroundColor: isChecked ? '#F0F7FF' : '#FFFFFF',
+                        padding: '0.55rem 0.75rem',
+                        transition: 'all 0.15s ease'
                       }}
                     >
-                      <input 
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={() => togglePermission(mod.key)}
-                        style={{ marginTop: '3px', width: '16px', height: '16px' }}
-                      />
-                      <div>
-                        <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#1E293B' }}>
-                          {mod.label}
+                      <label 
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                          cursor: 'pointer',
+                          marginBottom: hasChildren && isChecked ? '0.4rem' : 0
+                        }}
+                      >
+                        <input 
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => togglePermission(mod.key)}
+                          style={{ width: '15px', height: '15px', accentColor: '#1F3864' }}
+                        />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: '0.84rem', fontWeight: 700, color: isChecked ? '#1E3A8A' : '#1E293B', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <span>{mod.label}</span>
+                            {hasChildren && (
+                              <span style={{ fontSize: '0.7rem', color: '#64748B', fontWeight: 500 }}>
+                                {mod.children.filter(c => selectedPermissions.includes(c.key)).length} / {mod.children.length}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <div style={{ fontSize: '0.78rem', color: '#64748B', marginTop: '1px' }}>
-                          {mod.desc}
+                      </label>
+
+                      {/* Sub-module Granular Checkboxes */}
+                      {hasChildren && isChecked && (
+                        <div style={{ 
+                          paddingTop: '0.4rem', 
+                          marginTop: '0.2rem',
+                          borderTop: '1px dashed #BFDBFE',
+                          display: 'flex',
+                          flexWrap: 'wrap',
+                          gap: '0.3rem'
+                        }}>
+                          {mod.children.map(child => {
+                            const isChildChecked = selectedPermissions.includes(child.key);
+                            return (
+                              <label 
+                                key={child.key}
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  fontSize: '0.74rem',
+                                  fontWeight: isChildChecked ? 700 : 500,
+                                  color: isChildChecked ? '#1E40AF' : '#475569',
+                                  backgroundColor: isChildChecked ? '#DBEAFE' : '#F8FAFC',
+                                  padding: '0.2rem 0.45rem',
+                                  borderRadius: '4px',
+                                  border: '1px solid ' + (isChildChecked ? '#93C5FD' : '#E2E8F0'),
+                                  cursor: 'pointer',
+                                  userSelect: 'none'
+                                }}
+                              >
+                                <input 
+                                  type="checkbox"
+                                  checked={isChildChecked}
+                                  onChange={() => togglePermission(child.key, mod.key)}
+                                  style={{ width: '13px', height: '13px', accentColor: '#1E40AF' }}
+                                />
+                                <span>{child.label}</span>
+                              </label>
+                            );
+                          })}
                         </div>
-                      </div>
-                    </label>
+                      )}
+                    </div>
                   );
                 })}
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.75rem', borderTop: '1px solid #E2E8F0' }}>
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-xs"
-                  onClick={() => setSelectedPermissions(AVAILABLE_MODULES.map(m => m.key))}
-                >
-                  Select All Modules
-                </button>
+              {/* Modal Footer Controls */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.6rem', borderTop: '1px solid #E2E8F0', marginTop: '0.25rem' }}>
+                <div style={{ display: 'flex', gap: '0.4rem' }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-xs"
+                    onClick={() => setSelectedPermissions(getAllModuleKeys())}
+                  >
+                    Select All
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-xs"
+                    onClick={() => setSelectedPermissions([])}
+                  >
+                    Clear All
+                  </button>
+                </div>
 
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   <button 
@@ -712,6 +946,18 @@ export default function UserManagement({ users = {}, unlinkedEmployees = [], unl
             </div>
           )}
         </Modal>
+
+        {/* Delete Account Confirmation Modal */}
+        <ConfirmDialog
+          isOpen={!!deletingUser}
+          title="Delete User Account"
+          message={`Are you sure you want to delete ${deletingUser?.name || 'this user'} (${deletingUser?.email || ''})? This action cannot be undone.`}
+          onClose={() => setDeletingUser(null)}
+          onConfirm={handleDeleteUser}
+          confirmLabel="Delete Account"
+          cancelLabel="Cancel"
+          variant="danger"
+        />
 
       </AuthenticatedLayout>
     </RoleGuard>

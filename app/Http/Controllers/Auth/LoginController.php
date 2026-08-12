@@ -55,7 +55,10 @@ class LoginController extends Controller
             return back()->withErrors(['email' => 'Account is locked. Please contact support.']);
         }
 
-        if ($this->settings->getAuthSecurity('otp_enabled', true)) {
+        $globalOtpEnabled = (bool) $this->settings->getAuthSecurity('otp_enabled', true);
+        $clientRequire2fa = ($user->role === 'client' && $user->client && (bool) $user->client->portal_require_2fa);
+
+        if ($globalOtpEnabled || $clientRequire2fa) {
             try {
                 $this->authService->generateOtp($user, 'login', $ip);
                 session([

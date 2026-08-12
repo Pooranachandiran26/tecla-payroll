@@ -28,6 +28,10 @@ export default function LiveAttendanceMonitor({ clients = [], punches = {}, sele
   const [date, setDate] = useState(selectedDate || new Date().toISOString().split('T')[0]);
   const [search, setSearch] = useState('');
 
+  React.useEffect(() => {
+    setClientId(selectedClientId || '');
+  }, [selectedClientId]);
+
   const todayStr = new Date().toISOString().split('T')[0];
   const yesterdayStr = new Date(Date.now() - 86400000).toISOString().split('T')[0];
   const isToday = date === todayStr;

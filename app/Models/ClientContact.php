@@ -5,9 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+use App\Traits\BlameableTrait;
+
 class ClientContact extends Model
 {
-    use SoftDeletes;
+    use SoftDeletes, BlameableTrait;
     protected $guarded = [];
 
     protected $casts = [

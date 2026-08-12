@@ -10,6 +10,7 @@ import Button from '../../Components/ui/Button';
 import DataTable from '../../Components/ui/DataTable';
 import Checkbox from '../../Components/ui/Checkbox';
 import ConfirmDialog from '../../Components/ui/ConfirmDialog';
+import Modal from '../../Components/ui/Modal';
 import useToast from '../../Hooks/useToast';
 import RoleGuard from '../../Components/RoleGuard.jsx';
 import { 
@@ -51,6 +52,7 @@ export default function Settings() {
   // Company Settings State
   const [companySettings, setCompanySettings] = useState({});
   const [companyLoading, setCompanyLoading] = useState(false);
+  const [ifscLoading, setIfscLoading] = useState(false);
 
   // Localization State
   const [localizationSettings, setLocalizationSettings] = useState({
@@ -103,7 +105,21 @@ export default function Settings() {
   const [logoPreview, setLogoPreview] = useState('');
   const [faviconPreview, setFaviconPreview] = useState('');
   const [brandingColor, setBrandingColor] = useState('#1e3a8a');
-  const [brandingTheme, setBrandingTheme] = useState('system');
+  const [brandingAccentGold, setBrandingAccentGold] = useState('#B8860B');
+  const [brandingAccentGoldHover, setBrandingAccentGoldHover] = useState('#9c7109');
+  const [brandingHeaderTextColor, setBrandingHeaderTextColor] = useState('#FFFFFF');
+  const [brandingAgencyName, setBrandingAgencyName] = useState('Tecla Payroll');
+  const [brandingTagline, setBrandingTagline] = useState('Enterprise Payroll & HR Portal');
+  const [brandingCardRadius, setBrandingCardRadius] = useState('8');
+  const [brandingTableDensity, setBrandingTableDensity] = useState('comfortable');
+  const [brandingFooterCopyright, setBrandingFooterCopyright] = useState('© 2026 Tecla Payroll. All Rights Reserved.');
+  const [brandingEnableFooter, setBrandingEnableFooter] = useState(true);
+  const [brandingLoginWelcome, setBrandingLoginWelcome] = useState('Sign in to your account');
+  const [brandingNavbarStyle, setBrandingNavbarStyle] = useState('solid');
+  const [brandingFontFamily, setBrandingFontFamily] = useState('inter');
+  const [brandingContainerWidth, setBrandingContainerWidth] = useState('standard');
+  const [brandingButtonEffect, setBrandingButtonEffect] = useState('elevation');
+  const [brandingHoverAnimations, setBrandingHoverAnimations] = useState(true);
   const logoInputRef = useRef(null);
   const faviconInputRef = useRef(null);
   
@@ -281,6 +297,33 @@ export default function Settings() {
     setCompanySettings(prev => ({ ...prev, [key]: value }));
   };
 
+  const handleIfscChange = async (val) => {
+    const clean = val.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 11);
+    handleCompanyChange('bank_ifsc_code', clean);
+
+    if (clean.length === 11) {
+      setIfscLoading(true);
+      try {
+        const res = await axios.get(`https://ifsc.razorpay.com/${clean}`);
+        if (res.data && res.data.BANK) {
+          const bank = res.data.BANK || '';
+          const branch = (res.data.BRANCH || '') + (res.data.CITY ? `, ${res.data.CITY}` : '');
+          setCompanySettings(prev => ({
+            ...prev,
+            bank_ifsc_code: clean,
+            bank_name: bank,
+            bank_branch: branch
+          }));
+          showToast({ type: 'success', title: 'Bank Found', message: `${bank} (${res.data.BRANCH || ''}) auto-filled!` });
+        }
+      } catch (err) {
+        // Silent: Allow user to manually type bank name and branch without intrusive toast
+      } finally {
+        setIfscLoading(false);
+      }
+    }
+  };
+
   const saveCompanySettings = async (e) => {
     e.preventDefault();
     try {
@@ -384,7 +427,21 @@ export default function Settings() {
       const res = await axios.get(route('admin.settings.branding.show'));
       setBrandingSettings(res.data);
       setBrandingColor(res.data.primary_color || '#1e3a8a');
-      setBrandingTheme(res.data.theme_mode_default || 'system');
+      setBrandingAccentGold(res.data.accent_gold_color || '#B8860B');
+      setBrandingAccentGoldHover(res.data.accent_gold_hover_color || '#9c7109');
+      setBrandingHeaderTextColor(res.data.header_text_color || '#FFFFFF');
+      setBrandingAgencyName(res.data.agency_display_name || 'Tecla Payroll');
+      setBrandingTagline(res.data.portal_tagline || 'Enterprise Payroll & HR Portal');
+      setBrandingCardRadius(res.data.card_corner_radius || '8');
+      setBrandingTableDensity(res.data.table_density || 'comfortable');
+      setBrandingFooterCopyright(res.data.footer_copyright_text || '© 2026 Tecla Payroll. All Rights Reserved.');
+      setBrandingEnableFooter(res.data.enable_footer_notice !== '0');
+      setBrandingLoginWelcome(res.data.login_welcome_message || 'Sign in to your account');
+      setBrandingNavbarStyle(res.data.navbar_style || 'solid');
+      setBrandingFontFamily(res.data.font_family || 'inter');
+      setBrandingContainerWidth(res.data.container_layout_width || 'standard');
+      setBrandingButtonEffect(res.data.button_hover_effect || 'elevation');
+      setBrandingHoverAnimations(res.data.enable_hover_animations !== '0');
       if (res.data.logo_path_url) setLogoPreview(res.data.logo_path_url);
       if (res.data.favicon_path_url) setFaviconPreview(res.data.favicon_path_url);
     } catch (e) {
@@ -420,18 +477,30 @@ export default function Settings() {
       if (logoFile) formData.append('logo', logoFile);
       if (faviconFile) formData.append('favicon', faviconFile);
       formData.append('primary_color', brandingColor);
-      formData.append('theme_mode_default', brandingTheme);
+      formData.append('accent_gold_color', brandingAccentGold);
+      formData.append('accent_gold_hover_color', brandingAccentGoldHover);
+      formData.append('header_text_color', brandingHeaderTextColor);
+      formData.append('agency_display_name', brandingAgencyName);
+      formData.append('portal_tagline', brandingTagline);
+      formData.append('card_corner_radius', brandingCardRadius);
+      formData.append('table_density', brandingTableDensity);
+      formData.append('footer_copyright_text', brandingFooterCopyright);
+      formData.append('enable_footer_notice', brandingEnableFooter ? '1' : '0');
+      formData.append('login_welcome_message', brandingLoginWelcome);
+      formData.append('navbar_style', brandingNavbarStyle);
+      formData.append('font_family', brandingFontFamily);
+      formData.append('container_layout_width', brandingContainerWidth);
+      formData.append('button_hover_effect', brandingButtonEffect);
+      formData.append('enable_hover_animations', brandingHoverAnimations ? '1' : '0');
 
       await axios.post(route('admin.settings.branding.update'), formData);
 
-      // Re-fetch to get updated URLs
-      await fetchBrandingSettings();
-      setLogoFile(null);
-      setFaviconFile(null);
       showToast({ type: 'success', title: 'Success', message: 'Branding settings saved successfully!' });
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
     } catch (err) {
       showToast({ type: 'error', title: 'Error', message: err.response?.data?.message || 'Failed to save branding settings' });
-    } finally {
       setBrandingSaving(false);
     }
   };
@@ -515,7 +584,7 @@ export default function Settings() {
       key: 'email',
       newValue: emailSettings,
       reason: 'email_restart',
-      confirmText: ''
+      confirmText: 'CONFIRM'
     });
   };
 
@@ -555,7 +624,7 @@ export default function Settings() {
         showToast({ type: 'error', title: 'Locked', message: 'This setting is permanently locked for compliance.' });
         return;
       }
-      setConfirmModal({ isOpen: true, key, newValue, reason: '', confirmText: '' });
+      setConfirmModal({ isOpen: true, key, newValue, reason: 'Modified locked setting by admin', confirmText: 'CONFIRM' });
     } else {
       updateAuthSetting(key, newValue);
     }
@@ -587,24 +656,12 @@ export default function Settings() {
 
   const confirmLockedUpdate = () => {
     if (confirmModal.type === 'email') {
-      if (confirmModal.confirmText !== 'CONFIRM') {
-        showToast({ type: 'error', title: 'Error', message: 'Please type CONFIRM exactly.' });
-        return;
-      }
       confirmEmailUpdate();
       return;
     }
-    if (confirmModal.confirmText !== 'CONFIRM') {
-      showToast({ type: 'error', title: 'Error', message: 'Please type CONFIRM exactly.' });
-      return;
-    }
-    if (confirmModal.reason.length < 10) {
-      showToast({ type: 'error', title: 'Error', message: 'Reason must be at least 10 characters.' });
-      return;
-    }
     updateAuthSetting(confirmModal.key, confirmModal.newValue, {
-      confirm_text: confirmModal.confirmText,
-      reason: confirmModal.reason
+      confirm_text: 'CONFIRM',
+      reason: confirmModal.reason || 'Modified locked setting by admin'
     });
   };
 
@@ -691,10 +748,48 @@ export default function Settings() {
                       <Input label="ESI Code Number" value={companySettings.esi_code_number || ''} onChange={e => handleCompanyChange('esi_code_number', e.target.value)} placeholder="e.g. 31001234560001001" noMargin />
                       <p className="text-xs text-gray-500 mt-1">📌 Required for statutory ESI return filing for <strong>Agency Contract</strong> employees.</p>
                     </div>
-                    <div className="flex-1">
-                      {/* Placeholder for future expansion */}
+                    <div className="flex-1"></div>
+                  </div>
+
+                  <div className="border-t border-gray-200 my-6 pt-5">
+                    <h4 className="text-md font-bold text-[#1F3864] mb-1">Bank Account Details (For Client Invoice Remittance)</h4>
+                    <p className="text-xs text-gray-500 mb-4">These bank details appear at the bottom of all generated client tax invoices for NEFT / RTGS payments.</p>
+
+                    <div className="flex gap-4 mb-4">
+                      <div className="flex-1">
+                        <Input label="Bank Name" value={companySettings.bank_name || ''} onChange={e => handleCompanyChange('bank_name', e.target.value)} placeholder="e.g. HDFC Bank" noMargin />
+                      </div>
+                      <div className="flex-1">
+                        <Input label="Bank Account Number" value={companySettings.bank_account_number || ''} onChange={e => handleCompanyChange('bank_account_number', e.target.value)} placeholder="e.g. 50200012345678" noMargin />
+                      </div>
+                    </div>
+
+                    <div className="flex gap-4 mb-4">
+                      <div className="flex-1">
+                        <Input 
+                          label="IFSC Code" 
+                          value={companySettings.bank_ifsc_code || ''} 
+                          onChange={e => handleIfscChange(e.target.value)} 
+                          placeholder="e.g. HDFC0000240" 
+                          maxLength={11}
+                          noMargin 
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          {ifscLoading ? '🔄 Looking up bank details...' : '⚡ Type 11-digit IFSC to auto-fill Bank Name & Branch.'}
+                        </p>
+                      </div>
+                      <div className="flex-1">
+                        <Input 
+                          label="Bank Branch & City" 
+                          value={companySettings.bank_branch || ''} 
+                          onChange={e => handleCompanyChange('bank_branch', e.target.value)} 
+                          placeholder="e.g. Bandra East Branch, Mumbai" 
+                          noMargin 
+                        />
+                      </div>
                     </div>
                   </div>
+
                   <Button type="submit" variant="primary" className="mt-4">Update Basic Profile</Button>
                 </form>
               )}
@@ -910,90 +1005,83 @@ export default function Settings() {
               )}
 
               {/* Edit PT Slab Modal */}
-              {editingPtSlab && (
-                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                  <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden border border-gray-100">
-                    <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-slate-50">
-                      <h4 className="font-bold text-slate-800">Modify PT Slab ({editingPtSlab.state})</h4>
-                      <button 
-                        type="button" 
-                        onClick={() => setEditingPtSlab(null)} 
-                        className="text-gray-400 hover:text-gray-600 font-bold text-lg"
-                      >
-                        ✕
-                      </button>
+              <Modal
+                isOpen={!!editingPtSlab}
+                onClose={() => setEditingPtSlab(null)}
+                title={`Modify PT Slab (${editingPtSlab?.state || ''})`}
+                size="md"
+              >
+                {editingPtSlab && (
+                  <form onSubmit={savePtSlab} className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <Input 
+                        label="State" 
+                        value={editingPtSlab.state || ''} 
+                        onChange={e => setEditingPtSlab({ ...editingPtSlab, state: e.target.value })} 
+                        required 
+                      />
+                      <Select 
+                        label="Frequency" 
+                        value={editingPtSlab.frequency || 'monthly'} 
+                        onChange={e => setEditingPtSlab({ ...editingPtSlab, frequency: e.target.value })} 
+                        options={[
+                          { value: 'monthly', label: 'Monthly' },
+                          { value: 'half_yearly', label: 'Half-Yearly' }
+                        ]} 
+                      />
                     </div>
-                    <form onSubmit={savePtSlab} className="p-6 space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <Input 
-                          label="State" 
-                          value={editingPtSlab.state || ''} 
-                          onChange={e => setEditingPtSlab({ ...editingPtSlab, state: e.target.value })} 
-                          required 
-                        />
-                        <Select 
-                          label="Frequency" 
-                          value={editingPtSlab.frequency || 'monthly'} 
-                          onChange={e => setEditingPtSlab({ ...editingPtSlab, frequency: e.target.value })} 
-                          options={[
-                            { value: 'monthly', label: 'Monthly' },
-                            { value: 'half_yearly', label: 'Half-Yearly' }
-                          ]} 
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <Input 
-                          type="number" 
-                          label="Min Salary (From Gross ₹)" 
-                          value={editingPtSlab.min_salary ?? ''} 
-                          onChange={e => setEditingPtSlab({ ...editingPtSlab, min_salary: parseFloat(e.target.value) || 0 })} 
-                          required 
-                        />
-                        <Input 
-                          type="number" 
-                          label="Max Salary (To Gross ₹ — leave blank if No Limit)" 
-                          value={editingPtSlab.max_salary ?? ''} 
-                          onChange={e => setEditingPtSlab({ ...editingPtSlab, max_salary: e.target.value === '' ? null : parseFloat(e.target.value) })} 
-                          placeholder="No Limit" 
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <Input 
-                          type="number" 
-                          label="Deduction Amount (₹)" 
-                          value={editingPtSlab.deduction_amount ?? ''} 
-                          onChange={e => setEditingPtSlab({ ...editingPtSlab, deduction_amount: parseFloat(e.target.value) || 0 })} 
-                          required 
-                        />
-                        <Input 
-                          label="Deduction Note" 
-                          value={editingPtSlab.deduction_note || ''} 
-                          onChange={e => setEditingPtSlab({ ...editingPtSlab, deduction_note: e.target.value })} 
-                          placeholder="e.g. / month" 
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Exceptions & Statutory Notes</label>
-                        <textarea 
-                          className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
-                          rows={3} 
-                          value={editingPtSlab.exceptions_text || ''} 
-                          onChange={e => setEditingPtSlab({ ...editingPtSlab, exceptions_text: e.target.value })} 
-                          placeholder="e.g. Women earning <= Rs 25,000 exempt..." 
-                        />
-                      </div>
-                      <div className="flex justify-end gap-3 pt-2">
-                        <Button type="button" variant="secondary" onClick={() => setEditingPtSlab(null)}>
-                          Cancel
-                        </Button>
-                        <Button type="submit" variant="primary" disabled={savingPtSlab}>
-                          {savingPtSlab ? 'Saving...' : 'Update PT Slab'}
-                        </Button>
-                      </div>
-                    </form>
-                  </div>
-                </div>
-              )}
+                    <div className="grid grid-cols-2 gap-4">
+                      <Input 
+                        type="number" 
+                        label="Min Salary (From Gross ₹)" 
+                        value={editingPtSlab.min_salary ?? ''} 
+                        onChange={e => setEditingPtSlab({ ...editingPtSlab, min_salary: parseFloat(e.target.value) || 0 })} 
+                        required 
+                      />
+                      <Input 
+                        type="number" 
+                        label="Max Salary (To Gross ₹ — leave blank if No Limit)" 
+                        value={editingPtSlab.max_salary ?? ''} 
+                        onChange={e => setEditingPtSlab({ ...editingPtSlab, max_salary: e.target.value === '' ? null : parseFloat(e.target.value) })} 
+                        placeholder="No Limit" 
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <Input 
+                        type="number" 
+                        label="Deduction Amount (₹)" 
+                        value={editingPtSlab.deduction_amount ?? ''} 
+                        onChange={e => setEditingPtSlab({ ...editingPtSlab, deduction_amount: parseFloat(e.target.value) || 0 })} 
+                        required 
+                      />
+                      <Input 
+                        label="Deduction Note" 
+                        value={editingPtSlab.deduction_note || ''} 
+                        onChange={e => setEditingPtSlab({ ...editingPtSlab, deduction_note: e.target.value })} 
+                        placeholder="e.g. / month" 
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Exceptions & Statutory Notes</label>
+                      <textarea 
+                        className="w-full border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                        rows={3} 
+                        value={editingPtSlab.exceptions_text || ''} 
+                        onChange={e => setEditingPtSlab({ ...editingPtSlab, exceptions_text: e.target.value })} 
+                        placeholder="e.g. Women earning <= Rs 25,000 exempt..." 
+                      />
+                    </div>
+                    <div className="flex justify-end gap-3 pt-2">
+                      <Button type="button" variant="secondary" onClick={() => setEditingPtSlab(null)}>
+                        Cancel
+                      </Button>
+                      <Button type="submit" variant="primary" disabled={savingPtSlab}>
+                        {savingPtSlab ? 'Saving...' : 'Update PT Slab'}
+                      </Button>
+                    </div>
+                  </form>
+                )}
+              </Modal>
 
               {/* Labour Welfare Fund (LWF) Slabs Section */}
               <div className="mt-10 border-t border-gray-200 pt-8">
@@ -1047,66 +1135,59 @@ export default function Settings() {
                 )}
 
                 {/* Edit LWF Slab Modal */}
-                {editingLwfSlab && (
-                  <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden border border-gray-100">
-                      <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-slate-50">
-                        <h4 className="font-bold text-slate-800">Modify LWF Slab ({editingLwfSlab.state})</h4>
-                        <button 
-                          type="button" 
-                          onClick={() => setEditingLwfSlab(null)} 
-                          className="text-gray-400 hover:text-gray-600 font-bold text-lg"
-                        >
-                          ✕
-                        </button>
+                <Modal
+                  isOpen={!!editingLwfSlab}
+                  onClose={() => setEditingLwfSlab(null)}
+                  title={`Modify LWF Slab (${editingLwfSlab?.state || ''})`}
+                  size="md"
+                >
+                  {editingLwfSlab && (
+                    <form onSubmit={saveLwfSlab} className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <Input 
+                          label="State" 
+                          value={editingLwfSlab.state || ''} 
+                          onChange={e => setEditingLwfSlab({ ...editingLwfSlab, state: e.target.value })} 
+                          required 
+                        />
+                        <Select 
+                          label="Deduction Schedule" 
+                          value={editingLwfSlab.frequency || 'yearly'} 
+                          onChange={e => setEditingLwfSlab({ ...editingLwfSlab, frequency: e.target.value })} 
+                          options={[
+                            { value: 'half_yearly', label: 'Bi-Annual (Jun & Dec)' },
+                            { value: 'yearly', label: 'Annual (Dec Only)' },
+                            { value: 'monthly', label: 'Monthly' }
+                          ]} 
+                        />
                       </div>
-                      <form onSubmit={saveLwfSlab} className="p-6 space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                          <Input 
-                            label="State" 
-                            value={editingLwfSlab.state || ''} 
-                            onChange={e => setEditingLwfSlab({ ...editingLwfSlab, state: e.target.value })} 
-                            required 
-                          />
-                          <Select 
-                            label="Deduction Schedule" 
-                            value={editingLwfSlab.frequency || 'yearly'} 
-                            onChange={e => setEditingLwfSlab({ ...editingLwfSlab, frequency: e.target.value })} 
-                            options={[
-                              { value: 'half_yearly', label: 'Bi-Annual (Jun & Dec)' },
-                              { value: 'yearly', label: 'Annual (Dec Only)' },
-                              { value: 'monthly', label: 'Monthly' }
-                            ]} 
-                          />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <Input 
-                            type="number" 
-                            label="Employee Contribution (₹)" 
-                            value={editingLwfSlab.employee_contribution ?? ''} 
-                            onChange={e => setEditingLwfSlab({ ...editingLwfSlab, employee_contribution: parseFloat(e.target.value) || 0 })} 
-                            required 
-                          />
-                          <Input 
-                            type="number" 
-                            label="Employer Contribution (₹)" 
-                            value={editingLwfSlab.employer_contribution ?? ''} 
-                            onChange={e => setEditingLwfSlab({ ...editingLwfSlab, employer_contribution: parseFloat(e.target.value) || 0 })} 
-                            required 
-                          />
-                        </div>
-                        <div className="flex justify-end gap-3 pt-2">
-                          <Button type="button" variant="secondary" onClick={() => setEditingLwfSlab(null)}>
-                            Cancel
-                          </Button>
-                          <Button type="submit" variant="primary" disabled={savingLwfSlab}>
-                            {savingLwfSlab ? 'Saving...' : 'Update LWF Slab'}
-                          </Button>
-                        </div>
-                      </form>
-                    </div>
-                  </div>
-                )}
+                      <div className="grid grid-cols-2 gap-4">
+                        <Input 
+                          type="number" 
+                          label="Employee Contribution (₹)" 
+                          value={editingLwfSlab.employee_contribution ?? ''} 
+                          onChange={e => setEditingLwfSlab({ ...editingLwfSlab, employee_contribution: parseFloat(e.target.value) || 0 })} 
+                          required 
+                        />
+                        <Input 
+                          type="number" 
+                          label="Employer Contribution (₹)" 
+                          value={editingLwfSlab.employer_contribution ?? ''} 
+                          onChange={e => setEditingLwfSlab({ ...editingLwfSlab, employer_contribution: parseFloat(e.target.value) || 0 })} 
+                          required 
+                        />
+                      </div>
+                      <div className="flex justify-end gap-3 pt-2">
+                        <Button type="button" variant="secondary" onClick={() => setEditingLwfSlab(null)}>
+                          Cancel
+                        </Button>
+                        <Button type="submit" variant="primary" disabled={savingLwfSlab}>
+                          {savingLwfSlab ? 'Saving...' : 'Update LWF Slab'}
+                        </Button>
+                      </div>
+                    </form>
+                  )}
+                </Modal>
               </div>
             </div>
           )}
@@ -1285,60 +1366,362 @@ export default function Settings() {
                     </Card>
                   </div>
 
-                  {/* Color & Theme Row */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* 1-Click Curated Theme Presets */}
+                  <Card title="1-Click Theme Presets & Color Schemes">
+                    <p className="text-xs text-gray-500 mb-4">Click any curated color scheme below to instantly apply harmonious brand colors across your portal.</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                      {[
+                        { name: 'Executive Navy', primary: '#1F3864', accent: '#B8860B', hover: '#9C7109' },
+                        { name: 'Emerald Corporate', primary: '#064E3B', accent: '#10B981', hover: '#059669' },
+                        { name: 'Royal Indigo', primary: '#312E81', accent: '#F59E0B', hover: '#D97706' },
+                        { name: 'Obsidian Slate', primary: '#0F172A', accent: '#06B6D4', hover: '#0891B2' },
+                        { name: 'Deep Burgundy', primary: '#4C0519', accent: '#D97706', hover: '#B45309' },
+                      ].map((preset) => (
+                        <button
+                          key={preset.name}
+                          type="button"
+                          onClick={() => {
+                            setBrandingColor(preset.primary);
+                            setBrandingAccentGold(preset.accent);
+                            setBrandingAccentGoldHover(preset.hover);
+                          }}
+                          className="p-3 border rounded-xl hover:shadow-md transition-all text-left group bg-white"
+                          style={{ borderColor: preset.primary === brandingColor ? preset.accent : '#e2e8f0' }}
+                        >
+                          <div className="flex gap-1.5 mb-2">
+                            <div className="w-5 h-5 rounded-full shadow-xs" style={{ backgroundColor: preset.primary }} />
+                            <div className="w-5 h-5 rounded-full shadow-xs" style={{ backgroundColor: preset.accent }} />
+                            <div className="w-5 h-5 rounded-full shadow-xs" style={{ backgroundColor: preset.hover }} />
+                          </div>
+                          <p className="text-xs font-semibold text-slate-800 group-hover:text-blue-700">{preset.name}</p>
+                          <span className="text-[10px] text-gray-400 font-mono">{preset.primary}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </Card>
+
+                  {/* Live Interactive UI & Theme Preview */}
+                  <div className="mt-6 mb-6">
+                    <Card title="Live Real-Time UI Preview">
+                      <p className="text-xs text-gray-500 mb-3">Live mockup preview of your active color, header, corner radius, and padding density choices before saving.</p>
+                      <div className="border rounded-xl overflow-hidden shadow-xs bg-slate-50">
+                        {/* Header Preview */}
+                        <div 
+                          className="px-4 py-2.5 flex items-center justify-between transition-all"
+                          style={{
+                            backgroundColor: brandingNavbarStyle === 'glassmorphism' ? 'rgba(31, 56, 100, 0.85)' : brandingColor,
+                            color: brandingHeaderTextColor,
+                            backdropFilter: brandingNavbarStyle === 'glassmorphism' ? 'blur(8px)' : 'none',
+                          }}
+                        >
+                          <div className="flex items-center gap-2 font-bold text-sm">
+                            {logoPreview ? (
+                              <img src={logoPreview} alt="Logo" style={{ maxHeight: '20px' }} />
+                            ) : (
+                              <span>{brandingAgencyName || 'Tecla Payroll'}</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3 text-xs opacity-90 font-medium">
+                            <span>Dashboard</span>
+                            <span>Employees</span>
+                            <span>Payroll</span>
+                            <span className="font-bold underline" style={{ color: brandingAccentGold }}>Settings</span>
+                          </div>
+                        </div>
+
+                        {/* Body Preview */}
+                        <div className="p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <div>
+                              <h6 className="text-xs font-bold text-slate-800">{brandingTagline || 'Enterprise Payroll & HR Portal'}</h6>
+                              <p className="text-[11px] text-gray-500">{brandingLoginWelcome}</p>
+                            </div>
+                            <button 
+                              type="button"
+                              className="text-xs px-3 py-1.5 font-semibold text-white shadow-xs transition-all cursor-pointer"
+                              style={{ 
+                                backgroundColor: brandingAccentGold, 
+                                borderRadius: `${brandingCardRadius}px`,
+                              }}
+                            >
+                              Sample Action Button
+                            </button>
+                          </div>
+
+                          {/* Table Density Preview */}
+                          <div className="border rounded bg-white overflow-hidden text-xs">
+                            <table className="w-full text-left">
+                              <thead className="bg-slate-100 font-semibold text-slate-700">
+                                <tr>
+                                  <th style={{ padding: brandingTableDensity === 'compact' ? '4px 8px' : '10px 12px' }}>Employee</th>
+                                  <th style={{ padding: brandingTableDensity === 'compact' ? '4px 8px' : '10px 12px' }}>Department</th>
+                                  <th style={{ padding: brandingTableDensity === 'compact' ? '4px 8px' : '10px 12px' }}>Status</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <tr className="border-t border-slate-100">
+                                  <td style={{ padding: brandingTableDensity === 'compact' ? '4px 8px' : '10px 12px' }}>Rajesh Kumar</td>
+                                  <td style={{ padding: brandingTableDensity === 'compact' ? '4px 8px' : '10px 12px' }}>Engineering</td>
+                                  <td style={{ padding: brandingTableDensity === 'compact' ? '4px 8px' : '10px 12px' }}>
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold text-emerald-800 bg-emerald-100">ACTIVE</span>
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+
+                        {/* Footer Preview */}
+                        {brandingEnableFooter && (
+                          <div className="px-4 py-2 border-t text-center text-[11px] text-gray-500 bg-white">
+                            {brandingFooterCopyright}
+                          </div>
+                        )}
+                      </div>
+                    </Card>
+                  </div>
+
+                  {/* Color & Theme Section */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {/* Primary Color */}
                     <Card>
-                      <h4 className="font-semibold text-slate-800 mb-3">Primary Brand Color</h4>
-                      <p className="text-xs text-gray-500 mb-4">Used for header backgrounds, buttons, and accents throughout the app.</p>
-                      <div className="flex items-center gap-4">
+                      <h4 className="font-semibold text-slate-800 mb-1">Primary Brand Color</h4>
+                      <p className="text-xs text-gray-500 mb-4">Header backgrounds, primary buttons & main accents.</p>
+                      <div className="flex items-center gap-3">
                         <input 
                           type="color" 
                           value={brandingColor}
                           onChange={(e) => setBrandingColor(e.target.value)}
-                          style={{ width: '48px', height: '48px', border: '2px solid #e2e8f0', borderRadius: '8px', cursor: 'pointer', padding: '2px' }}
+                          style={{ width: '42px', height: '42px', border: '2px solid #e2e8f0', borderRadius: '8px', cursor: 'pointer', padding: '2px' }}
                         />
                         <div>
                           <input 
                             type="text" 
                             value={brandingColor}
                             onChange={(e) => { if (/^#[0-9A-Fa-f]{0,6}$/.test(e.target.value)) setBrandingColor(e.target.value); }}
-                            className="border border-gray-300 rounded-md px-3 py-1.5 text-sm font-mono"
-                            style={{ width: '120px' }}
+                            className="border border-gray-300 rounded-md px-2.5 py-1 text-sm font-mono"
+                            style={{ width: '100px' }}
                             placeholder="#1e3a8a"
                           />
-                          <p className="text-xs text-gray-400 mt-1">Hex color code</p>
+                          <p className="text-[10px] text-gray-400 mt-1">Primary Hex</p>
                         </div>
-                        <div style={{ width: '80px', height: '36px', backgroundColor: brandingColor, borderRadius: '6px', border: '1px solid #e2e8f0' }} />
+                        <div style={{ width: '40px', height: '36px', backgroundColor: brandingColor, borderRadius: '6px', border: '1px solid #e2e8f0' }} />
                       </div>
                     </Card>
 
-                    {/* Theme Mode */}
+                    {/* Secondary Color */}
                     <Card>
-                      <h4 className="font-semibold text-slate-800 mb-3">Default Theme Mode</h4>
-                      <p className="text-xs text-gray-500 mb-4">Default appearance across the agency portal.</p>
-                      <div className="flex gap-2">
-                        {[
-                          { value: 'light', label: 'Light', desc: 'Always light', Icon: Sun, color: 'text-amber-500' },
-                          { value: 'dark', label: 'Dark', desc: 'Always dark', Icon: Moon, color: 'text-indigo-500' },
-                          { value: 'system', label: 'System', desc: 'Match OS', Icon: Monitor, color: 'text-slate-500' },
-                        ].map(opt => (
-                          <button
-                            key={opt.value}
-                            type="button"
-                            onClick={() => setBrandingTheme(opt.value)}
-                            className={`flex-1 p-3 rounded-lg border-2 text-center transition-all ${
-                              brandingTheme === opt.value 
-                                ? 'border-blue-500 bg-blue-50' 
-                                : 'border-gray-200 bg-white hover:border-gray-300'
-                            }`}
-                            style={{ cursor: 'pointer' }}
-                          >
-                            <opt.Icon className={`w-5 h-5 mx-auto mb-1 ${opt.color}`} />
-                            <div className="text-xs font-semibold mt-1">{opt.label}</div>
-                            <div className="text-xs text-gray-400">{opt.desc}</div>
-                          </button>
-                        ))}
+                      <h4 className="font-semibold text-slate-800 mb-1">Secondary Color</h4>
+                      <p className="text-xs text-gray-500 mb-4">Secondary buttons (e.g. Save Branding), highlights & active badges.</p>
+                      <div className="flex items-center gap-3">
+                        <input 
+                          type="color" 
+                          value={brandingAccentGold}
+                          onChange={(e) => setBrandingAccentGold(e.target.value)}
+                          style={{ width: '42px', height: '42px', border: '2px solid #e2e8f0', borderRadius: '8px', cursor: 'pointer', padding: '2px' }}
+                        />
+                        <div>
+                          <input 
+                            type="text" 
+                            value={brandingAccentGold}
+                            onChange={(e) => { if (/^#[0-9A-Fa-f]{0,6}$/.test(e.target.value)) setBrandingAccentGold(e.target.value); }}
+                            className="border border-gray-300 rounded-md px-2.5 py-1 text-sm font-mono"
+                            style={{ width: '100px' }}
+                            placeholder="#B8860B"
+                          />
+                          <p className="text-[10px] text-gray-400 mt-1">Secondary Hex</p>
+                        </div>
+                        <div style={{ width: '40px', height: '36px', backgroundColor: brandingAccentGold, borderRadius: '6px', border: '1px solid #e2e8f0' }} />
+                      </div>
+                    </Card>
+
+                    {/* Secondary Hover Color */}
+                    <Card>
+                      <h4 className="font-semibold text-slate-800 mb-1">Secondary Hover Color</h4>
+                      <p className="text-xs text-gray-500 mb-4">Hover state for secondary buttons, interactive triggers & focus outlines.</p>
+                      <div className="flex items-center gap-3">
+                        <input 
+                          type="color" 
+                          value={brandingAccentGoldHover}
+                          onChange={(e) => setBrandingAccentGoldHover(e.target.value)}
+                          style={{ width: '42px', height: '42px', border: '2px solid #e2e8f0', borderRadius: '8px', cursor: 'pointer', padding: '2px' }}
+                        />
+                        <div>
+                          <input 
+                            type="text" 
+                            value={brandingAccentGoldHover}
+                            onChange={(e) => { if (/^#[0-9A-Fa-f]{0,6}$/.test(e.target.value)) setBrandingAccentGoldHover(e.target.value); }}
+                            className="border border-gray-300 rounded-md px-2.5 py-1 text-sm font-mono"
+                            style={{ width: '100px' }}
+                            placeholder="#9c7109"
+                          />
+                          <p className="text-[10px] text-gray-400 mt-1">Hover Hex</p>
+                        </div>
+                        <div style={{ width: '40px', height: '36px', backgroundColor: brandingAccentGoldHover, borderRadius: '6px', border: '1px solid #e2e8f0' }} />
+                      </div>
+                    </Card>
+                  </div>
+
+                  {/* Advanced Portal Identity & Customization Row */}
+                  <div className="mt-6">
+                    <Card title="Advanced Portal Identity & Header Customization">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <Input 
+                            label="Agency / System Display Name" 
+                            value={brandingAgencyName}
+                            onChange={(e) => setBrandingAgencyName(e.target.value)}
+                            placeholder="Tecla Payroll"
+                            helpText="Appears in page headers when logo is omitted, browser title & system emails."
+                          />
+                        </div>
+                        <div>
+                          <Input 
+                            label="Portal Subtitle / System Tagline" 
+                            value={brandingTagline}
+                            onChange={(e) => setBrandingTagline(e.target.value)}
+                            placeholder="Enterprise Payroll & HR Portal"
+                            helpText="Displayed on the login portal screen and employee welcome emails."
+                          />
+                        </div>
+                        <div>
+                          <Input 
+                            label="Login Card Welcome Heading" 
+                            value={brandingLoginWelcome}
+                            onChange={(e) => setBrandingLoginWelcome(e.target.value)}
+                            placeholder="Sign in to your account"
+                            helpText="Custom greeting displayed at the top of the authentication card."
+                          />
+                        </div>
+                        <div>
+                          <Select 
+                            label="Top Navigation Bar Visual Style"
+                            options={[
+                              { value: 'solid', label: 'Solid Brand Color (Classic Dark Navy)' },
+                              { value: 'glassmorphism', label: 'Modern Glassmorphism (Translucent Blur)' },
+                            ]}
+                            value={brandingNavbarStyle}
+                            onChange={(e) => setBrandingNavbarStyle(e.target.value)}
+                            helpText="Applies sleek translucent frosted glass styling to the main navigation header."
+                          />
+                        </div>
+                      </div>
+
+                      <div className="mt-6 border-t border-gray-100 pt-5 flex items-center justify-between">
+                        <div>
+                          <h5 className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Header Navigation Text Color</h5>
+                          <p className="text-xs text-gray-500">Custom contrast color for top navigation links & brand text.</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <input 
+                            type="color" 
+                            value={brandingHeaderTextColor}
+                            onChange={(e) => setBrandingHeaderTextColor(e.target.value)}
+                            style={{ width: '38px', height: '38px', border: '2px solid #e2e8f0', borderRadius: '6px', cursor: 'pointer', padding: '2px' }}
+                          />
+                          <input 
+                            type="text" 
+                            value={brandingHeaderTextColor}
+                            onChange={(e) => { if (/^#[0-9A-Fa-f]{0,6}$/.test(e.target.value)) setBrandingHeaderTextColor(e.target.value); }}
+                            className="border border-gray-300 rounded-md px-2.5 py-1 text-sm font-mono"
+                            style={{ width: '90px' }}
+                            placeholder="#FFFFFF"
+                          />
+                          <div style={{ width: '36px', height: '32px', backgroundColor: brandingHeaderTextColor, borderRadius: '4px', border: '1px solid #cbd5e1' }} />
+                        </div>
+                      </div>
+
+                      {/* UI & Layout Density Options */}
+                      <div className="mt-6 border-t border-gray-100 pt-5 grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <Select 
+                          label="Card & Button Corner Styling"
+                          options={[
+                            { value: '4', label: 'Sharp Corners (Minimalist — 4px)' },
+                            { value: '8', label: 'Standard Rounded (Default — 8px)' },
+                            { value: '12', label: 'Extra Smooth (Modern — 12px)' },
+                          ]}
+                          value={brandingCardRadius}
+                          onChange={(e) => setBrandingCardRadius(e.target.value)}
+                          helpText="Controls border curvature across cards, buttons, and input fields."
+                        />
+
+                        <Select 
+                          label="Data Table Padding Density"
+                          options={[
+                            { value: 'comfortable', label: 'Comfortable Density (Standard Spacing)' },
+                            { value: 'compact', label: 'High Density (Compact View for Large Rosters)' },
+                          ]}
+                          value={brandingTableDensity}
+                          onChange={(e) => setBrandingTableDensity(e.target.value)}
+                          helpText="Adjusts vertical row padding on data tables throughout the app."
+                        />
+
+                        <Select 
+                          label="System Typography & Font Family"
+                          options={[
+                            { value: 'inter', label: 'Inter (Clean & Modern Default)' },
+                            { value: 'roboto', label: 'Roboto (Corporate Professional)' },
+                            { value: 'outfit', label: 'Outfit (Sleek Geometric Tech)' },
+                            { value: 'poppins', label: 'Poppins (Friendly & Rounded)' },
+                          ]}
+                          value={brandingFontFamily}
+                          onChange={(e) => setBrandingFontFamily(e.target.value)}
+                          helpText="Custom font family applied dynamically across all headings, cards, and data tables."
+                        />
+
+                        <Select 
+                          label="Main Page Layout Container Width"
+                          options={[
+                            { value: 'standard', label: 'Standard Centered (1280px Max Width)' },
+                            { value: 'full', label: 'Full Fluid Screen (100% Widescreen Display)' },
+                          ]}
+                          value={brandingContainerWidth}
+                          onChange={(e) => setBrandingContainerWidth(e.target.value)}
+                          helpText="Controls max container width of dashboards and management tables."
+                        />
+
+                        <Select 
+                          label="Action Button Hover Interaction Effect"
+                          options={[
+                            { value: 'elevation', label: 'Subtle Lift & Shadow Elevation (Default)' },
+                            { value: 'glow', label: 'Luminous Glow Accent Ring' },
+                            { value: 'solid', label: 'Classic Solid Color Fade' },
+                          ]}
+                          value={brandingButtonEffect}
+                          onChange={(e) => setBrandingButtonEffect(e.target.value)}
+                          helpText="Defines the micro-animation style when hovering action buttons across the app."
+                        />
+                      </div>
+
+                      <div className="mt-5 pt-4 border-t border-gray-100">
+                        <div className="flex items-center justify-between mb-4">
+                          <div>
+                            <h5 className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-0.5">Portal Footer Notice</h5>
+                            <p className="text-xs text-gray-500">Show or hide the bottom footer notice across login & app pages.</p>
+                          </div>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input 
+                              type="checkbox" 
+                              checked={brandingEnableFooter}
+                              onChange={(e) => setBrandingEnableFooter(e.target.checked)}
+                              className="sr-only peer"
+                            />
+                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                            <span className="ml-2 text-xs font-semibold text-gray-700">
+                              {brandingEnableFooter ? 'ENABLED' : 'DISABLED'}
+                            </span>
+                          </label>
+                        </div>
+
+                        {brandingEnableFooter && (
+                          <Input 
+                            label="Footer Copyright & Support Notice"
+                            value={brandingFooterCopyright}
+                            onChange={(e) => setBrandingFooterCopyright(e.target.value)}
+                            placeholder="© 2026 Tecla Payroll. All Rights Reserved."
+                            helpText="Custom organization footer line displayed across exported reports & portal footers."
+                          />
+                        )}
                       </div>
                     </Card>
                   </div>
@@ -2026,35 +2409,14 @@ export default function Settings() {
 
       <ConfirmDialog
         isOpen={confirmModal.isOpen}
-        title="Modify Locked Setting"
+        title={confirmModal.type === 'email' ? 'Restart Queue Workers & Update Email' : 'Modify Locked Setting'}
+        message={confirmModal.type === 'email' ? 'Saving these settings will restart the background queue workers to apply the new configurations. Are you sure you want to proceed?' : `Are you sure you want to modify ${confirmModal.key}?`}
         onClose={() => setConfirmModal({ isOpen: false, key: null, newValue: null, reason: '', confirmText: '' })}
         onConfirm={confirmLockedUpdate}
-        confirmText="Update Setting"
+        confirmLabel="Confirm"
+        cancelLabel="Cancel"
         variant="danger"
-      >
-        <div className="space-y-4">
-          <p className="text-sm text-gray-600">
-            {confirmModal.type === 'email' ? 'Saving these settings will restart the background queue workers to apply the new configurations.' : <>You are attempting to modify <strong>{confirmModal.key}</strong> which is protected by a compliance lock.</>}
-          </p>
-          <Input 
-            label="Type 'CONFIRM' to proceed" 
-            value={confirmModal.confirmText} 
-            onChange={e => setConfirmModal(prev => ({ ...prev, confirmText: e.target.value }))}
-            onPaste={e => e.preventDefault()}
-            placeholder="CONFIRM"
-          />
-          <div>
-            {confirmModal.type !== 'email' && (<><label className="block text-sm font-medium text-gray-700 mb-1">Reason for Modification (Min 10 chars)</label>
-            <textarea 
-              className="w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              rows="3"
-              value={confirmModal.reason}
-              onChange={e => setConfirmModal(prev => ({ ...prev, reason: e.target.value }))}
-              placeholder="e.g. Approved by legal compliance team..."
-            ></textarea></>)}
-          </div>
-        </div>
-      </ConfirmDialog>
+      />
     </AuthenticatedLayout>
     </RoleGuard>
   );

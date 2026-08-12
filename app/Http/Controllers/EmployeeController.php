@@ -13,9 +13,53 @@ class EmployeeController extends Controller
         return response()->json($calculations);
     }
 
+    public function suggestions(Request $request)
+    {
+        $q = trim($request->get('q', ''));
+
+        $query = \App\Models\Employee::with('client:id,company_name')
+            ->select('id', 'employee_code', 'first_name', 'last_name', 'full_name', 'client_id', 'designation', 'uan_number');
+
+        $user = $request->user();
+        if ($user && $user->role === 'manager') {
+            $managedClientIds = $user->getManagedClientIds();
+            $query->whereIn('client_id', $managedClientIds);
+        } elseif ($user && $user->role === 'client' && $user->client_id) {
+            $query->where('client_id', $user->client_id);
+        }
+
+        if (strlen($q) > 0) {
+            $query->where(function($subQuery) use ($q) {
+                $subQuery->where('employee_code', 'like', "%{$q}%")
+                         ->orWhere('full_name', 'like', "%{$q}%")
+                         ->orWhere('first_name', 'like', "%{$q}%")
+                         ->orWhere('last_name', 'like', "%{$q}%")
+                         ->orWhereRaw("LOWER(CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, ''))) LIKE ?", ["%" . strtolower($q) . "%"])
+                         ->orWhere('uan_number', 'like', "%{$q}%")
+                         ->orWhere('designation', 'like', "%{$q}%");
+            });
+        }
+
+        $results = $query->orderBy('created_at', 'desc')
+            ->limit(50)
+            ->get()
+            ->map(function($emp) {
+                return [
+                    'id' => $emp->id,
+                    'employee_code' => $emp->employee_code,
+                    'full_name' => $emp->full_name ?: trim(($emp->first_name ?? '') . ' ' . ($emp->last_name ?? '')),
+                    'client_name' => $emp->client ? $emp->client->company_name : 'No Client',
+                    'designation' => $emp->designation,
+                    'uan_number' => $emp->uan_number,
+                ];
+            });
+
+        return response()->json($results);
+    }
+
     public function index(Request $request)
     {
-        $query = \App\Models\Employee::with(['client', 'documents', 'salaryRevisions']);
+        $query = \App\Models\Employee::with(['client', 'documents', 'salaryRevisions', 'creator']);
         
         $user = $request->user();
 
@@ -35,8 +79,12 @@ class EmployeeController extends Controller
             });
         }
         
-        if ($request->client_id) {
-            $query->where('client_id', $request->client_id);
+        $selectedClientId = $request->has('client_id')
+            ? $request->client_id
+            : $request->session()->get('active_client_id', 'all');
+
+        if ($selectedClientId && $selectedClientId !== 'all') {
+            $query->where('client_id', $selectedClientId);
         }
         
         if ($request->status) {
@@ -72,7 +120,10 @@ class EmployeeController extends Controller
         return \Inertia\Inertia::render('Employees/EmployeesList', [
             'employees' => \App\Http\Resources\EmployeeResource::collection($employees),
             'clients' => $clients,
-            'filters' => $request->only(['search', 'client_id', 'employment_model', 'status', 'revision_status'])
+            'filters' => array_merge(
+                $request->only(['search', 'employment_model', 'status', 'revision_status']),
+                ['client_id' => ($selectedClientId && $selectedClientId !== 'all') ? (string)$selectedClientId : '']
+            )
         ]);
     }
 
@@ -93,8 +144,16 @@ class EmployeeController extends Controller
                     $data['employee_code'] = 'TEC-' . str_pad($nextId, 3, '0', STR_PAD_LEFT);
                     $data['status'] = 'onboarding';
                     
-                    $clientBranch = \App\Models\ClientBranch::where('client_id', $data['client_id'])->first();
-                    $data['branch_id'] = $clientBranch ? $clientBranch->id : 1;
+                    if (!empty($data['branch_id'])) {
+                        $validBranch = \App\Models\ClientBranch::where('id', $data['branch_id'])->where('client_id', $data['client_id'])->first();
+                        if (!$validBranch) {
+                            $clientBranch = \App\Models\ClientBranch::where('client_id', $data['client_id'])->first();
+                            $data['branch_id'] = $clientBranch ? $clientBranch->id : 1;
+                        }
+                    } else {
+                        $clientBranch = \App\Models\ClientBranch::where('client_id', $data['client_id'])->first();
+                        $data['branch_id'] = $clientBranch ? $clientBranch->id : 1;
+                    }
 
                     return \App\Models\Employee::create($data);
                 } catch (\Illuminate\Database\QueryException $e) {
@@ -140,6 +199,8 @@ class EmployeeController extends Controller
     public function resendInvitation($id)
     {
         $employee = \App\Models\Employee::findOrFail($id);
+        $this->authorizeEmployeeAccess(request()->user(), $employee);
+
         $user = \App\Models\User::where('employee_id', $employee->id)
             ->orWhere(function ($q) use ($employee) {
                 if (!empty($employee->personal_email)) {
@@ -188,6 +249,10 @@ class EmployeeController extends Controller
         if ($user && $user->role === 'manager') {
             $managedClientIds = $user->getManagedClientIds();
             if (!in_array((int)$employee->client_id, array_map('intval', $managedClientIds))) {
+                abort(403, 'Unauthorized access to this employee record.');
+            }
+        } elseif ($user && $user->role === 'client') {
+            if ((int)$employee->client_id !== (int)$user->client_id) {
                 abort(403, 'Unauthorized access to this employee record.');
             }
         }
@@ -275,7 +340,15 @@ class EmployeeController extends Controller
         $employee = \App\Models\Employee::findOrFail($id);
         $this->authorizeEmployeeAccess($request->user(), $employee);
         
-        $employee->update($request->validated());
+        $data = $request->validated();
+
+        if (empty($data['branch_id'])) {
+            $clientId = $data['client_id'] ?? $employee->client_id;
+            $clientBranch = \App\Models\ClientBranch::where('client_id', $clientId)->first();
+            $data['branch_id'] = $clientBranch ? $clientBranch->id : ($employee->branch_id ?: 1);
+        }
+
+        $employee->update($data);
 
         // Auto-recalculate any active draft payroll runs for this employee's client
         $draftRuns = \App\Models\PayrollRun::where('client_id', $employee->client_id)->where('status', 'draft')->get();
@@ -399,9 +472,11 @@ class EmployeeController extends Controller
         \Illuminate\Support\Facades\Gate::authorize('delete', $employee);
 
         $request->validate([
-            'confirm_text' => 'required|in:DELETE',
-            'reason' => 'required|string|min:10'
+            'confirm_text' => 'nullable|string',
+            'reason' => 'nullable|string'
         ]);
+
+        $reason = $request->input('reason', 'Deleted by admin via dashboard');
 
         // BLOCKING CHECK 1: Pending or incomplete exit
         $inProgressExit = $employee->exitRequest()->where(function($q) {

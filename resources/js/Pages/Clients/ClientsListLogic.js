@@ -334,7 +334,6 @@ window.countText = countText;
               <option value="">-- Actions --</option>
               <option value="view">👁️ View Details</option>
               <option value="edit">✏️ Edit Config</option>
-              <option value="invoice" ${c.status === 'inactive' ? 'disabled' : ''}>🧾 Generate Invoice</option>
               <option value="add_candidate" ${isOverCredit ? 'disabled title="Client on Credit Hold"' : ''}>👤 Onboard Candidate</option>
               <option value="reminder">📧 Send Invoice Reminder</option>
               <option value="report">📋 Onboarding Report</option>
