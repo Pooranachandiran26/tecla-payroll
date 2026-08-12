@@ -69,10 +69,16 @@ class EsiMonthlyContributionService
             }
         }
 
+        $client = $payrollRun->client;
+        $esiCode = trim((string) ($client->esi_code_number ?? ''));
+
         return [
             'success' => true,
             'payroll_run_id' => $payrollRun->id,
-            'client_name' => $payrollRun->client->company_name ?? '',
+            'client_id' => $client->id,
+            'client_name' => $client->company_name ?? '',
+            'esi_code_number' => $esiCode,
+            'missing_esi_code' => empty($esiCode),
             'normal_employee_count' => count($normal),
             'zero_day_employees' => $zeroDays,
         ];
@@ -102,6 +108,13 @@ class EsiMonthlyContributionService
         }
 
         $client = $payrollRun->client;
+        $esiCode = trim((string) ($client->esi_code_number ?? ''));
+        if (empty($esiCode)) {
+            throw ValidationException::withMessages([
+                'esi' => ["ESI Code Number is not configured for client '{$client->company_name}'. Please update client statutory settings."],
+            ]);
+        }
+
         $eligible = $this->eligibleItems($payrollRun);
 
         if ($eligible->isEmpty()) {
