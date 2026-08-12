@@ -17,11 +17,38 @@ import {
   UploadCloud, FileText, Mail, Phone, CreditCard, Smartphone, MessageSquare, Eye
 } from 'lucide-react';
 
-export default function ClientDetail({ client, employees, activityLogs = [] }) {
+export default function ClientDetail({ client, employees, activityLogs = [], probationEmployees = [] }) {
   const { auth } = usePage().props;
   const { showToast } = useToast();
   const c = client.data || {};
   const [activeTab, setActiveTab] = React.useState('overview');
+
+  // Probation Tracker Tab Pagination & Search State
+  const [probationSearch, setProbationSearch] = React.useState('');
+  const [probationStatusFilter, setProbationStatusFilter] = React.useState('all');
+  const [probationPage, setProbationPage] = React.useState(1);
+  const probationPageSize = 10;
+
+  const filteredProbationEmployees = React.useMemo(() => {
+    return (probationEmployees || []).filter(emp => {
+      const q = probationSearch.toLowerCase().trim();
+      const matchSearch = !q || 
+        (emp.full_name && emp.full_name.toLowerCase().includes(q)) ||
+        (emp.employee_code && emp.employee_code.toLowerCase().includes(q)) ||
+        (emp.designation && emp.designation.toLowerCase().includes(q));
+
+      const matchStatus = probationStatusFilter === 'all' || emp.probation_status === probationStatusFilter;
+
+      return matchSearch && matchStatus;
+    });
+  }, [probationEmployees, probationSearch, probationStatusFilter]);
+
+  const probationTotalPages = Math.ceil((filteredProbationEmployees.length || 0) / probationPageSize) || 1;
+
+  const paginatedProbationEmployees = React.useMemo(() => {
+    const start = (probationPage - 1) * probationPageSize;
+    return filteredProbationEmployees.slice(start, start + probationPageSize);
+  }, [filteredProbationEmployees, probationPage]);
 
   const [logCategoryFilter, setLogCategoryFilter] = React.useState('all');
   const [logStartDate, setLogStartDate] = React.useState('');
@@ -69,7 +96,7 @@ export default function ClientDetail({ client, employees, activityLogs = [] }) {
       onFinish: () => setHolidayProcessing(false),
       onSuccess: (page) => {
         setDeleteHolidayDialog({ isOpen: false, holiday: null });
-        if (page.props.flash?.success) showToast({ type: 'success', title: 'Success', message: page.props.flash.success });
+        if (page.props.flash?.success) showToast({ type: 'success', title: 'Deleted', message: page.props.flash.success });
       },
       onError: (errs) => {
         showToast({ type: 'error', title: 'Error', message: errs.error || 'Failed to delete holiday.' });
@@ -79,9 +106,9 @@ export default function ClientDetail({ client, employees, activityLogs = [] }) {
 
   const handleDeactivate = () => {
     router.post(route('clients.deactivate', c.id), {}, {
-      onSuccess: () => {
+      onSuccess: (page) => {
         setDeactivateDialog(false);
-        showToast({ type: 'success', title: 'Success', message: 'Client deactivated successfully.' });
+        if (page.props.flash?.success) showToast({ type: 'success', title: 'Deactivated', message: page.props.flash.success });
       },
       onError: (errors) => {
         showToast({ type: 'error', title: 'Error', message: errors.error || 'Failed to deactivate client.' });
@@ -101,22 +128,13 @@ export default function ClientDetail({ client, employees, activityLogs = [] }) {
   };
 
   const handleDelete = () => {
-    if (deleteDialog.confirmText !== 'DELETE') {
-      showToast({ type: 'error', title: 'Error', message: 'Please type DELETE exactly.' });
-      return;
-    }
-    if (deleteDialog.reason.length < 10) {
-      showToast({ type: 'error', title: 'Error', message: 'Reason must be at least 10 characters.' });
-      return;
-    }
-
     router.delete(route('clients.destroy', c.id), {
       data: {
-        confirm_text: deleteDialog.confirmText,
-        reason: deleteDialog.reason
+        confirm_text: 'DELETE',
+        reason: 'Deleted by administrator via client profile'
       },
       onSuccess: () => {
-        setDeleteDialog({ isOpen: false, confirmText: '', reason: '' });
+        setDeleteDialog({ isOpen: false });
         showToast({ type: 'success', title: 'Success', message: 'Client deleted successfully.' });
       },
       onError: (errors) => {
@@ -198,61 +216,51 @@ export default function ClientDetail({ client, employees, activityLogs = [] }) {
 
       <ConfirmDialog
         isOpen={deleteDialog.isOpen}
-        title="Permanently Delete Client"
-        message={`WARNING: You are about to permanently delete ${c.company_name}. This is a destructive operation.`}
-        onClose={() => setDeleteDialog({ isOpen: false, confirmText: '', reason: '' })}
+        title="Delete Client"
+        message={`Are you sure you want to delete ${c.company_name}? This action cannot be undone and will soft-delete the client and all related records.`}
+        onClose={() => setDeleteDialog({ isOpen: false })}
         onConfirm={handleDelete}
-        confirmLabel="Permanent Delete"
+        confirmLabel="Delete Client"
+        cancelLabel="Cancel"
         variant="danger"
-      >
-        <div className="space-y-4">
-          <p className="text-sm text-gray-600">
-            This action will cascade soft-deletes to all branches, contacts, and documents. Portal users will be suspended.
-          </p>
-          <Input 
-            label="Type 'DELETE' to confirm" 
-            value={deleteDialog.confirmText} 
-            onChange={e => setDeleteDialog(prev => ({ ...prev, confirmText: e.target.value }))}
-            onPaste={e => e.preventDefault()}
-            placeholder="DELETE"
-          />
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Reason for Deletion (Min 10 chars)</label>
-            <textarea 
-              className="w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2"
-              rows="3"
-              value={deleteDialog.reason}
-              onChange={e => setDeleteDialog(prev => ({ ...prev, reason: e.target.value }))}
-              placeholder="e.g. Contract terminated, offboarding completed..."
-            ></textarea>
-          </div>
-        </div>
-      </ConfirmDialog>
+      />
 
       {/*  Tab Container  */}
       <div className="tab-container card" style={{"paddingTop":"0"}}>
         <ul className="tab-headers"
-          style={{"padding":"0 1.5rem","background":"#FAFBFC","borderRadius":"var(--radius-md) var(--radius-md) 0 0","margin":"0 -1.5rem 1.5rem -1.5rem"}}>
-          <li className={activeTab === 'overview' ? 'active' : ''} onClick={() => setActiveTab('overview')} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-            <Building2 size={15} /> Overview
+          style={{
+            padding: "0 1rem",
+            background: "#FAFBFC",
+            borderRadius: "var(--radius-md) var(--radius-md) 0 0",
+            margin: "0 -1.5rem 1.5rem -1.5rem",
+            gap: "0.2rem",
+            overflowX: "hidden",
+            justifyContent: "space-between",
+            flexWrap: "nowrap"
+          }}>
+          <li className={activeTab === 'overview' ? 'active' : ''} onClick={() => setActiveTab('overview')} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '0.6rem 0.4rem', fontSize: '0.8rem' }}>
+            <Building2 size={14} /> Overview
           </li>
-          <li className={activeTab === 'candidates' ? 'active' : ''} onClick={() => setActiveTab('candidates')} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-            <Users size={15} /> Deployed Candidates ({c.employees_count || 0})
+          <li className={activeTab === 'candidates' ? 'active' : ''} onClick={() => setActiveTab('candidates')} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '0.6rem 0.4rem', fontSize: '0.8rem' }}>
+            <Users size={14} /> Candidates ({c.employees_count || 0})
           </li>
-          <li className={activeTab === 'invoices' ? 'active' : ''} onClick={() => setActiveTab('invoices')} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-            <Receipt size={15} /> Invoices & Payments
+          <li className={activeTab === 'probation' ? 'active' : ''} onClick={() => setActiveTab('probation')} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '0.6rem 0.4rem', fontSize: '0.8rem' }}>
+            <Clock size={14} /> Probation Expiries ({probationEmployees?.length || 0})
           </li>
-          <li className={activeTab === 'documents' ? 'active' : ''} onClick={() => setActiveTab('documents')} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-            <FolderOpen size={15} /> Documents ({c.documents?.length || 0})
+          <li className={activeTab === 'invoices' ? 'active' : ''} onClick={() => setActiveTab('invoices')} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '0.6rem 0.4rem', fontSize: '0.8rem' }}>
+            <Receipt size={14} /> Invoices & Payments
           </li>
-          <li className={activeTab === 'contacts' ? 'active' : ''} onClick={() => setActiveTab('contacts')} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-            <UserCheck size={15} /> Contacts ({c.contacts?.length || 0})
+          <li className={activeTab === 'documents' ? 'active' : ''} onClick={() => setActiveTab('documents')} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '0.6rem 0.4rem', fontSize: '0.8rem' }}>
+            <FolderOpen size={14} /> Documents ({c.documents?.length || 0})
           </li>
-          <li className={activeTab === 'sla' ? 'active' : ''} onClick={() => setActiveTab('sla')} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-            <Clock size={15} /> SLA & Settings
+          <li className={activeTab === 'contacts' ? 'active' : ''} onClick={() => setActiveTab('contacts')} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '0.6rem 0.4rem', fontSize: '0.8rem' }}>
+            <UserCheck size={14} /> Contacts ({c.contacts?.length || 0})
           </li>
-          <li className={activeTab === 'activity' ? 'active' : ''} onClick={() => setActiveTab('activity')} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-            <History size={15} /> Activity Log
+          <li className={activeTab === 'sla' ? 'active' : ''} onClick={() => setActiveTab('sla')} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '0.6rem 0.4rem', fontSize: '0.8rem' }}>
+            <Clock size={14} /> SLA & Settings
+          </li>
+          <li className={activeTab === 'activity' ? 'active' : ''} onClick={() => setActiveTab('activity')} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '0.6rem 0.4rem', fontSize: '0.8rem' }}>
+            <History size={14} /> Activity Log
           </li>
         </ul>
 
@@ -348,6 +356,82 @@ export default function ClientDetail({ client, employees, activityLogs = [] }) {
                               >
                                 <Trash2 size={13} /> Delete
                               </Button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Employee Probation Expiries Tracker */}
+              <div className="card">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+                  <h3 style={{ fontSize: '1.05rem', margin: 0, color: 'var(--primary-navy)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Clock size={18} /> Probation Expiry Tracker
+                  </h3>
+                  <Badge variant="primary" style={{ fontSize: '0.75rem' }}>
+                    {probationEmployees?.length || 0} Employees Tracked
+                  </Badge>
+                </div>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+                  Track employee probation periods, upcoming confirmation dates, and probation statuses for employees deployed under {c.company_name}.
+                </p>
+                <div className="overflow-x-auto">
+                  <table className="data-table w-full" style={{ fontSize: '0.85rem' }}>
+                    <thead>
+                      <tr>
+                        <th>Employee Code & Name</th>
+                        <th>Designation</th>
+                        <th>Date of Joining</th>
+                        <th>Probation End Date</th>
+                        <th>Status</th>
+                        <th style={{ textAlign: 'right' }}>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(!probationEmployees || probationEmployees.length === 0) ? (
+                        <tr>
+                          <td colSpan="6" style={{ textAlign: 'center', padding: '1.5rem', color: '#94A3B8' }}>
+                            No probation records found for this client's employees.
+                          </td>
+                        </tr>
+                      ) : (
+                        probationEmployees.slice(0, 10).map((emp) => (
+                          <tr key={emp.id}>
+                            <td>
+                              <div style={{ fontWeight: '600', color: 'var(--primary-navy)' }}>{emp.full_name}</div>
+                              <div style={{ fontSize: '0.75rem', color: '#64748B', fontFamily: 'monospace' }}>{emp.employee_code}</div>
+                            </td>
+                            <td>{emp.designation}</td>
+                            <td>{formatDate(emp.date_of_joining) || 'N/A'}</td>
+                            <td><strong className="font-mono">{formatDate(emp.probation_end_date)}</strong></td>
+                            <td>
+                              {emp.probation_status === 'expired' && (
+                                <Badge variant="danger" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                  <AlertTriangle size={12} /> Expired ({Math.abs(emp.days_left)}d ago)
+                                </Badge>
+                              )}
+                              {emp.probation_status === 'expiring_soon' && (
+                                <Badge variant="warning" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                  <Clock size={12} /> Due in {emp.days_left} days
+                                </Badge>
+                              )}
+                              {emp.probation_status === 'active' && (
+                                <Badge variant="info" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                  <CheckCircle2 size={12} /> On Probation ({emp.days_left}d left)
+                                </Badge>
+                              )}
+                            </td>
+                            <td style={{ textAlign: 'right' }}>
+                              <Link
+                                href={route('employees.edit', emp.id)}
+                                className="btn btn-sm btn-secondary"
+                                style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                              >
+                                <Edit3 size={12} /> Edit / Confirm
+                              </Link>
                             </td>
                           </tr>
                         ))
@@ -508,6 +592,169 @@ export default function ClientDetail({ client, employees, activityLogs = [] }) {
                   />
                 )
               ))}
+            </div>
+          )}
+        </div>
+
+        {/* Tab 2.5: Probation Expiries */}
+        <div className={`tab-content ${activeTab === 'probation' ? 'active' : ''}`} style={{ display: activeTab === 'probation' ? 'block' : 'none' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
+            <div>
+              <h3 style={{ fontSize: '1.1rem', margin: 0, color: 'var(--primary-navy)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Clock size={20} /> Probation Expiry & Confirmation Tracker
+              </h3>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '2px', marginBottom: 0 }}>
+                Comprehensive list of employee probation periods, expiry countdowns, and confirmation statuses under {c.company_name}.
+              </p>
+            </div>
+            <Link href={route('employees.create')} className="btn btn-primary btn-xs" style={{ padding: "0.4rem 0.75rem", display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              <UserPlus size={14} /> Add Candidate
+            </Link>
+          </div>
+
+          {/* Search & Filter Bar */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Search employee code, name..."
+                value={probationSearch}
+                onChange={(e) => { setProbationSearch(e.target.value); setProbationPage(1); }}
+                style={{ width: '250px', padding: '0.4rem 0.75rem', fontSize: '0.85rem' }}
+              />
+              <select
+                className="form-control"
+                value={probationStatusFilter}
+                onChange={(e) => { setProbationStatusFilter(e.target.value); setProbationPage(1); }}
+                style={{ width: '170px', padding: '0.4rem 0.75rem', fontSize: '0.85rem' }}
+              >
+                <option value="all">All Probation Statuses</option>
+                <option value="expired">Expired</option>
+                <option value="expiring_soon">Expiring Soon (30d)</option>
+                <option value="active">On Probation</option>
+              </select>
+            </div>
+            <span style={{ fontSize: '0.8rem', color: '#64748B', fontWeight: '500' }}>
+              Total: {filteredProbationEmployees.length} Employees
+            </span>
+          </div>
+
+          <div className="table-responsive">
+            <table className="data-table w-full" style={{ fontSize: '0.85rem' }}>
+              <thead>
+                <tr>
+                  <th>Emp Code</th>
+                  <th>Candidate Name</th>
+                  <th>Designation</th>
+                  <th>Date of Joining</th>
+                  <th>Probation End Date</th>
+                  <th>Probation Status</th>
+                  <th style={{ textAlign: 'right' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(!paginatedProbationEmployees || paginatedProbationEmployees.length === 0) ? (
+                  <tr>
+                    <td colSpan="7" style={{ textAlign: 'center', padding: '2rem', color: '#94A3B8' }}>
+                      No probation records found matching your filters.
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedProbationEmployees.map((emp) => (
+                    <tr key={emp.id}>
+                      <td>
+                        <Link href={route('employees.show', emp.id)} className="font-mono text-xs text-slate-600 hover:text-indigo-600 hover:underline">
+                          {emp.employee_code || 'N/A'}
+                        </Link>
+                      </td>
+                      <td>
+                        <Link href={route('employees.show', emp.id)} className="font-bold text-[#1F3864] hover:text-indigo-600 hover:underline">
+                          {emp.full_name}
+                        </Link>
+                      </td>
+                      <td>{emp.designation}</td>
+                      <td>{formatDate(emp.date_of_joining) || 'N/A'}</td>
+                      <td><strong className="font-mono">{formatDate(emp.probation_end_date)}</strong></td>
+                      <td>
+                        {emp.probation_status === 'expired' && (
+                          <Badge variant="danger" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <AlertTriangle size={12} /> Expired ({Math.abs(emp.days_left)}d ago)
+                          </Badge>
+                        )}
+                        {emp.probation_status === 'expiring_soon' && (
+                          <Badge variant="warning" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <Clock size={12} /> Due in {emp.days_left} days
+                          </Badge>
+                        )}
+                        {emp.probation_status === 'active' && (
+                          <Badge variant="info" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <CheckCircle2 size={12} /> On Probation ({emp.days_left}d left)
+                          </Badge>
+                        )}
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <Link
+                          href={route('employees.edit', emp.id)}
+                          className="btn btn-sm btn-secondary"
+                          style={{ fontSize: '0.75rem', padding: '0.25rem 0.6rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                        >
+                          <Edit3 size={13} /> Edit / Confirm
+                        </Link>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination Controls */}
+          {probationTotalPages > 1 && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyBetween: 'space-between', marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '1rem' }}>
+              <div style={{ fontSize: '0.8rem', color: '#64748B' }}>
+                Showing {(probationPage - 1) * probationPageSize + 1} to {Math.min(probationPage * probationPageSize, filteredProbationEmployees.length)} of {filteredProbationEmployees.length} employees
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', marginLeft: 'auto' }}>
+                <button
+                  className="btn btn-xs btn-secondary"
+                  onClick={() => setProbationPage(p => Math.max(1, p - 1))}
+                  disabled={probationPage === 1}
+                  style={{ opacity: probationPage === 1 ? 0.5 : 1, cursor: probationPage === 1 ? 'not-allowed' : 'pointer' }}
+                >
+                  « Previous
+                </button>
+
+                {Array.from({ length: Math.min(7, probationTotalPages) }, (_, i) => {
+                  let pageNum = i + 1;
+                  if (probationTotalPages > 7) {
+                    if (probationPage > 4 && probationPage < probationTotalPages - 3) {
+                      pageNum = probationPage - 3 + i;
+                    } else if (probationPage >= probationTotalPages - 3) {
+                      pageNum = probationTotalPages - 6 + i;
+                    }
+                  }
+                  return (
+                    <button
+                      key={pageNum}
+                      className={`btn btn-xs ${probationPage === pageNum ? 'btn-primary' : 'btn-secondary'}`}
+                      onClick={() => setProbationPage(pageNum)}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+
+                <button
+                  className="btn btn-xs btn-secondary"
+                  onClick={() => setProbationPage(p => Math.min(probationTotalPages, p + 1))}
+                  disabled={probationPage === probationTotalPages}
+                  style={{ opacity: probationPage === probationTotalPages ? 0.5 : 1, cursor: probationPage === probationTotalPages ? 'not-allowed' : 'pointer' }}
+                >
+                  Next »
+                </button>
+              </div>
             </div>
           )}
         </div>

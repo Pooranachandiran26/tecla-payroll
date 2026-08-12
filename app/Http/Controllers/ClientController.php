@@ -32,7 +32,7 @@ class ClientController extends Controller
 
         $user = $request->user();
 
-        $query = Client::withCount(['employees' => function ($query) {
+        $query = Client::with('creator')->withCount(['employees' => function ($query) {
             $query->where('status', 'active');
         }]);
 
@@ -135,9 +135,14 @@ class ClientController extends Controller
     /**
      * Show the form for creating a new resource.
      */
-    public function create()
+    public function create(Request $request)
     {
         $this->authorize('create', Client::class);
+
+        $user = $request->user();
+        if ($user && $user->role === 'manager' && !$user->hasModulePermission('clients_create', 'clients')) {
+            abort(403, 'You do not have permission to create new clients.');
+        }
         $accountManagers = \App\Models\User::whereIn('role', ['admin', 'manager'])
             ->where('status', 'active')
             ->get(['id', 'name'])
@@ -230,6 +235,8 @@ class ClientController extends Controller
                         'file_path' => $path,
                         'file_size_kb' => round($file->getSize() / 1024),
                         'uploaded_by' => auth()->id(),
+                        'created_by' => auth()->id(),
+                        'updated_by' => auth()->id(),
                         'verification_status' => 'pending',
                     ]);
                 }
@@ -399,10 +406,40 @@ class ClientController extends Controller
             $activityLogs = $activityLogs->concat($syntheticLogs);
         }
                
+        $probationEmployees = $client->employees()
+            ->get()
+            ->map(function ($emp) {
+                $doj = $emp->date_of_joining ? \Carbon\Carbon::parse($emp->date_of_joining) : null;
+                $probEndStr = $emp->probation_end_date ?: ($doj ? $doj->copy()->addDays(180)->toDateString() : null);
+                
+                if (!$probEndStr) {
+                    return null;
+                }
+
+                $probCarbon = \Carbon\Carbon::parse($probEndStr);
+                $daysLeft = (int) round(now()->startOfDay()->diffInDays($probCarbon, false));
+
+                return [
+                    'id' => $emp->id,
+                    'employee_code' => $emp->employee_code,
+                    'full_name' => $emp->full_name,
+                    'designation' => $emp->designation ?: 'Staff',
+                    'date_of_joining' => $emp->date_of_joining,
+                    'probation_end_date' => $probEndStr,
+                    'days_left' => $daysLeft,
+                    'status' => $emp->status,
+                    'probation_status' => $daysLeft < 0 ? 'expired' : ($daysLeft <= 30 ? 'expiring_soon' : 'active'),
+                ];
+            })
+            ->filter()
+            ->sortBy('probation_end_date')
+            ->values();
+
         return Inertia::render('Clients/ClientDetail', [
             'client' => new ClientResource($client),
             'employees' => $employees,
             'activityLogs' => $activityLogs,
+            'probationEmployees' => $probationEmployees,
         ]);
     }
 
@@ -549,6 +586,8 @@ class ClientController extends Controller
             'file_path' => $path,
             'file_size_kb' => round($file->getSize() / 1024),
             'uploaded_by' => auth()->id(),
+            'created_by' => auth()->id(),
+            'updated_by' => auth()->id(),
             'verification_status' => 'pending',
         ]);
 
@@ -568,6 +607,7 @@ class ClientController extends Controller
             'verification_status' => $request->status,
             'verified_by' => auth()->id(),
             'verified_at' => now(),
+            'updated_by' => auth()->id(),
             'rejection_reason' => $request->status === 'rejected' ? $request->reason : null,
         ]);
 
@@ -589,9 +629,11 @@ class ClientController extends Controller
         $this->authorize('delete', $client);
 
         $request->validate([
-            'confirm_text' => 'required|in:DELETE',
-            'reason' => 'required|string|min:10',
+            'confirm_text' => 'nullable|string',
+            'reason' => 'nullable|string',
         ]);
+
+        $reason = $request->input('reason', 'Deleted by admin via dashboard');
 
         $activeEmployeesCount = $client->employees()->where('status', '!=', 'exited')->count();
         if ($activeEmployeesCount > 0) {
@@ -680,6 +722,12 @@ class ClientController extends Controller
 
         return response()->json([
             'contractType' => $client->contract_type,
+            'branches' => $client->branches->map(fn($b) => [
+                'id' => $b->id,
+                'name' => $b->branch_name,
+                'state' => $b->state,
+                'is_head_office' => (bool)$b->is_head_office
+            ]),
             'pfApplicable' => (bool)$client->pf_applicable,
             'pfCeiling' => $client->pf_ceiling,
             'esiApplicable' => (bool)$client->esi_applicable,
@@ -712,11 +760,25 @@ class ClientController extends Controller
 
         $employees = \App\Models\Employee::where('client_id', $client->id)
             ->where('status', 'active')
-            ->select('id', 'full_name', 'employee_code')
+            ->select('id', 'full_name', 'employee_code', 'designation')
             ->orderBy('full_name')
             ->get();
 
-        return response()->json($employees);
+        $contacts = \App\Models\ClientContact::where('client_id', $client->id)
+            ->select('id', 'full_name', 'contact_type', 'designation')
+            ->orderBy('full_name')
+            ->get()
+            ->map(function ($c) {
+                return [
+                    'id' => 'contact_' . $c->id,
+                    'full_name' => $c->full_name . ' (' . ucfirst($c->contact_type ?? 'Contact Person') . ')',
+                    'employee_code' => 'CLIENT-POC',
+                    'designation' => $c->designation ?? 'Client Contact Person',
+                    'is_contact' => true,
+                ];
+            });
+
+        return response()->json($employees->concat($contacts)->values());
     }
 
     /**
@@ -726,7 +788,7 @@ class ClientController extends Controller
     public function checkUnique(Request $request)
     {
         $validated = $request->validate([
-            'field' => 'required|in:client_code,gstin',
+            'field' => 'required|in:client_code,gstin,pan,tan,email,phone',
             'value' => 'required|string',
             'ignore_id' => 'nullable|integer',
         ]);
@@ -766,6 +828,78 @@ class ClientController extends Controller
                 return response()->json([
                     'available' => false,
                     'message' => 'This GSTIN is already registered for another client or branch.'
+                ]);
+            }
+        } elseif ($field === 'pan') {
+            $upperVal = mb_strtoupper($value);
+            $query = Client::query();
+            if ($ignoreId) {
+                $query->where('id', '!=', $ignoreId);
+            }
+            $exists = $query->get()->contains(function ($c) use ($upperVal) {
+                return $c->pan_number && mb_strtoupper($c->pan_number) === $upperVal;
+            });
+            if ($exists) {
+                return response()->json([
+                    'available' => false,
+                    'message' => 'This PAN is already registered to another client.'
+                ]);
+            }
+        } elseif ($field === 'tan') {
+            $upperVal = mb_strtoupper($value);
+            $query = Client::query();
+            if ($ignoreId) {
+                $query->where('id', '!=', $ignoreId);
+            }
+            $exists = $query->get()->contains(function ($c) use ($upperVal) {
+                return $c->tan_number && mb_strtoupper($c->tan_number) === $upperVal;
+            });
+            if ($exists) {
+                return response()->json([
+                    'available' => false,
+                    'message' => 'This TAN is already registered to another client.'
+                ]);
+            }
+        } elseif ($field === 'email') {
+            $lowerVal = mb_strtolower($value);
+            $query = Client::query();
+            if ($ignoreId) {
+                $query->where('id', '!=', $ignoreId);
+            }
+            $existsMain = $query->get()->contains(function ($c) use ($lowerVal) {
+                return $c->primary_poc_email && mb_strtolower($c->primary_poc_email) === $lowerVal;
+            });
+            $existsContact = \App\Models\ClientContact::query()
+                ->when($ignoreId, fn($q) => $q->where('client_id', '!=', $ignoreId))
+                ->get()->contains(function ($cc) use ($lowerVal) {
+                    return $cc->email && mb_strtolower($cc->email) === $lowerVal;
+                });
+
+            if ($existsMain || $existsContact) {
+                return response()->json([
+                    'available' => false,
+                    'message' => 'This email address is already registered to another client or contact.'
+                ]);
+            }
+        } elseif ($field === 'phone') {
+            $digits = preg_replace('/\D/', '', $value);
+            $query = Client::query();
+            if ($ignoreId) {
+                $query->where('id', '!=', $ignoreId);
+            }
+            $existsMain = $query->get()->contains(function ($c) use ($digits) {
+                return $c->primary_poc_phone && preg_replace('/\D/', '', $c->primary_poc_phone) === $digits;
+            });
+            $existsContact = \App\Models\ClientContact::query()
+                ->when($ignoreId, fn($q) => $q->where('client_id', '!=', $ignoreId))
+                ->get()->contains(function ($cc) use ($digits) {
+                    return $cc->phone && preg_replace('/\D/', '', $cc->phone) === $digits;
+                });
+
+            if ($existsMain || $existsContact) {
+                return response()->json([
+                    'available' => false,
+                    'message' => 'This phone number is already registered to another client or contact.'
                 ]);
             }
         }

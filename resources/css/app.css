@@ -109,12 +109,18 @@
 
   .nav-row-primary {
     background-color: var(--primary-navy);
-    color: #FFFFFF;
+    color: var(--header-text-color, #FFFFFF);
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 0.75rem 1.5rem;
     height: 60px;
+  }
+  .nav-row-primary.glassmorphism {
+    background-color: rgba(31, 56, 100, 0.88);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   }
 
   .brand-section {
@@ -125,7 +131,7 @@
   .brand-logo {
     font-weight: 700;
     font-size: 1.25rem;
-    color: #FFFFFF;
+    color: var(--header-text-color, #FFFFFF);
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -142,7 +148,8 @@
     align-items: center;
   }
   .nav-links-primary a {
-    color: rgba(255, 255, 255, 0.85);
+    color: var(--header-text-color, #FFFFFF);
+    opacity: 0.85;
     font-weight: 500;
     font-size: 0.95rem;
     padding: 0.5rem 0;
@@ -150,7 +157,8 @@
   }
   .nav-links-primary a:hover,
   .nav-links-primary a.active {
-    color: #FFFFFF;
+    color: var(--header-text-color, #FFFFFF);
+    opacity: 1;
   }
   .nav-links-primary a::after {
     content: '';
@@ -432,7 +440,7 @@
     justify-content: center;
     gap: 0.5rem;
     padding: 0.5rem 1rem;
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-md);
     font-weight: 600;
     font-size: 0.875rem;
     cursor: pointer;
@@ -446,6 +454,8 @@
   }
   .btn-primary:hover {
     background-color: var(--accent-gold-hover);
+    color: #FFFFFF;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
   }
   .btn-secondary {
     background-color: #FFFFFF;
@@ -453,14 +463,17 @@
     color: var(--primary-navy);
   }
   .btn-secondary:hover {
-    background-color: rgba(31, 56, 100, 0.05);
+    background-color: var(--primary-navy);
+    color: #FFFFFF;
   }
   .btn-navy {
     background-color: var(--primary-navy);
-    color: white;
+    color: #FFFFFF;
   }
   .btn-navy:hover {
     background-color: var(--primary-navy-hover);
+    color: #FFFFFF;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
   }
   .btn-danger {
     background-color: var(--status-danger);
@@ -547,11 +560,11 @@
     background-color: #F8FAFC;
     color: var(--primary-navy);
     font-weight: 600;
-    padding: 0.75rem 1rem;
+    padding: var(--table-cell-padding, 0.75rem 1rem);
     border-bottom: 2px solid var(--border-color);
   }
   table.data-table td {
-    padding: 0.75rem 1rem;
+    padding: var(--table-cell-padding, 0.75rem 1rem);
     border-bottom: 1px solid var(--border-color);
     color: var(--text-main);
     vertical-align: middle;
@@ -673,6 +686,13 @@
     font-size: 0.75rem;
     margin-top: 0.25rem;
   }
+  .error-text {
+    color: #dc2626;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-top: 0.25rem;
+    display: block;
+  }
   .form-warning {
     color: var(--status-warning);
     font-size: 0.75rem;
@@ -690,17 +710,29 @@
   }
   .tab-headers {
     display: flex;
+    flex-wrap: nowrap;
+    overflow-x: hidden;
     border-bottom: 1px solid var(--border-color);
     list-style: none;
-    gap: 1.5rem;
+    gap: 0.5rem;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .tab-headers::-webkit-scrollbar {
+    display: none;
   }
   .tab-headers li {
-    padding: 0.5rem 0.75rem;
+    padding: 0.6rem 0.75rem;
     cursor: pointer;
     font-weight: 500;
     color: var(--text-muted);
     border-bottom: 2px solid transparent;
-    font-size: 0.95rem;
+    font-size: 0.88rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
   }
   .tab-headers li:hover {
     color: var(--primary-navy);
@@ -988,6 +1020,7 @@
   .login-wrapper {
     min-height: 100vh;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     background-color: var(--primary-navy);
@@ -1019,6 +1052,12 @@
   .login-subtitle {
     font-size: 0.875rem;
     color: var(--text-muted);
+  }
+  .login-footer-text {
+    margin-top: 1.5rem;
+    text-align: center;
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.75);
   }
 
   /* Suggestion chip */
@@ -1960,4 +1999,18 @@
     /* Locked value data display in overview (non-edit) */
     .data-label { font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; }
     .data-value { font-weight: bold; font-size: 1.05rem; }
+
+    /* Footer Component */
+    .app-footer {
+      background-color: #FFFFFF;
+      border-top: 1px solid var(--border-color);
+      padding: 1rem 1.5rem;
+      text-align: center;
+      font-size: 0.8125rem;
+      color: var(--text-muted);
+      margin-top: auto;
+    }
+    .app-footer p {
+      margin: 0;
+    }
   

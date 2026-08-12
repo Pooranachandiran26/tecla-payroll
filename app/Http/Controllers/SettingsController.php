@@ -21,7 +21,7 @@ class SettingsController extends Controller
         // Convert stored file paths to public URLs for the frontend
         foreach (['logo_path', 'favicon_path'] as $key) {
             if (!empty($settings[$key])) {
-                $settings[$key . '_url'] = Storage::disk('public')->url($settings[$key]);
+                $settings[$key . '_url'] = asset('storage/' . ltrim($settings[$key], '/')) . '?v=' . time();
             } else {
                 $settings[$key . '_url'] = '';
             }
@@ -33,16 +33,43 @@ class SettingsController extends Controller
     public function updateBranding(Request $request)
     {
         $request->validate([
-            'logo'               => 'nullable|image|mimes:jpg,jpeg,png,svg,webp|max:2048',
-            'favicon'            => 'nullable|image|mimes:jpg,jpeg,png,svg,webp|max:2048',
-            'primary_color'      => 'nullable|string|regex:/^#[0-9A-Fa-f]{6}$/',
-            'theme_mode_default' => 'nullable|string|in:light,dark,system',
+            'logo'                     => 'nullable|image|mimes:jpg,jpeg,png,svg,webp|max:2048',
+            'favicon'                  => 'nullable|image|mimes:jpg,jpeg,png,svg,webp|max:2048',
+            'remove_logo'              => 'nullable|boolean',
+            'remove_favicon'           => 'nullable|boolean',
+            'primary_color'            => 'nullable|string|regex:/^#[0-9A-Fa-f]{6}$/',
+            'accent_gold_color'       => 'nullable|string|regex:/^#[0-9A-Fa-f]{6}$/',
+            'accent_gold_hover_color' => 'nullable|string|regex:/^#[0-9A-Fa-f]{6}$/',
+            'header_text_color'        => 'nullable|string|regex:/^#[0-9A-Fa-f]{6}$/',
+            'agency_display_name'      => 'nullable|string|max:100',
+            'portal_tagline'           => 'nullable|string|max:150',
+            'card_corner_radius'       => 'nullable|string|in:4,8,12',
+            'table_density'            => 'nullable|string|in:comfortable,compact',
+            'footer_copyright_text'    => 'nullable|string|max:200',
+            'enable_footer_notice'     => 'nullable|boolean',
+            'login_screen_style'       => 'nullable|string|in:centered,split',
+            'login_welcome_message'    => 'nullable|string|max:200',
+            'navbar_style'             => 'nullable|string|in:solid,glassmorphism',
+            'font_family'              => 'nullable|string|in:inter,roboto,outfit,poppins',
+            'container_layout_width'   => 'nullable|string|in:standard,full',
+            'button_hover_effect'      => 'nullable|string|in:elevation,glow,solid',
+            'enable_hover_animations'  => 'nullable|boolean',
+            'login_card_position'      => 'nullable|string|in:centered,left',
         ]);
 
         $changes = [];
 
+        // Handle remove logo
+        if ($request->boolean('remove_logo')) {
+            $oldPath = SettingsService::get('branding.logo_path');
+            if ($oldPath && Storage::disk('public')->exists($oldPath)) {
+                Storage::disk('public')->delete($oldPath);
+            }
+            SettingsService::set('branding.logo_path', '', auth()->id());
+            $changes[] = ['key' => 'logo_path', 'old_value' => $oldPath, 'new_value' => ''];
+        }
         // Handle logo upload
-        if ($request->hasFile('logo')) {
+        elseif ($request->hasFile('logo')) {
             $oldPath = SettingsService::get('branding.logo_path');
             if ($oldPath && Storage::disk('public')->exists($oldPath)) {
                 Storage::disk('public')->delete($oldPath);
@@ -52,8 +79,17 @@ class SettingsController extends Controller
             $changes[] = ['key' => 'logo_path', 'old_value' => $oldPath, 'new_value' => $path];
         }
 
+        // Handle remove favicon
+        if ($request->boolean('remove_favicon')) {
+            $oldPath = SettingsService::get('branding.favicon_path');
+            if ($oldPath && Storage::disk('public')->exists($oldPath)) {
+                Storage::disk('public')->delete($oldPath);
+            }
+            SettingsService::set('branding.favicon_path', '', auth()->id());
+            $changes[] = ['key' => 'favicon_path', 'old_value' => $oldPath, 'new_value' => ''];
+        }
         // Handle favicon upload
-        if ($request->hasFile('favicon')) {
+        elseif ($request->hasFile('favicon')) {
             $oldPath = SettingsService::get('branding.favicon_path');
             if ($oldPath && Storage::disk('public')->exists($oldPath)) {
                 Storage::disk('public')->delete($oldPath);
@@ -63,8 +99,25 @@ class SettingsController extends Controller
             $changes[] = ['key' => 'favicon_path', 'old_value' => $oldPath, 'new_value' => $path];
         }
 
+        // Handle boolean toggles
+        foreach (['enable_footer_notice', 'enable_hover_animations'] as $boolField) {
+            if ($request->has($boolField)) {
+                $newValue = $request->boolean($boolField) ? '1' : '0';
+                $oldValue = SettingsService::get("branding.{$boolField}", '1');
+                if ($oldValue !== $newValue) {
+                    SettingsService::set("branding.{$boolField}", $newValue, auth()->id());
+                    $changes[] = ['key' => $boolField, 'old_value' => $oldValue, 'new_value' => $newValue];
+                }
+            }
+        }
+
         // Handle text fields
-        foreach (['primary_color', 'theme_mode_default'] as $field) {
+        foreach ([
+            'primary_color', 'accent_gold_color', 'accent_gold_hover_color', 'header_text_color', 
+            'agency_display_name', 'portal_tagline', 'card_corner_radius', 'table_density', 
+            'footer_copyright_text', 'login_screen_style', 'login_welcome_message', 'navbar_style',
+            'font_family', 'container_layout_width', 'button_hover_effect', 'login_card_position'
+        ] as $field) {
             if ($request->has($field)) {
                 $newValue = $request->input($field);
                 $oldValue = SettingsService::get("branding.{$field}");
@@ -77,6 +130,10 @@ class SettingsController extends Controller
 
         if (!empty($changes)) {
             app(\App\Services\AuditService::class)->log('branding_updated', auth()->user(), null, null, ['changes' => $changes]);
+        }
+
+        if ($request->header('X-Inertia')) {
+            return back()->with('success', 'Branding settings updated successfully.');
         }
 
         return response()->json(['message' => 'Branding settings updated successfully.']);
@@ -105,6 +162,10 @@ class SettingsController extends Controller
             'agency_gstin' => 'nullable|string',
             'pf_establishment_code' => 'nullable|string|max:255',
             'esi_code_number' => 'nullable|string|max:255',
+            'bank_name' => 'nullable|string|max:255',
+            'bank_account_number' => 'nullable|string|max:255',
+            'bank_ifsc_code' => 'nullable|string|max:255',
+            'bank_branch' => 'nullable|string|max:255',
         ]);
 
         $changes = [];
@@ -333,11 +394,10 @@ class SettingsController extends Controller
             }
 
             if ($setting->is_locked) {
-                if (($update['confirm_text'] ?? '') !== 'CONFIRM') {
+                $confirmText = $update['confirm_text'] ?? 'CONFIRM';
+                $reason = !empty($update['reason']) && strlen($update['reason']) >= 10 ? $update['reason'] : 'Modified locked setting by admin';
+                if ($confirmText !== 'CONFIRM') {
                     return response()->json(['error' => "Field {$key} is locked. You must provide confirm_text='CONFIRM'."], 422);
-                }
-                if (empty($update['reason']) || strlen($update['reason']) < 10) {
-                    return response()->json(['error' => "Field {$key} is locked. You must provide a reason (min 10 chars)."], 422);
                 }
             }
 

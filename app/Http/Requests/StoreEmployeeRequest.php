@@ -42,9 +42,18 @@ class StoreEmployeeRequest extends FormRequest
         $motherName = $this->motherName ?: $this->mother_name;
         $spouseName = $this->spouseName ?: $this->wifeName ?: $this->spouse_name;
 
+        $clientId = $this->clientPartner ?: $this->client_id;
+        $branchId = $this->branchPartner ?: $this->branchId ?: $this->branch_id;
+
+        if (empty($branchId) && !empty($clientId)) {
+            $defaultBranch = \App\Models\ClientBranch::where('client_id', $clientId)->first();
+            $branchId = $defaultBranch ? $defaultBranch->id : 1;
+        }
+
         // Ensure default fallback values for boolean toggles if missing
         $this->merge([
-            'client_id' => $this->clientPartner,
+            'client_id' => $clientId,
+            'branch_id' => $branchId,
             'first_name' => $firstName,
             'last_name' => $lastName,
             'father_name' => $fatherName,
@@ -72,6 +81,8 @@ class StoreEmployeeRequest extends FormRequest
             'aadhaar_number' => $this->aadhaar,
             'uan_mode' => $this->uanMode,
             'uan_number' => $this->uan,
+            'pf_member_id' => $this->pfMemberId ?? $this->pf_member_id ?? null,
+            'member_relationship' => $this->memberRelationship ?? $this->member_relationship ?? 'F',
             'esi_mode' => $this->esiMode ?? 'new',
             'esic_number' => $this->esiNo,
             'basic_pay' => $this->basicSal,
@@ -93,7 +104,7 @@ class StoreEmployeeRequest extends FormRequest
             'lwf_applicable' => filter_var($this->lwfToggle, FILTER_VALIDATE_BOOLEAN) ? 1 : 0,
             'bonus_toggle' => $this->bonusToggle ? 1 : 0,
             'tds_regime' => $this->taxRegime ?? 'new',
-            'declarations_accepted' => $this->declarations === 'yes' ? 1 : 0,
+            'declarations_accepted' => ($this->declarations_accepted !== null || $this->declarationsAccepted !== null) ? (filter_var($this->declarations_accepted ?? $this->declarationsAccepted, FILTER_VALIDATE_BOOLEAN) ? 1 : 0) : ($this->declarations === 'yes' ? 1 : 0),
             'gratuity_mode' => $this->gratuityMode ?? 'part_of_ctc',
             'lop_basis_days' => '30',
             'weekly_off_pattern' => $this->weeklyOffPattern ?: $this->weekly_off_pattern ?: null,
@@ -101,7 +112,7 @@ class StoreEmployeeRequest extends FormRequest
             'previous_employer_name' => $this->prevEmployerName,
             'previous_employer_uan' => $this->prevEmployerUAN,
             'probation_end_date' => $this->probationEndDate,
-            'reporting_manager_id' => $this->reportingManagerId,
+            'reporting_manager_id' => is_numeric($this->reportingManagerId ?? $this->reporting_manager_id) ? (int)($this->reportingManagerId ?? $this->reporting_manager_id) : null,
             'notice_period_days' => $this->noticePeriodDays,
             'joint_declaration_status' => $this->jointDeclarationStatus ?? $this->joint_declaration_status ?? 'not_required',
             'esi_contribution_period_end' => $this->esiPeriodEnd,
@@ -115,6 +126,7 @@ class StoreEmployeeRequest extends FormRequest
     {
         return [
             'client_id' => 'required|exists:clients,id',
+            'branch_id' => 'nullable|exists:client_branches,id',
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
             'father_name' => 'required|string|max:255',
@@ -193,6 +205,8 @@ class StoreEmployeeRequest extends FormRequest
                 'digits:12',
                 Rule::requiredIf(fn() => $this->pf_applicable && $this->uan_mode === 'existing_transfer')
             ],
+            'pf_member_id' => 'nullable|string|max:50',
+            'member_relationship' => 'nullable|in:F,S',
             'esi_mode' => 'nullable|in:new,existing_transfer',
             'esic_number' => [
                 'nullable',
@@ -213,7 +227,7 @@ class StoreEmployeeRequest extends FormRequest
             'tds_regime' => 'required|in:old,new',
             'gratuity_mode' => 'required|in:part_of_ctc,over_and_above',
             'lop_basis_days' => 'required|integer|min:15|max:31',
-            'weekly_off_pattern' => ['nullable', 'string', 'regex:/^(mon|tue|wed|thu|fri|sat|sun)(,(mon|tue|wed|thu|fri|sat|sun)){0,6}$/i'],
+            'weekly_off_pattern' => 'nullable|string',
             
             // Salary
             'basic_pay' => 'required|numeric|min:0',

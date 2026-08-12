@@ -85,5 +85,61 @@ class ManagerClientScopingTest extends TestCase
         // 6. Test Client List Scoping as Manager
         $clientResponse = $this->actingAs($manager)->get('/clients');
         $clientResponse->assertStatus(200);
+
+        // 7. Test Invoice Scoping as Manager (IDOR prevention)
+        $run1 = \App\Models\PayrollRun::create([
+            'client_id' => $client1->id,
+            'payroll_month' => '2026-07-01',
+            'status' => 'locked',
+            'total_gross_earnings' => 1000,
+            'total_net_disbursement' => 900,
+            'total_employer_statutory_cost' => 100,
+        ]);
+        $run3 = \App\Models\PayrollRun::create([
+            'client_id' => $client3->id,
+            'payroll_month' => '2026-07-01',
+            'status' => 'locked',
+            'total_gross_earnings' => 1000,
+            'total_net_disbursement' => 900,
+            'total_employer_statutory_cost' => 100,
+        ]);
+
+        $invAuthorized = \App\Models\Invoice::create([
+            'client_id' => $client1->id,
+            'branch_id' => $branch1->id,
+            'payroll_run_id' => $run1->id,
+            'invoice_number' => 'INV-TEST-001',
+            'status' => 'draft',
+            'invoice_month' => '2026-07-01',
+            'agency_gstin' => '33AAAAA0000A1Z5',
+            'branch_gstin' => '33AAAAA0000A1Z5',
+            'place_of_supply_state' => 'Tamil Nadu',
+            'gst_type' => 'cgst_sgst',
+            'gross_salary_passthrough' => 1000,
+            'agency_service_fee' => 100,
+            'gst_amount' => 18,
+            'grand_total' => 1118,
+            'due_date' => '2026-08-15',
+        ]);
+        $invUnauthorized = \App\Models\Invoice::create([
+            'client_id' => $client3->id,
+            'branch_id' => $branch3->id,
+            'payroll_run_id' => $run3->id,
+            'invoice_number' => 'INV-TEST-002',
+            'status' => 'draft',
+            'invoice_month' => '2026-07-01',
+            'agency_gstin' => '33AAAAA0000A1Z5',
+            'branch_gstin' => '33AAAAA0000A1Z5',
+            'place_of_supply_state' => 'Tamil Nadu',
+            'gst_type' => 'cgst_sgst',
+            'gross_salary_passthrough' => 1000,
+            'agency_service_fee' => 100,
+            'gst_amount' => 18,
+            'grand_total' => 1118,
+            'due_date' => '2026-08-15',
+        ]);
+
+        $this->actingAs($manager)->get("/invoices/{$invAuthorized->id}")->assertStatus(200);
+        $this->actingAs($manager)->get("/invoices/{$invUnauthorized->id}")->assertStatus(403);
     }
 }

@@ -62,7 +62,20 @@ class StoreClientRequest extends FormRequest
             'late_payment_penalty_pct' => $this->latePenalty,
             'invoice_cycle' => $this->invoiceCycle,
             'currency' => $this->billingCurrency ?: 'INR',
-            'tds_applicable_on_agency_fee' => $this->tdsApplicableAgency,
+            'tds_applicable_on_agency_fee' => $this->tdsApplicableAgency === 'other'
+                ? ($this->customTdsPercentage ?: $this->clientTdsPercentage ?: 'other')
+                : $this->tdsApplicableAgency,
+            'client_tds_percentage' => (function() {
+                $custom = $this->customTdsPercentage ?? $this->clientTdsPercentage ?? $this->client_tds_percentage;
+                if ($custom !== null && $custom !== '' && is_numeric($custom)) {
+                    return (float) $custom;
+                }
+                $agencyVal = $this->tdsApplicableAgency ?? $this->tds_applicable_on_agency_fee;
+                if (is_numeric($agencyVal) && (float)$agencyVal > 0) {
+                    return (float) $agencyVal;
+                }
+                return null;
+            })(),
             'po_required' => $this->poRequired ? 1 : 0,
             'po_number' => $this->poNumber,
             'po_value' => $this->poValue,
@@ -94,8 +107,8 @@ class StoreClientRequest extends FormRequest
             'edli_exempted' => $this->edliExempted ? 1 : 0,
             'esi_limit' => $this->esiLimit ?? 21000,
             'esi_applicable' => $this->esiApplicable ? 1 : 0,
-            'pf_establishment_code' => $this->pfEstablishmentCode,
-            'esi_code_number' => $this->esiCodeNumber,
+            'pf_establishment_code' => $this->pfEstablishmentCode ?? $this->pf_establishment_code,
+            'esi_code_number' => $this->esiCodeNumber ?? $this->esi_code_number,
             'lwf_frequency' => $this->lwfFrequency,
             'lwf_applicable' => $this->lwfApplicable ? 1 : 0,
             'tds_regime' => $this->tdsRegime,
@@ -275,7 +288,7 @@ class StoreClientRequest extends FormRequest
             
             // Step 4
             'contract_type' => 'required|in:agency,eor',
-            'billing_model' => 'required|in:markup,fixed_per_candidate,fixed_per_month,lumpsum,hourly',
+            'billing_model' => 'required|in:markup,fixed_per_candidate,fixed_per_month,lumpsum,hourly,inhouse',
             'contract_start_date' => 'required|date',
             'contract_end_date' => 'nullable|date|after:contract_start_date',
             'markup_percentage' => 'nullable|required_if:billing_model,markup|numeric|min:0|max:100',
@@ -288,6 +301,7 @@ class StoreClientRequest extends FormRequest
             'invoice_cycle' => 'nullable|string',
             'currency' => 'nullable|string',
             'tds_applicable_on_agency_fee' => 'nullable|string',
+            'client_tds_percentage' => 'nullable|numeric|min:0|max:100',
             'po_required' => 'nullable|boolean',
             'po_number' => 'nullable|string',
             'po_value' => 'nullable|numeric|min:0',

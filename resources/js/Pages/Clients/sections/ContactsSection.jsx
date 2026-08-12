@@ -36,6 +36,7 @@ export default function ContactsSection({ formData, errors, onChange, onPocChang
               placeholder="e.g. Vikas Mehta"
               value={formData.poc1.name}
               onChange={e => onPocChange('poc1', 'name', e.target.value)} />
+            {errors['poc1.name'] && <div className={`field-msg ${errors['poc1.name']?.type || 'error'} show`}>{errors['poc1.name']?.msg || errors['poc1.name']}</div>}
           </div>
           <div className="form-group">
             <label>Designation</label>
@@ -50,14 +51,18 @@ export default function ContactsSection({ formData, errors, onChange, onPocChang
             <input type="email" className={`form-control ${errors['poc1.email'] ? 'invalid' : ''}`}
               placeholder="e.g. vikas@mahindra.com"
               value={formData.poc1.email}
+              onBlur={() => hook.checkLiveUniqueness('email', formData.poc1.email, 'poc1.email')}
               onChange={e => onPocChange('poc1', 'email', e.target.value)} />
+            {errors['poc1.email'] && <div className={`field-msg ${errors['poc1.email']?.type || 'error'} show`}>{errors['poc1.email']?.msg || errors['poc1.email']}</div>}
           </div>
           <div className="form-group">
             <label>Phone <span style={{ color: 'var(--status-danger)' }}>*</span></label>
             <input type="tel" className={`form-control ${errors['poc1.phone'] ? 'invalid' : ''}`}
               placeholder="10-digit mobile" maxLength="10"
               value={formData.poc1.phone}
+              onBlur={() => hook.checkLiveUniqueness('phone', formData.poc1.phone, 'poc1.phone')}
               onChange={e => onPocChange('poc1', 'phone', e.target.value)} />
+            {errors['poc1.phone'] && <div className={`field-msg ${errors['poc1.phone']?.type || 'error'} show`}>{errors['poc1.phone']?.msg || errors['poc1.phone']}</div>}
           </div>
         </div>
         <div className="form-row" style={{ marginTop: '0.75rem', alignItems: 'center', gap: '1.5rem' }}>

@@ -70,8 +70,8 @@ class DaySwapWorkflowTest extends TestCase
         Queue::fake([NotifyWatchersJob::class]);
         $this->actingAs($this->employeeUser);
 
-        $origDate = Carbon::parse('2026-08-01')->toDateString(); // Future Saturday
-        $newDate = Carbon::parse('2026-08-04')->toDateString();  // Future Tuesday
+        $origDate = Carbon::now()->addMonth()->next(Carbon::SATURDAY)->toDateString(); // Dynamic Future Saturday
+        $newDate = Carbon::now()->addMonth()->next(Carbon::TUESDAY)->toDateString();  // Dynamic Future Tuesday
 
         $payload = [
             'original_date' => $origDate,
@@ -274,28 +274,31 @@ class DaySwapWorkflowTest extends TestCase
     {
         // 1. Employee submits swap: Sat Aug 1 (worked off-day) for Tue Aug 4 (off day)
         $this->actingAs($this->employeeUser);
+        $origDate = Carbon::now()->addMonth()->next(Carbon::SATURDAY)->toDateString();
+        $newDate = Carbon::now()->addMonth()->next(Carbon::TUESDAY)->toDateString();
+
         $this->post(route('employee.day-swaps.store'), [
-            'original_date' => '2026-08-01',
-            'new_date' => '2026-08-04',
+            'original_date' => $origDate,
+            'new_date' => $newDate,
             'reason' => 'End to end swap test',
         ]);
 
         $primaryRow = EmployeeAttendanceOverride::where('employee_id', $this->employee->id)
-            ->where('override_date', '2026-08-01')
+            ->where('override_date', $origDate)
             ->firstOrFail();
 
         // 2. Admin approves the swap
         $this->actingAs($this->admin);
         $this->post(route('employees.day-swaps.approve', $primaryRow->id));
 
-        // 3. Seed weekday attendance records for ALL OTHER weekdays in August 2026 EXCEPT Tue Aug 4
-        $start = Carbon::parse('2026-08-01');
-        $end = Carbon::parse('2026-08-31');
+        // 3. Seed weekday attendance records for ALL OTHER weekdays in the target month EXCEPT the swapped off day
+        $start = Carbon::parse($origDate)->startOfMonth();
+        $end = Carbon::parse($origDate)->endOfMonth();
 
         for ($date = $start->copy(); $date->lte($end); $date->addDay()) {
             $dateStr = $date->toDateString();
-            // Skip weekends and skip Tue Aug 4 (the swapped off day)
-            if (!$date->isWeekend() && $dateStr !== '2026-08-04') {
+            // Skip weekends and skip the swapped off day
+            if (!$date->isWeekend() && $dateStr !== $newDate) {
                 DB::table('attendance_records')->insert([
                     'employee_id' => $this->employee->id,
                     'attendance_date' => $dateStr,
@@ -307,20 +310,20 @@ class DaySwapWorkflowTest extends TestCase
             }
         }
 
-        // Also seed an attendance record for Sat Aug 1 (the worked off-day) as 'present'
+        // Also seed an attendance record for the worked off-day as 'present'
         DB::table('attendance_records')->insert([
             'employee_id' => $this->employee->id,
-            'attendance_date' => '2026-08-01',
+            'attendance_date' => $origDate,
             'status' => 'present',
             'source' => 'live_punch',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
 
-        // 4. Run AttendanceResolutionService for August 2026 (31 days)
-        $result = $this->resolutionService->resolveForEmployee($this->employee, '2026-08-01', '2026-08-31');
+        // 4. Run AttendanceResolutionService for target month
+        $result = $this->resolutionService->resolveForEmployee($this->employee, $start->toDateString(), $end->toDateString());
 
-        $this->assertEquals(31.0, $result['paid_days']);
+        $this->assertEquals((float)$start->daysInMonth, $result['paid_days']);
         $this->assertEquals(0.0, $result['lop_days']);
     }
 

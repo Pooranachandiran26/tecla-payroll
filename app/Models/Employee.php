@@ -5,10 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
+use App\Traits\BlameableTrait;
+
 class Employee extends Model
 {
-    use HasFactory;
-    use \Illuminate\Database\Eloquent\SoftDeletes;
+    use HasFactory, \Illuminate\Database\Eloquent\SoftDeletes, BlameableTrait;
 
     const BASE_REQUIRED_DOCUMENT_TYPES = [
         'pan_card', 'aadhaar_card', 'bank_passbook', 'offer_letter', 'photo'
@@ -19,6 +20,10 @@ class Employee extends Model
     ];
 
     protected $guarded = [];
+
+    protected $attributes = [
+        'entry_source' => 'manual',
+    ];
 
     protected $casts = [
         'bank_account_number' => 'encrypted',

@@ -21,6 +21,11 @@ class SalaryRevisionController extends Controller
 {
     public function create($employeeId)
     {
+        $user = request()->user();
+        if ($user && $user->role === 'manager' && !$user->hasModulePermission('emp_salary_revisions', 'candidates')) {
+            abort(403, 'You do not have permission to access Salary Revisions.');
+        }
+
         $employee = Employee::with('client')->findOrFail($employeeId);
         $revisions = SalaryRevision::where('employee_id', $employeeId)
             ->with('approver')
@@ -95,6 +100,8 @@ class SalaryRevisionController extends Controller
             'old_designation' => $oldDesignation,
             'new_designation' => $newDesignation,
             'status' => 'pending_approval',
+            'created_by' => Auth::id(),
+            'updated_by' => Auth::id(),
         ]);
 
         // Notify all admins in-app (isolated: failure here never breaks the revision submission)
@@ -102,7 +109,7 @@ class SalaryRevisionController extends Controller
             type: 'salary_revision',
             title: 'Salary Revision Pending Approval',
             body: "{$employee->full_name} ({$employee->employee_code}) has submitted a salary revision request.",
-            url: route('employees.salary-revision.create', $employee->id),
+            url: route('employees.salary-revision.create', $employee->id, false),
             data: ['employee_id' => $employee->id]
         );
 
@@ -126,6 +133,7 @@ class SalaryRevisionController extends Controller
                     'status' => 'approved',
                     'approved_by' => Auth::id(),
                     'approved_at' => Carbon::now(),
+                    'updated_by' => Auth::id(),
                 ]);
                 
                 // Update employee
@@ -163,6 +171,7 @@ class SalaryRevisionController extends Controller
                     'approved_by' => Auth::id(), // We store the resolver ID here even if rejected
                     'approved_at' => Carbon::now(),
                     'rejection_reason' => $rejectionReason,
+                    'updated_by' => Auth::id(),
                 ]);
             }
         });
@@ -208,6 +217,9 @@ class SalaryRevisionController extends Controller
     public function queue(Request $request)
     {
         $user = $request->user();
+        if ($user && $user->role === 'manager' && !$user->hasModulePermission('emp_salary_revisions', 'candidates')) {
+            abort(403, 'You do not have permission to access Salary Revisions Queue.');
+        }
 
         $query = SalaryRevision::with(['employee.client', 'approver']);
 

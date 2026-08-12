@@ -19,6 +19,9 @@ class LeaveApprovalController extends Controller
         }
 
         $user = $request->user();
+        if ($user && $user->role === 'manager' && !$user->hasModulePermission('emp_leave_approval', 'candidates')) {
+            abort(403, 'You do not have permission to access Leave Approval Queue.');
+        }
         $query = LeaveRequest::with(['employee.client']);
 
         if ($user && $user->role === 'manager') {
@@ -78,7 +81,7 @@ class LeaveApprovalController extends Controller
         ]);
     }
 
-    public function approve(Request $request, $id)
+    public function approve(Request $request, $id, \App\Services\LeavePolicyService $leavePolicyService)
     {
         if (!in_array(auth()->user()->role, ['admin', 'manager'])) {
             abort(403, 'Unauthorized access to leave approval.');
@@ -90,60 +93,26 @@ class LeaveApprovalController extends Controller
             return redirect()->back()->with('error', 'Only pending requests can be approved.');
         }
 
-        DB::transaction(function () use ($leave) {
-            $oldStatus = $leave->status;
-            $leave->update([
-                'status' => 'approved',
-                'approved_by' => auth()->id(),
-                'decided_at' => now(),
-            ]);
+        try {
+            $result = $leavePolicyService->processApprovedLeave($leave);
 
             app(\App\Services\AuditService::class)->log(
                 'leave.approved',
                 auth()->user(),
                 $leave,
-                ['status' => $oldStatus],
+                ['status' => 'pending'],
                 ['status' => 'approved', 'approved_by' => auth()->id()],
                 ['employee_id' => $leave->employee_id, 'leave_type' => $leave->leave_type, 'days_count' => $leave->days_count]
             );
 
-            $period = CarbonPeriod::create($leave->from_date, $leave->to_date);
-
-            foreach ($period as $date) {
-                $dateStr = $date->toDateString();
-                $existingRecord = AttendanceRecord::where('employee_id', $leave->employee_id)
-                    ->whereDate('attendance_date', $dateStr)
-                    ->first();
-
-                if ($existingRecord) {
-                    // If it has real live punch data, preserve the times (Approach 2)
-                    if ($existingRecord->source === 'live_punch') {
-                        $existingRecord->update([
-                            'status' => 'on_leave',
-                            'source' => 'override'
-                        ]);
-                    } else {
-                        // Fully overwrite
-                        $existingRecord->update([
-                            'punch_in_time' => null,
-                            'punch_out_time' => null,
-                            'hours_worked' => null,
-                            'status' => 'on_leave',
-                            'source' => 'override'
-                        ]);
-                    }
-                } else {
-                    AttendanceRecord::create([
-                        'employee_id' => $leave->employee_id,
-                        'attendance_date' => $dateStr,
-                        'status' => 'on_leave',
-                        'source' => 'override'
-                    ]);
-                }
-            }
-        });
-
-        return redirect()->back()->with('success', 'Leave request approved successfully.');
+            return redirect()->back()->with('success', $result['message']);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $errors = $e->errors();
+            $msg = reset($errors)[0] ?? 'Leave approval failed.';
+            return redirect()->back()->with('error', $msg);
+        } catch (\Throwable $e) {
+            return redirect()->back()->with('error', $e->getMessage());
+        }
     }
 
     public function reject(Request $request, $id)

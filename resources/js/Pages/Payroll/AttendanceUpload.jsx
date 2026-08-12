@@ -5,15 +5,39 @@ import Button from '../../Components/ui/Button';
 import DataTable from '../../Components/ui/DataTable';
 import Badge from '../../Components/ui/Badge';
 import Select from '../../Components/ui/Select';
-import { UploadCloud, FileSpreadsheet, Loader2, Calendar, Info, CheckCircle2, AlertTriangle } from 'lucide-react';
+import Pagination from '../../Components/ui/Pagination';
+import { UploadCloud, FileSpreadsheet, Loader2, Calendar, Info, CheckCircle2, AlertTriangle, Clock, RefreshCw, X, XCircle, Download, Search, FileText } from 'lucide-react';
 import axios from 'axios';
 import RoleGuard from '../../Components/RoleGuard.jsx';
 
-export default function AttendanceUpload({ clients }) {
-  const [tab, setTab] = useState('single');
+export default function AttendanceUpload({ clients, upload_history = [] }) {
   const [selectedClientId, setSelectedClientId] = useState(clients && clients.length > 0 ? clients[0].id : '');
   const [targetMonth, setTargetMonth] = useState('2026-08');
   const [file, setFile] = useState(null);
+
+  const [historySearch, setHistorySearch] = useState('');
+  const [historyStatusFilter, setHistoryStatusFilter] = useState('all');
+  const [historyPage, setHistoryPage] = useState(1);
+  const historyItemsPerPage = 5;
+
+  const filteredUploadHistory = (upload_history || []).filter(batch => {
+    const matchesSearch = !historySearch || 
+      (batch.file_name && batch.file_name.toLowerCase().includes(historySearch.toLowerCase())) ||
+      (batch.id && batch.id.toLowerCase().includes(historySearch.toLowerCase())) ||
+      (batch.user?.name && batch.user.name.toLowerCase().includes(historySearch.toLowerCase()));
+    
+    const matchesStatus = historyStatusFilter === 'all' || 
+      (batch.status && batch.status.toLowerCase() === historyStatusFilter.toLowerCase());
+
+    return matchesSearch && matchesStatus;
+  });
+
+  const totalHistoryItems = filteredUploadHistory.length;
+  const totalHistoryPages = Math.ceil(totalHistoryItems / historyItemsPerPage) || 1;
+  const paginatedUploadHistory = filteredUploadHistory.slice(
+    (historyPage - 1) * historyItemsPerPage,
+    historyPage * historyItemsPerPage
+  );
   const [contextData, setContextData] = useState(null);
 
   const getMonthOptions = () => {
@@ -38,6 +62,9 @@ export default function AttendanceUpload({ clients }) {
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [summary, setSummary] = useState(null);
+  const [batchId, setBatchId] = useState(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [partialImportAcknowledged, setPartialImportAcknowledged] = useState(false);
 
   const fileInputRef = useRef(null);
 
@@ -63,6 +90,7 @@ export default function AttendanceUpload({ clients }) {
     setLoading(true);
     setErrorMsg('');
     setSuccessMsg('');
+    setBatchId(null);
     
     const formData = new FormData();
     formData.append('client_id', clientId);
@@ -76,6 +104,7 @@ export default function AttendanceUpload({ clients }) {
     })
     .then(response => {
       setValidationData(response.data.rows || []);
+      setBatchId(response.data.batch_id);
       setSummary({
         total: response.data.total_rows,
         matched: response.data.matched_rows,
@@ -109,29 +138,104 @@ export default function AttendanceUpload({ clients }) {
   };
 
   const handleSave = () => {
-    if (!file) {
-      setErrorMsg('Please select and upload a valid timesheet first.');
+    if (!batchId) {
+      setErrorMsg('No active validation session. Please re-upload.');
       return;
     }
 
-    setLoading(true);
+    setIsProcessing(true);
     setErrorMsg('');
 
-    const formData = new FormData();
-    formData.append('client_id', selectedClientId);
-    formData.append('target_month', targetMonth);
-    formData.append('file', file);
-
-    router.post(route('payroll.attendance.upload'), formData, {
-      forceFormData: true,
-      onSuccess: () => {
-        setLoading(false);
-      },
-      onError: (errors) => {
-        setErrorMsg(Object.values(errors).join(', ') || 'Failed to save timesheet.');
-        setLoading(false);
-      }
+    axios.post(route('payroll.attendance.upload-async'), {
+      batch_id: batchId,
+      partial_import: true
+    })
+    .then(res => {
+      setIsProcessing(false);
+      setSuccessMsg('Attendance records successfully processed and saved!');
+      setTimeout(() => {
+        router.visit(route('payroll.attendance-review', {
+          client_id: selectedClientId,
+          month: targetMonth
+        }));
+      }, 1500);
+    })
+    .catch(err => {
+      setErrorMsg(err.response?.data?.error || err.response?.data?.message || 'Failed to process attendance upload.');
+      setIsProcessing(false);
     });
+  };
+
+  const handleRemoveFile = () => {
+    setFile(null);
+    setValidationData([]);
+    setSummary(null);
+    setBatchId(null);
+    setErrorMsg('');
+    setSuccessMsg('');
+    setPartialImportAcknowledged(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const downloadTotalCsv = () => {
+    if (!validationData || validationData.length === 0) return;
+    let csv = 'Row No,Employee Code,Employee Name,Days Present,Days LOP,Status,Notes\n';
+    validationData.forEach(r => {
+      const escapedNotes = r.notes ? `"${r.notes.replace(/"/g, '""')}"` : '';
+      csv += `${r.id},${r.empCode},"${r.matchedName}",${r.daysPresent},${r.daysLOP},${r.status},${escapedNotes}\n`;
+    });
+    
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.setAttribute('hidden', '');
+    a.setAttribute('href', url);
+    a.setAttribute('download', `attendance_total_records_${targetMonth}.csv`);
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const downloadSuccessCsv = () => {
+    if (!validationData || validationData.length === 0) return;
+    const validRows = validationData.filter(r => r.status === 'valid');
+    if (validRows.length === 0) return;
+    let csv = 'Row No,Employee Code,Employee Name,Days Present,Days LOP,Status,Notes\n';
+    validRows.forEach(r => {
+      const escapedNotes = r.notes ? `"${r.notes.replace(/"/g, '""')}"` : '';
+      csv += `${r.id},${r.empCode},"${r.matchedName}",${r.daysPresent},${r.daysLOP},${r.status},${escapedNotes}\n`;
+    });
+    
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.setAttribute('hidden', '');
+    a.setAttribute('href', url);
+    a.setAttribute('download', `attendance_success_rows_${targetMonth}.csv`);
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const downloadErrorCsv = () => {
+    if (!validationData || validationData.length === 0) return;
+    const errorRows = validationData.filter(r => r.status !== 'valid');
+    if (errorRows.length === 0) return;
+    let csv = 'Row No,Employee Code,Employee Name,Days Present,Days LOP,Status,Notes\n';
+    errorRows.forEach(r => {
+      const escapedNotes = r.notes ? `"${r.notes.replace(/"/g, '""')}"` : '';
+      csv += `${r.id},${r.empCode},"${r.matchedName}",${r.daysPresent},${r.daysLOP},${r.status},${escapedNotes}\n`;
+    });
+    
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.setAttribute('hidden', '');
+    a.setAttribute('href', url);
+    a.setAttribute('download', `attendance_error_rows_${targetMonth}.csv`);
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
   const columns = [
@@ -182,13 +286,14 @@ export default function AttendanceUpload({ clients }) {
         if (row.status === 'valid') return <Badge type="success">✓ Valid</Badge>;
         if (row.status === 'skipped') return <Badge type="warning">⚠️ Skipped</Badge>;
         if (row.status === 'invalid') return <Badge type="danger">✗ Invalid</Badge>;
+        return <Badge type="neutral">{row.status}</Badge>;
       }
     },
     {
       header: 'Notes',
       accessor: 'notes',
       cell: (row) => <span className="text-[0.75rem] text-gray-500 leading-snug block max-w-[320px]">{row.notes}</span>
-    },
+    }
   ];
 
   return (
@@ -196,60 +301,119 @@ export default function AttendanceUpload({ clients }) {
       <AuthenticatedLayout>
         <Head title="Upload Attendance" />
 
+        {/* Top Header Section */}
         <div className="mb-6">
-          <Link href={route('payroll.attendance-review', { client_id: selectedClientId, month: targetMonth })} className="text-[0.85rem] font-semibold text-[#1F3864] hover:underline">
-            ← Back to Attendance Review
-          </Link>
-          <div className="flex justify-between items-center mt-2 mb-1">
-            <h2 className="text-2xl font-bold text-[#1F3864]">Upload External Attendance Sheets</h2>
-            <a 
-              href={route('payroll.attendance.template', { client_id: selectedClientId, target_month: targetMonth })} 
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-white border border-gray-300 rounded shadow-sm text-gray-700 hover:bg-gray-50"
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5" />
-              Download Excel (.xlsx) Template
-            </a>
+          <div className="flex items-center gap-2 text-xs text-gray-500 mb-1 font-semibold">
+            <Link href={route('payroll.attendance-review', { client_id: selectedClientId, month: targetMonth })} className="hover:underline text-[#1F3864]">Attendance Review</Link>
+            <span>/</span>
+            <span className="text-gray-700">Upload</span>
           </div>
-          <p className="text-gray-500 text-sm">Upload monthly summary timesheets for clients who manage attendance separately instead of punch-in portal logging.</p>
-        </div>
-
-        {/* How This Works Info Box */}
-        <div className="bg-[#EFF6FF] border border-[#BFDBFE] border-l-4 border-l-[#2563EB] p-4 rounded-md mb-6 flex items-start gap-3">
-          <Info className="w-5 h-5 text-[#2563EB] mt-0.5 shrink-0" />
-          <div className="text-sm text-[#1E40AF] leading-relaxed">
-            <strong>How This System Works:</strong> This system automatically pays employees for Sundays (or your client's configured off-days) and holidays — you don't need to include them in your upload. Just enter how many days someone actually worked (<code className="bg-blue-100 px-1 py-0.5 rounded text-blue-900 font-mono text-xs">days_present</code>), and how many days they were absent without leave (<code className="bg-blue-100 px-1 py-0.5 rounded text-blue-900 font-mono text-xs">days_lop</code>). These two numbers should always add up to the <strong>Working Days</strong> figure calculated below.
+          <div className="flex items-center gap-3">
+            <h2 className="text-2xl font-bold text-[#1F3864]">Upload External Attendance Sheets</h2>
           </div>
         </div>
 
         {errorMsg && (
-          <div className="bg-red-50 text-red-700 p-4 rounded-md mb-6 border border-red-200">
+          <div className="bg-red-50 text-red-700 p-4 rounded-xl mb-6 border border-red-200 text-sm font-semibold">
             {errorMsg}
           </div>
         )}
 
-        <div className="card p-0 mb-6 overflow-hidden">
-          <ul className="flex border-b border-gray-200">
-            <li 
-              className={`flex-1 text-center py-3 font-semibold text-[0.9rem] cursor-pointer transition-colors ${tab === 'single' ? 'bg-white text-[#1F3864] border-b-2 border-b-[#1F3864]' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}
-              onClick={() => setTab('single')}
-            >
-              Single Client Upload
-            </li>
-            <li 
-              className={`flex-1 text-center py-3 font-semibold text-[0.9rem] cursor-pointer transition-colors ${tab === 'bulk' ? 'bg-white text-[#1F3864] border-b-2 border-b-[#1F3864]' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}
-              onClick={() => setTab('bulk')}
-            >
-              Multiple Clients (Bulk Import)
-            </li>
-          </ul>
+        {successMsg && (
+          <div className="bg-emerald-50 text-emerald-700 p-4 rounded-xl mb-6 border border-emerald-200 text-sm font-semibold flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+            {successMsg}
+          </div>
+        )}
 
-          <div className="p-6 max-w-[760px] mx-auto">
-            {tab === 'single' && (
-              <>
+        {/* 2-Column Responsive Dashboard Layout */}
+        <div className="flex flex-col lg:flex-row gap-6 mb-6">
+          
+          {/* Left Column: Guidelines & Calculations (width 5/12) */}
+          <div className="w-full lg:w-5/12 flex flex-col gap-6">
+            
+            {/* Guidelines Card */}
+            <div className="bg-[#EFF6FF] border border-[#BFDBFE] border-l-4 border-l-[#2563EB] py-6 px-5 rounded-xl shadow-xs mb-6">
+              <div className="flex items-start gap-3">
+                <Info className="w-5 h-5 text-[#2563EB] mt-0.5 shrink-0" />
+                <div className="text-xs text-[#1E40AF] leading-relaxed">
+                  <h4 className="font-extrabold text-sm mb-1.5 text-[#1D4ED8]">How This System Works</h4>
+                  This system automatically pays employees for Sundays (or your client's configured off-days) and holidays — you don't need to include them in your upload. Just enter how many days someone actually worked (<code className="bg-blue-100 px-1 py-0.5 rounded text-blue-900 font-mono text-xs">days_present</code>), and how many days they were absent without leave (<code className="bg-blue-100 px-1 py-0.5 rounded text-blue-900 font-mono text-xs">days_lop</code>). These two numbers should always add up to the <strong>Working Days Required</strong> calculated for that target month.
+                </div>
+              </div>
+            </div>
+
+            {/* Calculations & Context Panel */}
+            {contextData && (
+              <div className="bg-white border border-gray-200 p-5 rounded-xl shadow-sm">
+                <div className="flex items-center justify-between border-b border-gray-200 pb-3 mb-3">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-[#1F3864]" />
+                    <span className="font-bold text-sm text-[#1F3864]">
+                      Working Days Breakdown
+                    </span>
+                  </div>
+                  <span className="bg-[#1F3864] text-white text-xs font-bold px-2.5 py-1 rounded-full shrink-0">
+                    {contextData.working_days_slots} Days Required
+                  </span>
+                </div>
+
+                <div className="text-xs text-gray-500 mb-4 leading-relaxed">
+                  <strong>Formula:</strong> {contextData.total_calendar_days} Calendar Days − {contextData.off_days_count} Off-Days ({contextData.off_days_label}) − {contextData.workday_holiday_count} Holiday(s) = <strong className="text-[#1F3864]">{contextData.working_days_slots} Working Day Slots</strong>.
+                </div>
+
+                <div className="bg-amber-50 border border-amber-200 text-amber-900 text-xs p-3 rounded-lg mb-4 flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+                  <div>
+                    <strong>Upload Rule:</strong> Enter ONLY real working days worked + LOP in your CSV. For each employee, <code>days_present + days_lop</code> must add up to <strong>{contextData.working_days_slots}</strong>.
+                  </div>
+                </div>
+
+                <div>
+                  <span className="text-xs font-bold text-gray-400 uppercase tracking-wide block mb-2">
+                    Configured Client Holidays ({contextData.month_label}):
+                  </span>
+                  {contextData.holidays && contextData.holidays.length > 0 ? (
+                    <div className="flex flex-col gap-1.5">
+                      {contextData.holidays.map((h, idx) => (
+                        <div key={idx} className={`flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg border font-medium ${h.is_off_day ? 'bg-gray-100 border-gray-250 text-gray-500' : 'bg-emerald-50 border-emerald-100 text-emerald-800'}`}>
+                          <span>🏖️ {h.name}</span>
+                          <span className="text-[10px] uppercase font-bold text-gray-400">{h.date}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-xs text-gray-400 italic">No holidays configured for this month.</span>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Right Column: Upload Form & Dropzone (width 7/12) */}
+          <div className="w-full lg:w-7/12">
+            <div className="card p-6 shadow-sm border border-gray-200 rounded-xl bg-white h-full flex flex-col justify-between">
+              <div>
+                <div className="border-b border-gray-150 pb-4 mb-5 flex justify-between items-center gap-4">
+                  <div>
+                    <h3 className="text-lg font-bold text-[#1F3864] m-0">Single Client Upload</h3>
+                    <p className="text-xs text-gray-500 mt-0.5 font-medium">Select client and upload target month attendance template</p>
+                  </div>
+                  
+                  {/* Download Excel Template button placed here inside uploader header card */}
+                  <a 
+                    href={route('payroll.attendance.template', { client_id: selectedClientId, target_month: targetMonth })} 
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-white border border-gray-300 rounded shadow-xs text-gray-700 hover:bg-gray-50 shrink-0"
+                  >
+                    <FileSpreadsheet className="w-3.5 h-3.5 text-green-600" />
+                    Download Template
+                  </a>
+                </div>
+
                 <div className="flex gap-4 mb-6">
                   <div className="flex-1">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Select Target Client</label>
-                    <Select value={selectedClientId} onChange={handleClientChange}>
+                    <Select value={selectedClientId} onChange={handleClientChange} disabled={file !== null}>
                       {clients && clients.map(client => (
                         <option key={client.id} value={client.id}>{client.company_name}</option>
                       ))}
@@ -257,7 +421,7 @@ export default function AttendanceUpload({ clients }) {
                   </div>
                   <div className="flex-1">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Payroll Target Month</label>
-                    <Select value={targetMonth} onChange={handleMonthChange}>
+                    <Select value={targetMonth} onChange={handleMonthChange} disabled={file !== null}>
                       {getMonthOptions().map(opt => (
                         <option key={opt.value} value={opt.value}>{opt.label}</option>
                       ))}
@@ -265,146 +429,386 @@ export default function AttendanceUpload({ clients }) {
                   </div>
                 </div>
 
-                {/* Live Working Days Breakdown & Holiday Context Panel */}
-                {contextData && (
-                  <div className="bg-[#F8FAFC] border border-[#E2E8F0] p-4 rounded-lg mb-6 shadow-sm">
-                    <div className="flex items-center justify-between border-b border-gray-200 pb-3 mb-3">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-[#1F3864]" />
-                        <span className="font-bold text-sm text-[#1F3864]">
-                          {contextData.client_name} — Working Days Breakdown ({contextData.month_label})
-                        </span>
-                      </div>
-                      <span className="bg-[#1F3864] text-white text-xs font-bold px-2.5 py-1 rounded-full">
-                        {contextData.working_days_slots} Working Days Required
-                      </span>
-                    </div>
-
-                    <div className="text-xs text-gray-600 mb-3 leading-relaxed">
-                      <strong>Formula:</strong> {contextData.total_calendar_days} Total Calendar Days − {contextData.off_days_count} Off-Days ({contextData.off_days_label}) − {contextData.workday_holiday_count} Client Holiday(s) = <strong className="text-[#1F3864]">{contextData.working_days_slots} Working Day Slots</strong>.
-                    </div>
-
-                    <div className="bg-amber-50 border border-amber-200 text-amber-900 text-xs p-2.5 rounded mb-3 flex items-start gap-2">
-                      <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
-                      <div>
-                        <strong>Upload Rule:</strong> Enter ONLY real working days worked + LOP in your CSV. For each employee, <code>days_present + days_lop</code> must add up to <strong>{contextData.working_days_slots}</strong>.
-                      </div>
-                    </div>
-
-                    {/* Holidays List */}
-                    <div>
-                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
-                        Configured Client Holidays ({contextData.month_label}):
-                      </span>
-                      {contextData.holidays && contextData.holidays.length > 0 ? (
-                        <div className="flex flex-wrap gap-2">
-                          {contextData.holidays.map((h, idx) => (
-                            <div key={idx} className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded border font-medium ${h.is_off_day ? 'bg-gray-100 border-gray-300 text-gray-600' : 'bg-emerald-50 border-emerald-200 text-emerald-800'}`}>
-                              <span>🏖️ {h.date} — {h.name}</span>
-                              {h.is_off_day ? (
-                                <span className="text-[10px] text-gray-500 font-normal">(Falls on Weekly Off)</span>
-                              ) : (
-                                <span className="text-[10px] bg-emerald-200 text-emerald-900 px-1 rounded">Paid Holiday</span>
-                              )}
-                            </div>
-                          ))}
+                {file ? (
+                  <div className="p-6 border border-[#1F3864]/20 rounded-xl bg-indigo-50/20 shadow-xs mb-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-sm">
+                          XLS
                         </div>
-                      ) : (
-                        <span className="text-xs text-gray-400 italic">No holidays configured for this month.</span>
-                      )}
+                        <div>
+                          <div className="font-bold text-[#1F3864] text-sm">{file.name}</div>
+                          <span className="text-[0.7rem] text-gray-400 font-medium">Size: {Math.round(file.size / 1024)} KB</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={isProcessing}
+                          className="flex items-center gap-1 text-xs shadow-xs"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" /> Change
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={handleRemoveFile}
+                          disabled={isProcessing}
+                          className="flex items-center gap-1 text-xs text-red-600 border-red-200 hover:bg-red-50 shadow-xs"
+                        >
+                          <X className="w-3.5 h-3.5" /> Remove
+                        </Button>
+                      </div>
                     </div>
                   </div>
+                ) : (
+                  <div 
+                    className="flex flex-col items-center justify-center p-14 border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer rounded-xl text-center mb-4"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <UploadCloud className="w-10 h-10 text-[#1F3864] mb-3" strokeWidth={1.5} />
+                    <p className="font-semibold text-[0.95rem] text-[#1F3864] mb-1">Click to select the timesheet file (.xlsx, .csv)</p>
+                    <p className="text-[0.75rem] text-gray-500 max-w-[400px] mx-auto leading-relaxed">Supported formats: Excel (.xlsx), CSV (.csv). Ensure columns: target_month, employee_code, days_present, days_lop</p>
+                  </div>
                 )}
-
-                <input 
-                  type="file" 
-                  ref={fileInputRef} 
-                  onChange={handleFileChange} 
-                  accept=".csv,.xlsx,.xls,.txt"
-                  className="hidden" 
-                />
-
-                <div 
-                  className="flex flex-col items-center justify-center p-10 border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer rounded-lg text-center"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <UploadCloud className="w-10 h-10 text-[#1F3864] mb-3" strokeWidth={1.5} />
-                  {file ? (
-                    <>
-                      <p className="font-semibold text-[0.95rem] text-[#1F3864] mb-1">Selected File: {file.name}</p>
-                      <p className="text-[0.75rem] text-gray-500">Click to change file</p>
-                    </>
-                  ) : (
-                    <>
-                      <p className="font-semibold text-[0.95rem] text-[#1F3864] mb-1">Click to select the timesheet file (.xlsx, .csv)</p>
-                      <p className="text-[0.75rem] text-gray-500">Supported formats: Excel (.xlsx), CSV (.csv). Ensure columns: target_month, employee_code, days_present, days_lop</p>
-                    </>
-                  )}
-                </div>
-              </>
-            )}
-
-            {tab === 'bulk' && (
-              <div className="p-4 text-center text-gray-500 text-sm">
-                Consolidated multi-client timesheet upload is currently read-only. Please use the "Single Client Upload" tab to validate and save client timesheets.
               </div>
-            )}
+            </div>
           </div>
         </div>
 
-        {summary && (
-          <div className="grid grid-cols-4 gap-4 mb-6">
-            <div className="bg-white p-4 border border-gray-200 rounded-md shadow-sm">
-              <div className="text-gray-500 text-xs uppercase font-bold">Total Employees</div>
-              <div className="text-xl font-extrabold text-[#1F3864] mt-1">{summary.total}</div>
-            </div>
-            <div className="bg-white p-4 border border-gray-200 rounded-md shadow-sm">
-              <div className="text-green-600 text-xs uppercase font-bold">Valid / Matched</div>
-              <div className="text-xl font-extrabold text-green-600 mt-1">{summary.matched}</div>
-            </div>
-            <div className="bg-white p-4 border border-gray-200 rounded-md shadow-sm">
-              <div className="text-amber-600 text-xs uppercase font-bold">Skipped (Not Joined)</div>
-              <div className="text-xl font-extrabold text-amber-600 mt-1">{summary.skipped}</div>
-            </div>
-            <div className="bg-white p-4 border border-gray-200 rounded-md shadow-sm">
-              <div className="text-red-600 text-xs uppercase font-bold">Errors / Invalid</div>
-              <div className="text-xl font-extrabold text-red-600 mt-1">{summary.errors}</div>
-            </div>
+        <input 
+          type="file" 
+          ref={fileInputRef} 
+          onChange={handleFileChange} 
+          accept=".csv,.xlsx,.xls,.txt"
+          className="hidden" 
+        />
+
+        {loading && (
+          <div className="card p-12 flex flex-col items-center justify-center text-gray-500 shadow-sm">
+            <Loader2 className="w-8 h-8 animate-spin text-indigo-600 mb-2" strokeWidth={2.25} />
+            <span className="font-bold text-xs uppercase tracking-wider text-[#1F3864]">Analyzing Attendance Sheet...</span>
           </div>
         )}
 
-        {(validationData.length > 0 || loading) && (
-          <div className="card p-0">
-            <div className="p-5 pb-2">
-              <h3 className="text-lg font-bold text-[#1F3864] m-0">Upload Validation & Match Check</h3>
-              <p className="text-[0.75rem] text-gray-500 mt-1">
-                🟢 Green dot indicates 100% Employee Code match. Review notes below for any days mismatch warnings.
-              </p>
+        {!loading && summary && (
+          <div className="card p-0 overflow-hidden shadow-md animate-fade-in mb-6">
+            <div className="p-6 border-b border-gray-150 bg-gray-50/50">
+              <h3 className="text-lg font-bold text-[#1F3864] m-0">File Import Validation Status</h3>
+              <p className="text-xs text-gray-500 mt-0.5 font-medium">Employee attendance validation and analysis summary</p>
             </div>
 
-            {loading ? (
-              <div className="flex flex-col items-center justify-center p-12 text-gray-500">
-                <Loader2 className="w-8 h-8 animate-spin text-[#1F3864] mb-2" />
-                <span>Processing validation...</span>
-              </div>
-            ) : (
-              <DataTable columns={columns} data={validationData} />
-            )}
+            <div className="p-6">
+              <div className="border border-gray-200 rounded-xl overflow-hidden mb-6 text-xs bg-white">
+                <table className="w-full text-left">
+                  <thead className="bg-gray-50 border-b border-gray-200 text-gray-600 uppercase tracking-wider font-bold">
+                    <tr>
+                      <th className="py-3 px-4">File Name</th>
+                      <th className="py-3 px-4 text-center">Total Records</th>
+                      <th className="py-3 px-4 text-center">Success</th>
+                      <th className="py-3 px-4 text-center">Failures</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    <tr className="hover:bg-gray-50/50 transition-colors font-medium">
+                      <td className="py-3.5 px-4 font-semibold text-gray-900 truncate max-w-[240px]">
+                        <div className="flex items-center gap-2">
+                          <span className="text-base">📋</span>
+                          <span>{file?.name || 'Attendance Template'}</span>
+                        </div>
+                      </td>
+                      {/* Total Records */}
+                      <td className="py-3.5 px-4 text-center font-bold text-gray-900">
+                        <div className="flex items-center justify-center gap-2">
+                          <span>{summary.total.toLocaleString()}</span>
+                          {validationData && validationData.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={downloadTotalCsv}
+                              className="p-1.5 rounded-lg text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-all shadow-xs cursor-pointer flex items-center justify-center"
+                              title="Download All Total Records (.CSV)"
+                            >
+                              <Download className="w-3.5 h-3.5 text-blue-600" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
 
-            <div className="flex justify-end gap-3 mt-6 border-t border-gray-200 p-6 pt-6">
-              <Link href={route('payroll.attendance-review', { client_id: selectedClientId, month: targetMonth })}>
-                <Button variant="secondary">Cancel</Button>
-              </Link>
+                      {/* Success */}
+                      <td className="py-3.5 px-4 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[0.7rem] font-bold bg-green-50 text-green-700 border border-green-200">
+                            <CheckCircle2 className="w-3 h-3" />
+                            {summary.matched.toLocaleString()}
+                          </span>
+                          {summary.matched > 0 && (
+                            <button
+                              type="button"
+                              onClick={downloadSuccessCsv}
+                              className="p-1.5 rounded-lg text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 transition-all shadow-xs cursor-pointer flex items-center justify-center"
+                              title="Download Success Validated Rows (.CSV)"
+                            >
+                              <Download className="w-3.5 h-3.5 text-green-600" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Failures */}
+                      <td className="py-3.5 px-4 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          {summary.errors > 0 ? (
+                            <>
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[0.7rem] font-bold bg-red-50 text-red-700 border border-red-200">
+                                <XCircle className="w-3 h-3" />
+                                {summary.errors.toLocaleString()}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={downloadErrorCsv}
+                                className="p-1.5 rounded-lg text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition-all shadow-xs cursor-pointer flex items-center justify-center"
+                                title="Download Error/Failure Rows (.CSV)"
+                              >
+                                <Download className="w-3.5 h-3.5 text-red-600" />
+                              </button>
+                            </>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[0.7rem] font-bold bg-gray-50 text-gray-400 border border-gray-200">
+                              0
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {summary.errors > 0 && (
+                <div className="mb-6 p-4 bg-red-50/50 border border-red-200 rounded-xl shadow-xs text-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+                  <label className="flex items-start gap-3 cursor-pointer flex-1">
+                    <input 
+                      type="checkbox" 
+                      className="mt-0.5 w-4 h-4 text-[#1F3864] rounded border-gray-300 focus:ring-[#1F3864]"
+                      checked={partialImportAcknowledged}
+                      onChange={(e) => setPartialImportAcknowledged(e.target.checked)}
+                    />
+                    <span className="text-gray-700 leading-tight font-semibold">
+                      I acknowledge that only the <strong className="text-green-600">{summary.matched} Valid</strong> rows will be imported. 
+                      The <strong className="text-red-600">{summary.errors} Error</strong> rows will be discarded.
+                    </span>
+                  </label>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      const errorRows = validationData.filter(r => r.status === 'invalid');
+                      let csvContent = "data:text/csv;charset=utf-8,Employee Code,Days Present,Days LOP,Error Reason\n";
+                      errorRows.forEach(r => {
+                        csvContent += `"${r.empCode}","${r.daysPresent}","${r.daysLOP}","${r.notes || ''}"\n`;
+                      });
+                      const encodedUri = encodeURI(csvContent);
+                      const link = document.createElement("a");
+                      link.setAttribute("href", encodedUri);
+                      link.setAttribute("download", "Attendance_Errors.csv");
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                    }}
+                    className="flex items-center gap-1.5 text-xs font-bold text-red-700 border-red-300 bg-red-50 hover:bg-red-100 shrink-0 shadow-sm"
+                  >
+                    <Download className="w-3.5 h-3.5 text-red-600" /> Download Error Rows (.CSV)
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50/50">
+              <Button variant="secondary" onClick={handleRemoveFile} disabled={isProcessing}>
+                Cancel
+              </Button>
               <Button 
                 variant="primary" 
                 onClick={handleSave}
-                disabled={loading || validationData.length === 0 || summary?.matched === 0}
+                disabled={isProcessing || summary.matched === 0 || (summary.errors > 0 && !partialImportAcknowledged)}
               >
-                Validate & Save Attendance Batch
+                {isProcessing ? (
+                  <span className="flex items-center gap-1.5">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> Processing Import...
+                  </span>
+                ) : (
+                  `Validate & Save Attendance Batch (${summary.matched} valid)`
+                )}
               </Button>
             </div>
           </div>
         )}
+
+        {/* Upload History & Audit Log Section */}
+        <div className="mt-8 card p-6">
+          <div className="border-b border-gray-100 pb-4 mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <h3 className="text-lg font-bold text-[#1F3864] m-0 flex items-center gap-2">
+                <Clock className="w-5 h-5 text-indigo-600" />
+                <span>Attendance Upload History & Audit Log</span>
+              </h3>
+              <p className="text-xs text-gray-500 mt-0.5 font-medium">
+                Recent attendance sheet upload logs and execution history
+              </p>
+            </div>
+            <Badge status="inactive" label={`${filteredUploadHistory.length} Batches`} />
+          </div>
+
+          {/* Filter Controls Bar */}
+          <div className="mb-4 bg-gray-50/80 p-3 rounded-xl border border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+            {/* Search Box */}
+            <div className="relative w-full sm:w-80">
+              <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search file name, batch ID, or uploader..."
+                value={historySearch}
+                onChange={(e) => setHistorySearch(e.target.value)}
+                className="w-full pl-9 pr-8 py-1.5 text-xs rounded-lg border border-gray-300 bg-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 font-medium"
+              />
+              {historySearch && (
+                <button onClick={() => setHistorySearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Status Dropdown Filter */}
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+              <span className="text-gray-500 font-semibold shrink-0">Filter Status:</span>
+              <select
+                value={historyStatusFilter}
+                onChange={(e) => setHistoryStatusFilter(e.target.value)}
+                className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-300 bg-white text-gray-700 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 cursor-pointer shadow-2xs"
+              >
+                <option value="all">All Statuses</option>
+                <option value="completed">Completed</option>
+                <option value="processing">Processing</option>
+                <option value="failed">Failed</option>
+              </select>
+            </div>
+          </div>
+
+          {paginatedUploadHistory && paginatedUploadHistory.length > 0 ? (
+            <>
+              <div className="border border-gray-200 rounded-xl overflow-hidden text-xs bg-white mb-4">
+                <table className="w-full text-left">
+                  <thead className="bg-gray-50 border-b border-gray-200 text-gray-600 uppercase tracking-wider font-bold">
+                    <tr>
+                      <th className="py-3 px-4">File Name / Batch</th>
+                      <th className="py-3 px-4 text-center">Total Rows</th>
+                      <th className="py-3 px-4 text-center">Valid</th>
+                      <th className="py-3 px-4 text-center">Errors</th>
+                      <th className="py-3 px-4 text-center">Status</th>
+                      <th className="py-3 px-4">Uploaded By</th>
+                      <th className="py-3 px-4 text-right">Date & Time</th>
+                      <th className="py-3 px-4 text-center">Download Reports</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {paginatedUploadHistory.map((batch) => (
+                      <tr key={batch.id} className="hover:bg-gray-50/50 transition-colors">
+                        <td className="py-3.5 px-4 font-semibold text-gray-900">
+                          <div className="flex items-center gap-2">
+                            <FileText className="w-4 h-4 text-indigo-600 shrink-0" />
+                            <div>
+                              <div className="font-bold text-gray-900 text-xs">{batch.file_name || 'Attendance Sheet'}</div>
+                              <div className="text-[0.65rem] text-gray-400 font-mono font-normal">ID: {batch.id}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-4 text-center font-bold text-gray-800">
+                          {(batch.total_rows || 0).toLocaleString()}
+                        </td>
+                        <td className="py-3.5 px-4 text-center font-bold text-green-700">
+                          {(batch.valid_count || 0).toLocaleString()}
+                        </td>
+                        <td className="py-3.5 px-4 text-center font-bold text-red-600">
+                          {(batch.error_count || 0).toLocaleString()}
+                        </td>
+                        <td className="py-3.5 px-4 text-center">
+                          <Badge 
+                            status={batch.status === 'completed' ? 'active' : batch.status === 'processing' ? 'pending' : 'rejected'}
+                            label={batch.status ? batch.status.toUpperCase() : 'UNKNOWN'} 
+                          />
+                        </td>
+                        <td className="py-3.5 px-4 font-medium text-gray-700">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-[0.65rem] shrink-0">
+                              {batch.user?.name ? batch.user.name.charAt(0).toUpperCase() : 'U'}
+                            </div>
+                            <div>
+                              <div className="font-bold text-gray-800 text-xs">{batch.user?.name || 'System User'}</div>
+                              <span className="text-[0.6rem] text-gray-400 uppercase font-semibold">{batch.user?.role || 'admin'}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-4 text-right font-mono text-[0.75rem] text-gray-500">
+                          {batch.created_at || '—'}
+                        </td>
+                        <td className="py-3.5 px-4 text-center">
+                          <div className="flex items-center justify-center gap-1.5">
+                            {batch.valid_count > 0 ? (
+                              <a
+                                href={route('payroll.attendance.history.download-success', { batchId: batch.id })}
+                                className="px-2 py-1 text-[0.7rem] font-bold text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 rounded-lg flex items-center gap-1 transition-all shadow-2xs"
+                                title="Download Validated Records CSV"
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                <Download className="w-3 h-3 text-green-600" />
+                                <span>Valid ({batch.valid_count})</span>
+                              </a>
+                            ) : null}
+                            {batch.error_count > 0 ? (
+                              <a
+                                href={route('payroll.attendance.history.download-errors', { batchId: batch.id })}
+                                className="px-2 py-1 text-[0.7rem] font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg flex items-center gap-1 transition-all shadow-2xs"
+                                title="Download Error Rows CSV"
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                <Download className="w-3 h-3 text-red-600" />
+                                <span>Errors ({batch.error_count})</span>
+                              </a>
+                            ) : null}
+                            {(!batch.valid_count || batch.valid_count === 0) && (!batch.error_count || batch.error_count === 0) && (
+                              <span className="text-gray-400 text-xs">—</span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {totalHistoryPages > 1 && (
+                <div className="mt-4 flex justify-between items-center">
+                  <Pagination
+                    currentPage={historyPage}
+                    totalPages={totalHistoryPages}
+                    totalItems={totalHistoryItems}
+                    itemsPerPage={historyItemsPerPage}
+                    onPageChange={setHistoryPage}
+                  />
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="py-8 text-center bg-gray-50/50 rounded-xl border border-dashed border-gray-200">
+              <Clock className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+              <p className="text-xs text-gray-500 font-medium">No matching attendance upload history found</p>
+            </div>
+          )}
+        </div>
       </AuthenticatedLayout>
     </RoleGuard>
   );

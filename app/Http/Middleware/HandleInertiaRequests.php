@@ -41,8 +41,7 @@ class HandleInertiaRequests extends Middleware
         $logoPath = \App\Services\SettingsService::get('branding.logo_path', '');
         $faviconPath = \App\Services\SettingsService::get('branding.favicon_path', '');
         
-        return [
-            ...parent::share($request),
+        return array_merge(parent::share($request), [
             'auth' => [
                 'user' => $request->user() ? [
                     'id' => $request->user()->id,
@@ -50,6 +49,7 @@ class HandleInertiaRequests extends Middleware
                     'email' => $request->user()->email,
                     'role' => $request->user()->role,
                     'must_change_password' => $request->user()->must_change_password,
+                    'module_permissions' => $request->user()->module_permissions,
                 ] : null,
             ],
             'authConfig' => [
@@ -57,22 +57,58 @@ class HandleInertiaRequests extends Middleware
                 'session_lifetime' => config('session.lifetime'),
             ],
             'branding' => [
-                'logo_url' => $logoPath ? \Illuminate\Support\Facades\Storage::disk('public')->url($logoPath) . '?v=' . time() : '',
-                'favicon_url' => $faviconPath ? \Illuminate\Support\Facades\Storage::disk('public')->url($faviconPath) . '?v=' . time() : '',
+                'logo_url' => $logoPath ? asset('storage/' . ltrim($logoPath, '/')) . '?v=' . time() : '',
+                'favicon_url' => $faviconPath ? asset('storage/' . ltrim($faviconPath, '/')) . '?v=' . time() : '',
                 'primary_color' => \App\Services\SettingsService::get('branding.primary_color', '#1e3a8a'),
-                'theme_mode_default' => \App\Services\SettingsService::get('branding.theme_mode_default', 'system'),
+                'accent_gold_color' => \App\Services\SettingsService::get('branding.accent_gold_color', '#B8860B'),
+                'accent_gold_hover_color' => \App\Services\SettingsService::get('branding.accent_gold_hover_color', '#9c7109'),
+                'header_text_color' => \App\Services\SettingsService::get('branding.header_text_color', '#FFFFFF'),
+                'agency_display_name' => \App\Services\SettingsService::get('branding.agency_display_name', 'Tecla Payroll'),
+                'portal_tagline' => \App\Services\SettingsService::get('branding.portal_tagline', 'Enterprise Payroll & HR Portal'),
+                'card_corner_radius' => \App\Services\SettingsService::get('branding.card_corner_radius', '8'),
+                'table_density' => \App\Services\SettingsService::get('branding.table_density', 'comfortable'),
+                'footer_copyright_text' => \App\Services\SettingsService::get('branding.footer_copyright_text', '© 2026 Tecla Payroll. All Rights Reserved.'),
+                'enable_footer_notice' => \App\Services\SettingsService::get('branding.enable_footer_notice', '1') !== '0',
+                'login_screen_style' => \App\Services\SettingsService::get('branding.login_screen_style', 'centered'),
+                'login_welcome_message' => \App\Services\SettingsService::get('branding.login_welcome_message', 'Sign in to your account'),
+                'navbar_style' => \App\Services\SettingsService::get('branding.navbar_style', 'solid'),
+                'font_family' => \App\Services\SettingsService::get('branding.font_family', 'inter'),
+                'container_layout_width' => \App\Services\SettingsService::get('branding.container_layout_width', 'standard'),
+                'button_hover_effect' => \App\Services\SettingsService::get('branding.button_hover_effect', 'elevation'),
+                'enable_hover_animations' => \App\Services\SettingsService::get('branding.enable_hover_animations', '1') !== '0',
+                'login_card_position' => \App\Services\SettingsService::get('branding.login_card_position', 'centered'),
             ],
             'flash' => [
-                'success' => fn () => $request->session()->get('success'),
-                'error' => fn () => $request->session()->get('error'),
-                'warning' => fn () => $request->session()->get('warning'),
-                'info' => fn () => $request->session()->get('info'),
+                'success' => function () use ($request) {
+                    return $request->session()->get('success') 
+                        ?? $request->session()->get('message') 
+                        ?? $request->session()->get('status');
+                },
+                'error' => function () use ($request) {
+                    return $request->session()->get('error');
+                },
+                'warning' => function () use ($request) {
+                    return $request->session()->get('warning');
+                },
+                'info' => function () use ($request) {
+                    return $request->session()->get('info');
+                },
             ],
             // notificationCount: unread in-app notifications for Admin/Manager only (v1 scope boundary).
             // Employees and Clients intentionally receive 0 — they are excluded from in-app notifications.
-            'notificationCount' => fn () => ($request->user() && in_array($request->user()->role, ['admin', 'manager']))
-                ? \App\Models\AppNotification::where('user_id', $request->user()->id)->whereNull('read_at')->count()
-                : 0,
-        ];
+            'notificationCount' => function () use ($request) {
+                return ($request->user() && in_array($request->user()->role, ['admin', 'manager']))
+                    ? \App\Models\AppNotification::where('user_id', $request->user()->id)->whereNull('read_at')->count()
+                    : 0;
+            },
+            'activeClients' => function () use ($request) {
+                return ($request->user() && in_array($request->user()->role, ['admin', 'manager']))
+                    ? \App\Models\Client::where('status', 'active')->select('id', 'company_name', 'client_code')->orderBy('company_name')->get()
+                    : [];
+            },
+            'activeClientId' => function () use ($request) {
+                return $request->session()->get('active_client_id', 'all');
+            },
+        ]);
     }
 }

@@ -829,7 +829,7 @@ class InvoicePhaseBCombinedTest extends TestCase
         ])->render();
 
         $this->assertStringContainsString('Est. Client TDS Deduction (2.00%)', $htmlSet);
-        $this->assertStringContainsString('Est. Net Cash Receivable: ₹22,320.00', $htmlSet);
+        $this->assertStringContainsString('Est. Net Cash Received in Bank (Post TDS): ₹22,320.00', $htmlSet);
     }
 
     /**

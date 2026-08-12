@@ -84,8 +84,8 @@ class EmployeeResource extends JsonResource
             'tds_applicable' => $this->tds_applicable !== null ? (bool)$this->tds_applicable : true,
             'tds_regime' => $this->tds_regime,
             'gratuity_mode' => $this->gratuity_mode,
-            'weekly_off_pattern' => $this->weekly_off_pattern,
-            'weeklyOffPattern' => $this->weekly_off_pattern,
+            'weekly_off_pattern' => $this->weekly_off_pattern ?: ($this->client ? $this->client->weekly_off_pattern : 'sat,sun'),
+            'weeklyOffPattern' => $this->weekly_off_pattern ?: ($this->client ? $this->client->weekly_off_pattern : 'sat,sun'),
             
             // Health / Medical Insurance (For Non-ESI employees)
             'health_insurance_provider' => $this->health_insurance_provider,
@@ -137,6 +137,13 @@ class EmployeeResource extends JsonResource
             // Computed Document Counts
             'documents_verified_count' => $this->documents_verified_count,
             'documents_required_count' => $this->documents_required_count,
+
+            // Audit Trail
+            'created_by' => $this->created_by,
+            'creator_name' => $this->relationLoaded('creator') && $this->creator 
+                ? $this->creator->name 
+                : ($this->entry_source === 'bulk_upload' ? 'Bulk Upload' : ($this->created_by ? 'User #' . $this->created_by : 'System Admin')),
+            'entry_source' => $this->entry_source ?: 'manual',
         ];
     }
 }

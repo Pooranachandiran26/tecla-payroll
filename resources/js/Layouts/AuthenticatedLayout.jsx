@@ -1,5 +1,5 @@
 import { Link, usePage, router } from '@inertiajs/react';
-import { adminNav, clientNav, candidateNav, subNavs, getActiveCategory, getPathname } from '../Constants/navigation';
+import { adminNav, clientNav, candidateNav, subNavs, getActiveCategory, getPathname, isSubNavAuthorized } from '../Constants/navigation';
 import { Bell, User, LogOut, Menu } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import ToastContainer from '../Components/ui/Toast';
@@ -14,7 +14,7 @@ export default function AuthenticatedLayout({ children, hideSubNav = false }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   // Use auth, branding, flash, and pendingQueryCount from usePage().props
-  const { auth, branding, flash, notificationCount } = usePage().props;
+  const { auth, branding, flash, notificationCount, activeClients, activeClientId } = usePage().props;
   const unreadCount = Number(notificationCount || 0);
 
   const { showToast } = useToast();
@@ -38,7 +38,7 @@ export default function AuthenticatedLayout({ children, hideSubNav = false }) {
 
   useEffect(() => {
     handleFlash(flash);
-  }, []);
+  }, [flash, handleFlash]);
 
   useEffect(() => {
     const preventWheelChange = (e) => {
@@ -73,19 +73,50 @@ export default function AuthenticatedLayout({ children, hideSubNav = false }) {
 
   const safeRawLinks = Array.isArray(rawNavLinks) ? rawNavLinks : [];
 
-  const navLinks = safeRawLinks.filter(item => {
-    if (!item) return false;
-    if (role === 'admin') return true;
-    if (role === 'manager' && Array.isArray(userPermissions) && userPermissions.length > 0) {
-      return userPermissions.includes(item.key);
-    }
-    return true;
-  });
+  // For managers: compute which sub-nav items are allowed per parent module,
+  // then hide parent modules with zero allowed sub-tabs & rewrite header URLs
+  // to point to the first allowed sub-tab.
+  const navLinks = safeRawLinks
+    .filter(item => {
+      if (!item) return false;
+      if (role === 'admin') return true;
+      if (role === 'manager' && Array.isArray(userPermissions) && userPermissions.length > 0) {
+        if (!userPermissions.includes(item.key)) return false;
+        // If this parent has sub-nav items, check if at least one is allowed
+        const parentSubNavs = subNavs[item.key];
+        if (parentSubNavs && parentSubNavs.length > 0) {
+          const allowedSubs = parentSubNavs.filter(sub =>
+            isSubNavAuthorized(sub, item.key, userPermissions, role)
+          );
+          if (allowedSubs.length === 0) return false;
+        }
+        return true;
+      }
+      return true;
+    })
+    .map(item => {
+      // For managers, rewrite the header URL to the first allowed sub-tab
+      if (role === 'manager' && Array.isArray(userPermissions) && userPermissions.length > 0) {
+        const parentSubNavs = subNavs[item.key];
+        if (parentSubNavs && parentSubNavs.length > 0) {
+          const allowedSubs = parentSubNavs.filter(sub =>
+            isSubNavAuthorized(sub, item.key, userPermissions, role)
+          );
+          if (allowedSubs.length > 0) {
+            return { ...item, url: allowedSubs[0].url };
+          }
+        }
+      }
+      return item;
+    });
 
   const activeCategory = getActiveCategory(url, role);
   
-  // Get subnav items if any exist for the active category
-  const subNavItems = (role === 'admin' || role === 'manager') ? subNavs[activeCategory] : null;
+  // Get subnav items filtered by sub-module permissions
+  const rawSubNavItems = (role === 'admin' || role === 'manager') ? subNavs[activeCategory] : null;
+  const subNavItems = rawSubNavItems ? rawSubNavItems.filter(item => 
+    isSubNavAuthorized(item, activeCategory, userPermissions, role)
+  ) : null;
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
@@ -128,10 +159,46 @@ export default function AuthenticatedLayout({ children, hideSubNav = false }) {
             ))}
           </nav>
 
-          <div className="user-actions">
+          <div className="user-actions" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             {/* Notification Bell — fully wired via NotificationPanel */}
             {(role === 'admin' || role === 'manager') && (
               <NotificationPanel unreadCount={unreadCount} />
+            )}
+
+            {/* Global Active Client Selector */}
+            {(role === 'admin' || role === 'manager') && activeClients && activeClients.length > 0 && (
+              <div className="active-client-selector" style={{ position: 'relative' }}>
+                <select
+                  value={activeClientId || 'all'}
+                  onChange={(e) => {
+                    const targetUrl = typeof route === 'function' && route().has('active-client.switch')
+                      ? route('active-client.switch')
+                      : '/active-client/switch';
+                    router.post(targetUrl, { client_id: e.target.value }, { preserveState: true, preserveScroll: true });
+                  }}
+                  title="Global Active Client Selector"
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.12)',
+                    color: '#FFFFFF',
+                    border: '1px solid rgba(255, 255, 255, 0.25)',
+                    borderRadius: '6px',
+                    padding: '0.35rem 0.65rem',
+                    fontSize: '0.82rem',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    outline: 'none',
+                    maxWidth: '180px',
+                    textOverflow: 'ellipsis'
+                  }}
+                >
+                  <option value="all" style={{ color: '#1E293B' }}>All Clients</option>
+                  {activeClients.map(c => (
+                    <option key={c.id} value={c.id} style={{ color: '#1E293B' }}>
+                      {c.company_name} ({c.client_code})
+                    </option>
+                  ))}
+                </select>
+              </div>
             )}
 
             
@@ -145,9 +212,10 @@ export default function AuthenticatedLayout({ children, hideSubNav = false }) {
               </div>
 
               {dropdownOpen && (
-                <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '0.5rem', background: 'white', borderRadius: '4px', boxShadow: '0 2px 10px rgba(0,0,0,0.1)', minWidth: '150px', zIndex: 100 }}>
-                  <Link href={route('account.sessions')} style={{ display: 'block', padding: '0.5rem 1rem', color: '#333', textDecoration: 'none', borderBottom: '1px solid #eee' }}>My Sessions</Link>
-                  <Link href={route('logout')} method="post" as="button" style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.5rem 1rem', color: '#dc2626', textDecoration: 'none', background: 'none', border: 'none', cursor: 'pointer' }}>Sign Out</Link>
+                <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '0.5rem', background: 'white', borderRadius: '6px', boxShadow: '0 4px 15px rgba(0,0,0,0.12)', minWidth: '180px', zIndex: 100, overflow: 'hidden' }}>
+                  <Link href={role === 'employee' ? (typeof route === 'function' && route().has('employee.profile') ? route('employee.profile') : '/employee/profile') : role === 'client' ? (typeof route === 'function' && route().has('client.profile') ? route('client.profile') : '/client/profile') : (typeof route === 'function' && route().has('account.profile') ? route('account.profile') : '/account/profile')} style={{ display: 'block', padding: '0.625rem 1rem', color: '#1e293b', textDecoration: 'none', borderBottom: '1px solid #f1f5f9', fontWeight: 500, fontSize: '0.85rem' }}>My Profile & Security</Link>
+                  <Link href={typeof route === 'function' && route().has('account.sessions') ? route('account.sessions') : '/account/sessions'} style={{ display: 'block', padding: '0.625rem 1rem', color: '#1e293b', textDecoration: 'none', borderBottom: '1px solid #f1f5f9', fontWeight: 500, fontSize: '0.85rem' }}>Active Sessions</Link>
+                  <Link href={typeof route === 'function' && route().has('logout') ? route('logout') : '/logout'} method="post" as="button" style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.625rem 1rem', color: '#dc2626', textDecoration: 'none', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' }}>Sign Out</Link>
                 </div>
               )}
             </div>

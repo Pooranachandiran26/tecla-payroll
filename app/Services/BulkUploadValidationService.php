@@ -20,6 +20,8 @@ class BulkUploadValidationService
 
     public function validateFile($filePath)
     {
+        @set_time_limit(600);
+        @ini_set('memory_limit', '512M');
         $reader = SimpleExcelReader::create($filePath);
         
         $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
@@ -37,6 +39,19 @@ class BulkUploadValidationService
             'rows' => []
         ];
 
+        // Pre-fetch all DB uniqueness hashtables in single queries (O(1) lookup time)
+        $existingEmpCodes = array_fill_keys(Employee::pluck('employee_code')->filter()->all(), true);
+        $existingEmails = array_fill_keys(Employee::pluck('personal_email')->filter()->all(), true);
+        $existingUserEmails = array_fill_keys(\App\Models\User::pluck('email')->filter()->all(), true);
+        $existingPhones = array_fill_keys(Employee::pluck('phone_number')->filter()->all(), true);
+        $existingBankHashes = array_fill_keys(Employee::whereNotNull('bank_account_hash')->pluck('bank_account_hash')->filter()->all(), true);
+        $existingPanHashes = array_fill_keys(Employee::whereNotNull('pan_number_hash')->pluck('pan_number_hash')->filter()->all(), true);
+        $existingAadhaarHashes = array_fill_keys(Employee::whereNotNull('aadhaar_number_hash')->pluck('aadhaar_number_hash')->filter()->all(), true);
+
+        // Pre-fetch all clients and managers
+        $allClients = Client::with('branches')->get()->keyBy('client_code');
+        $allManagers = Employee::select('id', 'employee_code', 'client_id')->get()->keyBy('employee_code');
+
         $seenEmails = [];
         $seenPhones = [];
         $seenPans = [];
@@ -44,12 +59,13 @@ class BulkUploadValidationService
         $seenBankAccounts = [];
         $seenEmpCodes = [];
 
-        $clientsCache = [];
-
         $rowIndex = 1; // Header is usually row 1 in Excel terms, so data starts at row 2, but we'll use a simple counter.
 
         $reader->getRows()->each(function(array $row) use (
-            &$results, &$seenEmpCodes, &$seenEmails, &$seenPhones, &$seenPans, &$seenAadhaars, &$seenBankAccounts, &$clientsCache, &$rowIndex
+            &$results, &$seenEmpCodes, &$seenEmails, &$seenPhones, &$seenPans, &$seenAadhaars, &$seenBankAccounts,
+            $existingEmpCodes, $existingEmails, $existingUserEmails, $existingPhones,
+            $existingBankHashes, $existingPanHashes, $existingAadhaarHashes,
+            $allClients, $allManagers, &$rowIndex
         ) {
             $rowIndex++;
             
@@ -67,12 +83,12 @@ class BulkUploadValidationService
             if (empty($empCode)) {
                 $errors[] = "Mandatory Employee Code is missing.";
             } else {
-                if (in_array($empCode, $seenEmpCodes)) {
+                if (isset($seenEmpCodes[$empCode])) {
                     $errors[] = "Duplicate employee_code '{$empCode}' within this file.";
                 }
-                $seenEmpCodes[] = $empCode;
+                $seenEmpCodes[$empCode] = true;
 
-                if (Employee::where('employee_code', $empCode)->exists()) {
+                if (isset($existingEmpCodes[$empCode])) {
                     $errors[] = "Employee code '{$empCode}' is already registered to another employee in the system.";
                 }
             }
@@ -83,11 +99,7 @@ class BulkUploadValidationService
             if (empty($clientCode)) {
                 $errors[] = "Client Code is required.";
             } else {
-                if (!isset($clientsCache[$clientCode])) {
-                    $clientsCache[$clientCode] = Client::with('branches')->where('client_code', $clientCode)->first();
-                }
-                $client = $clientsCache[$clientCode];
-
+                $client = $allClients->get($clientCode);
                 if (!$client) {
                     $errors[] = "Client code '{$clientCode}' not found.";
                 }
@@ -100,12 +112,13 @@ class BulkUploadValidationService
                 if ($branches->count() === 1) {
                     $branchId = $branches->first()->id;
                 } else {
-                    $branchCodeOrName = $normalizedRow['branch_name'] ?? $normalizedRow['branch_code'] ?? null;
-                    if (empty($branchCodeOrName)) {
+                    $branchCodeOrName = trim((string)($normalizedRow['branch_name'] ?? $normalizedRow['branch_code'] ?? ''));
+                    if ($branchCodeOrName === '') {
                         $errors[] = "Client '{$client->company_name}' has multiple branches — please specify branch_name or branch_code.";
                     } else {
                         $matchedBranch = $branches->first(function($b) use ($branchCodeOrName) {
-                            return $b->branch_name === $branchCodeOrName || $b->branch_code === $branchCodeOrName;
+                            return strcasecmp(trim((string)$b->branch_name), $branchCodeOrName) === 0 
+                                || strcasecmp(trim((string)$b->branch_code), $branchCodeOrName) === 0;
                         });
                         if ($matchedBranch) {
                             $branchId = $matchedBranch->id;
@@ -116,45 +129,68 @@ class BulkUploadValidationService
                 }
             }
 
-            // 4. Intra-file duplicate tracking
+            // 4. Intra-file duplicate tracking & DB uniqueness
             $email = $normalizedRow['personal_email'] ?? null;
             if ($email) {
-                if (in_array($email, $seenEmails)) {
+                if (isset($seenEmails[$email])) {
                     $errors[] = "Duplicate personal_email within this file.";
                 }
-                $seenEmails[] = $email;
+                $seenEmails[$email] = true;
+
+                if (isset($existingEmails[$email]) || isset($existingUserEmails[$email])) {
+                    $errors[] = "The personal email has already been taken.";
+                }
             }
 
             $phone = $normalizedRow['phone_number'] ?? null;
             if ($phone) {
-                if (in_array($phone, $seenPhones)) {
+                if (isset($seenPhones[$phone])) {
                     $errors[] = "Duplicate phone_number within this file.";
                 }
-                $seenPhones[] = $phone;
+                $seenPhones[$phone] = true;
+
+                if (isset($existingPhones[$phone])) {
+                    $errors[] = "The phone number has already been taken.";
+                }
             }
 
             $pan = $normalizedRow['pan_number'] ?? null;
             if ($pan) {
-                if (in_array($pan, $seenPans)) {
+                if (isset($seenPans[$pan])) {
                     $errors[] = "Duplicate pan_number within this file.";
                 }
-                $seenPans[] = $pan;
+                $seenPans[$pan] = true;
+
+                $panHash = hash('sha256', $pan);
+                if (isset($existingPanHashes[$panHash])) {
+                    $errors[] = "This PAN number is already registered to another employee.";
+                }
             }
 
             $aadhaar = $normalizedRow['aadhaar_number'] ?? null;
             if ($aadhaar) {
-                if (in_array($aadhaar, $seenAadhaars)) {
+                if (isset($seenAadhaars[$aadhaar])) {
                     $errors[] = "Duplicate aadhaar_number within this file.";
                 }
-                $seenAadhaars[] = $aadhaar;
+                $seenAadhaars[$aadhaar] = true;
+
+                $aadhaarHash = hash('sha256', $aadhaar);
+                if (isset($existingAadhaarHashes[$aadhaarHash])) {
+                    $errors[] = "This Aadhaar number is already registered to another employee.";
+                }
             }
 
             $bankAcc = $normalizedRow['bank_account_number'] ?? null;
             if ($bankAcc) {
-                if (in_array($bankAcc, $seenBankAccounts)) {
+                if (isset($seenBankAccounts[$bankAcc])) {
                     $errors[] = "Duplicate bank_account_number within this file.";
                 }
-                $seenBankAccounts[] = $bankAcc;
+                $seenBankAccounts[$bankAcc] = true;
+
+                $bankHash = hash('sha256', $bankAcc);
+                if (isset($existingBankHashes[$bankHash])) {
+                    $errors[] = "This bank account is already registered to another employee.";
+                }
             }
 
             // 5. Statutory Inheritance & Fallbacks
@@ -226,18 +262,34 @@ class BulkUploadValidationService
                 }
             }
 
-            // Reporting Manager Resolution (Same Client Enforcement)
+            // Reporting Manager Resolution (Supports reporting_manager_code, reporting_to, reporting_manager_id)
             $reportingManagerId = null;
-            if (!empty($normalizedRow['reporting_manager_code'])) {
-                $managerCode = $normalizedRow['reporting_manager_code'];
-                $manager = Employee::where('employee_code', $managerCode)->first();
-                if (!$manager) {
-                    $errors[] = "Reporting manager code '{$managerCode}' not found.";
-                } elseif ($client && $manager->client_id !== $client->id) {
-                    $managerClientName = $manager->client ? $manager->client->company_name : 'Unknown';
-                    $errors[] = "Reporting manager '{$managerCode}' belongs to a different client ('{$managerClientName}'). Reporting manager must belong to the same client.";
+            $rawManagerVal = $normalizedRow['reporting_manager_code'] 
+                ?? $normalizedRow['reporting_to'] 
+                ?? $normalizedRow['reporting_manager_id'] 
+                ?? $normalizedRow['reporting_manager'] 
+                ?? null;
+
+            if (!empty($rawManagerVal)) {
+                $managerCodeStr = trim((string)$rawManagerVal);
+                $manager = $allManagers->get($managerCodeStr);
+
+                if (!$manager && is_numeric($managerCodeStr)) {
+                    $manager = $allManagers->first(fn($m) => (int)$m->id === (int)$managerCodeStr);
+                }
+
+                if ($manager) {
+                    if ($client && $manager->client_id !== $client->id) {
+                        $managerClient = $allClients->first(fn($c) => $c->id === $manager->client_id);
+                        $managerClientName = $managerClient ? $managerClient->company_name : 'Unknown';
+                        $warnings[] = "Reporting manager '{$managerCodeStr}' belongs to a different client ('{$managerClientName}'). Assigned reporting_manager_id set to null.";
+                        $reportingManagerId = null;
+                    } else {
+                        $reportingManagerId = $manager->id;
+                    }
                 } else {
-                    $reportingManagerId = $manager->id;
+                    $warnings[] = "Reporting manager '{$managerCodeStr}' not found in active employees. Field left unassigned.";
+                    $reportingManagerId = null;
                 }
             }
 
@@ -268,12 +320,11 @@ class BulkUploadValidationService
                 }
             }
 
-            // Attendance tracking start date defaults to Date of Joining if omitted
-            $doj = $normalizedRow['date_of_joining'] ?? null;
-            $attendanceTrackingStartDate = $normalizedRow['attendance_tracking_start_date'] ?? null;
-            if (empty($attendanceTrackingStartDate)) {
-                $attendanceTrackingStartDate = $doj;
-            }
+            $dob = $this->formatExcelDate($normalizedRow['date_of_birth'] ?? null);
+            $doj = $this->formatExcelDate($normalizedRow['date_of_joining'] ?? null);
+            $probationEndDate = $this->formatExcelDate($normalizedRow['probation_end_date'] ?? null);
+            $attendanceTrackingStartDate = $this->formatExcelDate($normalizedRow['attendance_tracking_start_date'] ?? null) ?: $doj;
+            $esiPeriodEnd = $this->formatExcelDate($normalizedRow['esi_contribution_period_end'] ?? null);
 
             $healthInsuranceProvider = !empty($normalizedRow['health_insurance_provider']) ? trim($normalizedRow['health_insurance_provider']) : null;
             $healthInsurancePolicyNo = !empty($normalizedRow['health_insurance_policy_no']) ? trim($normalizedRow['health_insurance_policy_no']) : null;
@@ -282,6 +333,10 @@ class BulkUploadValidationService
                 : null;
 
             $validationData = array_merge($normalizedRow, [
+                'client_id' => $client ? $client->id : null,
+                'branch_id' => $branchId ?: ($client && $client->branches->first() ? $client->branches->first()->id : 1),
+                'date_of_birth' => $dob,
+                'date_of_joining' => $doj,
                 'employment_model' => $employmentModel,
                 'pf_applicable' => $pfApplicable,
                 'eps_applicable' => $epsApplicable,
@@ -298,22 +353,22 @@ class BulkUploadValidationService
                 'uan_mode' => $normalizedRow['uan_mode'] ?? 'new',
                 'esi_mode' => $normalizedRow['esi_mode'] ?? 'new',
                 'declarations_accepted' => $declarationsAccepted,
-                'reporting_manager_id' => $reportingManagerId,
+                'reporting_manager_id' => (!empty($reportingManagerId) && is_numeric($reportingManagerId) && (int)$reportingManagerId > 0) ? (int)$reportingManagerId : null,
                 'emergency_contact_name' => $normalizedRow['emergency_contact_name'] ?? null,
                 'previous_employer_name' => $normalizedRow['previous_employer_name'] ?? null,
                 'previous_employer_uan' => $normalizedRow['previous_employer_uan'] ?? null,
-                'probation_end_date' => !empty($normalizedRow['probation_end_date']) ? $normalizedRow['probation_end_date'] : null,
+                'probation_end_date' => $probationEndDate,
                 'attendance_tracking_start_date' => $attendanceTrackingStartDate,
                 'health_insurance_provider' => $healthInsuranceProvider,
                 'health_insurance_policy_no' => $healthInsurancePolicyNo,
                 'health_insurance_sum_insured' => $healthInsuranceSumInsured,
-                'esi_contribution_period_end' => $normalizedRow['esi_contribution_period_end'] ?? null,
+                'esi_contribution_period_end' => $esiPeriodEnd,
             ]);
 
             $rules = [
                 'full_name' => 'required|string|max:255',
-                'personal_email' => ['required', 'email', 'unique:employees,personal_email', 'unique:users,email'],
-                'phone_number' => 'required|string|max:15|unique:employees,phone_number',
+                'personal_email' => 'required|email',
+                'phone_number' => 'required|string|max:15',
                 'emergency_contact_name' => 'nullable|string|max:255',
                 'emergency_contact_phone' => 'nullable|string|max:15',
                 'date_of_birth' => 'required|date',
@@ -328,46 +383,20 @@ class BulkUploadValidationService
                 'previous_employer_name' => 'nullable|string|max:255',
                 'previous_employer_uan' => 'nullable|digits:12',
                 'probation_end_date' => 'nullable|date',
-                'reporting_manager_id' => 'nullable|exists:employees,id',
                 'esi_contribution_period_end' => 'nullable|date',
                 'declarations_accepted' => 'required|boolean',
                 'residential_address' => 'required|string',
                 
                 // Banking
-                'bank_account_number' => [
-                    'required',
-                    'string',
-                    function ($attribute, $value, $fail) {
-                        if (Employee::where('bank_account_hash', hash('sha256', $value))->exists()) {
-                            $fail('This bank account is already registered to another employee.');
-                        }
-                    }
-                ],
+                'bank_account_number' => 'required|string',
                 'bank_ifsc' => 'required|string|regex:/^[A-Z]{4}0[A-Z0-9]{6}$/',
                 'bank_name' => 'nullable|string',
                 'bank_branch' => 'nullable|string',
                 'account_holder_name' => 'required|string|max:255',
                 
                 // Identity
-                'pan_number' => [
-                    'required',
-                    'string',
-                    'regex:/^[A-Z]{5}[0-9]{4}[A-Z]$/',
-                    function ($attribute, $value, $fail) {
-                        if (Employee::where('pan_number_hash', hash('sha256', $value))->exists()) {
-                            $fail('This PAN number is already registered to another employee.');
-                        }
-                    }
-                ],
-                'aadhaar_number' => [
-                    'nullable',
-                    'string',
-                    function ($attribute, $value, $fail) {
-                        if (Employee::where('aadhaar_number_hash', hash('sha256', $value))->exists()) {
-                            $fail('This Aadhaar number is already registered to another employee.');
-                        }
-                    }
-                ],
+                'pan_number' => 'required|string|regex:/^[A-Z]{5}[0-9]{4}[A-Z]$/',
+                'aadhaar_number' => 'nullable|string',
                 
                 // Statutory
                 'uan_mode' => 'nullable|in:new,existing_transfer',
@@ -513,11 +542,25 @@ class BulkUploadValidationService
 
             if ($status !== 'error') {
                 $dbPayload = $validationData;
-                $dbPayload['client_id'] = $client->id;
+                $dbPayload['client_id'] = $client ? $client->id : null;
                 $dbPayload['branch_id'] = $branchId;
                 $dbPayload['status'] = 'onboarding'; // same as manual creation
-                // Remove client_code or branch_name or reporting_manager_code which are not in Employee table
-                unset($dbPayload['client_code'], $dbPayload['branch_name'], $dbPayload['branch_code'], $dbPayload['reporting_manager_code']);
+                $dbPayload['entry_source'] = 'bulk_upload';
+                
+                $dbPayload['gross_monthly_salary'] = $salaryPreview['gross_monthly_salary'] ?? 0;
+                $dbPayload['net_take_home_monthly'] = $salaryPreview['net_take_home_monthly'] ?? 0;
+                $dbPayload['employer_pf_monthly'] = $salaryPreview['employer_pf_monthly'] ?? 0;
+                $dbPayload['employer_esi_monthly'] = $salaryPreview['employer_esi_monthly'] ?? 0;
+                $dbPayload['ctc_monthly'] = $salaryPreview['ctc_monthly'] ?? 0;
+
+                $dbPayload['bank_account_hash'] = hash('sha256', (string)($dbPayload['bank_account_number'] ?? ''));
+                $dbPayload['pan_number_hash'] = hash('sha256', (string)($dbPayload['pan_number'] ?? ''));
+                if (!empty($dbPayload['aadhaar_number'])) {
+                    $dbPayload['aadhaar_number_hash'] = hash('sha256', (string)$dbPayload['aadhaar_number']);
+                }
+
+                // Remove non-employee table fields
+                unset($dbPayload['client_code'], $dbPayload['branch_name'], $dbPayload['branch_code'], $dbPayload['reporting_manager_code'], $dbPayload['reporting_to'], $dbPayload['reporting_manager']);
                 
                 $rowData['db_payload'] = $dbPayload;
             }
@@ -531,5 +574,37 @@ class BulkUploadValidationService
         }
 
         return $results;
+    }
+
+    /**
+     * Convert Excel serial numbers (e.g. 46235, 44927, 34834) or date strings into Y-m-d format.
+     */
+    protected function formatExcelDate($value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        $valStr = trim((string)$value);
+        if ($valStr === '') {
+            return null;
+        }
+
+        // 1. Handle numeric Excel Serial Date (e.g. 46235 -> 2026-08-01)
+        if (is_numeric($valStr) && (float)$valStr > 1000 && (float)$valStr < 100000) {
+            try {
+                $excelEpoch = \Carbon\Carbon::create(1899, 12, 30);
+                return $excelEpoch->addDays((int)$valStr)->format('Y-m-d');
+            } catch (\Throwable $e) {
+                return null;
+            }
+        }
+
+        // 2. Handle standard date strings
+        try {
+            return \Carbon\Carbon::parse($valStr)->format('Y-m-d');
+        } catch (\Throwable $e) {
+            return $valStr;
+        }
     }
 }

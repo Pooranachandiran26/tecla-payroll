@@ -52,11 +52,67 @@ class InvoiceController extends Controller
     }
 
     /**
+     * Display single invoice details page with backend paginated line items (limit 15).
+     */
+    public function show(Request $request, $id)
+    {
+        $invoice = Invoice::with([
+            'client.contacts',
+            'branch',
+            'additionalFees',
+            'sentBy'
+        ])->findOrFail($id);
+
+        $this->authorizeInvoiceAccess($request, $invoice);
+
+        $lineItems = $invoice->lineItems()
+            ->with('employee')
+            ->paginate(15)
+            ->withQueryString();
+
+        $targetRunId = $invoice->payroll_run_id;
+        if ($targetRunId && $lineItems->count() > 0) {
+            $empIds = collect($lineItems->items())->pluck('employee_id')->filter();
+            $runItems = \Illuminate\Support\Facades\DB::table('payroll_run_items')
+                ->where('payroll_run_id', $targetRunId)
+                ->whereIn('employee_id', $empIds)
+                ->get()
+                ->keyBy('employee_id');
+
+            $lineItems->through(function ($item) use ($runItems) {
+                $ri = $runItems->get($item->employee_id);
+                if ($ri) {
+                    $item->actual_gross = (float) $ri->gross_total;
+                    $item->employer_pf = (float) $ri->employer_pf;
+                    $item->employer_esi = (float) $ri->employer_esi;
+                    $item->employer_lwf = (float) $ri->employer_lwf;
+                    $item->employer_statutory_total = (float)$ri->employer_pf + (float)$ri->employer_esi + (float)$ri->employer_lwf;
+                    $item->line_ctc = $item->actual_gross + $item->employer_statutory_total;
+                } else {
+                    $item->actual_gross = (float) $item->gross_pay;
+                    $item->employer_pf = 0.00;
+                    $item->employer_esi = 0.00;
+                    $item->employer_lwf = 0.00;
+                    $item->employer_statutory_total = 0.00;
+                    $item->line_ctc = (float) $item->gross_pay;
+                }
+                return $item;
+            });
+        }
+
+        return Inertia::render('Invoicing/InvoiceDetail', [
+            'invoice' => $invoice,
+            'lineItems' => $lineItems,
+        ]);
+    }
+
+    /**
      * Download or stream Tax Invoice PDF.
      */
-    public function downloadPdf($id)
+    public function downloadPdf(Request $request, $id)
     {
         $invoice = Invoice::with(['client', 'branch', 'lineItems.employee', 'additionalFees'])->findOrFail($id);
+        $this->authorizeInvoiceAccess($request, $invoice);
 
         $pdfBytes = $this->pdfService->generatePdfBinary($invoice);
 
@@ -74,26 +130,30 @@ class InvoiceController extends Controller
     public function finalize(Request $request, $id)
     {
         $invoice = Invoice::with(['client'])->findOrFail($id);
+        $this->authorizeInvoiceAccess($request, $invoice);
 
         try {
             $this->validatePoRequirements($invoice);
         } catch (\InvalidArgumentException $e) {
-            if ($request->wantsJson()) {
+            if ($request->expectsJson() && !$request->header('X-Inertia')) {
                 return response()->json(['error' => $e->getMessage()], 422);
             }
             return redirect()->back()->withErrors(['error' => $e->getMessage()]);
         }
 
-        $invoice->update(['status' => 'finalized']);
+        $invoice->update([
+            'status' => 'finalized',
+            'updated_by' => Auth::id(),
+        ]);
 
-        if ($request->wantsJson()) {
+        if ($request->expectsJson() && !$request->header('X-Inertia')) {
             return response()->json([
                 'message' => 'Invoice finalized successfully.',
                 'invoice' => $invoice->fresh(['client', 'branch']),
             ]);
         }
 
-        return redirect()->back()->with('success', 'Invoice finalized successfully.');
+        return redirect()->back()->with('success', "Invoice {$invoice->invoice_number} finalized successfully.");
     }
 
     /**
@@ -102,12 +162,13 @@ class InvoiceController extends Controller
     public function sendEmail(Request $request, $id)
     {
         $invoice = Invoice::with(['client.contacts', 'branch', 'lineItems', 'additionalFees'])->findOrFail($id);
+        $this->authorizeInvoiceAccess($request, $invoice);
         $client = $invoice->client;
 
         // 1. DRAFT-STATUS GUARD FIRST
         if ($invoice->status === 'draft') {
             $msg = 'Cannot send invoice in draft status. Invoice must be finalized or raised first.';
-            if ($request->wantsJson()) {
+            if ($request->expectsJson() && !$request->header('X-Inertia')) {
                 return response()->json(['error' => $msg], 422);
             }
             return redirect()->back()->withErrors(['error' => $msg]);
@@ -117,7 +178,7 @@ class InvoiceController extends Controller
         try {
             $this->validatePoRequirements($invoice);
         } catch (\InvalidArgumentException $e) {
-            if ($request->wantsJson()) {
+            if ($request->expectsJson() && !$request->header('X-Inertia')) {
                 return response()->json(['error' => $e->getMessage()], 422);
             }
             return redirect()->back()->withErrors(['error' => $e->getMessage()]);
@@ -132,7 +193,7 @@ class InvoiceController extends Controller
 
         if (empty($primaryEmail)) {
             $msg = "Cannot send invoice: Client '{$client->company_name}' has no primary contact email configured. Please add a primary contact with a valid email address first.";
-            if ($request->wantsJson()) {
+            if ($request->expectsJson() && !$request->header('X-Inertia')) {
                 return response()->json(['error' => $msg], 422);
             }
             return redirect()->back()->withErrors(['error' => $msg]);
@@ -185,7 +246,7 @@ class InvoiceController extends Controller
         );
 
         // 8. RETURN RESPONSE
-        if ($request->wantsJson()) {
+        if ($request->expectsJson() && !$request->header('X-Inertia')) {
             return response()->json([
                 'message' => "Invoice {$invoice->invoice_number} sent successfully to {$primaryEmail}.",
                 'invoice' => $invoice->fresh(['client', 'branch', 'sentBy']),
@@ -245,6 +306,7 @@ class InvoiceController extends Controller
     public function storeFee(Request $request, $id)
     {
         $invoice = Invoice::findOrFail($id);
+        $this->authorizeInvoiceAccess($request, $invoice);
 
         // Immutability Guard: Only DRAFT invoices permit adding fees
         if ($invoice->status !== 'draft') {
@@ -275,7 +337,7 @@ class InvoiceController extends Controller
             return response()->json([
                 'success' => 'Additional fee added successfully.',
                 'fee' => $fee,
-                'invoice' => $invoice->fresh(['additionalFees']),
+                'invoice' => $invoice->fresh(['client', 'branch', 'additionalFees']),
             ]);
         }
 
@@ -288,6 +350,7 @@ class InvoiceController extends Controller
     public function destroyFee(Request $request, $id, $feeId)
     {
         $invoice = Invoice::findOrFail($id);
+        $this->authorizeInvoiceAccess($request, $invoice);
 
         // Immutability Guard: Only DRAFT invoices permit modifying fees
         if ($invoice->status !== 'draft') {
@@ -306,10 +369,90 @@ class InvoiceController extends Controller
         if ($request->wantsJson()) {
             return response()->json([
                 'success' => 'Additional fee deleted successfully.',
-                'invoice' => $invoice->fresh(['additionalFees']),
+                'invoice' => $invoice->fresh(['client', 'branch', 'additionalFees']),
             ]);
         }
 
         return redirect()->back()->with('success', 'Additional fee deleted successfully.');
+    }
+
+    /**
+     * Mark an Invoice as Paid (Admin or Scoped Manager).
+     */
+    public function markAsPaid(Request $request, $id)
+    {
+        $invoice = Invoice::with('client')->findOrFail($id);
+        $this->authorizeInvoiceAccess($request, $invoice);
+
+        if ($invoice->status === 'draft') {
+            $msg = 'Cannot mark a draft invoice as paid. Please finalize the invoice first.';
+            if ($request->expectsJson() || $request->inertia()) {
+                return response()->json(['error' => $msg], 422);
+            }
+            return redirect()->back()->withErrors(['error' => $msg]);
+        }
+
+        $validated = $request->validate([
+            'payment_date' => 'required|date',
+            'amount_received' => 'required|numeric|min:0.01',
+            'payment_mode' => 'required|string|in:neft_rtgs,cheque,upi,bank_transfer,other',
+            'transaction_reference' => 'nullable|string|max:255',
+            'tds_deducted' => 'nullable|numeric|min:0',
+            'remarks' => 'nullable|string|max:1000',
+        ]);
+
+        $paidAmount = round((float) $invoice->paid_amount + (float) $validated['amount_received'], 2);
+        $tdsDeducted = round((float) $invoice->tds_deducted + (float) ($validated['tds_deducted'] ?? 0), 2);
+        $effectiveTotal = round($paidAmount + $tdsDeducted, 2);
+
+        $newStatus = ($effectiveTotal >= (float) $invoice->grand_total) ? 'paid' : 'partially_paid';
+
+        $invoice->update([
+            'status' => $newStatus,
+            'paid_at' => $validated['payment_date'],
+            'paid_amount' => $paidAmount,
+            'payment_mode' => $validated['payment_mode'],
+            'transaction_reference' => $validated['transaction_reference'] ?? null,
+            'tds_deducted' => $tdsDeducted,
+            'payment_remarks' => $validated['remarks'] ?? null,
+            'paid_by' => Auth::id(),
+            'updated_by' => Auth::id(),
+        ]);
+
+        app(\App\Services\AuditService::class)->log(
+            'invoice_marked_paid',
+            $request->user(),
+            null,
+            null,
+            [
+                'invoice_id' => $invoice->id,
+                'invoice_number' => $invoice->invoice_number,
+                'status' => $newStatus,
+                'paid_amount' => $paidAmount,
+                'tds_deducted' => $tdsDeducted,
+                'payment_mode' => $validated['payment_mode'],
+                'transaction_reference' => $validated['transaction_reference'] ?? null,
+            ]
+        );
+
+        if ($request->wantsJson() && !$request->inertia()) {
+            return response()->json([
+                'message' => "Payment of ₹" . number_format($validated['amount_received'], 2) . " recorded for invoice {$invoice->invoice_number}.",
+                'invoice' => $invoice->fresh(['client', 'branch']),
+            ]);
+        }
+
+        return redirect()->back()->with('success', "Payment recorded for invoice {$invoice->invoice_number}.");
+    }
+
+    /**
+     * Authorize Manager Access to Invoice by Client ID.
+     */
+    private function authorizeInvoiceAccess(Request $request, Invoice $invoice): void
+    {
+        $user = $request->user();
+        if ($user && $user->role === 'manager' && !$user->isManagerForClient($invoice->client_id)) {
+            abort(403, 'Unauthorized access to this client invoice.');
+        }
     }
 }

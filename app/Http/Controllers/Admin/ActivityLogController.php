@@ -23,6 +23,11 @@ class ActivityLogController extends Controller
 
     public function index(Request $request)
     {
+        $user = $request->user();
+        if (!$user || !in_array($user->role, ['admin', 'manager'])) {
+            abort(403, 'Unauthorized access.');
+        }
+
         $query = AuditLog::with(['user'])->latest();
 
         // ── Search filter ─────────────────────────────────────────────────────

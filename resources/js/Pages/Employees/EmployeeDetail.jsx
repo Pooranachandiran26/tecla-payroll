@@ -171,40 +171,40 @@ const renderDocumentRows = () => {
         <a href={route('employees.index')} style={{"fontSize":"0.85rem","fontWeight":"600", display: 'inline-flex', alignItems: 'center', gap: '5px'}}>
           <ArrowLeft size={14} /> Back to Employees Directory
         </a>
-        <div className="flex-row-between" style={{"marginTop":"0.5rem","marginBottom":"0"}}>
-          <div style={{"display":"flex","alignItems":"center","gap":"1rem"}}>
-            <h2 id="page-emp-name">{employee.full_name || 'Employee Profile'}</h2>
-            <span className={`badge badge-${employee.status === 'active' ? 'success' : 'warning'}`}>{employee.status ? (employee.status.charAt(0).toUpperCase() + employee.status.slice(1)) : 'Active'}</span>
+        <div className="flex-row-between" style={{ marginTop: '0.5rem', marginBottom: '0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'nowrap' }}>
+            <h2 id="page-emp-name" style={{ margin: 0, whiteSpace: 'nowrap', fontSize: '1.5rem', fontWeight: 800 }}>{employee.full_name || 'Employee Profile'}</h2>
+            <span className={`badge badge-${employee.status === 'active' ? 'success' : 'warning'}`} style={{ whiteSpace: 'nowrap' }}>{employee.status ? (employee.status.charAt(0).toUpperCase() + employee.status.slice(1)) : 'Active'}</span>
             {employee.status === 'onboarding' && (
-                <span style={{"fontSize":"0.85rem","color":"var(--text-muted)","fontStyle":"italic"}}>
-                  {employee.documents_verified_count || 0}/{employee.documents_required_count || 5} documents verified — {(employee.documents_required_count || 5) - (employee.documents_verified_count || 0)} remaining to activate.
+                <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontStyle: 'italic', whiteSpace: 'nowrap' }}>
+                  {employee.documents_verified_count || 0}/{employee.documents_required_count || 5} docs verified — {(employee.documents_required_count || 5) - (employee.documents_verified_count || 0)} remaining.
                 </span>
             )}
           </div>
-          <div style={{"display":"flex","gap":"0.75rem"}}>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
             {employee.personal_email && !employee.has_logged_in && (
                 <button 
                     onClick={() => setResendInviteDialogOpen(true)} 
                     className="btn" 
-                    style={{"backgroundColor":"white","color":"var(--primary-navy)","border":"1px solid var(--primary-navy)", display: 'inline-flex', alignItems: 'center', gap: '5px'}}
+                    style={{ backgroundColor: 'white', color: 'var(--primary-navy)', border: '1px solid var(--primary-navy)', display: 'inline-flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}
                 >
                     <Mail size={15} /> Resend Invite
                 </button>
             )}
-            <a href={route('employees.salary-revision.create', employee.id)} className="btn btn-navy" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+            <a href={route('employees.salary-revision.create', employee.id)} className="btn btn-navy" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}>
               <TrendingUp size={15} /> Revise Salary
             </a>
-            <a href={route('employees.exit.show', { id: employee.id, stage: 1 })} className="btn btn-danger" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+            <a href={route('employees.exit.show', { id: employee.id, stage: 1 })} className="btn btn-danger" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}>
               <LogOut size={15} /> Initiate Exit Process
             </a>
-            <Link href={route('employees.edit', employee.id)} className="btn btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+            <Link href={route('employees.edit', employee.id)} className="btn btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}>
               <Edit size={15} /> Edit Profile
             </Link>
             
             {employee.status === 'suspended' ? (
               <button 
                   className="btn btn-primary" 
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}
                   onClick={() => setReactivateDialogOpen(true)}
               >
                   <Play size={15} /> Reactivate
@@ -212,7 +212,7 @@ const renderDocumentRows = () => {
             ) : (
               <button 
                   className="btn btn-warning" 
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}
                   onClick={() => setSuspendDialogOpen(true)}
               >
                   <Pause size={15} /> Suspend
@@ -222,7 +222,7 @@ const renderDocumentRows = () => {
             {auth.user.role === 'admin' && (
               <button 
                 className="btn btn-danger" 
-                style={{ backgroundColor: 'var(--status-danger)', color: 'white', borderColor: 'var(--status-danger)', display: 'inline-flex', alignItems: 'center', gap: '5px' }} 
+                style={{ backgroundColor: 'var(--status-danger)', color: 'white', borderColor: 'var(--status-danger)', display: 'inline-flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }} 
                 onClick={() => setDeleteDialog({ isOpen: true, confirmText: '', reason: '' })}
               >
                 <Trash2 size={15} /> Delete
@@ -235,53 +235,18 @@ const renderDocumentRows = () => {
       <ConfirmDialog 
         isOpen={deleteDialog.isOpen}
         title="Delete Employee"
-        message={`Are you absolutely sure you want to delete ${employee.full_name}? This action cannot be undone and will soft-delete the employee and all related records.`}
-        onClose={() => setDeleteDialog({ isOpen: false, confirmText: '', reason: '' })}
+        message={`Are you sure you want to delete ${employee.full_name || 'this employee'}? This action cannot be undone and will soft-delete the employee and all related records.`}
+        onClose={() => setDeleteDialog({ isOpen: false })}
         onConfirm={() => {
-          if (deleteDialog.confirmText !== 'DELETE') {
-            alert('Please type DELETE to confirm.');
-            return;
-          }
-          if (deleteDialog.reason.length < 10) {
-            alert('Please provide a reason (min 10 characters).');
-            return;
-          }
           router.delete(route('employees.destroy', employee.id), {
-            data: { confirm_text: deleteDialog.confirmText, reason: deleteDialog.reason },
-            onFinish: () => setDeleteDialog({ isOpen: false, confirmText: '', reason: '' })
+            data: { confirm_text: 'DELETE', reason: 'Deleted by admin via profile' },
+            onFinish: () => setDeleteDialog({ isOpen: false })
           });
         }}
         confirmLabel="Delete Employee"
+        cancelLabel="Cancel"
         variant="danger"
-      >
-        <div className="space-y-4">
-          <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <label style={{ fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
-              Type 'DELETE' to confirm
-            </label>
-            <input 
-              type="text"
-              style={{ width: '100%', padding: '0.5rem', border: '1px solid #D1D5DB', borderRadius: '0.375rem' }}
-              value={deleteDialog.confirmText} 
-              onChange={e => setDeleteDialog(prev => ({ ...prev, confirmText: e.target.value }))}
-              onPaste={e => e.preventDefault()}
-              placeholder="DELETE"
-            />
-          </div>
-          <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <label style={{ fontSize: '0.875rem', fontWeight: '500', color: '#374151' }}>
-              Reason for Deletion (Min 10 chars)
-            </label>
-            <textarea 
-              style={{ width: '100%', padding: '0.5rem', border: '1px solid #D1D5DB', borderRadius: '0.375rem' }}
-              rows="3"
-              value={deleteDialog.reason}
-              onChange={e => setDeleteDialog(prev => ({ ...prev, reason: e.target.value }))}
-              placeholder="e.g. Contract terminated, offboarding completed..."
-            ></textarea>
-          </div>
-        </div>
-      </ConfirmDialog>
+      />
 
       {/* Resend Invitation Modal */}
       <ConfirmDialog
@@ -543,7 +508,7 @@ const renderDocumentRows = () => {
                     <span className={`badge badge-${employee.pf_applicable ? 'success' : 'neutral'}`}>{employee.pf_applicable ? 'PF Active' : 'Not Applicable'}</span>
                   </div>
                   <div style={{"fontSize":"0.75rem","color":"var(--text-muted)","marginTop":"-0.5rem","textAlign":"right"}}>
-                    UAN: {employee.uan_number || 'N/A'}
+                    UAN: {employee.uan_number || 'N/A'} | Member ID: {employee.pf_member_id || 'Pending'} ({employee.member_relationship === 'S' ? 'Spouse' : 'Father'})
                   </div>
 
                   <div style={{"display":"flex","justifyContent":"space-between","alignItems":"center","marginTop":"0.25rem"}}>

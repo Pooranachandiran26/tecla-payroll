@@ -48,6 +48,7 @@ export const BILLING_MODELS = [
   { value: 'fixed_per_month', label: 'Fixed Monthly Retainer (₹/month)' },
   { value: 'lumpsum', label: 'Lump Sum Project Billing' },
   { value: 'hourly', label: 'Hourly Rate Billing' },
+  { value: 'inhouse', label: 'In-House Payroll (No Billing / Internal Staff)' },
 ];
 
 export const OT_BILLING_RULES = [
@@ -246,6 +247,7 @@ export function getDefaultFormData() {
     incorporationDate: '', clientCode: '', industry: '', subIndustry: '',
     clientStatus: 'onboarding', workLocationsCount: 1,
     isGroupCompany: false, parentCompany: '',
+    pfEstablishmentCode: '', esiCodeNumber: '',
 
     // Address
     regAddressLine1: '', regAddressLine2: '', regCity: '', regState: 'Maharashtra',
@@ -268,7 +270,7 @@ export function getDefaultFormData() {
     contractStart: '', contractEnd: '',
     autoRenewal: false, poRequired: false, poNumber: '', poValue: '', poValidity: '',
     gstRate: '18', lutRefNo: '', reverseCharge: false,
-    tdsApplicableAgency: 'na',
+    tdsApplicableAgency: 'na', customTdsPercentage: '',
     prefFormatPDF: true, prefFormatXLSX: false, invoiceFooterNotes: '',
     noticePeriod: 30, creditLimit: '', latePenalty: '', billingCurrency: 'INR',
 

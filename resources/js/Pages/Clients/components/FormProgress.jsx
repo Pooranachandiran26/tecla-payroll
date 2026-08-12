@@ -7,7 +7,8 @@ import {
   ShieldCheck, 
   FolderOpen, 
   Globe, 
-  Clock 
+  Clock,
+  Palette
 } from 'lucide-react';
 
 const STEP_ICONS = {
@@ -32,11 +33,32 @@ const STEP_LABELS = {
   8: 'SLA',
 };
 
-export default function FormProgress({ currentStep, sectionProgress, onTabClick }) {
+// In-House mode overrides
+const INHOUSE_STEP_ICONS = {
+  ...STEP_ICONS,
+  7: Palette,  // Portal → Branding icon
+};
+
+const INHOUSE_STEP_LABELS = {
+  ...STEP_LABELS,
+  4: 'Payroll',     // Contract → Payroll Config
+  7: 'Branding',    // Portal → Branding
+  8: 'Calendar',    // SLA → Calendar
+};
+
+export default function FormProgress({ currentStep, sectionProgress, onTabClick, isInhouse = false }) {
+  // In-House: skip Documents tab (step 6)
+  const visibleSteps = isInhouse
+    ? [1, 2, 3, 4, 5, 7, 8]
+    : [1, 2, 3, 4, 5, 6, 7, 8];
+
+  const icons = isInhouse ? INHOUSE_STEP_ICONS : STEP_ICONS;
+  const labels = isInhouse ? INHOUSE_STEP_LABELS : STEP_LABELS;
+
   return (
     <div className="form-progress">
-      {[1, 2, 3, 4, 5, 6, 7, 8].map(stepNum => {
-        const Icon = STEP_ICONS[stepNum];
+      {visibleSteps.map(stepNum => {
+        const Icon = icons[stepNum];
         let cls = 'progress-step';
         if (stepNum === currentStep) cls += ' active';
         else if (stepNum < currentStep || sectionProgress[stepNum]) cls += ' complete';
@@ -47,10 +69,10 @@ export default function FormProgress({ currentStep, sectionProgress, onTabClick 
             className={cls} 
             onClick={() => onTabClick && onTabClick(stepNum)} 
             style={{ cursor: 'pointer' }}
-            title={`Step ${stepNum}: ${STEP_LABELS[stepNum]}`}
+            title={`Step ${stepNum}: ${labels[stepNum]}`}
           >
             <Icon size={14} style={{ flexShrink: 0 }} />
-            <span>{stepNum}. {STEP_LABELS[stepNum]}</span>
+            <span>{labels[stepNum]}</span>
           </div>
         );
       })}

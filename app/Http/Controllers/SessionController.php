@@ -53,6 +53,15 @@ class SessionController extends Controller
 
     public function allSessions(Request $request)
     {
+        $user = $request->user();
+        if (!$user || !in_array($user->role, ['admin', 'manager'])) {
+            abort(403, 'Unauthorized access.');
+        }
+
+        if ($user->role === 'manager' && !$user->hasModulePermission('admin_sessions', 'admin')) {
+            abort(403, 'You do not have permission to access Active Sessions.');
+        }
+
         $perPage = 15;
         $page    = max(1, (int) $request->input('page', 1));
         $search  = $request->input('search', '');

@@ -2,8 +2,8 @@ import React from 'react';
 import AuthenticatedLayout from '../../Layouts/AuthenticatedLayout';
 import { Head, Link, usePage } from '@inertiajs/react';
 import { 
-  Users, UserPlus, UserCircle, UploadCloud, Banknote, History, ExternalLink, Activity, 
-  Settings, CheckSquare, Shield, FileText, Calendar, Lock, MessageSquare 
+  Users, UserPlus, UploadCloud, Banknote, History,
+  Settings, CheckSquare, Shield, FileText, Calendar, Lock, MessageSquare, Activity 
 } from 'lucide-react';
 import { useRole } from '../../Contexts/RoleContext.jsx';
 import RoleGuard from '../../Components/RoleGuard.jsx';
@@ -14,26 +14,45 @@ export default function QuickAccess() {
   const { showToast } = useToast();
   const { props } = usePage();
   const pendingQueryCount = props.pendingQueryCount || 0;
+  const user = props.auth?.user;
+  const permissions = user?.module_permissions;
+
+  // Helper to determine if current user has access to a specific sub-module action
+  const canAccess = (subKey, parentKey) => {
+    if (!user) return false;
+    if (user.role === 'admin' || user.role === 'client' || user.role === 'employee') return true;
+    if (user.role !== 'manager') return true;
+    if (!Array.isArray(permissions) || permissions.length === 0) return true;
+
+    if (parentKey && !permissions.includes(parentKey)) {
+      return false;
+    }
+    if (subKey) {
+      return permissions.includes(subKey);
+    }
+    return true;
+  };
 
   const config = {
     admin: {
-      subtitle: 'You have full access to every module.',
-      visible: ['employees', 'payroll', 'attendance', 'leave', 'compliance', 'reports-admin', 'client-portal', 'employee-portal'],
+      subtitle: 'You have full access to every admin module.',
+      visible: ['employees', 'payroll', 'attendance', 'leave', 'compliance', 'reports-admin'],
       locked: []
     },
     executive: {
       subtitle: 'Showing modules available to your role.',
       subtitleNote: 'Locked items require Agency Admin access.',
-      visible: ['employees', 'payroll', 'attendance', 'leave', 'compliance', 'reports-admin', 'client-portal', 'employee-portal'],
+      visible: ['employees', 'payroll', 'attendance', 'leave', 'compliance', 'reports-admin'],
       locked: ['qa-activity-log', 'qa-user-mgmt', 'qa-settings']
     },
     client: {
-      subtitle: 'Showing your available modules.',
+      subtitle: 'Showing your available client portal modules.',
       visible: ['client-portal'],
       locked: []
     },
     candidate: {
-      subtitle: 'Showing your available modules.',
+      subtitle: 'Showing your available employee portal modules.',
+      subtitleNote: '',
       visible: ['employee-portal'],
       locked: []
     }
@@ -61,12 +80,13 @@ export default function QuickAccess() {
       message: `Strict ${moduleName} Protection: Backend routes are strictly protected by role:${requiredRole} middleware check. Role Mismatch: Logged in as ${currentRoleTitle}, server blocks access with 403.`
     });
   };
+
   const renderBtn = (id, href, icon, label, lockedTooltip = "Admin access only", requiredRole = null, moduleName = null, badgeCount = 0) => {
     const isLocked = currentConfig.locked.includes(id);
 
     if (isLocked) {
       return (
-        <a href="#" className="qa-btn qa-btn--locked group relative flex flex-col items-center justify-start gap-2 p-4 pb-3 border-r border-b border-gray-200 bg-[#f6f7fa] opacity-62 cursor-not-allowed" id={id}>
+        <a href="#" className="qa-btn qa-btn--locked group relative flex flex-col items-center justify-start gap-2 p-4 pb-3 border-r border-b border-gray-200 bg-[#f6f7fa] opacity-62 cursor-not-allowed" id={id} key={id}>
           <div className="qa-btn-icon w-9 h-9 flex items-center justify-center rounded-lg bg-black/5 shrink-0">
             {React.cloneElement(icon, { stroke: '#94a3b8' })}
           </div>
@@ -88,6 +108,7 @@ export default function QuickAccess() {
 
     return (
       <Link 
+        key={id}
         href={href} 
         onClick={isRestricted ? (e) => handleRestrictedClick(e, requiredRole, moduleName) : undefined}
         className="qa-btn flex flex-col items-center justify-start gap-2 p-4 pb-3 border-r border-b border-gray-200 bg-white transition-all hover:bg-[#f7f9ff] hover:shadow-[0_4px_14px_rgba(31,56,100,0.12)] hover:-translate-y-0.5 hover:border-[#B8860B] hover:z-10 cursor-pointer relative" 
@@ -104,7 +125,6 @@ export default function QuickAccess() {
             {badgeCount}
           </span>
         )}
-        {/* Custom CSS overrides for hover in this specific block */}
         <style>{`
           #${id}:hover .qa-btn-icon { background: linear-gradient(135deg, rgba(184,134,11,0.15) 0%, rgba(184,134,11,0.07) 100%); }
           #${id}:hover .qa-btn-icon svg { stroke: #B8860B; }
@@ -114,9 +134,48 @@ export default function QuickAccess() {
     );
   };
 
+  // Define Quick Actions per Card with Permission Checks
+  const employeeBtns = [
+    canAccess('emp_all', 'candidates') && renderBtn('qa-all-employees', safeRoute('employees.index', '/employees'), <Users strokeWidth={1.6} />, 'All Employees'),
+    canAccess('emp_create', 'candidates') && renderBtn('qa-add-employee', safeRoute('employees.create', '/employees/create'), <UserPlus strokeWidth={1.6} />, 'Add New Employee'),
+    canAccess('emp_bulk_upload', 'candidates') && renderBtn('qa-bulk-upload', safeRoute('employees.bulk-upload', '/employees/bulk-upload'), <UploadCloud strokeWidth={1.6} />, 'Bulk Upload'),
+    canAccess('emp_queries', 'candidates') && renderBtn('qa-employee-queries', safeRoute('admin.employee-queries.index', '/admin/employee-queries'), <MessageSquare strokeWidth={1.6} />, 'Employee Queries', "Admin access only", null, null, pendingQueryCount),
+  ].filter(Boolean);
+
+  const payrollBtns = [
+    canAccess('payroll_processing', 'payroll') && renderBtn('qa-payroll-proc', safeRoute('payroll.processing', '/payroll/processing'), <Banknote strokeWidth={1.6} />, 'Payroll Processing'),
+    canAccess('payroll_approval', 'payroll') && renderBtn('qa-payroll-approval', safeRoute('payroll.approval', '/payroll/approval'), <CheckSquare strokeWidth={1.6} />, 'Payroll Approval'),
+    canAccess('payroll_payslips', 'payroll') && renderBtn('qa-payslip', safeRoute('payroll.payslips', '/payroll/payslips'), <FileText strokeWidth={1.6} />, 'Payslip Viewer'),
+    canAccess('payroll_invoices', 'payroll') && renderBtn('qa-invoice-gen', safeRoute('invoices.generate', '/invoices/generate'), <FileText strokeWidth={1.6} />, 'Invoice Generation'),
+    canAccess('payroll_invoices', 'payroll') && renderBtn('qa-invoices-list', safeRoute('invoices.index', '/invoices'), <FileText strokeWidth={1.6} />, 'Invoices List'),
+  ].filter(Boolean);
+
+  const attendanceBtns = [
+    canAccess('payroll_live_monitor', 'payroll') && renderBtn('qa-live-attendance', safeRoute('payroll.live-monitor', '/payroll/live-monitor'), <Activity strokeWidth={1.6} />, 'Live Monitor'),
+    canAccess('payroll_attendance_upload', 'payroll') && renderBtn('qa-attendance-upload', safeRoute('payroll.attendance-upload', '/payroll/attendance-upload'), <UploadCloud strokeWidth={1.6} />, 'Attendance Upload'),
+    canAccess('payroll_attendance_review', 'payroll') && renderBtn('qa-attendance-review', safeRoute('payroll.attendance-review', '/payroll/attendance-review'), <CheckSquare strokeWidth={1.6} />, 'Attendance Review'),
+  ].filter(Boolean);
+
+  const leaveBtns = [
+    canAccess('emp_leave_approval', 'candidates') && renderBtn('qa-leave-queue', safeRoute('leave-requests.index', '/leave-requests'), <CheckSquare strokeWidth={1.6} />, 'Leave Approval Queue'),
+    canAccess('emp_leave_settings', 'candidates') && renderBtn('qa-leave-settings', safeRoute('payroll.leave-settings', '/payroll/leave-settings'), <Settings strokeWidth={1.6} />, 'Client Leave Settings'),
+  ].filter(Boolean);
+
+  const complianceBtns = [
+    canAccess('compliance_reports', 'compliance') && renderBtn('qa-statutory', safeRoute('compliance.index', '/compliance'), <Shield strokeWidth={1.6} />, 'Statutory Reports'),
+  ].filter(Boolean);
+
+  const reportsAdminBtns = [
+    (canAccess('reports_catalog', 'reports') || canAccess('reports_register', 'reports')) && renderBtn('qa-analytics', safeRoute('reports.index', '/reports'), <Activity strokeWidth={1.6} />, 'Analytics Dashboard'),
+    canAccess('admin_activity_log', 'admin') && renderBtn('qa-activity-log', safeRoute('admin.activity-log', '/admin/activity-log'), <History strokeWidth={1.6} />, 'Activity Log'),
+    canAccess('admin_users', 'admin') && renderBtn('qa-user-mgmt', safeRoute('admin.users', '/admin/users'), <Users strokeWidth={1.6} />, 'User Management'),
+    canAccess('admin_settings', 'admin') && renderBtn('qa-settings', safeRoute('admin.settings', '/admin/settings'), <Settings strokeWidth={1.6} />, 'Settings'),
+  ].filter(Boolean);
+
   return (
     <RoleGuard allowedRoles={['admin', 'manager']} moduleKey="quick-access">
     <AuthenticatedLayout>
+      <Head title="Quick Access" />
 
       <div className="mb-8">
         <h2 className="text-[1.55rem] font-bold text-[#1F3864] mb-1.5">Quick Access — All Modules</h2>
@@ -132,122 +191,74 @@ export default function QuickAccess() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
         
-        {currentConfig.visible.includes('employees') && (
+        {currentConfig.visible.includes('employees') && employeeBtns.length > 0 && (
           <div className="rounded-lg overflow-hidden border border-gray-200 shadow-sm bg-white">
             <div className="bg-gradient-to-r from-[#e8eef8] to-[#dde6f5] border-b border-[#c8d5ec] px-4 py-2.5 flex items-center gap-2">
               <Users className="w-[18px] h-[18px] text-[#1F3864]" strokeWidth={1.8} />
               <span className="text-[0.85rem] font-bold text-[#1F3864] uppercase tracking-wide">Employees</span>
             </div>
             <div className="grid grid-cols-[repeat(auto-fill,minmax(90px,1fr))] gap-0">
-              {renderBtn('qa-all-employees', safeRoute('employees.index', '/employees'), <Users strokeWidth={1.6} />, 'All Employees')}
-              {renderBtn('qa-add-employee', safeRoute('employees.create', '/employees/create'), <UserPlus strokeWidth={1.6} />, 'Add New Employee')}
-              {renderBtn('qa-employee-detail', '/employees/1', <UserCircle strokeWidth={1.6} />, 'Employee Detail')}
-              {renderBtn('qa-bulk-upload', safeRoute('employees.bulk-upload', '/employees/bulk-upload'), <UploadCloud strokeWidth={1.6} />, 'Bulk Upload')}
-              {/* {renderBtn('qa-bulk-salary', '/employees/salary-bulk-update', <Banknote strokeWidth={1.6} />, 'Bulk Salary Update')} */}
-              {renderBtn('qa-salary-revision', '/employees/1/salary-revision', <History strokeWidth={1.6} />, 'Salary Revision')}
-              {renderBtn('qa-employee-exit', '/employees/1/exit', <ExternalLink strokeWidth={1.6} />, 'Employee Exit / F&F')}
-              {renderBtn('qa-bank-change', safeRoute('employees.bank-change-requests', '/employees/bank-change-requests'), <Banknote strokeWidth={1.6} />, 'Bank Change Requests')}
-              {renderBtn('qa-employee-queries', safeRoute('admin.employee-queries.index', '/admin/employee-queries'), <MessageSquare strokeWidth={1.6} />, 'Employee Queries', "Admin access only", null, null, pendingQueryCount)}
+              {employeeBtns}
             </div>
           </div>
         )}
 
-        {currentConfig.visible.includes('payroll') && (
+        {currentConfig.visible.includes('payroll') && payrollBtns.length > 0 && (
           <div className="rounded-lg overflow-hidden border border-gray-200 shadow-sm bg-white">
             <div className="bg-gradient-to-r from-[#e8eef8] to-[#dde6f5] border-b border-[#c8d5ec] px-4 py-2.5 flex items-center gap-2">
               <Banknote className="w-[18px] h-[18px] text-[#1F3864]" strokeWidth={1.8} />
               <span className="text-[0.85rem] font-bold text-[#1F3864] uppercase tracking-wide">Payroll</span>
             </div>
             <div className="grid grid-cols-[repeat(auto-fill,minmax(90px,1fr))] gap-0">
-              {renderBtn('qa-payroll-proc', safeRoute('payroll.processing', '/payroll/processing'), <Banknote strokeWidth={1.6} />, 'Payroll Processing')}
-              {renderBtn('qa-payroll-approval', safeRoute('payroll.approval', '/payroll/approval'), <CheckSquare strokeWidth={1.6} />, 'Payroll Approval')}
-              {renderBtn('qa-payslip', safeRoute('payroll.payslips', '/payroll/payslips'), <FileText strokeWidth={1.6} />, 'Payslip Viewer')}
-              {renderBtn('qa-invoice-gen', safeRoute('invoices.generate', '/invoices/generate'), <FileText strokeWidth={1.6} />, 'Invoice Generation')}
-              {renderBtn('qa-invoices-list', safeRoute('invoices.index', '/invoices'), <FileText strokeWidth={1.6} />, 'Invoices List')}
+              {payrollBtns}
             </div>
           </div>
         )}
 
-        {currentConfig.visible.includes('attendance') && (
+        {currentConfig.visible.includes('attendance') && attendanceBtns.length > 0 && (
           <div className="rounded-lg overflow-hidden border border-gray-200 shadow-sm bg-white">
             <div className="bg-gradient-to-r from-[#e8eef8] to-[#dde6f5] border-b border-[#c8d5ec] px-4 py-2.5 flex items-center gap-2">
               <Calendar className="w-[18px] h-[18px] text-[#1F3864]" strokeWidth={1.8} />
               <span className="text-[0.85rem] font-bold text-[#1F3864] uppercase tracking-wide">Attendance</span>
             </div>
             <div className="grid grid-cols-[repeat(auto-fill,minmax(90px,1fr))] gap-0">
-              {renderBtn('qa-live-attendance', safeRoute('payroll.live-monitor', '/payroll/live-monitor'), <Activity strokeWidth={1.6} />, 'Live Monitor')}
-              {renderBtn('qa-attendance-upload', safeRoute('payroll.attendance-upload', '/payroll/attendance-upload'), <UploadCloud strokeWidth={1.6} />, 'Attendance Upload')}
-              {renderBtn('qa-attendance-review', safeRoute('payroll.attendance-review', '/payroll/attendance-review'), <CheckSquare strokeWidth={1.6} />, 'Attendance Review')}
+              {attendanceBtns}
             </div>
           </div>
         )}
 
-        {currentConfig.visible.includes('leave') && (
+        {currentConfig.visible.includes('leave') && leaveBtns.length > 0 && (
           <div className="rounded-lg overflow-hidden border border-gray-200 shadow-sm bg-white">
             <div className="bg-gradient-to-r from-[#e8eef8] to-[#dde6f5] border-b border-[#c8d5ec] px-4 py-2.5 flex items-center gap-2">
               <Calendar className="w-[18px] h-[18px] text-[#1F3864]" strokeWidth={1.8} />
               <span className="text-[0.85rem] font-bold text-[#1F3864] uppercase tracking-wide">Leave</span>
             </div>
             <div className="grid grid-cols-[repeat(auto-fill,minmax(90px,1fr))] gap-0">
-              {renderBtn('qa-leave-queue', safeRoute('leave-requests.index', '/leave-requests'), <CheckSquare strokeWidth={1.6} />, 'Leave Approval Queue')}
+              {leaveBtns}
             </div>
           </div>
         )}
 
-        {currentConfig.visible.includes('compliance') && (
+        {currentConfig.visible.includes('compliance') && complianceBtns.length > 0 && (
           <div className="rounded-lg overflow-hidden border border-gray-200 shadow-sm bg-white">
             <div className="bg-gradient-to-r from-[#e8eef8] to-[#dde6f5] border-b border-[#c8d5ec] px-4 py-2.5 flex items-center gap-2">
               <Shield className="w-[18px] h-[18px] text-[#1F3864]" strokeWidth={1.8} />
               <span className="text-[0.85rem] font-bold text-[#1F3864] uppercase tracking-wide">Compliance</span>
             </div>
             <div className="grid grid-cols-[repeat(auto-fill,minmax(90px,1fr))] gap-0">
-              {renderBtn('qa-statutory', safeRoute('compliance.index', '/compliance'), <Shield strokeWidth={1.6} />, 'Statutory Reports')}
+              {complianceBtns}
             </div>
           </div>
         )}
 
-        {currentConfig.visible.includes('reports-admin') && (
+        {currentConfig.visible.includes('reports-admin') && reportsAdminBtns.length > 0 && (
           <div className="rounded-lg overflow-hidden border border-gray-200 shadow-sm bg-white">
             <div className="bg-gradient-to-r from-[#e8eef8] to-[#dde6f5] border-b border-[#c8d5ec] px-4 py-2.5 flex items-center gap-2">
               <Activity className="w-[18px] h-[18px] text-[#1F3864]" strokeWidth={1.8} />
               <span className="text-[0.85rem] font-bold text-[#1F3864] uppercase tracking-wide">Reports & Admin</span>
             </div>
             <div className="grid grid-cols-[repeat(auto-fill,minmax(90px,1fr))] gap-0">
-              {renderBtn('qa-analytics', safeRoute('reports.index', '/reports'), <Activity strokeWidth={1.6} />, 'Analytics Dashboard')}
-              {renderBtn('qa-activity-log', safeRoute('admin.activity-log', '/admin/activity-log'), <History strokeWidth={1.6} />, 'Activity Log')}
-              {renderBtn('qa-user-mgmt', safeRoute('admin.users', '/admin/users'), <Users strokeWidth={1.6} />, 'User Management')}
-              {renderBtn('qa-settings', safeRoute('admin.settings', '/admin/settings'), <Settings strokeWidth={1.6} />, 'Settings')}
-            </div>
-          </div>
-        )}
-
-        {currentConfig.visible.includes('client-portal') && (
-          <div className="rounded-lg overflow-hidden border border-gray-200 shadow-sm bg-white">
-            <div className="bg-gradient-to-r from-[#e8eef8] to-[#dde6f5] border-b border-[#c8d5ec] px-4 py-2.5 flex items-center gap-2">
-              <Users className="w-[18px] h-[18px] text-[#1F3864]" strokeWidth={1.8} />
-              <span className="text-[0.85rem] font-bold text-[#1F3864] uppercase tracking-wide">Client Portal</span>
-            </div>
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(90px,1fr))] gap-0">
-              {renderBtn('qa-client-dash', safeRoute('client.dashboard', '/client/dashboard'), <Activity strokeWidth={1.6} />, 'Client Dashboard', 'Client access only', 'client', 'Client Portal')}
-              {renderBtn('qa-client-employees', safeRoute('client.employees', '/client/employees'), <Users strokeWidth={1.6} />, 'Client\'s Employees', 'Client access only', 'client', 'Client Portal')}
-              {renderBtn('qa-client-attendance', safeRoute('client.attendance', '/client/attendance'), <Calendar strokeWidth={1.6} />, 'Attendance Approval', 'Client access only', 'client', 'Client Portal')}
-              {renderBtn('qa-client-invoices', safeRoute('client.invoices', '/client/invoices'), <FileText strokeWidth={1.6} />, 'Client Invoices', 'Client access only', 'client', 'Client Portal')}
-            </div>
-          </div>
-        )}
-
-        {currentConfig.visible.includes('employee-portal') && (
-          <div className="rounded-lg overflow-hidden border border-gray-200 shadow-sm bg-white">
-            <div className="bg-gradient-to-r from-[#e8eef8] to-[#dde6f5] border-b border-[#c8d5ec] px-4 py-2.5 flex items-center gap-2">
-              <UserCircle className="w-[18px] h-[18px] text-[#1F3864]" strokeWidth={1.8} />
-              <span className="text-[0.85rem] font-bold text-[#1F3864] uppercase tracking-wide">Employee Portal</span>
-            </div>
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(90px,1fr))] gap-0">
-              {renderBtn('qa-emp-dash', safeRoute('employee.dashboard', '/employee/dashboard'), <Activity strokeWidth={1.6} />, 'Employee Dashboard', 'Employee access only', 'employee', 'Employee Portal')}
-              {renderBtn('qa-emp-attendance', safeRoute('employee.attendance', '/employee/attendance'), <Calendar strokeWidth={1.6} />, 'Employee Attendance', 'Employee access only', 'employee', 'Employee Portal')}
-              {renderBtn('qa-emp-leave', safeRoute('employee.leave', '/employee/leave'), <History strokeWidth={1.6} />, 'Leave Request', 'Employee access only', 'employee', 'Employee Portal')}
-              {renderBtn('qa-emp-payslips', safeRoute('employee.payslips', '/employee/payslips'), <FileText strokeWidth={1.6} />, 'Employee Payslips', 'Employee access only', 'employee', 'Employee Portal')}
-              {renderBtn('qa-emp-profile', safeRoute('employee.profile', '/employee/profile'), <UserCircle strokeWidth={1.6} />, 'Employee Profile', 'Employee access only', 'employee', 'Employee Portal')}
+              {reportsAdminBtns}
             </div>
           </div>
         )}

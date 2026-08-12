@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import AuthenticatedLayout from '../../Layouts/AuthenticatedLayout';
-import { Head, router } from '@inertiajs/react';
+import { Head, router, Link } from '@inertiajs/react';
 import RoleGuard from '../../Components/RoleGuard.jsx';
 import Pagination from '../../Components/ui/Pagination';
 import {
@@ -35,6 +35,15 @@ export default function NotificationsIndex({ notifications = {}, unreadCount = 0
 
   const [filterStatus, setFilterStatus] = useState(safeFilters.filter || 'all');
   const [filterType,   setFilterType]   = useState(safeFilters.type   || 'all');
+
+  const getCleanUrl = (rawUrl) => {
+    if (!rawUrl) return null;
+    let clean = rawUrl.replace(/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?/i, '');
+    if (typeof window !== 'undefined' && window.location.pathname.startsWith('/public') && !clean.startsWith('/public')) {
+      clean = '/public' + (clean.startsWith('/') ? clean : '/' + clean);
+    }
+    return clean;
+  };
 
   const applyFilters = (newFilter, newType) => {
     const params = {};
@@ -174,13 +183,13 @@ export default function NotificationsIndex({ notifications = {}, unreadCount = 0
                         <td style={{ textAlign: 'center' }}>
                           <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
                             {item.url && (
-                              <a
-                                href={item.url}
+                              <Link
+                                href={getCleanUrl(item.url)}
                                 className="btn btn-navy btn-xs"
                                 style={{ fontSize: '0.75rem', padding: '3px 10px' }}
                               >
                                 View
-                              </a>
+                              </Link>
                             )}
                             {isUnread && (
                               <button

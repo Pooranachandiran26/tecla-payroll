@@ -25,6 +25,7 @@ class PayrollController extends Controller
                 'status' => 'approved',
                 'approved_by' => Auth::id(),
                 'approved_at' => now(),
+                'updated_by' => Auth::id(),
             ]);
 
             app(\App\Services\AuditService::class)->log(
@@ -53,8 +54,8 @@ class PayrollController extends Controller
             return redirect()->back()->with('error', 'This payroll run is already locked.');
         }
 
-        if ($run->status !== 'approved') {
-            return redirect()->back()->with('error', 'Only approved payroll runs can be locked.');
+        if (!in_array($run->status, ['draft', 'approved'])) {
+            return redirect()->back()->with('error', 'Only draft or approved payroll runs can be locked.');
         }
 
         try {
@@ -62,7 +63,11 @@ class PayrollController extends Controller
                 $oldStatus = $run->status;
                 $run->update([
                     'status' => 'locked',
+                    'approved_by' => $run->approved_by ?: Auth::id(),
+                    'approved_at' => $run->approved_at ?: now(),
                     'locked_at' => now(),
+                    'locked_by' => Auth::id(),
+                    'updated_by' => Auth::id(),
                 ]);
 
                 app(\App\Services\AuditService::class)->log(
@@ -136,11 +141,24 @@ class PayrollController extends Controller
             // Resolve linked employee queries and dispatch adjustment emails
             $this->dispatchLinkedQueryResolutionEmails($run);
 
+            $clientModel = $run->client ?? \App\Models\Client::find($run->client_id);
+            $isInhouse = $clientModel ? $clientModel->isInhouse() : false;
+
             if ($run->is_supplementary_run || !empty($run->parent_run_id)) {
-                return redirect()->back()->with('success', 'Supplementary run locked and invoices merged successfully.');
+                $msg = $isInhouse
+                    ? 'Supplementary run locked successfully (In-House Payroll — No billing/invoices).'
+                    : 'Supplementary run locked and invoices merged successfully.';
+                return redirect()->back()->with('success', $msg);
             }
 
-            return redirect()->back()->with('success', 'Payroll run locked, invoices generated, and salary summary emails dispatched successfully.');
+            if ($isInhouse) {
+                return redirect()->route('payroll.payslips', [
+                    'client_id' => $run->client_id,
+                    'payroll_month' => $run->payroll_month,
+                ])->with('success', 'Payroll run locked successfully (In-House Payroll — No billing/invoices). Directed to Payslips.');
+            }
+
+            return redirect()->route('invoices.index')->with('success', 'Payroll run locked, invoices generated, and salary summary emails dispatched successfully.');
         } catch (\Exception $e) {
             return redirect()->back()->with('error', $e->getMessage());
         }
@@ -390,6 +408,7 @@ class PayrollController extends Controller
         $eligibilityService = app(\App\Services\PayrollEligibilityService::class);
 
         // Pre-flight check: ensure at least 1 candidate is eligible before persisting PayrollRun
+        $allowTestingBypass = filter_var(env('ALLOW_EARLY_PAYROLL_PROCESSING', false), FILTER_VALIDATE_BOOLEAN);
         $eligibleCount = 0;
         foreach ($employees as $employee) {
             $elig = $eligibilityService->checkEmployee($employee, $client, $monthStart, $monthEnd);
@@ -398,7 +417,7 @@ class PayrollController extends Controller
             }
         }
 
-        if ($eligibleCount === 0) {
+        if ($eligibleCount === 0 && !$allowTestingBypass) {
             return redirect()->back()->with('error', 'Cannot create supplementary run: None of the candidate employees have attendance or valid eligibility data. Please upload attendance first.');
         }
 
@@ -410,6 +429,8 @@ class PayrollController extends Controller
             'is_supplementary_run' => true,
             'parent_run_id' => $parent->id,
             'processed_by' => Auth::id(),
+            'created_by' => Auth::id(),
+            'updated_by' => Auth::id(),
             'total_employees_processed' => 0,
             'total_employees_excluded' => 0,
             'total_gross_earnings' => 0,
@@ -497,6 +518,8 @@ class PayrollController extends Controller
                     'exclusion_reason' => implode(', ', $eligibility['exclusions']),
                     'warning_notes' => implode(', ', $eligibility['warnings']),
                     'attendance_source' => 'live_punch',
+                    'created_by' => Auth::id(),
+                    'updated_by' => Auth::id(),
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
@@ -567,6 +590,8 @@ class PayrollController extends Controller
                         'total_net_disbursement' => 0,
                         'total_employer_statutory_cost' => 0,
                         'processed_by' => Auth::id(),
+                        'created_by' => Auth::id(),
+                        'updated_by' => Auth::id(),
                     ]);
                 }
 
@@ -633,6 +658,8 @@ class PayrollController extends Controller
                             'exclusion_reason' => implode(', ', $eligibility['exclusions']),
                             'warning_notes' => implode(', ', $eligibility['warnings']),
                             'attendance_source' => 'live_punch',
+                            'created_by' => Auth::id(),
+                            'updated_by' => Auth::id(),
                             'created_at' => now(),
                             'updated_at' => now(),
                         ]);
@@ -669,7 +696,18 @@ class PayrollController extends Controller
             ->orderBy('id', 'desc')
             ->get();
         
-        $selectedClientId = $request->query('client_id', $clients->first()?->id);
+        $activeSessionClientId = $request->session()->get('active_client_id', 'all');
+        $defaultClientId = ($activeSessionClientId && $activeSessionClientId !== 'all') 
+            ? (int)$activeSessionClientId 
+            : $clients->first()?->id;
+
+        $selectedClientId = $request->has('client_id') 
+            ? $request->query('client_id') 
+            : $defaultClientId;
+
+        if ($selectedClientId === 'all' || $selectedClientId === '') {
+            $selectedClientId = $defaultClientId;
+        }
         
         $defaultMonth = now()->subMonth()->startOfMonth()->toDateString();
         $selectedMonth = $request->query('payroll_month', $defaultMonth);
@@ -856,7 +894,18 @@ class PayrollController extends Controller
             ->orderBy('id', 'desc')
             ->get();
 
-        $selectedClientId = $request->query('client_id', $clients->first()?->id);
+        $activeSessionClientId = $request->session()->get('active_client_id', 'all');
+        $defaultClientId = ($activeSessionClientId && $activeSessionClientId !== 'all') 
+            ? (int)$activeSessionClientId 
+            : $clients->first()?->id;
+
+        $selectedClientId = $request->has('client_id') 
+            ? $request->query('client_id') 
+            : $defaultClientId;
+
+        if ($selectedClientId === 'all' || $selectedClientId === '') {
+            $selectedClientId = $defaultClientId;
+        }
         
         $defaultMonth = now()->subMonth()->startOfMonth()->toDateString();
         $selectedMonth = $request->query('payroll_month', $defaultMonth);
@@ -1018,6 +1067,7 @@ class PayrollController extends Controller
             'clients' => $clients,
             'selectedClientId' => (int) $selectedClientId,
             'selectedMonth' => $selectedMonth,
+            'allowTestingBypass' => filter_var(env('ALLOW_EARLY_PAYROLL_PROCESSING', false), FILTER_VALIDATE_BOOLEAN),
             'run' => $run ? array_merge($run->load('client')->toArray(), $run->getCombinedStats(), [
                 'released_by_user_name' => $run->payslip_released_by ? optional(\App\Models\User::find($run->payslip_released_by))->name : null,
             ]) : null,
@@ -1060,9 +1110,21 @@ class PayrollController extends Controller
             ->orderBy('id', 'desc')
             ->get();
 
-        $selectedClientId = $request->query('client_id');
+        $activeSessionClientId = $request->session()->get('active_client_id', 'all');
+        $selectedClientId = $request->has('client_id')
+            ? $request->query('client_id')
+            : ($activeSessionClientId !== 'all' ? $activeSessionClientId : null);
+
         if (!$selectedClientId && $clients->isNotEmpty()) {
             $selectedClientId = $clients->first()->id;
+        }
+
+        if ($selectedClientId) {
+            $selectedClient = \App\Models\Client::find($selectedClientId);
+            if ($selectedClient && (is_null($selectedClient->payslip_template) || $selectedClient->payslip_template === '' || $selectedClient->payslip_template === 'none')) {
+                return redirect()->route('admin.payslip-templates', ['client_id' => $selectedClient->id])
+                    ->with('warning', "⚠️ No payslip template configured for {$selectedClient->company_name}. Please select and save a template first.");
+            }
         }
 
         $selectedMonth = $request->query('payroll_month');
@@ -1177,7 +1239,10 @@ class PayrollController extends Controller
             ->orderBy('id', 'desc')
             ->get();
 
-        $selectedClientId = $request->query('client_id');
+        $activeSessionClientId = $request->session()->get('active_client_id', 'all');
+        $selectedClientId = $request->has('client_id')
+            ? $request->query('client_id')
+            : ($activeSessionClientId !== 'all' ? $activeSessionClientId : null);
         $selectedDate = $request->query('date', \Carbon\Carbon::today()->toDateString());
 
         $query = \App\Models\Employee::where('employees.status', 'active')
@@ -1324,7 +1389,7 @@ class PayrollController extends Controller
             'employee_id' => 'required|exists:employees,id',
             'corrected_paid_days' => 'required|numeric|min:0|max:31',
             'corrected_lop_days' => 'required|numeric|min:0|max:31',
-            'reason' => 'required|string|max:500',
+            'reason' => 'nullable|string|max:500',
             'employee_query_id' => 'nullable|exists:employee_queries,id',
         ]);
 
@@ -1343,7 +1408,7 @@ class PayrollController extends Controller
             $employee,
             $parentRun,
             $preview,
-            $request->reason,
+            $request->reason ?? 'Manual payroll correction',
             $request->employee_query_id ? (int)$request->employee_query_id : null
         );
 
@@ -1635,7 +1700,7 @@ class PayrollController extends Controller
     {
         $request->validate([
             'parent_run_id' => 'required|exists:payroll_runs,id',
-            'reason' => 'required|string|max:500',
+            'reason' => 'nullable|string|max:500',
             'items' => 'required|array|min:1',
             'items.*.employee_id' => 'required|exists:employees,id',
             'items.*.corrected_paid_days' => 'required|numeric|min:0|max:31',
@@ -1647,7 +1712,7 @@ class PayrollController extends Controller
         $parentRun = PayrollRun::findOrFail($request->parent_run_id);
 
         $service = app(\App\Services\PayrollCorrectionService::class);
-        $service->applyBatchCorrection($parentRun, $request->items, $request->reason);
+        $service->applyBatchCorrection($parentRun, $request->items, $request->reason ?? 'Batch payroll correction');
 
         return redirect()->back()->with('success', 'Batch payroll corrections added to draft supplementary run successfully.');
     }

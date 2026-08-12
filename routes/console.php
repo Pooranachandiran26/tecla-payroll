@@ -10,3 +10,4 @@ Artisan::command('inspire', function () {
 
 Schedule::command('app:send-contract-expiry-reminders')->dailyAt('08:00');
 Schedule::command('invoices:check-overdue')->dailyAt('01:00');
+Schedule::command('queue:work --stop-when-empty')->everyMinute()->withoutOverlapping();

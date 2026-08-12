@@ -20,6 +20,14 @@ class NotificationController extends Controller
         $query = AppNotification::forUser($user->id)
             ->orderBy('created_at', 'desc');
 
+        if ($request->query('json') || ($request->expectsJson() && !$request->header('X-Inertia'))) {
+            $perPage = (int) $request->get('per_page', 10);
+            return response()->json([
+                'notifications' => $query->paginate($perPage),
+                'unreadCount'   => AppNotification::forUser($user->id)->unread()->count(),
+            ]);
+        }
+
         // Filter by read status
         if ($request->filter === 'unread') {
             $query->unread();

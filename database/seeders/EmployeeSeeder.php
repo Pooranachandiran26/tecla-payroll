@@ -2,111 +2,261 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use App\Models\Client;
+use App\Models\Employee;
+use App\Models\User;
+use App\Services\SalaryCalculationService;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
+use Faker\Factory as Faker;
+use Carbon\Carbon;
 
 class EmployeeSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
-        $employees = [
-            [
-                'employee_code' => 'TEC-088',
-                'client_id' => 1,
-                'branch_id' => 1,
-                'full_name' => 'Aarav Sharma',
-                'personal_email' => 'aarav.s@example.com',
-                'phone_number' => '9876543001',
-                'date_of_birth' => '1990-05-15',
-                'date_of_joining' => '2023-01-10',
-                'designation' => 'Software Engineer',
-                'employment_model' => 'agency_contract',
-                'status' => 'active',
-                'gender' => 'male',
-                'marital_status' => 'single',
-                'residential_address' => 'Andheri West, Mumbai, Maharashtra 400053',
-                
-                'basic_pay' => 25000,
-                'hra' => 12500,
-                'conveyance' => 0,
-                'da' => 0,
-                'medical_allowance' => 0,
-                'special_allowance' => 12500,
-                
-                'gross_monthly_salary' => 50000,
-                'employer_pf_monthly' => 1950,
-                'employer_esi_monthly' => 0,
-                'net_take_home_monthly' => 45000,
-                'ctc_monthly' => 51950,
-                
-                'pf_applicable' => true,
-                'esi_applicable' => false,
-                'pt_applicable' => true,
-                'lwf_applicable' => true,
-                'gratuity_mode' => 'part_of_ctc',
-                
-                'bank_account_number' => '12345678901234',
-                'account_holder_name' => 'Aarav Sharma',
-                'bank_ifsc' => 'HDFC0001234',
-                'bank_name' => 'HDFC Bank',
-                'bank_branch' => 'Andheri',
-                'uan_mode' => 'new',
-                'uan_number' => '100000000088',
-                'pan_number' => 'ABCDE1234F',
-                'aadhaar_number' => '123456789012',
-            ],
-            [
-                'employee_code' => 'TEC-121',
-                'client_id' => 2,
-                'branch_id' => 2,
-                'full_name' => 'Neha Patil',
-                'personal_email' => 'neha.p@example.com',
-                'phone_number' => '9876543002',
-                'date_of_birth' => '1992-08-20',
-                'date_of_joining' => '2022-11-01',
-                'designation' => 'Product Manager',
-                'employment_model' => 'agency_contract',
-                'status' => 'active',
-                'gender' => 'female',
-                'marital_status' => 'married',
-                'residential_address' => 'Bandra East, Mumbai, Maharashtra 400051',
-                
-                'basic_pay' => 40000,
-                'hra' => 20000,
-                'conveyance' => 0,
-                'da' => 0,
-                'medical_allowance' => 0,
-                'special_allowance' => 20000,
-                
-                'gross_monthly_salary' => 80000,
-                'employer_pf_monthly' => 1800,
-                'employer_esi_monthly' => 0,
-                'net_take_home_monthly' => 74000,
-                'ctc_monthly' => 81800,
-                
-                'pf_applicable' => true,
-                'esi_applicable' => false,
-                'pt_applicable' => true,
-                'lwf_applicable' => true,
-                'gratuity_mode' => 'part_of_ctc',
-                
-                'bank_account_number' => '98765432109876',
-                'account_holder_name' => 'Neha Patil',
-                'bank_ifsc' => 'ICIC0009876',
-                'bank_name' => 'ICICI Bank',
-                'bank_branch' => 'Bandra',
-                'uan_mode' => 'new',
-                'uan_number' => '100000000121',
-                'pan_number' => 'FGHIJ5678K',
-                'aadhaar_number' => '987654321098',
-            ]
+        Schema::disableForeignKeyConstraints();
+
+        if (Schema::hasTable('client_attendance_verifications')) {
+            DB::table('client_attendance_verifications')->truncate();
+        }
+        DB::table('password_histories')->truncate();
+        DB::table('otp_codes')->truncate();
+        DB::table('login_attempts')->truncate();
+        DB::table('bank_change_requests')->truncate();
+        DB::table('client_documents')->truncate();
+        DB::table('attendance_upload_batches')->truncate();
+        if (Schema::hasTable('client_user')) {
+            DB::table('client_user')->truncate();
+        }
+        DB::table('employee_documents')->truncate();
+        DB::table('employee_tax_declarations')->truncate();
+        DB::table('salary_revisions')->truncate();
+        DB::table('employee_exits')->truncate();
+        DB::table('attendance_records')->truncate();
+        DB::table('leave_requests')->truncate();
+        DB::table('payroll_run_items')->truncate();
+        DB::table('payroll_runs')->truncate();
+        DB::table('employees')->truncate();
+
+        Schema::enableForeignKeyConstraints();
+
+        $faker = Faker::create('en_IN');
+        $salaryCalcService = app(SalaryCalculationService::class);
+
+        $clients = Client::with('branches')->get();
+        if ($clients->isEmpty()) {
+            $this->command->warn('No clients found. Please run TenClientsSeeder first.');
+            return;
+        }
+
+        $providedEmails = [
+            'prem0572003@gmail.com',
+            'rajesh2003778@gmail.com',
+            'babu672677@gmail.com',
+            'naveenkumar655782@gmail.com',
+            'rajkumar7262681@gmail.com',
+            'kishore30075@gmail.com',
+            'eshwar66467@gmail.com',
+            'm26502821@gmail.com',
         ];
 
-        foreach ($employees as $emp) {
-            \App\Models\Employee::create($emp);
+        $globalEmpCount = 1;
+
+        foreach ($clients as $clientIndex => $client) {
+            $branchId = $client->branches->first() ? $client->branches->first()->id : null;
+            
+            for ($i = 0; $i < 20; $i++) {
+                
+                // Determine Email
+                $email = null;
+                if ($i === 0 && $clientIndex < count($providedEmails)) {
+                    $email = $providedEmails[$clientIndex];
+                } else {
+                    $email = strtolower($faker->firstName . '.' . $faker->lastName . rand(100,999) . '@' . preg_replace('/[^a-zA-Z0-9]/', '', strtolower($client->company_name)) . '.com');
+                }
+
+                $firstName = $faker->firstName;
+                $lastName = $faker->lastName;
+                $fullName = $firstName . ' ' . $lastName;
+                $gender = $faker->randomElement(['male', 'female']);
+                
+                // Base salary structure
+                // 25% of employees (every 4th employee) get salary <= 21k for ESI coverage testing
+                if ($i % 4 === 0) {
+                    $basicPay = rand(10000, 11500);
+                    $hra = $basicPay * 0.40;
+                    $conveyance = 1600;
+                    $medical = 1250;
+                    $special = rand(500, 1000);
+                } else {
+                    $baseMultiplier = rand(2, 8); // 20k to 80k base
+                    $basicPay = $baseMultiplier * 10000;
+                    $hra = $basicPay * 0.40;
+                    $conveyance = 1600;
+                    $medical = 1250;
+                    $special = rand(1000, 5000);
+                }
+                
+                $estimatedGross = $basicPay + $hra + $conveyance + $medical + $special;
+                $isEsiApplicable = ($estimatedGross <= 21000) && (bool)($client->esi_applicable ?? true);
+                
+                // Prepare data for SalaryCalculationService
+                $calcData = [
+                    'client_id' => $client->id,
+                    'basic_pay' => $basicPay,
+                    'hra' => $hra,
+                    'conveyance' => $conveyance,
+                    'da' => 0,
+                    'medical_allowance' => $medical,
+                    'special_allowance' => $special,
+                    'other_additions' => 0,
+                    'date_of_birth' => $faker->dateTimeBetween('-40 years', '-22 years')->format('Y-m-d'),
+                    'pf_applicable' => true,
+                    'eps_applicable' => true,
+                    'esi_applicable' => $isEsiApplicable,
+                    'pt_applicable' => true,
+                    'gender' => $gender,
+                ];
+
+                // Execute strict controller-matched service logic
+                $computed = $salaryCalcService->calculateStructuralSalary($calcData);
+
+                $doj = clone $faker->dateTimeBetween('-3 years', '-1 month');
+                
+                // Employee Creation
+                $employee = Employee::create([
+                    'employee_code' => 'TEC-' . str_pad($globalEmpCount++, 3, '0', STR_PAD_LEFT),
+                    'client_id' => $client->id,
+                    'branch_id' => $branchId,
+                    'first_name' => $firstName,
+                    'last_name' => $lastName,
+                    'father_name' => $faker->name('male'),
+                    'mother_name' => $faker->name('female'),
+                    'spouse_name' => $faker->optional(0.5)->name,
+                    'full_name' => $fullName,
+                    'personal_email' => $email,
+                    'phone_number' => '9' . $faker->numerify('#########'),
+                    'date_of_birth' => $calcData['date_of_birth'],
+                    'date_of_joining' => $doj->format('Y-m-d'),
+                    'attendance_tracking_start_date' => $doj->format('Y-m-d'),
+                    'designation' => $faker->jobTitle,
+                    'employment_model' => $client->contract_type === 'eor' ? 'eor' : 'agency_contract',
+                    'employment_type' => 'permanent',
+                    'status' => 'active',
+                    'gender' => $gender,
+                    'blood_group' => $faker->randomElement(['A+', 'O+', 'B+', 'AB+', 'A-', 'O-', 'B-', 'AB-']),
+                    'marital_status' => $faker->randomElement(['single', 'married']),
+                    'emergency_contact_name' => $faker->name,
+                    'emergency_contact_phone' => '9' . $faker->numerify('#########'),
+                    'residential_address' => $faker->address,
+                    'previous_employer_name' => $faker->company,
+                    'previous_employer_uan' => '100' . $faker->numerify('#########'),
+                    
+                    // Documents KYC
+                    'aadhaar_number' => $faker->numerify('############'),
+                    'pan_number' => strtoupper($faker->bothify('?????####?')),
+                    'uan_mode' => 'existing_transfer',
+                    'uan_number' => '101' . $faker->numerify('#########'),
+                    'esic_number' => '31' . $faker->numerify('########'),
+                    'health_insurance_provider' => 'Star Health',
+                    'health_insurance_policy_no' => strtoupper($faker->bothify('POL-######')),
+                    'health_insurance_sum_insured' => 500000.00,
+                    
+                    'probation_end_date' => Carbon::parse($doj)->addMonths(6)->format('Y-m-d'),
+                    'prior_employment_flag' => true,
+                    'declarations_accepted' => true,
+                    
+                    // Bank Details
+                    'bank_account_number' => $faker->numerify('##########'),
+                    'account_holder_name' => $fullName,
+                    'bank_ifsc' => 'HDFC0001234',
+                    'bank_name' => 'HDFC Bank',
+                    'bank_branch' => 'Main Branch',
+                    
+                    // Base Earnings
+                    'basic_pay' => $calcData['basic_pay'],
+                    'hra' => $calcData['hra'],
+                    'conveyance' => $calcData['conveyance'],
+                    'da' => 0.00,
+                    'medical_allowance' => $calcData['medical_allowance'],
+                    'special_allowance' => $calcData['special_allowance'],
+                    'other_additions' => 0.00,
+                    
+                    // Computed Overrides
+                    'gross_monthly_salary' => $computed['gross_monthly_salary'],
+                    'net_take_home_monthly' => $computed['net_take_home_monthly'],
+                    'employer_pf_monthly' => $computed['employer_pf_monthly'],
+                    'employer_esi_monthly' => $computed['employer_esi_monthly'],
+                    'ctc_monthly' => $computed['ctc_monthly'],
+                    
+                    // Statutory 
+                    'pf_applicable' => $client->pf_applicable ?? true,
+                    'eps_applicable' => true,
+                    'esi_applicable' => $isEsiApplicable,
+                    'pt_applicable' => true,
+                    'lwf_applicable' => $client->lwf_applicable ?? true,
+                    'tds_applicable' => $client->tds_applicable ?? true,
+                    'gratuity_mode' => $client->default_gratuity_mode ?? 'ctc_included',
+                    
+                    // Overrides 
+                    'lop_basis_days' => 30,
+                    'weekly_off_pattern' => 'sat,sun',
+                    'notice_period_days' => 30,
+                    'bonus_toggle' => true,
+                ]);
+
+                // Create User Login
+                User::updateOrCreate(
+                    ['email' => $email],
+                    [
+                        'name' => $fullName,
+                        'password' => Hash::make('Password@123'),
+                        'role' => 'employee',
+                        'employee_id' => $employee->id,
+                        'status' => 'active',
+                    ]
+                );
+
+                $docs = [
+                    'pan_card', 'aadhaar_card', 'bank_passbook', 'offer_letter', 'photo',
+                    'educational_certificate', 'relieving_letter', 'previous_payslips', 'form16'
+                ];
+                foreach ($docs as $doc) {
+                    \App\Models\EmployeeDocument::create([
+                        'employee_id' => $employee->id,
+                        'document_type' => $doc,
+                        'file_path' => 'employee_documents/dummy_' . $doc . '_' . $employee->id . '.pdf',
+                        'status' => 'verified',
+                        'verified_at' => now()
+                    ]);
+                }
+
+                // Seed Attendance Records for July 2026 & June 2026
+                $attendanceData = [];
+                foreach (['2026-06', '2026-07'] as $monthStr) {
+                    $start = Carbon::parse($monthStr . '-01');
+                    $end = $start->copy()->endOfMonth();
+                    for ($d = $start->copy(); $d->lte($end); $d->addDay()) {
+                        if (!$d->isSunday()) {
+                            $attendanceData[] = [
+                                'employee_id' => $employee->id,
+                                'attendance_date' => $d->toDateString(),
+                                'punch_in_time' => $d->toDateString() . ' 09:00:00',
+                                'punch_out_time' => $d->toDateString() . ' 18:00:00',
+                                'hours_worked' => 9.00,
+                                'status' => 'present',
+                                'source' => 'uploaded',
+                                'created_at' => now(),
+                                'updated_at' => now(),
+                            ];
+                        }
+                    }
+                }
+                DB::table('attendance_records')->insert($attendanceData);
+            }
         }
     }
 }

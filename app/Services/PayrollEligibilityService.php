@@ -69,7 +69,11 @@ class PayrollEligibilityService
                 ->exists();
 
             if (!$hasApprovedLeave) {
-                $exclusions[] = "No attendance data";
+                if (filter_var(env('ALLOW_EARLY_PAYROLL_PROCESSING', false), FILTER_VALIDATE_BOOLEAN)) {
+                    $warnings[] = "No attendance data (Testing mode active)";
+                } else {
+                    $exclusions[] = "No attendance data";
+                }
             }
         }
 

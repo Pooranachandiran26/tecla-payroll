@@ -4,7 +4,7 @@ body.tpl-tech_modern {
     color: #0f172a;
     margin: 0;
     padding: 20px;
-    background-color: #f8fbff;
+    background-color: #ffffff;
 }
 
 .tpl-tech_modern .header-table {
@@ -39,27 +39,24 @@ body.tpl-tech_modern {
 
 .tpl-tech_modern .employee-info-table {
     width: 100%;
-    background-color: #ffffff;
-    border: 1px solid #dbeafe;
-    border-radius: 10px;
+    background-color: {{ $accentColor ? $accentColor.'0D' : '#eff6ff' }};
+    border: 1px solid {{ $accentColor ? $accentColor.'26' : '#bfdbfe' }};
+    border-radius: 8px;
     border-collapse: separate;
-    margin-bottom: 22px;
+    margin-bottom: 20px;
 }
 
 .tpl-tech_modern .employee-info-table td {
-    padding: 10px 12px;
+    padding: 8px 12px;
     font-size: 10px;
-    vertical-align: top;
-}
-
-.tpl-tech_modern .employee-info-table tr + tr td {
-    border-top: 1px solid #e2eaf7;
 }
 
 .tpl-tech_modern .meta-label {
-    color: #475569;
+    color: {{ $accentColor ?: '#2563eb' }};
     font-weight: 600;
-    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    font-size: 9px;
+    letter-spacing: 0.05em;
 }
 
 .tpl-tech_modern .meta-val {
@@ -69,46 +66,35 @@ body.tpl-tech_modern {
 
 .tpl-tech_modern .components-table {
     width: 100%;
-    border-collapse: separate;
-    border-spacing: 0 8px;
-    margin-bottom: 22px;
-}
-
-.tpl-tech_modern .components-table th,
-.tpl-tech_modern .components-table td {
-    padding: 10px 12px;
-    font-size: 10px;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+    border-radius: 8px;
+    overflow: hidden;
 }
 
 .tpl-tech_modern .components-table th {
-    background-color: #eff6ff;
-    color: #1d4ed8;
-    border: 1px solid #bfdbfe;
-    border-radius: 8px;
+    background-color: {{ $accentColor ?: '#2563eb' }};
+    color: #ffffff;
+    padding: 9px 12px;
+    font-size: 10px;
     text-transform: uppercase;
+    letter-spacing: 0.06em;
     font-weight: 700;
 }
 
 .tpl-tech_modern .components-table td {
-    background-color: #ffffff;
-    color: #334155;
-    border: 1px solid #dbeafe;
-}
-
-.tpl-tech_modern .components-table tr td:first-child {
-    border-left: 1px solid #dbeafe;
-}
-
-.tpl-tech_modern .components-table tr td:last-child {
-    border-right: 1px solid #dbeafe;
+    border: 1px solid {{ $accentColor ? $accentColor.'26' : '#dbeafe' }};
+    padding: 8px 12px;
+    font-size: 10px;
 }
 
 .tpl-tech_modern .net-pay-box {
-    background-color: #eff6ff;
+    background-color: {{ $accentColor ? $accentColor.'0F' : '#eff6ff' }};
     border: 2px solid {{ $accentColor ?: '#2563eb' }};
-    padding: 16px 18px;
+    color: #0f172a;
+    padding: 14px 18px;
     margin-bottom: 20px;
-    border-radius: 12px;
+    border-radius: 8px;
 }
 
 .tpl-tech_modern .net-amount {
@@ -118,17 +104,17 @@ body.tpl-tech_modern {
 }
 
 .tpl-tech_modern .net-words {
-    font-size: 9.5px;
+    font-size: 10px;
     font-style: italic;
     text-align: right;
-    color: #475569;
+    color: {{ $accentColor ?: '#2563eb' }};
 }
 
 .tpl-tech_modern .footer-note {
     text-align: center;
-    font-size: 8.5px;
-    color: #64748b;
-    margin-top: 18px;
-    border-top: 1px dashed #dbeafe;
+    font-size: 9px;
+    color: #94a3b8;
+    margin-top: 20px;
+    border-top: 1px solid {{ $accentColor ? $accentColor.'26' : '#dbeafe' }};
     padding-top: 10px;
 }

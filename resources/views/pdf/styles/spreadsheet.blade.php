@@ -1,96 +1,97 @@
-body {
+body.tpl-spreadsheet {
     font-family: 'Courier New', Courier, monospace;
     font-size: 10px;
-    color: #000000;
+    color: #0f172a;
     margin: 0;
     padding: 12px;
     background-color: #ffffff;
 }
-.header-table {
+.tpl-spreadsheet .header-table {
     width: 100%;
-    border: 2px solid #000000;
+    border: 2px solid {{ $accentColor ?: '#1F3864' }};
     padding: 8px 12px;
     margin-bottom: 12px;
-    background-color: #f8fafc;
+    background-color: {{ $accentColor ?: '#1F3864' }}0D;
 }
-.company-name {
+.tpl-spreadsheet .company-name {
     font-size: 15px;
     font-weight: bold;
-    color: #000000;
+    color: {{ $accentColor ?: '#1F3864' }};
     text-transform: uppercase;
     letter-spacing: 1px;
 }
-.company-address {
+.tpl-spreadsheet .company-address {
     font-size: 9px;
-    color: #000000;
+    color: #475569;
 }
-.payslip-title {
+.tpl-spreadsheet .payslip-title {
     font-size: 15px;
     font-weight: bold;
-    color: #000000;
+    color: {{ $accentColor ?: '#1F3864' }};
     text-align: right;
     text-transform: uppercase;
 }
-.employee-info-table {
+.tpl-spreadsheet .employee-info-table {
     width: 100%;
-    border: 2px solid #000000;
+    border: 1px solid {{ $accentColor ?: '#1F3864' }}40;
     border-collapse: collapse;
     margin-bottom: 12px;
 }
-.employee-info-table td {
-    border: 1px solid #000000;
-    padding: 5px 8px;
-    font-size: 9.5px;
+.tpl-spreadsheet .employee-info-table td {
+    border: 1px solid #cbd5e1;
+    padding: 4px 6px;
+    font-size: 9px;
 }
-.meta-label {
-    color: #000000;
+.tpl-spreadsheet .meta-label {
+    color: {{ $accentColor ?: '#1F3864' }};
     font-weight: bold;
-    text-transform: uppercase;
 }
-.meta-val {
-    font-weight: normal;
-    color: #000000;
+.tpl-spreadsheet .meta-val {
+    font-weight: bold;
+    color: #0f172a;
 }
-.components-table {
+.tpl-spreadsheet .components-table {
     width: 100%;
     border-collapse: collapse;
     margin-bottom: 12px;
 }
-.components-table th {
-    border: 2px solid #000000;
-    background-color: #e2e8f0;
-    color: #000000;
-    padding: 6px;
-    font-size: 9.5px;
+.tpl-spreadsheet .components-table th {
+    background-color: {{ $accentColor ?: '#1F3864' }};
+    color: #ffffff;
+    border: 1px solid {{ $accentColor ?: '#1F3864' }};
+    padding: 5px;
+    font-size: 9px;
     text-transform: uppercase;
+    font-weight: bold;
 }
-.components-table td {
-    border: 1px solid #000000;
-    padding: 5px 8px;
-    font-size: 9.5px;
+.tpl-spreadsheet .components-table td {
+    border: 1px solid #cbd5e1;
+    padding: 4.5px 6px;
+    font-size: 9px;
 }
-.net-pay-box {
-    border: 2px solid #000000;
-    background-color: #e2e8f0;
-    color: #000000;
-    padding: 10px 14px;
+.tpl-spreadsheet .net-pay-box {
+    background-color: {{ $accentColor ?: '#1F3864' }}0F;
+    border: 2px solid {{ $accentColor ?: '#1F3864' }};
+    color: #0f172a;
+    padding: 8px 12px;
     margin-bottom: 12px;
 }
-.net-amount {
+.tpl-spreadsheet .net-amount {
     font-size: 14px;
     font-weight: bold;
-    color: #000000;
+    color: {{ $accentColor ?: '#1F3864' }};
 }
-.net-words {
-    font-size: 9px;
+.tpl-spreadsheet .net-words {
+    font-size: 8.5px;
     font-style: italic;
     text-align: right;
+    color: {{ $accentColor ?: '#1F3864' }};
 }
-.footer-note {
+.tpl-spreadsheet .footer-note {
     text-align: center;
-    font-size: 8.5px;
-    color: #000000;
-    margin-top: 15px;
-    border-top: 2px dashed #000000;
-    padding-top: 6px;
+    font-size: 8px;
+    color: #94a3b8;
+    margin-top: 10px;
+    border-top: 1px dashed {{ $accentColor ?: '#1F3864' }}40;
+    padding-top: 4px;
 }
