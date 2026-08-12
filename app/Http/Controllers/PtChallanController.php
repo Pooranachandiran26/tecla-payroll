@@ -26,7 +26,8 @@ class PtChallanController extends Controller
         $month = $request->query('month');
 
         $query = PayrollRun::with('client')
-            ->where('status', 'locked');
+            ->where('status', 'locked')
+            ->whereNotIn('id', PtChallanBatch::select('payroll_run_id'));
 
         if ($user->role === 'client' && $user->client_id) {
             $query->where('client_id', $user->client_id);

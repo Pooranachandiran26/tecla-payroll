@@ -350,9 +350,30 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
     if (field === 'address') validateAddress(value);
     if (field === 'accountNo') validateAccountNo(value);
     if (field === 'accountNoConfirm') validateAccountNoConfirm(value, formData.accountNo);
-    if (field === 'accountHolder') validateAccountHolder(value);
     if (field === 'pan') validatePAN(value);
-    if (field === 'basicSal') validateBasicSal(value);
+    if (field === 'basicSal') {
+      validateBasicSal(value);
+      setTimeout(() => validateJointDeclaration(formData.jointDeclarationStatus), 50);
+    }
+    if (field === 'daSal' || field === 'clientPartner') {
+      setTimeout(() => validateJointDeclaration(formData.jointDeclarationStatus), 50);
+    }
+    if (field === 'jointDeclarationStatus' || field === 'joint_declaration_status') {
+      validateJointDeclaration(value);
+    }
+    if (field === 'pfMemberId') validatePFMemberId(value, formData.pfToggle);
+    if (field === 'uan') validateUAN(value, formData.uanMode, formData.pfToggle);
+    if (field === 'uanMode') validateUAN(formData.uan, value, formData.pfToggle);
+    if (field === 'pfToggle') {
+      validatePFMemberId(formData.pfMemberId, value);
+      validateUAN(formData.uan, formData.uanMode, value);
+      setTimeout(() => validateJointDeclaration(formData.jointDeclarationStatus), 50);
+    }
+    if (field === 'esiNo') validateESINo(value, formData.esiMode, formData.esiToggle);
+    if (field === 'esiMode') validateESINo(formData.esiNo, value, formData.esiToggle);
+    if (field === 'esiToggle') {
+      validateESINo(formData.esiNo, formData.esiMode, value);
+    }
   };
 
   // Initialization (URL parse)
@@ -686,6 +707,101 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
     }
   };
 
+  const validatePFMemberId = (val = formData.pfMemberId, pfToggle = formData.pfToggle) => {
+    if (!pfToggle) {
+      clearErrorMsg('pfMemberId');
+      removeBlocker('PF Member ID is required');
+      return true;
+    }
+    if (!val || !val.trim()) {
+      setErrorMsg('pfMemberId', '⛔ PF Member ID (Member Account No.) is required when Provident Fund is enabled.', 'error');
+      addBlocker('PF Member ID is required');
+      return false;
+    }
+    clearErrorMsg('pfMemberId');
+    removeBlocker('PF Member ID is required');
+    return true;
+  };
+
+  const validateUAN = (val = formData.uan, uanMode = formData.uanMode, pfToggle = formData.pfToggle) => {
+    if (!pfToggle || uanMode !== 'existing_transfer') {
+      clearErrorMsg('uan');
+      removeBlocker('UAN Number is required for existing UAN');
+      removeBlocker('UAN must be 12 digits');
+      return true;
+    }
+    if (!val || !val.trim()) {
+      setErrorMsg('uan', '⛔ 12-digit UAN Number is required for Existing UAN.', 'error');
+      addBlocker('UAN Number is required for existing UAN');
+      return false;
+    }
+    if (!/^[0-9]{12}$/.test(val.trim())) {
+      setErrorMsg('uan', '⛔ UAN must be exactly 12 digits (e.g. 100123456789).', 'error');
+      addBlocker('UAN must be 12 digits');
+      return false;
+    }
+    clearErrorMsg('uan');
+    removeBlocker('UAN Number is required for existing UAN');
+    removeBlocker('UAN must be 12 digits');
+    return true;
+  };
+
+  const validateESINo = (val = formData.esiNo, esiMode = formData.esiMode, esiToggle = formData.esiToggle) => {
+    if (!esiToggle || esiMode !== 'existing_transfer') {
+      clearErrorMsg('esiNo');
+      removeBlocker('ESIC IP Number is required');
+      removeBlocker('ESIC IP Number must be 10 digits');
+      return true;
+    }
+    if (!val || !val.trim()) {
+      setErrorMsg('esiNo', '⛔ ESIC IP Number is required for Existing IP Number.', 'error');
+      addBlocker('ESIC IP Number is required');
+      return false;
+    }
+    if (!/^[0-9]{10,17}$/.test(val.trim())) {
+      setErrorMsg('esiNo', '⛔ ESIC IP Number must be 10 to 17 digits.', 'error');
+      addBlocker('ESIC IP Number must be 10 digits');
+      return false;
+    }
+    clearErrorMsg('esiNo');
+    removeBlocker('ESIC IP Number is required');
+    removeBlocker('ESIC IP Number must be 10 digits');
+    return true;
+  };
+
+  const isJointDeclarationRequired = useMemo(() => {
+    if (!formData.pfToggle) return false;
+    const client = clients.find(c => String(c.id) === String(formData.clientPartner));
+    const isActualOnEmp = (activeClientDefaults?.employeePfWageBasis === 'actual_basic_da' || 
+                           activeClientDefaults?.employee_pf_wage_basis === 'actual_basic_da' ||
+                           client?.employee_pf_wage_basis === 'actual_basic_da');
+    const isActualOnEmpr = (activeClientDefaults?.employerPfWageBasis === 'actual_basic_da' || 
+                            activeClientDefaults?.employer_pf_wage_basis === 'actual_basic_da' ||
+                            client?.employer_pf_wage_basis === 'actual_basic_da');
+    const basicDa = (Number(formData.basicSal) || 0) + (Number(formData.daSal) || 0);
+    return (isActualOnEmp || isActualOnEmpr) && basicDa > 15000;
+  }, [formData.pfToggle, formData.clientPartner, formData.basicSal, formData.daSal, activeClientDefaults, clients]);
+
+  const validateJointDeclaration = (val = formData.jointDeclarationStatus) => {
+    if (!isJointDeclarationRequired) {
+      clearErrorMsg('jointDeclarationStatus');
+      clearErrorMsg('joint_declaration_status');
+      removeBlocker('EPF Para 26(6) Joint Declaration is required');
+      return true;
+    }
+    if (!val || val === 'not_required') {
+      const msg = '⛔ Para 26(6) Joint Declaration Status must be Pending Attestation, Submitted to EPFO, or Approved by RPFC because PF Wage Basis is Actual Basic+DA and Basic+DA exceeds ₹15,000.';
+      setErrorMsg('jointDeclarationStatus', msg, 'error');
+      setErrorMsg('joint_declaration_status', msg, 'error');
+      addBlocker('EPF Para 26(6) Joint Declaration is required');
+      return false;
+    }
+    clearErrorMsg('jointDeclarationStatus');
+    clearErrorMsg('joint_declaration_status');
+    removeBlocker('EPF Para 26(6) Joint Declaration is required');
+    return true;
+  };
+
   const validateAllFields = async () => {
     let valid = true;
     if (!validateFirstName(formData.firstName)) valid = false;
@@ -712,6 +828,11 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       const ifscValid = await validateIFSC();
       if (!ifscValid) valid = false;
     }
+
+    if (!validatePFMemberId(formData.pfMemberId, formData.pfToggle)) valid = false;
+    if (!validateUAN(formData.uan, formData.uanMode, formData.pfToggle)) valid = false;
+    if (!validateESINo(formData.esiNo, formData.esiMode, formData.esiToggle)) valid = false;
+    if (!validateJointDeclaration(formData.jointDeclarationStatus)) valid = false;
 
     return valid;
   };
@@ -763,9 +884,18 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
 
     if (!isValid || blockingErrors.size > 0) {
       setProcessing(false);
+      showToast({
+        type: 'error',
+        title: 'Form Validation Error',
+        message: 'Please resolve the highlighted validation errors before saving the employee profile.'
+      });
       setTimeout(() => {
-        runJQueryValidation('#emp-form', errors);
-      }, 50);
+        const firstErrorEl = document.querySelector('.form-control.is-error, .form-control.is-invalid, .field-msg.error.show');
+        if (firstErrorEl) {
+          firstErrorEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          firstErrorEl.focus?.();
+        }
+      }, 100);
       return;
     }
     
@@ -1418,7 +1548,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                       <div className="form-row">
                         <div className="form-group" style={{ marginBottom: "0" }}>
                           <label>UAN Mode <span style={{ color: "var(--status-danger)" }}>*</span></label>
-                          <select className={`form-control ${errors.uanMode ? 'is-invalid' : ''}`} value={formData.uanMode} onChange={e => handleInputChange('uanMode', e.target.value)}>
+                          <select className={`form-control ${errors.uanMode ? `is-${errors.uanMode.type || 'error'}` : ''}`} value={formData.uanMode} onChange={e => handleInputChange('uanMode', e.target.value)}>
                             <option value="new">Pending / New Registration</option>
                             <option value="existing_transfer">Existing UAN</option>
                           </select>
@@ -1435,7 +1565,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                         {formData.uanMode === 'existing_transfer' && (
                           <div className="form-group" style={{ marginBottom: "0" }}>
                             <label>UAN Number <span style={{ color: "var(--status-danger)" }}>*</span></label>
-                            <input type="text" className={`form-control ${errors.uan ? 'is-invalid' : ''}`} value={formData.uan} onChange={e => handleInputChange('uan', e.target.value)} placeholder="12-digit UAN" maxLength="12" />
+                            <input type="text" className={`form-control ${errors.uan ? `is-${errors.uan.type || 'error'}` : ''}`} value={formData.uan} onChange={e => handleInputChange('uan', e.target.value)} placeholder="12-digit UAN" maxLength="12" />
                             {errors.uan && <div className={`field-msg ${errors.uan.type || 'error'} show`}>{errors.uan.msg || errors.uan}</div>}
                           </div>
                         )}
@@ -1446,7 +1576,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                           <label>PF Member ID (Member Account No.) <span style={{ color: "var(--status-danger)" }}>*</span></label>
                           <input 
                             type="text" 
-                            className={`form-control ${errors.pfMemberId ? 'is-invalid' : ''}`} 
+                            className={`form-control ${errors.pfMemberId ? `is-${errors.pfMemberId.type || 'error'}` : ''}`} 
                             value={formData.pfMemberId} 
                             onChange={e => handleInputChange('pfMemberId', e.target.value)} 
                             placeholder="e.g. DLCPM00123450000000271" 
@@ -1497,17 +1627,30 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                         <div style={{ marginTop: "0.75rem", paddingTop: "0.75rem", borderTop: "1px dashed var(--border-color)" }}>
                           <div className="form-group" style={{ marginBottom: "0" }}>
                             <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "var(--primary-navy)" }}>
-                              EPF Scheme Para 26(6) Joint Declaration Status
+                              EPF Scheme Para 26(6) Joint Declaration Status {isJointDeclarationRequired && <span style={{ color: "var(--status-danger)" }}>*</span>}
                             </label>
-                            <select className={`form-control ${errors.joint_declaration_status ? 'is-invalid' : ''}`} value={formData.jointDeclarationStatus} onChange={e => { handleInputChange('jointDeclarationStatus', e.target.value); handleInputChange('joint_declaration_status', e.target.value); }}>
+                            <select 
+                              className={`form-control ${errors.jointDeclarationStatus || errors.joint_declaration_status ? `is-${(errors.jointDeclarationStatus?.type || errors.joint_declaration_status?.type || 'error')}` : ''}`} 
+                              value={formData.jointDeclarationStatus} 
+                              onChange={e => { 
+                                handleInputChange('jointDeclarationStatus', e.target.value); 
+                                handleInputChange('joint_declaration_status', e.target.value); 
+                              }}
+                            >
                               <option value="not_required">Not Required (&le; ₹15,000 or Ceiling Base)</option>
                               <option value="pending">Pending Attestation</option>
                               <option value="submitted">Submitted to EPFO</option>
                               <option value="approved">Approved by RPFC</option>
                             </select>
-                            {errors.joint_declaration_status && <div className="field-msg error show">{errors.joint_declaration_status.msg || errors.joint_declaration_status}</div>}
+                            {(errors.jointDeclarationStatus || errors.joint_declaration_status) && (
+                              <div className="field-msg error show">
+                                {errors.jointDeclarationStatus?.msg || errors.jointDeclarationStatus || errors.joint_declaration_status?.msg || errors.joint_declaration_status}
+                              </div>
+                            )}
                             <small style={{ color: "var(--text-muted)", display: "block", marginTop: "4px" }}>
-                              Required whenever candidate earns Basic+DA &gt; ₹15,000/mo and employer or candidate contributes on Actual Basic+DA.
+                              {isJointDeclarationRequired 
+                                ? '⚠️ Required: Candidate earns Basic+DA > ₹15,000/mo and PF is on Actual Basic+DA. Select Pending, Submitted, or Approved.' 
+                                : 'Required whenever candidate earns Basic+DA > ₹15,000/mo and employer or candidate contributes on Actual Basic+DA.'}
                             </small>
                           </div>
                         </div>
@@ -1541,7 +1684,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                       <div className="form-row">
                         <div className="form-group" style={{ marginBottom: "0.75rem" }}>
                           <label>ESI Mode <span style={{ color: "var(--status-danger)" }}>*</span></label>
-                          <select className={`form-control ${errors.esiMode ? 'is-invalid' : ''}`} value={formData.esiMode} onChange={e => handleInputChange('esiMode', e.target.value)}>
+                          <select className={`form-control ${errors.esiMode ? `is-${errors.esiMode.type || 'error'}` : ''}`} value={formData.esiMode} onChange={e => handleInputChange('esiMode', e.target.value)}>
                             <option value="new">Pending / New Registration</option>
                             <option value="existing_transfer">Existing IP Number</option>
                           </select>
@@ -1558,7 +1701,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                         {formData.esiMode === 'existing_transfer' && (
                           <div className="form-group" style={{ marginBottom: "0.75rem" }}>
                             <label>ESIC IP Number <span style={{ color: "var(--status-danger)" }}>*</span></label>
-                            <input type="text" className={`form-control ${errors.esiNo ? 'is-invalid' : ''}`} value={formData.esiNo} onChange={e => handleInputChange('esiNo', e.target.value)} placeholder="10-digit ESIC Number" maxLength="10" />
+                            <input type="text" className={`form-control ${errors.esiNo ? `is-${errors.esiNo.type || 'error'}` : ''}`} value={formData.esiNo} onChange={e => handleInputChange('esiNo', e.target.value)} placeholder="10-digit ESIC Number" maxLength="17" />
                             {errors.esiNo && <div className={`field-msg ${errors.esiNo.type || 'error'} show`}>{errors.esiNo.msg || errors.esiNo}</div>}
                           </div>
                         )}
