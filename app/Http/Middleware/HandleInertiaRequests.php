@@ -79,20 +79,36 @@ class HandleInertiaRequests extends Middleware
                 'login_card_position' => \App\Services\SettingsService::get('branding.login_card_position', 'centered'),
             ],
             'flash' => [
-                'success' => fn () => $request->session()->get('success') ?? $request->session()->get('message') ?? $request->session()->get('status'),
-                'error' => fn () => $request->session()->get('error'),
-                'warning' => fn () => $request->session()->get('warning'),
-                'info' => fn () => $request->session()->get('info'),
+                'success' => function () use ($request) {
+                    return $request->session()->get('success') 
+                        ?? $request->session()->get('message') 
+                        ?? $request->session()->get('status');
+                },
+                'error' => function () use ($request) {
+                    return $request->session()->get('error');
+                },
+                'warning' => function () use ($request) {
+                    return $request->session()->get('warning');
+                },
+                'info' => function () use ($request) {
+                    return $request->session()->get('info');
+                },
             ],
             // notificationCount: unread in-app notifications for Admin/Manager only (v1 scope boundary).
             // Employees and Clients intentionally receive 0 — they are excluded from in-app notifications.
-            'notificationCount' => fn () => ($request->user() && in_array($request->user()->role, ['admin', 'manager']))
-                ? \App\Models\AppNotification::where('user_id', $request->user()->id)->whereNull('read_at')->count()
-                : 0,
-            'activeClients' => fn () => ($request->user() && in_array($request->user()->role, ['admin', 'manager']))
-                ? \App\Models\Client::where('status', 'active')->select('id', 'company_name', 'client_code')->orderBy('company_name')->get()
-                : [],
-            'activeClientId' => fn () => $request->session()->get('active_client_id', 'all'),
+            'notificationCount' => function () use ($request) {
+                return ($request->user() && in_array($request->user()->role, ['admin', 'manager']))
+                    ? \App\Models\AppNotification::where('user_id', $request->user()->id)->whereNull('read_at')->count()
+                    : 0;
+            },
+            'activeClients' => function () use ($request) {
+                return ($request->user() && in_array($request->user()->role, ['admin', 'manager']))
+                    ? \App\Models\Client::where('status', 'active')->select('id', 'company_name', 'client_code')->orderBy('company_name')->get()
+                    : [];
+            },
+            'activeClientId' => function () use ($request) {
+                return $request->session()->get('active_client_id', 'all');
+            },
         ]);
     }
 }
