@@ -2186,7 +2186,7 @@ export default function Settings() {
                       />
                       <Input 
                         type="number" 
-                        label="Max OTP Attempts" 
+                        label="Max OTP Attempts (0 = Unlimited / No Lockout)" 
                         value={renderAuthVal('otp_max_attempts')} 
                         onChange={e => handleAuthChange('otp_max_attempts', e.target.value)} 
                       />
@@ -2201,11 +2201,25 @@ export default function Settings() {
 
                   {/* 2. Lockout & Abuse Protection */}
                   <Card>
-                    <h3 className="font-bold text-lg mb-4 text-slate-800">2. Lockout & Abuse Protection</h3>
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                      <h3 className="font-bold text-lg text-slate-800 m-0">2. Lockout & Abuse Protection</h3>
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                        Testing Mode Active
+                      </span>
+                    </div>
+
+                    <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs p-3 rounded-xl mb-4 flex items-start gap-2 font-medium">
+                      <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                      <div>
+                        <strong>Lockout Disabled for Testing:</strong> Strict IP and account lockout limits are bypassed so you and your team can test freely without being blocked by "Too many attempts" errors.
+                      </div>
+                    </div>
+
                     <div className="flex flex-col gap-4">
                       <Input 
                         type="number" 
-                        label="Max Failed Login Attempts" 
+                        label="Max Failed Login Attempts (0 = Unlimited)" 
                         value={renderAuthVal('max_failed_login_attempts')} 
                         onChange={e => handleAuthChange('max_failed_login_attempts', e.target.value)} 
                       />
@@ -2222,7 +2236,7 @@ export default function Settings() {
                       />
                       <Input 
                         type="number" 
-                        label="IP Throttle Failed Attempts Threshold" 
+                        label="IP Throttle Failed Attempts Threshold (0 = Disabled)" 
                         value={renderAuthVal('ip_failed_attempts_threshold')} 
                         onChange={e => handleAuthChange('ip_failed_attempts_threshold', e.target.value)} 
                       />
