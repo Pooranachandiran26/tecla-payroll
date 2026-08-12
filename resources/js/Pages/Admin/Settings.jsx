@@ -2201,18 +2201,42 @@ export default function Settings() {
 
                   {/* 2. Lockout & Abuse Protection */}
                   <Card>
-                    <div className="flex items-center justify-between gap-2 mb-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
                       <h3 className="font-bold text-lg text-slate-800 m-0">2. Lockout & Abuse Protection</h3>
-                      <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                        Testing Mode Active
-                      </span>
+                      {renderAuthVal('testing_mode_enabled', true) === true || renderAuthVal('testing_mode_enabled', true) === 'true' ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                          Testing Mode ON
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-300">
+                          <ShieldCheck className="w-3 h-3 text-slate-600" />
+                          Strict Protection Active
+                        </span>
+                      )}
                     </div>
 
-                    <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs p-3 rounded-xl mb-4 flex items-start gap-2 font-medium">
-                      <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                      <div>
-                        <strong>Lockout Disabled for Testing:</strong> Strict IP and account lockout limits are bypassed so you and your team can test freely without being blocked by "Too many attempts" errors.
+                    {/* Master Testing Mode Toggle Banner */}
+                    <div className={`p-4 rounded-xl border mb-5 transition-all ${
+                      renderAuthVal('testing_mode_enabled', true) === true || renderAuthVal('testing_mode_enabled', true) === 'true'
+                        ? 'bg-emerald-50 border-emerald-300 text-emerald-950 shadow-xs'
+                        : 'bg-slate-50 border-slate-200 text-slate-700'
+                    }`}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="font-bold text-sm text-[#1F3864] flex items-center gap-2">
+                            <span>Enable Testing Mode (Bypass All Lockouts & Throttling)</span>
+                          </div>
+                          <p className="text-xs mt-1 leading-relaxed text-gray-600">
+                            {renderAuthVal('testing_mode_enabled', true) === true || renderAuthVal('testing_mode_enabled', true) === 'true'
+                              ? 'Testing Mode is ON: IP rate-limiting, "Too many attempts" errors, and OTP lockout limits are bypassed so you can test freely.'
+                              : 'Testing Mode is OFF: Strict security is active. Failed login thresholds and IP bans are enforced according to the rules below.'}
+                          </p>
+                        </div>
+                        <Checkbox 
+                          checked={renderAuthVal('testing_mode_enabled', true) === true || renderAuthVal('testing_mode_enabled', true) === 'true'} 
+                          onChange={e => handleAuthChange('testing_mode_enabled', e.target.checked)} 
+                        />
                       </div>
                     </div>
 
