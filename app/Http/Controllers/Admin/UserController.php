@@ -101,7 +101,7 @@ class UserController extends Controller
                 $user->managedClients()->sync($request->input('assigned_client_ids', []));
             }
 
-            return back()->with('message', 'User invited successfully.');
+            return back()->with('success', 'User invited successfully.');
         } catch (\App\Exceptions\InvitationDeliveryException $e) {
             return back()->withErrors(['email' => $e->getMessage()]);
         }
@@ -120,7 +120,7 @@ class UserController extends Controller
 
         $user->managedClients()->sync($request->input('assigned_client_ids', []));
 
-        return back()->with('message', 'Assigned clients updated successfully.');
+        return back()->with('success', 'Assigned clients updated successfully.');
     }
 
     public function updateModulePermissions(Request $request, User $user)
@@ -138,7 +138,7 @@ class UserController extends Controller
             'module_permissions' => $request->input('module_permissions', null),
         ]);
 
-        return back()->with('message', 'Customized module permissions updated successfully.');
+        return back()->with('success', 'Customized module permissions updated successfully.');
     }
 
     public function resendInvite(Request $request, User $user)
@@ -150,7 +150,7 @@ class UserController extends Controller
 
         try {
             $this->invitationService->resendInvitation($user);
-            return back()->with('message', "Invitation re-sent successfully to {$user->email}.");
+            return back()->with('success', "Invitation re-sent successfully to {$user->email}.");
         } catch (\App\Exceptions\InvitationDeliveryException $e) {
             return back()->withErrors(['message' => $e->getMessage()]);
         } catch (\Throwable $e) {
@@ -173,13 +173,13 @@ class UserController extends Controller
 
         try {
             $user->delete();
-            return back()->with('message', "User account '{$userName}' deleted successfully.");
+            return back()->with('success', "User account '{$userName}' deleted successfully.");
         } catch (\Illuminate\Database\QueryException $e) {
             // Foreign key constraint violation (e.g. attendance uploads, payroll runs, approvals)
             if ($e->getCode() == '23000' || str_contains($e->getMessage(), 'Integrity constraint violation')) {
                 // If user has historical audit activity, suspend/deactivate the user to protect audit compliance
                 $user->update(['status' => 'suspended']);
-                return back()->with('message', "User account '{$userName}' cannot be permanently deleted because they have associated historical audit records (such as attendance batches or approval logs). The user account has been deactivated & suspended instead.");
+                return back()->with('warning', "User account '{$userName}' cannot be permanently deleted because they have associated historical audit records (such as attendance batches or approval logs). The user account has been deactivated & suspended instead.");
             }
             return back()->withErrors(['message' => 'Failed to delete user: ' . $e->getMessage()]);
         } catch (\Throwable $e) {

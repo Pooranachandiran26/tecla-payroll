@@ -4,6 +4,7 @@ import AuthenticatedLayout from '../../Layouts/AuthenticatedLayout';
 import RoleGuard from '../../Components/RoleGuard.jsx';
 import Modal from '../../Components/ui/Modal';
 import ConfirmDialog from '../../Components/ui/ConfirmDialog';
+import useToast from '../../Hooks/useToast';
 import { 
     UserPlus, 
     Search, 
@@ -21,6 +22,7 @@ import {
 
 export default function UserManagement({ users = {}, unlinkedEmployees = [], unlinkedClients = [], allClients = [], filters = {} }) {
   const { auth } = usePage().props;
+  const { showToast } = useToast();
   const currentUserId = auth?.user?.id;
 
   const [showInviteModal, setShowInviteModal] = useState(false);
@@ -40,6 +42,9 @@ export default function UserManagement({ users = {}, unlinkedEmployees = [], unl
       {},
       {
         onFinish: () => setResendingUserId(null),
+        onError: (errs) => {
+          showToast({ type: 'error', title: 'Error', message: errs.message || 'Failed to resend invitation.' });
+        }
       }
     );
   };
@@ -47,7 +52,13 @@ export default function UserManagement({ users = {}, unlinkedEmployees = [], unl
   const handleDeleteUser = () => {
     if (!deletingUser) return;
     router.delete(route('admin.users.destroy', deletingUser.id), {
-      onSuccess: () => setDeletingUser(null),
+      onSuccess: () => {
+        setDeletingUser(null);
+      },
+      onError: (errs) => {
+        setDeletingUser(null);
+        showToast({ type: 'error', title: 'Error', message: errs.message || 'Failed to delete user account.' });
+      },
       onFinish: () => setDeletingUser(null),
     });
   };

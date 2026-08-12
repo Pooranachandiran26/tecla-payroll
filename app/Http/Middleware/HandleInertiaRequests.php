@@ -80,7 +80,7 @@ class HandleInertiaRequests extends Middleware
                 'login_card_position' => \App\Services\SettingsService::get('branding.login_card_position', 'centered'),
             ],
             'flash' => [
-                'success' => fn () => $request->session()->get('success'),
+                'success' => fn () => $request->session()->get('success') ?? $request->session()->get('message') ?? $request->session()->get('status'),
                 'error' => fn () => $request->session()->get('error'),
                 'warning' => fn () => $request->session()->get('warning'),
                 'info' => fn () => $request->session()->get('info'),
