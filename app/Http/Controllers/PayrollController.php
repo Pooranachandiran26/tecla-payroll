@@ -562,6 +562,7 @@ class PayrollController extends Controller
                 $existing = PayrollRun::where('client_id', $clientId)
                     ->where('payroll_month', $payrollMonth)
                     ->lockForUpdate()
+                    ->latest('id')
                     ->first();
 
                 if ($existing) {
@@ -729,6 +730,7 @@ class PayrollController extends Controller
 
             $run = PayrollRun::where('client_id', $selectedClientId)
                 ->where('payroll_month', $selectedMonth)
+                ->latest('id')
                 ->first();
 
             if ($run) {
@@ -927,6 +929,7 @@ class PayrollController extends Controller
 
             $run = PayrollRun::where('client_id', $selectedClientId)
                 ->where('payroll_month', $selectedMonth)
+                ->latest('id')
                 ->first();
 
             if ($run) {
