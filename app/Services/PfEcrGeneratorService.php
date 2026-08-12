@@ -46,6 +46,9 @@ class PfEcrGeneratorService
                 'success' => false,
                 'status' => 'blocked',
                 'errors' => ["PF Establishment Code is not configured for client '{$client->company_name}'. Please update client statutory settings."],
+                'client_id' => $client->id,
+                'client_name' => $client->company_name,
+                'missing_pf_est_code' => true,
                 'payroll_run' => [
                     'id' => $payrollRun->id,
                     'status' => $payrollRun->status,
@@ -139,7 +142,11 @@ class PfEcrGeneratorService
 
             // Monetary contributions - Official EPFO Remitted Difference Rule
             $eeEpfInt = (int)round((float)$item->employee_pf);
-            $epsInt = (int)round((float)$item->employer_eps);
+            if ($item->employer_eps !== null) {
+                $epsInt = (int)round((float)$item->employer_eps);
+            } else {
+                $epsInt = $epsEligible ? (int)round(min($basicDa, 15000) * 0.0833) : 0;
+            }
 
             // Official EPFO Rule: Field 9 (ER EPF) = Field 7 (EE EPF) - Field 8 (EPS Remitted)
             $erEpfInt = max(0, $eeEpfInt - $epsInt);
@@ -196,8 +203,27 @@ class PfEcrGeneratorService
         // EPFO specification requires whole integer rupees per employee line.
         // Dynamic tolerance allows natural cumulative rounding (up to ₹1.00 per employee).
         $dbEeSum = round($pfItems->sum('employee_pf'), 2);
-        $dbErSum = round($pfItems->sum('employer_epf'), 2);
-        $dbEpsSum = round($pfItems->sum('employer_eps'), 2);
+        $dbErSum = round($pfItems->sum(function ($i) {
+            if ($i->employer_epf !== null) {
+                return (float)$i->employer_epf;
+            }
+            $basicDa = (float)($i->basic_pay + $i->da);
+            $emp = $i->employee;
+            $age = ($emp && $emp->date_of_birth) ? Carbon::parse($emp->date_of_birth)->age : 30;
+            $epsEligible = $emp && (bool)$emp->eps_applicable && ($age < 58);
+            $epsVal = $i->employer_eps !== null ? (float)$i->employer_eps : ($epsEligible ? round(min($basicDa, 15000) * 0.0833) : 0);
+            return max(0, (float)$i->employee_pf - $epsVal);
+        }), 2);
+        $dbEpsSum = round($pfItems->sum(function ($i) {
+            if ($i->employer_eps !== null) {
+                return (float)$i->employer_eps;
+            }
+            $basicDa = (float)($i->basic_pay + $i->da);
+            $emp = $i->employee;
+            $age = ($emp && $emp->date_of_birth) ? Carbon::parse($emp->date_of_birth)->age : 30;
+            $epsEligible = $emp && (bool)$emp->eps_applicable && ($age < 58);
+            return $epsEligible ? round(min($basicDa, 15000) * 0.0833) : 0;
+        }), 2);
         $tolerance = max(5.00, count($pfItems) * 1.00);
 
         if (abs($dbEeSum - $totalEmployeeEpf) > $tolerance) {
@@ -303,7 +329,11 @@ class PfEcrGeneratorService
             $field6_edliWages = $isEdliExempt ? 0 : (int)round(min($basicDa, 15000));
 
             $field7_eeEpfRemitted = (int)round((float)$item->employee_pf);
-            $field8_epsErRemitted = (int)round((float)$item->employer_eps);
+            if ($item->employer_eps !== null) {
+                $field8_epsErRemitted = (int)round((float)$item->employer_eps);
+            } else {
+                $field8_epsErRemitted = $epsEligible ? (int)round(min($basicDa, 15000) * 0.0833) : 0;
+            }
             // Official EPFO Rule: Field 9 (ER EPF) = Field 7 (EE EPF) - Field 8 (EPS Remitted)
             $field9_epfErRemitted = max(0, $field7_eeEpfRemitted - $field8_epsErRemitted);
 
