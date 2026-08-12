@@ -436,208 +436,232 @@ export default function AttendanceUpload({ clients, upload_history = [] }) {
           </div>
         )}
 
-        {/* 2-Column Responsive Dashboard Layout */}
-        <div className="flex flex-col lg:flex-row gap-6 mb-6">
-          
-          {/* Left Column: Guidelines & Calculations (width 5/12) */}
-          <div className="w-full lg:w-5/12 flex flex-col gap-6">
+        {/* Step 1 & 2 Card: Client Selection & Working Days Breakdown (Full Width) */}
+        <div className="card p-6 shadow-sm border border-gray-200 rounded-2xl bg-white mb-6">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-gray-150 pb-5 mb-5">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="w-6 h-6 rounded-full bg-[#1F3864] text-white flex items-center justify-center font-black text-xs">1</span>
+                <h3 className="text-lg font-bold text-[#1F3864] m-0">Select Client & Target Month</h3>
+              </div>
+              <p className="text-xs text-gray-500 mt-1 font-medium pl-8">
+                Choose client and payroll month to calculate client-specific working days
+              </p>
+            </div>
             
-            {/* Guidelines Card */}
-            <div className="bg-[#EFF6FF] border border-[#BFDBFE] border-l-4 border-l-[#2563EB] py-6 px-5 rounded-xl shadow-xs mb-6">
-              <div className="flex items-start gap-3">
-                <Info className="w-5 h-5 text-[#2563EB] mt-0.5 shrink-0" />
-                <div className="text-xs text-[#1E40AF] leading-relaxed">
-                  <h4 className="font-extrabold text-sm mb-1.5 text-[#1D4ED8]">How This System Works</h4>
-                  This system automatically pays employees for Sundays (or your client's configured off-days) and holidays — you don't need to include them in your upload. Just enter how many days someone actually worked (<code className="bg-blue-100 px-1 py-0.5 rounded text-blue-900 font-mono text-xs">days_present</code>), and how many days they were absent without leave (<code className="bg-blue-100 px-1 py-0.5 rounded text-blue-900 font-mono text-xs">days_lop</code>). These two numbers should always add up to the <strong>Working Days Required</strong> calculated for that target month.
-                </div>
+            {/* Scope Selectors */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto">
+              <div className="w-full sm:w-64">
+                <Select value={selectedClientId} onChange={handleClientChange} disabled={file !== null}>
+                  {clients && clients.map(client => (
+                    <option key={client.id} value={client.id}>{client.company_name}</option>
+                  ))}
+                </Select>
+              </div>
+              <div className="w-full sm:w-48">
+                <Select value={targetMonth} onChange={handleMonthChange} disabled={file !== null}>
+                  {getMonthOptions().map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </Select>
               </div>
             </div>
-
-            {/* Calculations & Context Panel */}
-            {contextData && (
-              <div className="bg-white border border-gray-200 p-5 rounded-xl shadow-sm">
-                <div className="flex items-center justify-between border-b border-gray-200 pb-3 mb-3">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-[#1F3864]" />
-                    <span className="font-bold text-sm text-[#1F3864]">
-                      Working Days Breakdown
-                    </span>
-                  </div>
-                  <span className="bg-[#1F3864] text-white text-xs font-bold px-2.5 py-1 rounded-full shrink-0">
-                    {contextData.working_days_slots} Days Required
-                  </span>
-                </div>
-
-                <div className="text-xs text-gray-500 mb-4 leading-relaxed">
-                  <strong>Formula:</strong> {contextData.total_calendar_days} Calendar Days − {contextData.off_days_count} Off-Days ({contextData.off_days_label}) − {contextData.workday_holiday_count} Holiday(s) = <strong className="text-[#1F3864]">{contextData.working_days_slots} Working Day Slots</strong>.
-                </div>
-
-                <div className="bg-amber-50 border border-amber-200 text-amber-900 text-xs p-3 rounded-lg mb-4 flex items-start gap-2">
-                  <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
-                  <div>
-                    <strong>Upload Rule:</strong> Enter ONLY real working days worked + LOP in your CSV. For each employee, <code>days_present + days_lop</code> must add up to <strong>{contextData.working_days_slots}</strong>.
-                  </div>
-                </div>
-
-                <div>
-                  <span className="text-xs font-bold text-gray-400 uppercase tracking-wide block mb-2">
-                    Configured Client Holidays ({contextData.month_label}):
-                  </span>
-                  {contextData.holidays && contextData.holidays.length > 0 ? (
-                    <div className="flex flex-col gap-1.5">
-                      {contextData.holidays.map((h, idx) => (
-                        <div key={idx} className={`flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg border font-medium ${h.is_off_day ? 'bg-gray-100 border-gray-250 text-gray-500' : 'bg-emerald-50 border-emerald-100 text-emerald-800'}`}>
-                          <span>🏖️ {h.name}</span>
-                          <span className="text-[10px] uppercase font-bold text-gray-400">{h.date}</span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <span className="text-xs text-gray-400 italic">No holidays configured for this month.</span>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
 
-          {/* Right Column: Upload Form & Dropzone (width 7/12) */}
-          <div className="w-full lg:w-7/12">
-            <div className="card p-6 shadow-sm border border-gray-200 rounded-xl bg-white h-full flex flex-col justify-between">
-              <div>
-                <div className="border-b border-gray-150 pb-4 mb-5 flex justify-between items-center gap-4">
+          {/* STEP 2: MUST-READ Working Days Calculation & Critical Rule Banner */}
+          {contextData && (
+            <div className="bg-gradient-to-br from-indigo-50/80 via-blue-50/40 to-slate-50 border-2 border-indigo-200 p-5 rounded-xl shadow-xs">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-indigo-100 pb-3.5 mb-3.5">
+                <div className="flex items-center gap-2.5">
+                  <span className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center font-black text-xs">2</span>
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-indigo-700" />
+                    <span className="font-extrabold text-sm text-[#1F3864]">
+                      Working Days Breakdown for {contextData.month_label}
+                    </span>
+                  </div>
+                </div>
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#1F3864] text-white text-xs font-black shadow-xs">
+                  <span>🎯 Required Working Days:</span>
+                  <span className="text-amber-300 text-sm font-black">{contextData.working_days_slots} Days</span>
+                </div>
+              </div>
+
+              {/* Formula & Rule Row */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
+                <div className="lg:col-span-6 bg-white border border-indigo-100 p-3.5 rounded-xl text-xs text-gray-700 leading-relaxed shadow-xs flex flex-col justify-between">
                   <div>
-                    <h3 className="text-lg font-bold text-[#1F3864] m-0">Single Client Upload</h3>
-                    <p className="text-xs text-gray-500 mt-0.5 font-medium">Select client and upload target month attendance template</p>
+                    <div className="font-bold text-[#1F3864] mb-1.5 flex items-center gap-1.5">
+                      <Info className="w-4 h-4 text-indigo-600" />
+                      <span>How Working Days Are Calculated:</span>
+                    </div>
+                    <p className="text-gray-500 text-[11px] mb-2 leading-relaxed">
+                      Sundays (or client off-days) and holidays are paid automatically — do not include them in present days.
+                    </p>
                   </div>
-                  
-                  {/* Download Excel Template button placed here inside uploader header card */}
-                  <a 
-                    href={route('payroll.attendance.template', { client_id: selectedClientId, target_month: targetMonth })} 
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-white border border-gray-300 rounded shadow-xs text-gray-700 hover:bg-gray-50 shrink-0"
-                  >
-                    <FileSpreadsheet className="w-3.5 h-3.5 text-green-600" />
-                    Download Template
-                  </a>
-                </div>
-
-                <div className="flex gap-4 mb-6">
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Select Target Client</label>
-                    <Select value={selectedClientId} onChange={handleClientChange} disabled={file !== null}>
-                      {clients && clients.map(client => (
-                        <option key={client.id} value={client.id}>{client.company_name}</option>
-                      ))}
-                    </Select>
-                  </div>
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Payroll Target Month</label>
-                    <Select value={targetMonth} onChange={handleMonthChange} disabled={file !== null}>
-                      {getMonthOptions().map(opt => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                      ))}
-                    </Select>
+                  <div className="font-mono text-[11px] bg-indigo-50/80 p-2.5 rounded-lg text-indigo-950 font-semibold border border-indigo-100">
+                    {contextData.total_calendar_days} Calendar Days − {contextData.off_days_count} Off-Days ({contextData.off_days_label}) − {contextData.workday_holiday_count} Holiday(s) = <strong className="text-indigo-700 text-xs font-bold">{contextData.working_days_slots} Working Day Slots</strong>
                   </div>
                 </div>
 
-                {file ? (
-                  <div className="p-5 border border-indigo-200 rounded-xl bg-indigo-50/30 shadow-xs mb-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-sm shrink-0">
-                          XLS
-                        </div>
-                        <div className="min-w-0">
-                          <div className="font-bold text-[#1F3864] text-sm truncate max-w-[280px]">{file.name}</div>
-                          <span className="text-[0.7rem] text-gray-500 font-medium">Size: {Math.round(file.size / 1024)} KB</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          onClick={() => fileInputRef.current?.click()}
-                          disabled={isProcessing}
-                          className="flex items-center gap-1 text-xs shadow-xs bg-white"
-                        >
-                          <RefreshCw className="w-3.5 h-3.5" /> Change
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          onClick={handleRemoveFile}
-                          disabled={isProcessing}
-                          className="flex items-center gap-1 text-xs text-red-600 border-red-200 hover:bg-red-50 shadow-xs bg-white"
-                        >
-                          <X className="w-3.5 h-3.5" /> Remove
-                        </Button>
-                      </div>
+                <div className="lg:col-span-6 bg-amber-50 border-2 border-amber-300 p-3.5 rounded-xl text-amber-950 text-xs shadow-xs flex flex-col justify-between">
+                  <div>
+                    <div className="font-black text-amber-900 mb-1 flex items-center gap-1.5 text-xs uppercase tracking-wider">
+                      <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span>CRITICAL UPLOAD RULE:</span>
+                    </div>
+                    <p className="leading-relaxed">
+                      Enter <strong>ONLY actual working days worked + LOP</strong>. For every employee in your file:
+                    </p>
+                  </div>
+                  <div className="bg-white/90 border border-amber-300 p-2 rounded-lg text-center mt-2 font-mono font-bold text-amber-900 text-xs">
+                    <code>days_present + days_lop</code> = <span className="text-indigo-700 text-sm font-black">{contextData.working_days_slots}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Client Holidays Strip */}
+              {contextData.holidays && contextData.holidays.length > 0 && (
+                <div className="mt-3.5 pt-3 border-t border-indigo-100 flex flex-wrap items-center gap-2">
+                  <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">
+                    Configured Client Holidays ({contextData.month_label}):
+                  </span>
+                  {contextData.holidays.map((h, idx) => (
+                    <span key={idx} className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border ${h.is_off_day ? 'bg-gray-100 border-gray-250 text-gray-600' : 'bg-emerald-50 border-emerald-200 text-emerald-800'}`}>
+                      <span>🏖️ {h.name}</span>
+                      <span className="text-[10px] uppercase text-gray-400 font-mono">({h.date})</span>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* STEP 3 Card: Download Template & Upload Timesheet (Full Width) */}
+        <div className="card p-6 shadow-sm border border-gray-200 rounded-2xl bg-white mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-150 pb-4 mb-5">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="w-6 h-6 rounded-full bg-[#1F3864] text-white flex items-center justify-center font-black text-xs">3</span>
+                <h3 className="text-lg font-bold text-[#1F3864] m-0">Download Template & Upload Timesheet</h3>
+              </div>
+              <p className="text-xs text-gray-500 mt-1 font-medium pl-8">
+                Download the pre-formatted Excel template with {contextData?.working_days_slots || 0} working days base, then upload
+              </p>
+            </div>
+
+            {/* Prominent Template Download Button */}
+            <a 
+              href={route('payroll.attendance.template', { client_id: selectedClientId, target_month: targetMonth })} 
+              className="inline-flex items-center gap-2 px-4 py-2 text-xs font-black bg-emerald-50 text-emerald-800 border-2 border-emerald-300 hover:bg-emerald-100 rounded-xl shadow-xs transition-all shrink-0 cursor-pointer"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+              <span>Download Excel Template ({contextData?.working_days_slots || 0} Working Days Base)</span>
+            </a>
+          </div>
+
+          <div>
+            {file ? (
+              <div className="p-5 border border-indigo-200 rounded-xl bg-indigo-50/30 shadow-xs mb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-sm shrink-0">
+                      XLS
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-bold text-[#1F3864] text-sm truncate max-w-[280px]">{file.name}</div>
+                      <span className="text-[0.7rem] text-gray-500 font-medium">Size: {Math.round(file.size / 1024)} KB</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isProcessing}
+                      className="flex items-center gap-1 text-xs shadow-xs bg-white"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" /> Change
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handleRemoveFile}
+                      disabled={isProcessing}
+                      className="flex items-center gap-1 text-xs text-red-600 border-red-200 hover:bg-red-50 shadow-xs bg-white"
+                    >
+                      <X className="w-3.5 h-3.5" /> Remove
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Prominent Quick Action Header Bar right in the Upload Card */}
+                {loading && (
+                  <div className="mt-4 pt-3 border-t border-indigo-100/80 flex items-center gap-2 text-xs font-semibold text-indigo-700">
+                    <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
+                    <span>Validating rows against client working days and statutory rules...</span>
+                  </div>
+                )}
+
+                {!loading && summary && (
+                  <div className="mt-4 pt-3.5 border-t border-indigo-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 rounded-lg shadow-xs border">
+                    <div className="flex items-center gap-2">
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
+                        summary.errors === 0 
+                          ? 'bg-green-100 text-green-800 border border-green-200' 
+                          : 'bg-amber-100 text-amber-900 border border-amber-200'
+                      }`}>
+                        {summary.errors === 0 ? <CheckCircle2 className="w-3.5 h-3.5 text-green-600" /> : <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />}
+                        <span>{summary.matched} Valid / {summary.errors} Errors</span>
+                      </span>
+                      <span className="text-[11px] text-gray-500 font-medium hidden sm:inline">Ready to save</span>
                     </div>
 
-                    {/* Prominent Quick Action Header Bar right in the Upload Card */}
-                    {loading && (
-                      <div className="mt-4 pt-3 border-t border-indigo-100/80 flex items-center gap-2 text-xs font-semibold text-indigo-700">
-                        <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
-                        <span>Validating rows against client working days and statutory rules...</span>
-                      </div>
-                    )}
-
-                    {!loading && summary && (
-                      <div className="mt-4 pt-3.5 border-t border-indigo-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 rounded-lg shadow-xs border">
-                        <div className="flex items-center gap-2">
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
-                            summary.errors === 0 
-                              ? 'bg-green-100 text-green-800 border border-green-200' 
-                              : 'bg-amber-100 text-amber-900 border border-amber-200'
-                          }`}>
-                            {summary.errors === 0 ? <CheckCircle2 className="w-3.5 h-3.5 text-green-600" /> : <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />}
-                            <span>{summary.matched} Valid / {summary.errors} Errors</span>
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                      <button
+                        type="button"
+                        onClick={() => document.getElementById('validation-analysis-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                        className="px-3 py-1.5 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 shadow-xs flex-1 sm:flex-initial justify-center"
+                      >
+                        <Layers className="w-3.5 h-3.5" />
+                        <span>Review Notes</span>
+                      </button>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={handleSave}
+                        disabled={isProcessing || summary.matched === 0 || (summary.errors > 0 && !partialImportAcknowledged)}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-3.5 py-1.5 rounded-lg shadow-sm border-0 flex items-center gap-1.5 flex-1 sm:flex-initial justify-center"
+                      >
+                        {isProcessing ? (
+                          <span className="flex items-center gap-1.5">
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving...
                           </span>
-                          <span className="text-[11px] text-gray-500 font-medium hidden sm:inline">Ready to save</span>
-                        </div>
-
-                        <div className="flex items-center gap-2 w-full sm:w-auto">
-                          <button
-                            type="button"
-                            onClick={() => document.getElementById('validation-analysis-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                            className="px-3 py-1.5 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 shadow-xs flex-1 sm:flex-initial justify-center"
-                          >
-                            <Layers className="w-3.5 h-3.5" />
-                            <span>Review Notes</span>
-                          </button>
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            onClick={handleSave}
-                            disabled={isProcessing || summary.matched === 0 || (summary.errors > 0 && !partialImportAcknowledged)}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-3.5 py-1.5 rounded-lg shadow-sm border-0 flex items-center gap-1.5 flex-1 sm:flex-initial justify-center"
-                          >
-                            {isProcessing ? (
-                              <span className="flex items-center gap-1.5">
-                                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving...
-                              </span>
-                            ) : (
-                              <>
-                                <CheckCircle2 className="w-3.5 h-3.5" />
-                                <span>Save & Import ({summary.matched})</span>
-                              </>
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div 
-                    className="flex flex-col items-center justify-center p-14 border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer rounded-xl text-center mb-4"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <UploadCloud className="w-10 h-10 text-[#1F3864] mb-3" strokeWidth={1.5} />
-                    <p className="font-semibold text-[0.95rem] text-[#1F3864] mb-1">Click to select the timesheet file (.xlsx, .csv)</p>
-                    <p className="text-[0.75rem] text-gray-500 max-w-[400px] mx-auto leading-relaxed">Supported formats: Excel (.xlsx), CSV (.csv). Ensure columns: target_month, employee_code, days_present, days_lop</p>
+                        ) : (
+                          <>
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>Save & Import ({summary.matched})</span>
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 )}
               </div>
-            </div>
+            ) : (
+              <div 
+                className="flex flex-col items-center justify-center p-12 border-2 border-dashed border-indigo-200 bg-indigo-50/20 hover:bg-indigo-50/40 transition-colors cursor-pointer rounded-2xl text-center"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <UploadCloud className="w-12 h-12 text-[#1F3864] mb-3" strokeWidth={1.5} />
+                <p className="font-bold text-base text-[#1F3864] mb-1">Click to select or drag & drop timesheet file (.xlsx, .csv)</p>
+                <p className="text-xs text-gray-500 max-w-[460px] mx-auto leading-relaxed">
+                  Ensure columns: <code>target_month</code>, <code>employee_code</code>, <code>days_present</code>, <code>days_lop</code>. 
+                  (For {contextData?.month_label || targetMonth}, <strong>days_present + days_lop must equal {contextData?.working_days_slots || 0}</strong>).
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
