@@ -436,12 +436,12 @@ export default function AttendanceUpload({ clients, upload_history = [] }) {
           </div>
         )}
 
-        {/* Step 1 & 2 Card: Client Selection & Working Days Breakdown (Full Width) */}
+        {/* STEP 1: Select Client & Target Month */}
         <div className="card p-6 shadow-sm border border-gray-200 rounded-2xl bg-white mb-6">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-gray-150 pb-5 mb-5">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-[#1F3864] text-white flex items-center justify-center font-black text-xs">1</span>
+                <span className="w-6 h-6 rounded-full bg-[#1F3864] text-white flex items-center justify-center font-black text-xs shrink-0">1</span>
                 <h3 className="text-lg font-bold text-[#1F3864] m-0">Select Client & Target Month</h3>
               </div>
               <p className="text-xs text-gray-500 mt-1 font-medium pl-8">
@@ -467,83 +467,85 @@ export default function AttendanceUpload({ clients, upload_history = [] }) {
               </div>
             </div>
           </div>
-
-          {/* STEP 2: MUST-READ Working Days Calculation & Critical Rule Banner */}
-          {contextData && (
-            <div className="bg-gradient-to-br from-indigo-50/80 via-blue-50/40 to-slate-50 border-2 border-indigo-200 p-5 rounded-xl shadow-xs">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-indigo-100 pb-3.5 mb-3.5">
-                <div className="flex items-center gap-2.5">
-                  <span className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center font-black text-xs">2</span>
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-indigo-700" />
-                    <span className="font-extrabold text-sm text-[#1F3864]">
-                      Working Days Breakdown for {contextData.month_label}
-                    </span>
-                  </div>
-                </div>
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#1F3864] text-white text-xs font-black shadow-xs">
-                  <span>🎯 Required Working Days:</span>
-                  <span className="text-amber-300 text-sm font-black">{contextData.working_days_slots} Days</span>
-                </div>
-              </div>
-
-              {/* Formula & Rule Row */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
-                <div className="lg:col-span-6 bg-white border border-indigo-100 p-3.5 rounded-xl text-xs text-gray-700 leading-relaxed shadow-xs flex flex-col justify-between">
-                  <div>
-                    <div className="font-bold text-[#1F3864] mb-1.5 flex items-center gap-1.5">
-                      <Info className="w-4 h-4 text-indigo-600" />
-                      <span>How Working Days Are Calculated:</span>
-                    </div>
-                    <p className="text-gray-500 text-[11px] mb-2 leading-relaxed">
-                      Sundays (or client off-days) and holidays are paid automatically — do not include them in present days.
-                    </p>
-                  </div>
-                  <div className="font-mono text-[11px] bg-indigo-50/80 p-2.5 rounded-lg text-indigo-950 font-semibold border border-indigo-100">
-                    {contextData.total_calendar_days} Calendar Days − {contextData.off_days_count} Off-Days ({contextData.off_days_label}) − {contextData.workday_holiday_count} Holiday(s) = <strong className="text-indigo-700 text-xs font-bold">{contextData.working_days_slots} Working Day Slots</strong>
-                  </div>
-                </div>
-
-                <div className="lg:col-span-6 bg-amber-50 border-2 border-amber-300 p-3.5 rounded-xl text-amber-950 text-xs shadow-xs flex flex-col justify-between">
-                  <div>
-                    <div className="font-black text-amber-900 mb-1 flex items-center gap-1.5 text-xs uppercase tracking-wider">
-                      <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                      <span>CRITICAL UPLOAD RULE:</span>
-                    </div>
-                    <p className="leading-relaxed">
-                      Enter <strong>ONLY actual working days worked + LOP</strong>. For every employee in your file:
-                    </p>
-                  </div>
-                  <div className="bg-white/90 border border-amber-300 p-2 rounded-lg text-center mt-2 font-mono font-bold text-amber-900 text-xs">
-                    <code>days_present + days_lop</code> = <span className="text-indigo-700 text-sm font-black">{contextData.working_days_slots}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Client Holidays Strip */}
-              {contextData.holidays && contextData.holidays.length > 0 && (
-                <div className="mt-3.5 pt-3 border-t border-indigo-100 flex flex-wrap items-center gap-2">
-                  <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">
-                    Configured Client Holidays ({contextData.month_label}):
-                  </span>
-                  {contextData.holidays.map((h, idx) => (
-                    <span key={idx} className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border ${h.is_off_day ? 'bg-gray-100 border-gray-250 text-gray-600' : 'bg-emerald-50 border-emerald-200 text-emerald-800'}`}>
-                      <span>🏖️ {h.name}</span>
-                      <span className="text-[10px] uppercase text-gray-400 font-mono">({h.date})</span>
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
         </div>
+
+        {/* STEP 2: Working Days Breakdown & Rules (Matching Top-Level Card) */}
+        {contextData && (
+          <div className="card p-6 shadow-sm border border-gray-200 rounded-2xl bg-white mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-150 pb-4 mb-5">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-[#1F3864] text-white flex items-center justify-center font-black text-xs shrink-0">2</span>
+                  <h3 className="text-lg font-bold text-[#1F3864] m-0">
+                    Working Days Breakdown for {contextData.month_label}
+                  </h3>
+                </div>
+                <p className="text-xs text-gray-500 mt-1 font-medium pl-8">
+                  Statutory calendar calculation and required attendance rules for this client
+                </p>
+              </div>
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#1F3864] text-white text-xs font-black shadow-xs shrink-0">
+                <span>🎯 Required Working Days:</span>
+                <span className="text-amber-300 text-sm font-black">{contextData.working_days_slots} Days</span>
+              </div>
+            </div>
+
+            {/* Formula & Rule Row */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
+              <div className="lg:col-span-6 bg-slate-50 border border-gray-200 p-4 rounded-xl text-xs text-gray-700 leading-relaxed shadow-xs flex flex-col justify-between">
+                <div>
+                  <div className="font-bold text-[#1F3864] mb-1.5 flex items-center gap-1.5">
+                    <Info className="w-4 h-4 text-indigo-600" />
+                    <span>How Working Days Are Calculated:</span>
+                  </div>
+                  <p className="text-gray-500 text-[11px] mb-2 leading-relaxed">
+                    Sundays (or client off-days) and holidays are paid automatically — do not include them in present days.
+                  </p>
+                </div>
+                <div className="font-mono text-[11px] bg-white p-2.5 rounded-lg text-indigo-950 font-semibold border border-indigo-100">
+                  {contextData.total_calendar_days} Calendar Days − {contextData.off_days_count} Off-Days ({contextData.off_days_label}) − {contextData.workday_holiday_count} Holiday(s) = <strong className="text-indigo-700 text-xs font-bold">{contextData.working_days_slots} Working Day Slots</strong>
+                </div>
+              </div>
+
+              <div className="lg:col-span-6 bg-amber-50 border-2 border-amber-300 p-4 rounded-xl text-amber-950 text-xs shadow-xs flex flex-col justify-between">
+                <div>
+                  <div className="font-black text-amber-900 mb-1 flex items-center gap-1.5 text-xs uppercase tracking-wider">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>CRITICAL UPLOAD RULE:</span>
+                  </div>
+                  <p className="leading-relaxed">
+                    Enter <strong>ONLY actual working days worked + LOP</strong>. For every employee in your file:
+                  </p>
+                </div>
+                <div className="bg-white border border-amber-300 p-2 rounded-lg text-center mt-2 font-mono font-bold text-amber-900 text-xs">
+                  <code>days_present + days_lop</code> = <span className="text-indigo-700 text-sm font-black">{contextData.working_days_slots}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Client Holidays Strip */}
+            {contextData.holidays && contextData.holidays.length > 0 && (
+              <div className="mt-4 pt-3.5 border-t border-gray-150 flex flex-wrap items-center gap-2">
+                <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">
+                  Configured Client Holidays ({contextData.month_label}):
+                </span>
+                {contextData.holidays.map((h, idx) => (
+                  <span key={idx} className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border ${h.is_off_day ? 'bg-gray-100 border-gray-250 text-gray-600' : 'bg-emerald-50 border-emerald-200 text-emerald-800'}`}>
+                    <span>🏖️ {h.name}</span>
+                    <span className="text-[10px] uppercase text-gray-400 font-mono">({h.date})</span>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* STEP 3 Card: Download Template & Upload Timesheet (Full Width) */}
         <div className="card p-6 shadow-sm border border-gray-200 rounded-2xl bg-white mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-150 pb-4 mb-5">
             <div>
               <div className="flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-[#1F3864] text-white flex items-center justify-center font-black text-xs">3</span>
+                <span className="w-6 h-6 rounded-full bg-[#1F3864] text-white flex items-center justify-center font-black text-xs shrink-0">3</span>
                 <h3 className="text-lg font-bold text-[#1F3864] m-0">Download Template & Upload Timesheet</h3>
               </div>
               <p className="text-xs text-gray-500 mt-1 font-medium pl-8">
