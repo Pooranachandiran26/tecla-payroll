@@ -41,8 +41,7 @@ class HandleInertiaRequests extends Middleware
         $logoPath = \App\Services\SettingsService::get('branding.logo_path', '');
         $faviconPath = \App\Services\SettingsService::get('branding.favicon_path', '');
         
-        return [
-            ...parent::share($request),
+        return array_merge(parent::share($request), [
             'auth' => [
                 'user' => $request->user() ? [
                     'id' => $request->user()->id,
@@ -94,6 +93,6 @@ class HandleInertiaRequests extends Middleware
                 ? \App\Models\Client::where('status', 'active')->select('id', 'company_name', 'client_code')->orderBy('company_name')->get()
                 : [],
             'activeClientId' => fn () => $request->session()->get('active_client_id', 'all'),
-        ];
+        ]);
     }
 }
