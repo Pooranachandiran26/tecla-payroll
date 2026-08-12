@@ -264,8 +264,8 @@ class StoreEmployeeRequest extends FormRequest
 
                     if (($isActualOnEmp || $isActualOnEmpr) && $basicDa > 15000) {
                         $status = $this->joint_declaration_status ?? $this->jointDeclarationStatus ?? 'not_required';
-                        if (!in_array($status, ['submitted', 'approved'])) {
-                            $validator->errors()->add('joint_declaration_status', 'Para 26(6) Joint Declaration is required when PF wage basis is Actual Basic+DA and Basic+DA exceeds ₹15,000.');
+                        if ($status === 'not_required' || empty($status)) {
+                            $validator->errors()->add('joint_declaration_status', 'EPF Para 26(6) Joint Declaration Status must be Pending Attestation, Submitted, or Approved when PF wage basis is Actual Basic+DA and Basic+DA exceeds ₹15,000.');
                         }
                     }
                 }

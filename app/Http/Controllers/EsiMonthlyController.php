@@ -29,7 +29,9 @@ class EsiMonthlyController extends Controller
             'month' => 'nullable|string',
         ]);
 
-        $query = PayrollRun::with('client')->where('status', 'locked');
+        $query = PayrollRun::with('client')
+            ->where('status', 'locked')
+            ->whereNotIn('id', EsiMonthlyBatch::select('payroll_run_id'));
 
         if ($request->filled('client_id') && $request->client_id !== 'all') {
             $query->where('client_id', $request->client_id);
