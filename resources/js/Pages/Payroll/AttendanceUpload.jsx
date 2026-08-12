@@ -216,6 +216,12 @@ export default function AttendanceUpload({ clients, upload_history = [] }) {
       setRowPage(1);
       setRowSearch('');
       setLoading(false);
+      setTimeout(() => {
+        const el = document.getElementById('validation-analysis-section');
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 150);
     })
     .catch(err => {
       setErrorMsg(err.response?.data?.error || err.response?.data?.message || 'Failed to validate timesheet file.');
@@ -534,24 +540,24 @@ export default function AttendanceUpload({ clients, upload_history = [] }) {
                 </div>
 
                 {file ? (
-                  <div className="p-6 border border-[#1F3864]/20 rounded-xl bg-indigo-50/20 shadow-xs mb-4">
-                    <div className="flex items-center justify-between gap-3">
+                  <div className="p-5 border border-indigo-200 rounded-xl bg-indigo-50/30 shadow-xs mb-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-sm">
+                        <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-sm shrink-0">
                           XLS
                         </div>
-                        <div>
-                          <div className="font-bold text-[#1F3864] text-sm">{file.name}</div>
-                          <span className="text-[0.7rem] text-gray-400 font-medium">Size: {Math.round(file.size / 1024)} KB</span>
+                        <div className="min-w-0">
+                          <div className="font-bold text-[#1F3864] text-sm truncate max-w-[280px]">{file.name}</div>
+                          <span className="text-[0.7rem] text-gray-500 font-medium">Size: {Math.round(file.size / 1024)} KB</span>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 shrink-0">
                         <Button 
                           variant="outline" 
                           size="sm" 
                           onClick={() => fileInputRef.current?.click()}
                           disabled={isProcessing}
-                          className="flex items-center gap-1 text-xs shadow-xs"
+                          className="flex items-center gap-1 text-xs shadow-xs bg-white"
                         >
                           <RefreshCw className="w-3.5 h-3.5" /> Change
                         </Button>
@@ -560,12 +566,65 @@ export default function AttendanceUpload({ clients, upload_history = [] }) {
                           size="sm" 
                           onClick={handleRemoveFile}
                           disabled={isProcessing}
-                          className="flex items-center gap-1 text-xs text-red-600 border-red-200 hover:bg-red-50 shadow-xs"
+                          className="flex items-center gap-1 text-xs text-red-600 border-red-200 hover:bg-red-50 shadow-xs bg-white"
                         >
                           <X className="w-3.5 h-3.5" /> Remove
                         </Button>
                       </div>
                     </div>
+
+                    {/* Prominent Quick Action Header Bar right in the Upload Card */}
+                    {loading && (
+                      <div className="mt-4 pt-3 border-t border-indigo-100/80 flex items-center gap-2 text-xs font-semibold text-indigo-700">
+                        <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
+                        <span>Validating rows against client working days and statutory rules...</span>
+                      </div>
+                    )}
+
+                    {!loading && summary && (
+                      <div className="mt-4 pt-3.5 border-t border-indigo-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 rounded-lg shadow-xs border">
+                        <div className="flex items-center gap-2">
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
+                            summary.errors === 0 
+                              ? 'bg-green-100 text-green-800 border border-green-200' 
+                              : 'bg-amber-100 text-amber-900 border border-amber-200'
+                          }`}>
+                            {summary.errors === 0 ? <CheckCircle2 className="w-3.5 h-3.5 text-green-600" /> : <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />}
+                            <span>{summary.matched} Valid / {summary.errors} Errors</span>
+                          </span>
+                          <span className="text-[11px] text-gray-500 font-medium hidden sm:inline">Ready to save</span>
+                        </div>
+
+                        <div className="flex items-center gap-2 w-full sm:w-auto">
+                          <button
+                            type="button"
+                            onClick={() => document.getElementById('validation-analysis-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                            className="px-3 py-1.5 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 shadow-xs flex-1 sm:flex-initial justify-center"
+                          >
+                            <Layers className="w-3.5 h-3.5" />
+                            <span>Review Notes</span>
+                          </button>
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={handleSave}
+                            disabled={isProcessing || summary.matched === 0 || (summary.errors > 0 && !partialImportAcknowledged)}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-3.5 py-1.5 rounded-lg shadow-sm border-0 flex items-center gap-1.5 flex-1 sm:flex-initial justify-center"
+                          >
+                            {isProcessing ? (
+                              <span className="flex items-center gap-1.5">
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving...
+                              </span>
+                            ) : (
+                              <>
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                <span>Save & Import ({summary.matched})</span>
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div 
@@ -649,7 +708,7 @@ export default function AttendanceUpload({ clients, upload_history = [] }) {
           const errorPercentage = summary.total > 0 ? Math.round((summary.errors / summary.total) * 100) : 0;
 
           return (
-            <div className="card p-0 overflow-hidden shadow-lg border border-gray-200 rounded-2xl animate-fade-in mb-8 bg-white">
+            <div id="validation-analysis-section" className="card p-0 overflow-hidden shadow-lg border border-gray-200 rounded-2xl animate-fade-in mb-8 bg-white scroll-mt-6">
               {/* Card Header & File Overview */}
               <div className="p-6 border-b border-gray-150 bg-gradient-to-r from-gray-50 via-slate-50 to-indigo-50/20 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
@@ -1148,6 +1207,56 @@ export default function AttendanceUpload({ clients, upload_history = [] }) {
             </div>
           );
         })()}
+
+        {/* Floating Sticky Quick Action Bar when summary is loaded */}
+        {!loading && summary && (
+          <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-40 w-[94%] max-w-4xl bg-[#1F3864]/95 backdrop-blur-md text-white p-3.5 px-5 rounded-2xl shadow-2xl border border-indigo-400/30 flex flex-col sm:flex-row items-center justify-between gap-3 animate-fade-in">
+            <div className="flex items-center gap-3 w-full sm:w-auto">
+              <div className={`p-2 rounded-xl text-white font-bold text-xs shrink-0 ${summary.errors === 0 ? 'bg-emerald-500' : 'bg-amber-500'}`}>
+                {summary.errors === 0 ? <CheckCircle2 className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
+              </div>
+              <div className="min-w-0">
+                <div className="font-bold text-xs sm:text-sm leading-tight flex items-center gap-2">
+                  <span>{summary.matched} of {summary.total} Valid Rows Ready</span>
+                  {summary.errors > 0 && (
+                    <span className="px-2 py-0.2 rounded-full text-[10px] bg-rose-500 text-white font-black uppercase shrink-0">
+                      {summary.errors} Errors
+                    </span>
+                  )}
+                </div>
+                <div className="text-[11px] text-gray-300 truncate">
+                  {file?.name} • Required: <strong className="text-white">{contextData?.working_days_slots || 0} Days</strong>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end shrink-0">
+              <button
+                type="button"
+                onClick={() => document.getElementById('validation-analysis-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                className="px-3 py-2 rounded-xl text-xs font-bold text-white bg-white/10 hover:bg-white/20 border border-white/20 transition-all cursor-pointer flex items-center gap-1.5"
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>View Full Notes</span>
+              </button>
+              <Button
+                variant="primary"
+                size="md"
+                onClick={handleSave}
+                disabled={isProcessing || summary.matched === 0 || (summary.errors > 0 && !partialImportAcknowledged)}
+                className="bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs px-4 py-2 rounded-xl shadow-lg border-0"
+              >
+                {isProcessing ? (
+                  <span className="flex items-center gap-1.5">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving...
+                  </span>
+                ) : (
+                  `Validate & Save Batch (${summary.matched} valid)`
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Upload History & Audit Log Section */}
         <div className="mt-8 card p-6">
