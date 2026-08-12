@@ -302,6 +302,7 @@ Route::middleware(['auth', 'active'])->group(function () {
             Route::middleware('module:compliance')->group(function () {
                 Route::get('/compliance', [\App\Http\Controllers\ComplianceController::class, 'index'])->name('compliance.index');
                 Route::get('/compliance/clients/{client}', [\App\Http\Controllers\ComplianceController::class, 'showClientDetails'])->name('compliance.client_details');
+                Route::post('/compliance/clients/update-statutory-code', [\App\Http\Controllers\ComplianceController::class, 'updateClientStatutoryCode'])->name('compliance.client.update_statutory_code');
                 Route::post('/compliance/mark-filed', [\App\Http\Controllers\ComplianceController::class, 'markFiled'])->name('compliance.mark_filed');
                 
                 // PF ECR Routes

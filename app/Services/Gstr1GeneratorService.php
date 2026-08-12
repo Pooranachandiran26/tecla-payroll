@@ -77,11 +77,15 @@ class Gstr1GeneratorService
      */
     public function getAvailableMonths(): array
     {
+        $generatedPeriods = Gstr1Batch::pluck('return_period')->toArray();
+
         $months = Invoice::whereNotIn('status', ['draft'])
-            ->selectRaw("DATE_FORMAT(invoice_month, '%Y-%m') as month_str")
-            ->distinct()
-            ->orderBy('month_str', 'desc')
-            ->pluck('month_str')
+            ->orderBy('invoice_month', 'desc')
+            ->pluck('invoice_month')
+            ->map(fn($date) => Carbon::parse($date)->format('Y-m'))
+            ->unique()
+            ->filter(fn($m) => !in_array($m, $generatedPeriods))
+            ->values()
             ->toArray();
 
         $batches = Gstr1Batch::orderBy('return_period', 'desc')->get();
