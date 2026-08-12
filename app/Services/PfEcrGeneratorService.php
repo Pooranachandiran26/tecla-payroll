@@ -193,14 +193,17 @@ class PfEcrGeneratorService
         }
 
         // 5. Monetary Reconciliation Check against Payroll Items
+        // EPFO specification requires whole integer rupees per employee line.
+        // Dynamic tolerance allows natural cumulative rounding (up to ₹1.00 per employee).
         $dbEeSum = round($pfItems->sum('employee_pf'), 2);
         $dbErSum = round($pfItems->sum('employer_epf'), 2);
         $dbEpsSum = round($pfItems->sum('employer_eps'), 2);
+        $tolerance = max(5.00, count($pfItems) * 1.00);
 
-        if (abs($dbEeSum - $totalEmployeeEpf) > 2.00) {
+        if (abs($dbEeSum - $totalEmployeeEpf) > $tolerance) {
             $errors[] = "Employee EPF total mismatch: Payroll item sum (₹{$dbEeSum}) vs ECR rounded sum (₹{$totalEmployeeEpf}).";
         }
-        if (abs($dbErSum - $totalEmployerEpf) > 2.00) {
+        if (abs($dbErSum - $totalEmployerEpf) > $tolerance) {
             $errors[] = "Employer EPF total mismatch: Payroll item sum (₹{$dbErSum}) vs ECR rounded sum (₹{$totalEmployerEpf}).";
         }
 
