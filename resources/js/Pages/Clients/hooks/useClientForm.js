@@ -446,27 +446,28 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
   // ═══ CLIENT BRANCHES ══════════════════════════════
 
   const addClientBranch = useCallback((seedData = null) => {
-    const newBranch = {
-      id: `branch-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-      name: seedData?.name || '',
-      code: seedData?.code || '',
-      addr1: seedData?.addr1 || '',
-      addr2: seedData?.addr2 || '',
-      city: seedData?.city || '',
-      state: seedData?.state || '',
-      pin: seedData?.pin || '',
-      gstin: seedData?.gstin || '',
-      gstType: seedData?.gstType || 'Regular',
-      pocName: seedData?.pocName || '',
-      pocEmail: seedData?.pocEmail || '',
-      pocPhone: seedData?.pocPhone || '',
-      isPrimary: seedData?.isPrimary || false,
-      gstinError: '',
-      gstinValid: false,
-    };
     setClientBranches(prev => {
+      const idx = prev.length + 1;
+      const newBranch = {
+        id: `branch-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+        name: seedData?.name || `Branch ${idx}`,
+        code: seedData?.code || `BR-${String(idx).padStart(2, '0')}`,
+        addr1: seedData?.addr1 || '',
+        addr2: seedData?.addr2 || '',
+        city: seedData?.city || '',
+        state: seedData?.state || '',
+        pin: seedData?.pin || '',
+        gstin: seedData?.gstin || '',
+        gstType: seedData?.gstType || 'Regular',
+        pocName: seedData?.pocName || '',
+        pocEmail: seedData?.pocEmail || '',
+        pocPhone: seedData?.pocPhone || '',
+        isPrimary: seedData?.isPrimary || prev.length === 0,
+        gstinError: '',
+        gstinValid: false,
+      };
       const next = [...prev, newBranch];
-      if (next.length === 1) next[0].isPrimary = true;
+      setFormData(f => ({ ...f, workLocationsCount: next.length }));
       return next;
     });
   }, []);
@@ -477,11 +478,37 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
       const removedWasPrimary = prev.find(b => b.id === branchId)?.isPrimary;
       if (removedWasPrimary && filtered.length > 0) {
         filtered[0].isPrimary = true;
-        showToast('⚠️ Removing the primary branch — first remaining branch set as primary.');
+        showToast('⚠️ Primary branch updated.');
       }
+      setFormData(f => ({ ...f, workLocationsCount: Math.max(1, filtered.length) }));
       return filtered;
     });
   }, [showToast]);
+
+  const handleWorkLocationsCountChange = useCallback((value) => {
+    const rawVal = parseInt(value, 10);
+    const count = isNaN(rawVal) || rawVal < 1 ? 1 : rawVal;
+    setFormData(prev => ({ ...prev, workLocationsCount: count }));
+    
+    setClientBranches(prev => {
+      if (count > prev.length) {
+        const next = [...prev];
+        while (next.length < count) {
+          const idx = next.length + 1;
+          next.push({
+            id: `branch-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+            name: `Branch ${idx}`,
+            code: `BR-${String(idx).padStart(2, '0')}`,
+            addr1: '', addr2: '', city: '', state: '', pin: '', gstin: '',
+            gstType: 'Regular', pocName: '', pocEmail: '', pocPhone: '',
+            isPrimary: false, gstinError: '', gstinValid: false,
+          });
+        }
+        return next;
+      }
+      return prev;
+    });
+  }, []);
 
   const updateClientBranch = useCallback((branchId, field, value) => {
     setClientBranches(prev => prev.map(b => {
@@ -895,6 +922,8 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
       locationsCount: formData.workLocationsCount,
       isGroupCompany: formData.isGroupCompany,
       parentCompany: formData.parentCompany,
+      pfEstablishmentCode: formData.pfEstablishmentCode,
+      esiCodeNumber: formData.esiCodeNumber,
       regAddressLine1: formData.regAddressLine1,
       regAddressLine2: formData.regAddressLine2,
       regCity: formData.regCity,
@@ -908,12 +937,52 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
       billCity: formData.billCity,
       billState: formData.billState,
       billPin: formData.billPin,
-      branches: formData.workLocationsCount === 1 ? [] : clientBranches.map(b => ({
-        id: b.id, name: b.name, code: b.code, addr1: b.addr1, addr2: b.addr2,
-        city: b.city, state: b.state, pin: b.pin, gstin: b.gstin,
-        gstType: b.gstType, pocName: b.pocName, pocEmail: b.pocEmail,
-        pocPhone: b.pocPhone, isPrimary: b.isPrimary,
-      })),
+      branches: (function() {
+        if (clientBranches.length === 0) {
+          return [{
+            id: null,
+            name: formData.companyName ? `${formData.companyName} - Head Office` : 'Head Office',
+            code: formData.clientCode ? `${formData.clientCode}-HO` : 'HO-01',
+            addr1: formData.regAddressLine1 || '',
+            addr2: formData.regAddressLine2 || '',
+            city: formData.regCity || '',
+            state: formData.regState || '',
+            pin: formData.regPin || '',
+            gstin: formData.gstin || '',
+            gstType: formData.gstType || 'Regular',
+            pocName: formData.poc1?.name || '',
+            pocEmail: formData.poc1?.email || '',
+            pocPhone: formData.poc1?.phone || '',
+            isPrimary: true,
+          }];
+        }
+        return clientBranches.map((b, idx) => {
+          if (idx === 0 && (formData.workLocationsCount <= 1 || clientBranches.length <= 1)) {
+            return {
+              id: b.id,
+              name: b.name || 'Head Office',
+              code: b.code || 'HO-01',
+              addr1: formData.regAddressLine1 || b.addr1 || '',
+              addr2: formData.regAddressLine2 || b.addr2 || '',
+              city: formData.regCity || b.city || '',
+              state: formData.regState || b.state || '',
+              pin: formData.regPin || b.pin || '',
+              gstin: formData.gstin || b.gstin || '',
+              gstType: b.gstType || 'Regular',
+              pocName: b.pocName || formData.poc1?.name || '',
+              pocEmail: b.pocEmail || formData.poc1?.email || '',
+              pocPhone: b.pocPhone || formData.poc1?.phone || '',
+              isPrimary: true,
+            };
+          }
+          return {
+            id: b.id, name: b.name, code: b.code, addr1: b.addr1, addr2: b.addr2,
+            city: b.city, state: b.state, pin: b.pin, gstin: b.gstin,
+            gstType: b.gstType, pocName: b.pocName, pocEmail: b.pocEmail,
+            pocPhone: b.pocPhone, isPrimary: b.isPrimary,
+          };
+        });
+      })(),
       poc1: { ...formData.poc1, preferences: Object.entries(formData.poc1?.prefs || {}).filter(([, v]) => v).map(([k]) => k === 'wa' ? 'WhatsApp' : k === 'sms' ? 'SMS' : 'Email') },
       poc2: { ...formData.poc2, preferences: Object.entries(formData.poc2?.prefs || {}).filter(([, v]) => v).map(([k]) => k === 'wa' ? 'WhatsApp' : k === 'sms' ? 'SMS' : 'Email') },
       poc3: { ...formData.poc3, preferences: Object.entries(formData.poc3?.prefs || {}).filter(([, v]) => v).map(([k]) => k === 'wa' ? 'WhatsApp' : k === 'sms' ? 'SMS' : 'Email') },
@@ -1100,6 +1169,7 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
       if (!validateStep(s)) {
         setCurrentStep(s);
         window.scrollTo({ top: 0, behavior: 'smooth' });
+        showToast(`⚠️ Please complete required fields in Step ${s} before saving.`);
         return false;
       }
     }
@@ -1201,6 +1271,8 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
       workLocationsCount: client.branches ? Math.max(1, client.branches.length) : 1,
       isGroupCompany: client.is_group_company || false,
       parentCompany: client.parent_company || '',
+      pfEstablishmentCode: client.pf_establishment_code || '',
+      esiCodeNumber: client.esi_code_number || '',
       regAddressLine1: client.registered_address_line_1 || '',
       regAddressLine2: client.registered_address_line_2 || '',
       regCity: client.registered_city || '',
@@ -1346,24 +1418,52 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
 
     // Branches Reverse-Mapping
     if (client.branches && client.branches.length > 0) {
-      setClientBranches(client.branches.map(branch => ({
-        id: branch.id,
-        name: branch.branch_name || '',
-        code: branch.branch_code || '',
-        addr1: branch.address_line_1 || '',
-        addr2: branch.address_line_2 || '', // if it exists, else empty
-        city: branch.city || '',
-        state: branch.state || '',
-        pin: branch.pin_code || '', // if exists in DB
-        gstin: branch.gstin || '',
-        gstType: branch.gst_registration_type || 'Regular',
-        pocName: branch.finance_poc_name || '',
-        pocEmail: branch.finance_poc_email || '',
-        pocPhone: branch.finance_poc_phone || '',
-        isPrimary: branch.is_primary_billing_branch === 1 || branch.is_primary_billing_branch === true,
+      let hasPrimary = false;
+      const mappedBranches = client.branches.map((branch, idx) => {
+        const isPrim = branch.is_primary_billing_branch === 1 || branch.is_primary_billing_branch === true || branch.is_head_office === 1 || branch.is_head_office === true;
+        if (isPrim) hasPrimary = true;
+        return {
+          id: branch.id,
+          name: branch.branch_name || (idx === 0 ? 'Head Office' : `Branch ${idx + 1}`),
+          code: branch.branch_code || `BR-${String(idx + 1).padStart(2, '0')}`,
+          addr1: branch.address_line_1 || '',
+          addr2: branch.address_line_2 || '',
+          city: branch.city || '',
+          state: branch.state || '',
+          pin: branch.pin_code || '',
+          gstin: branch.gstin || '',
+          gstType: branch.gst_registration_type || 'Regular',
+          pocName: branch.finance_poc_name || '',
+          pocEmail: branch.finance_poc_email || '',
+          pocPhone: branch.finance_poc_phone || '',
+          isPrimary: isPrim,
+          gstinError: '',
+          gstinValid: !!branch.gstin,
+        };
+      });
+      if (!hasPrimary && mappedBranches.length > 0) {
+        mappedBranches[0].isPrimary = true;
+      }
+      setClientBranches(mappedBranches);
+    } else {
+      setClientBranches([{
+        id: `branch-ho-${client.id || Date.now()}`,
+        name: 'Head Office',
+        code: 'HO-01',
+        addr1: client.registered_address_line_1 || '',
+        addr2: client.registered_address_line_2 || '',
+        city: client.registered_city || '',
+        state: client.registered_state || '',
+        pin: client.registered_pin || client.registered_pin_code || '',
+        gstin: client.gstin || '',
+        gstType: 'Regular',
+        pocName: client.primary_poc_name || '',
+        pocEmail: client.primary_poc_email || '',
+        pocPhone: client.primary_poc_phone || '',
+        isPrimary: true,
         gstinError: '',
-        gstinValid: !!branch.gstin,
-      })));
+        gstinValid: !!client.gstin,
+      }]);
     }
 
     // Documents Reverse-Mapping
@@ -1491,7 +1591,7 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
 
     // Branch handlers
     addClientBranch, removeClientBranch, updateClientBranch,
-    handlePrimaryBranchChange,
+    handlePrimaryBranchChange, handleWorkLocationsCountChange,
 
     // Agency branch handlers
     addAgencyBranch, removeAgencyBranch, updateAgencyBranch,

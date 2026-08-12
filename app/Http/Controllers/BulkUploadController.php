@@ -216,84 +216,181 @@ class BulkUploadController extends Controller
 
         $writer->addRow($sampleRow);
 
-        // Sheet 2: Client Defaults (Read Only)
-        $writer->addNewSheetAndMakeItCurrent('Client Defaults (Read Only)');
+        // Sheet 2: Client Settings & Branches (Read Only)
+        $writer->addNewSheetAndMakeItCurrent('Client Settings & Branches');
         $writer->addRow([
-            'Setting Field' => 'Client Code',
-            'Value' => $client->client_code,
-            'Notes' => 'Must match client_code in Employee Data sheet'
+            'Category' => '1. Legal Entity & Codes',
+            'Field' => 'Client Code',
+            'Configured Value' => $client->client_code,
+            'Instructions / Notes' => 'Must match client_code in Employee Data sheet'
         ]);
         $writer->addRow([
-            'Setting Field' => 'Company Name',
-            'Value' => $client->company_name,
-            'Notes' => 'Client legal entity name'
+            'Category' => '1. Legal Entity & Codes',
+            'Field' => 'Company Legal Name',
+            'Configured Value' => $client->company_name,
+            'Instructions / Notes' => 'Client organization profile name'
         ]);
         $writer->addRow([
-            'Setting Field' => 'Default LOP Basis',
-            'Value' => '30',
-            'Notes' => 'Default monthly calculation basis (strictly 30 days)'
+            'Category' => '1. Legal Entity & Codes',
+            'Field' => 'PF Establishment Code',
+            'Configured Value' => $client->pf_establishment_code ?: 'Not Configured',
+            'Instructions / Notes' => 'Client statutory PF employer code for EPFO filings'
         ]);
         $writer->addRow([
-            'Setting Field' => 'Contract Type / Employment Model',
-            'Value' => $client->contract_type === 'agency' ? 'Agency Contract (agency_contract)' : 'Pass-through EOR (eor)',
-            'Notes' => 'Default Employment Model for employees under this client'
+            'Category' => '1. Legal Entity & Codes',
+            'Field' => 'ESI Code Number',
+            'Configured Value' => $client->esi_code_number ?: 'Not Configured',
+            'Instructions / Notes' => 'Client 17-digit ESI employer registration code'
         ]);
         $writer->addRow([
-            'Setting Field' => 'PF Default',
-            'Value' => $client->pf_applicable ? '1 (YES)' : '0 (NO)',
-            'Notes' => 'Inherited if pf_applicable is omitted in row'
+            'Category' => '1. Legal Entity & Codes',
+            'Field' => 'Contract Type / Model',
+            'Configured Value' => $client->contract_type === 'agency' ? 'Agency Contract (agency_contract)' : 'Pass-through EOR (eor)',
+            'Instructions / Notes' => 'Default Employment Model for employees under this client'
         ]);
         $writer->addRow([
-            'Setting Field' => 'EPS Default & Age 58 Cutoff',
-            'Value' => '1 (YES) — Auto ₹0 cutoff at age 58+',
-            'Notes' => 'EPS 8.33% contribution capped at ₹1,249.50. Employees aged 58+ automatically cut off to ₹0 EPS with 100% employer PF allocated to EPF.'
+            'Category' => '1. Legal Entity & Codes',
+            'Field' => 'Default LOP Basis',
+            'Configured Value' => '30 Days',
+            'Instructions / Notes' => 'Default monthly calculation basis (strictly 30 days)'
+        ]);
+
+        // Branch Details
+        $branchesCount = $client->branches->count();
+        $writer->addRow([
+            'Category' => '2. Branch Locations',
+            'Field' => 'Total Configured Branches',
+            'Configured Value' => (string)$branchesCount,
+            'Instructions / Notes' => $branchesCount <= 1 
+                ? 'Single Location: All employees are automatically assigned to this Primary Branch. branch_name column is optional.'
+                : 'Multiple Locations: In the branch_name column, specify one of the valid branch names or codes listed below.'
+        ]);
+
+        foreach ($client->branches as $idx => $b) {
+            $isPrimary = $b->is_primary_billing_branch ? ' ★Primary Head Office' : ' Additional Branch';
+            $writer->addRow([
+                'Category' => '2. Branch Locations',
+                'Field' => "Branch #" . ($idx + 1) . ": {$b->branch_name}",
+                'Configured Value' => "Code: {$b->branch_code} | State: {$b->state} | PIN: {$b->pin_code}" . ($b->gstin ? " | GSTIN: {$b->gstin}" : ''),
+                'Instructions / Notes' => "Role:{$isPrimary}. You can enter either '{$b->branch_name}' or '{$b->branch_code}' in the branch_name column."
+            ]);
+        }
+
+        // Statutory Defaults
+        $writer->addRow([
+            'Category' => '3. Statutory Rules',
+            'Field' => 'PF Applicability',
+            'Configured Value' => $client->pf_applicable ? '1 (YES) — Active' : '0 (NO) — Inactive',
+            'Instructions / Notes' => '12% EPF + 8.33% EPS capped at ₹1,249.50. Inherited if pf_applicable is blank in row.'
         ]);
         $writer->addRow([
-            'Setting Field' => 'ESI Default',
-            'Value' => $client->esi_applicable ? '1 (YES)' : '0 (NO)',
-            'Notes' => 'Inherited if esi_applicable is omitted in row'
+            'Category' => '3. Statutory Rules',
+            'Field' => 'EPS Age 58+ Auto-Cutoff',
+            'Configured Value' => '1 (YES) — Enabled',
+            'Instructions / Notes' => 'Employees aged 58+ automatically cut off to ₹0 EPS with 100% employer PF allocated to EPF.'
         ]);
         $writer->addRow([
-            'Setting Field' => 'Group Medical Insurance (GMI)',
-            'Value' => $healthInsuranceEnabled ? '1 (Enabled for establishment)' : '0 (Disabled for establishment)',
-            'Notes' => $healthInsuranceEnabled 
-                ? 'Optional insurance fields (provider, policy no, sum insured) active for non-ESI employees.' 
+            'Category' => '3. Statutory Rules',
+            'Field' => 'ESI Applicability',
+            'Configured Value' => $client->esi_applicable ? '1 (YES) — Active' : '0 (NO) — Inactive',
+            'Instructions / Notes' => '0.75% Employee + 3.25% Employer contribution on Gross Salary <= ₹21,000.'
+        ]);
+        $writer->addRow([
+            'Category' => '3. Statutory Rules',
+            'Field' => 'Professional Tax (PT)',
+            'Configured Value' => $client->pt_applicable ? '1 (YES) — Active' : '0 (NO) — Inactive',
+            'Instructions / Notes' => 'PT slabs are automatically computed based on each employee matched branch state.'
+        ]);
+        $writer->addRow([
+            'Category' => '3. Statutory Rules',
+            'Field' => 'Group Medical Insurance (GMI)',
+            'Configured Value' => $healthInsuranceEnabled ? '1 (Enabled for establishment)' : '0 (Disabled for establishment)',
+            'Instructions / Notes' => $healthInsuranceEnabled 
+                ? 'Insurance provider, policy no, and sum insured fields are active for non-ESI employees.' 
                 : 'Group Medical Insurance is OFF for this client. Insurance columns are omitted from Sheet 1.'
         ]);
+
+        // Sheet 3: Instructions & Field Guide
+        $writer->addNewSheetAndMakeItCurrent('Instructions & Field Guide');
         $writer->addRow([
-            'Setting Field' => 'Attendance Start Date Default',
-            'Value' => 'Defaults to Date of Joining (date_of_joining)',
-            'Notes' => 'If attendance_tracking_start_date is omitted, system defaults to Date of Joining.'
+            'Column Header' => 'employee_code',
+            'Required?' => 'Mandatory',
+            'Format / Example' => 'EMP101 / EMP-001',
+            'Rules & Guidance' => 'Must be globally unique across all employees in the system.'
         ]);
         $writer->addRow([
-            'Setting Field' => 'Probation End Date Rule',
-            'Value' => 'Optional (YYYY-MM-DD)',
-            'Notes' => 'If provided, probation_end_date must be on or after Date of Joining.'
+            'Column Header' => 'full_name',
+            'Required?' => 'Mandatory',
+            'Format / Example' => 'Rajesh Sharma',
+            'Rules & Guidance' => 'Full legal name matching PAN / Aadhaar records.'
         ]);
         $writer->addRow([
-            'Setting Field' => 'PT Default',
-            'Value' => $client->pt_applicable ? '1 (YES)' : '0 (NO)',
-            'Notes' => 'Inherited if pt_applicable is omitted in row'
+            'Column Header' => 'client_code',
+            'Required?' => 'Mandatory',
+            'Format / Example' => $client->client_code,
+            'Rules & Guidance' => "Must be exactly '{$client->client_code}' for this client."
         ]);
         $writer->addRow([
-            'Setting Field' => 'LWF Default',
-            'Value' => $client->lwf_applicable ? '1 (YES)' : '0 (NO)',
-            'Notes' => 'Inherited if lwf_applicable is omitted in row'
+            'Column Header' => 'branch_name',
+            'Required?' => $branchesCount > 1 ? 'Mandatory (Multi-Branch)' : 'Optional (Single Branch)',
+            'Format / Example' => $client->branches->first()?->branch_name ?? 'Head Office',
+            'Rules & Guidance' => $branchesCount <= 1 
+                ? 'Optional for single-branch client. Automatically links to primary head office.' 
+                : 'Enter the valid Branch Name or Branch Code listed in Sheet 2.'
         ]);
         $writer->addRow([
-            'Setting Field' => 'TDS Default',
-            'Value' => $client->tds_applicable ? '1 (YES)' : '0 (NO)',
-            'Notes' => 'Inherited if tds_applicable is omitted in row'
+            'Column Header' => 'personal_email',
+            'Required?' => 'Mandatory',
+            'Format / Example' => 'employee@example.com',
+            'Rules & Guidance' => 'Unique personal email address for employee portal onboarding.'
         ]);
         $writer->addRow([
-            'Setting Field' => 'Primary Branch State',
-            'Value' => $client->branches->first()?->state ?? 'N/A',
-            'Notes' => 'State jurisdiction for Professional Tax (PT) slabs'
+            'Column Header' => 'phone_number',
+            'Required?' => 'Mandatory',
+            'Format / Example' => '9876543210',
+            'Rules & Guidance' => '10-digit Indian mobile number.'
         ]);
         $writer->addRow([
-            'Setting Field' => 'Important Notice',
-            'Value' => 'Reference Info — Do Not Edit',
-            'Notes' => 'This sheet is for reference only. Fill employee data in the "Employee Data" sheet.'
+            'Column Header' => 'date_of_birth',
+            'Required?' => 'Mandatory',
+            'Format / Example' => '1995-05-15 (YYYY-MM-DD)',
+            'Rules & Guidance' => 'Employee must be at least 18 years old at Date of Joining.'
+        ]);
+        $writer->addRow([
+            'Column Header' => 'date_of_joining',
+            'Required?' => 'Mandatory',
+            'Format / Example' => '2024-01-01 (YYYY-MM-DD)',
+            'Rules & Guidance' => 'Official start date of employment.'
+        ]);
+        $writer->addRow([
+            'Column Header' => 'pan_number',
+            'Required?' => 'Mandatory',
+            'Format / Example' => 'ABCDE1234F',
+            'Rules & Guidance' => '10-character alphanumeric PAN format.'
+        ]);
+        $writer->addRow([
+            'Column Header' => 'bank_account_number',
+            'Required?' => 'Mandatory',
+            'Format / Example' => '123456789012',
+            'Rules & Guidance' => 'Beneficiary bank account number for salary disbursement.'
+        ]);
+        $writer->addRow([
+            'Column Header' => 'bank_ifsc',
+            'Required?' => 'Mandatory',
+            'Format / Example' => 'SBIN0001234',
+            'Rules & Guidance' => '11-character valid RBI IFSC code.'
+        ]);
+        $writer->addRow([
+            'Column Header' => 'basic_pay',
+            'Required?' => 'Mandatory',
+            'Format / Example' => '25000',
+            'Rules & Guidance' => 'Monthly basic salary in INR.'
+        ]);
+        $writer->addRow([
+            'Column Header' => 'hra',
+            'Required?' => 'Mandatory',
+            'Format / Example' => '10000',
+            'Rules & Guidance' => 'Monthly House Rent Allowance in INR.'
         ]);
 
         $writer->close();

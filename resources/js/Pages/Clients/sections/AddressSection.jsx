@@ -150,23 +150,32 @@ export default function AddressSection({ formData, errors, onChange, hook }) {
               <Building size={16} /> Client Branches / Work Locations
             </h4>
             <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-              Each branch with employees requires a separate GSTIN for compliance.
+              Add multiple branch offices / work locations for state compliances & invoicing.
             </p>
           </div>
-          {hook.clientBranches.length < formData.workLocationsCount && !(formData.workLocationsCount === 1 && hook.clientBranches.length === 0) && (
-            <button type="button" className="btn btn-secondary"
-              onClick={() => hook.addClientBranch()}>
-              + Add Branch
-            </button>
-          )}
+          <button type="button" className="btn btn-secondary"
+            onClick={() => hook.addClientBranch()}>
+            + Add Branch
+          </button>
         </div>
 
-        {formData.workLocationsCount === 1 ? (
+        {(formData.workLocationsCount <= 1 && hook.clientBranches.length <= 1) ? (
           <div style={{
-            padding: '1rem', background: 'var(--bg-light)', borderLeft: '4px solid var(--primary-blue)',
-            borderRadius: 'var(--radius-sm)', fontSize: '0.9rem', color: 'var(--primary-navy)'
+            padding: '1rem 1.25rem', background: '#F8FAFC', border: '1px dashed #CBD5E1',
+            borderRadius: 'var(--radius-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'
           }}>
-            <strong>Note:</strong> Since "Number of Work Locations" is 1, a default "Head Office" branch is automatically synced with your Registered Office address and GSTIN. You do not need to manually add or edit it.
+            <div>
+              <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--primary-navy)' }}>
+                Primary Branch Auto-Synced
+              </span>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0.2rem 0 0 0' }}>
+                The Registered & Billing Address above is automatically used as the primary Head Office branch.
+              </p>
+            </div>
+            <button type="button" className="btn btn-secondary" style={{ fontSize: '0.825rem' }}
+              onClick={() => hook.addClientBranch()}>
+              + Add Additional Branch
+            </button>
           </div>
         ) : (
           <div id="client-branches-container" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -241,8 +250,21 @@ function BranchCard({ branch, idx, errors = {}, totalBranches, onUpdate, onRemov
       background: '#FAFBFC', border: '1px solid var(--border-color)',
       borderRadius: 'var(--radius-md)', padding: '1rem', position: 'relative',
     }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-        <strong style={{ fontSize: '0.9rem', color: 'var(--primary-navy)' }}>Branch Details</strong>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid #E2E8F0', paddingBottom: '0.75rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <strong style={{ fontSize: '0.925rem', color: 'var(--primary-navy)' }}>
+            Branch #{idx + 1}: {branch.name || (idx === 0 ? 'Head Office' : `Branch ${idx + 1}`)}
+          </strong>
+          {branch.isPrimary ? (
+            <span style={{ background: '#E0F2FE', color: '#0369A1', fontSize: '0.75rem', fontWeight: 600, padding: '2px 8px', borderRadius: '12px' }}>
+              ★ Main Head Office (Primary)
+            </span>
+          ) : (
+            <span style={{ background: '#F1F5F9', color: '#475569', fontSize: '0.75rem', fontWeight: 600, padding: '2px 8px', borderRadius: '12px' }}>
+              Work Location #{idx + 1}
+            </span>
+          )}
+        </div>
         {totalBranches > 1 && (
           <button type="button" onClick={() => onRemove(branch.id)}
             style={{ background: 'none', border: 'none', color: 'var(--status-danger)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, padding: 0, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>

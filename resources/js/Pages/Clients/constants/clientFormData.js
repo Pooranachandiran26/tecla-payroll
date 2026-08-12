@@ -247,6 +247,7 @@ export function getDefaultFormData() {
     incorporationDate: '', clientCode: '', industry: '', subIndustry: '',
     clientStatus: 'onboarding', workLocationsCount: 1,
     isGroupCompany: false, parentCompany: '',
+    pfEstablishmentCode: '', esiCodeNumber: '',
 
     // Address
     regAddressLine1: '', regAddressLine2: '', regCity: '', regState: 'Maharashtra',

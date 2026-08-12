@@ -208,12 +208,13 @@ class FastBulkUploadService
             if ($branches->count() === 1) {
                 $branchId = $branches->first()->id;
             } else {
-                $branchCodeOrName = $normalizedRow['branch_name'] ?? $normalizedRow['branch_code'] ?? null;
-                if (empty($branchCodeOrName)) {
+                $branchCodeOrName = trim((string)($normalizedRow['branch_name'] ?? $normalizedRow['branch_code'] ?? ''));
+                if ($branchCodeOrName === '') {
                     $errors[] = "Client '{$client->company_name}' has multiple branches — please specify branch_name or branch_code.";
                 } else {
                     $matchedBranch = $branches->first(function ($b) use ($branchCodeOrName) {
-                        return $b->branch_name === $branchCodeOrName || $b->branch_code === $branchCodeOrName;
+                        return strcasecmp(trim((string)$b->branch_name), $branchCodeOrName) === 0 
+                            || strcasecmp(trim((string)$b->branch_code), $branchCodeOrName) === 0;
                     });
                     if ($matchedBranch) {
                         $branchId = $matchedBranch->id;

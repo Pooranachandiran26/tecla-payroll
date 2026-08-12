@@ -247,7 +247,7 @@ export default function IdentitySection({ formData, errors, hints, onChange, onV
           <label>Number of Work Locations</label>
           <input type="number" className="form-control" min="1"
             value={formData.workLocationsCount}
-            onChange={e => onChange('workLocationsCount', e.target.value)} />
+            onChange={e => hook.handleWorkLocationsCountChange(e.target.value)} />
           <div className="field-hint">If &gt; 1, Professional Tax will be computed per candidate work state.</div>
         </div>
         <div className="form-group">
