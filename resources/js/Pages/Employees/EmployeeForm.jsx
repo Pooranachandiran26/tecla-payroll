@@ -350,9 +350,20 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
     if (field === 'address') validateAddress(value);
     if (field === 'accountNo') validateAccountNo(value);
     if (field === 'accountNoConfirm') validateAccountNoConfirm(value, formData.accountNo);
-    if (field === 'accountHolder') validateAccountHolder(value);
     if (field === 'pan') validatePAN(value);
     if (field === 'basicSal') validateBasicSal(value);
+    if (field === 'pfMemberId') validatePFMemberId(value, formData.pfToggle);
+    if (field === 'uan') validateUAN(value, formData.uanMode, formData.pfToggle);
+    if (field === 'uanMode') validateUAN(formData.uan, value, formData.pfToggle);
+    if (field === 'pfToggle') {
+      validatePFMemberId(formData.pfMemberId, value);
+      validateUAN(formData.uan, formData.uanMode, value);
+    }
+    if (field === 'esiNo') validateESINo(value, formData.esiMode, formData.esiToggle);
+    if (field === 'esiMode') validateESINo(formData.esiNo, value, formData.esiToggle);
+    if (field === 'esiToggle') {
+      validateESINo(formData.esiNo, formData.esiMode, value);
+    }
   };
 
   // Initialization (URL parse)
@@ -686,6 +697,68 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
     }
   };
 
+  const validatePFMemberId = (val = formData.pfMemberId, pfToggle = formData.pfToggle) => {
+    if (!pfToggle) {
+      clearErrorMsg('pfMemberId');
+      removeBlocker('PF Member ID is required');
+      return true;
+    }
+    if (!val || !val.trim()) {
+      setErrorMsg('pfMemberId', '⛔ PF Member ID (Member Account No.) is required when Provident Fund is enabled.', 'error');
+      addBlocker('PF Member ID is required');
+      return false;
+    }
+    clearErrorMsg('pfMemberId');
+    removeBlocker('PF Member ID is required');
+    return true;
+  };
+
+  const validateUAN = (val = formData.uan, uanMode = formData.uanMode, pfToggle = formData.pfToggle) => {
+    if (!pfToggle || uanMode !== 'existing_transfer') {
+      clearErrorMsg('uan');
+      removeBlocker('UAN Number is required for existing UAN');
+      removeBlocker('UAN must be 12 digits');
+      return true;
+    }
+    if (!val || !val.trim()) {
+      setErrorMsg('uan', '⛔ 12-digit UAN Number is required for Existing UAN.', 'error');
+      addBlocker('UAN Number is required for existing UAN');
+      return false;
+    }
+    if (!/^[0-9]{12}$/.test(val.trim())) {
+      setErrorMsg('uan', '⛔ UAN must be exactly 12 digits (e.g. 100123456789).', 'error');
+      addBlocker('UAN must be 12 digits');
+      return false;
+    }
+    clearErrorMsg('uan');
+    removeBlocker('UAN Number is required for existing UAN');
+    removeBlocker('UAN must be 12 digits');
+    return true;
+  };
+
+  const validateESINo = (val = formData.esiNo, esiMode = formData.esiMode, esiToggle = formData.esiToggle) => {
+    if (!esiToggle || esiMode !== 'existing_transfer') {
+      clearErrorMsg('esiNo');
+      removeBlocker('ESIC IP Number is required');
+      removeBlocker('ESIC IP Number must be 10 digits');
+      return true;
+    }
+    if (!val || !val.trim()) {
+      setErrorMsg('esiNo', '⛔ ESIC IP Number is required for Existing IP Number.', 'error');
+      addBlocker('ESIC IP Number is required');
+      return false;
+    }
+    if (!/^[0-9]{10,17}$/.test(val.trim())) {
+      setErrorMsg('esiNo', '⛔ ESIC IP Number must be 10 to 17 digits.', 'error');
+      addBlocker('ESIC IP Number must be 10 digits');
+      return false;
+    }
+    clearErrorMsg('esiNo');
+    removeBlocker('ESIC IP Number is required');
+    removeBlocker('ESIC IP Number must be 10 digits');
+    return true;
+  };
+
   const validateAllFields = async () => {
     let valid = true;
     if (!validateFirstName(formData.firstName)) valid = false;
@@ -712,6 +785,10 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       const ifscValid = await validateIFSC();
       if (!ifscValid) valid = false;
     }
+
+    if (!validatePFMemberId(formData.pfMemberId, formData.pfToggle)) valid = false;
+    if (!validateUAN(formData.uan, formData.uanMode, formData.pfToggle)) valid = false;
+    if (!validateESINo(formData.esiNo, formData.esiMode, formData.esiToggle)) valid = false;
 
     return valid;
   };
@@ -1418,7 +1495,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                       <div className="form-row">
                         <div className="form-group" style={{ marginBottom: "0" }}>
                           <label>UAN Mode <span style={{ color: "var(--status-danger)" }}>*</span></label>
-                          <select className={`form-control ${errors.uanMode ? 'is-invalid' : ''}`} value={formData.uanMode} onChange={e => handleInputChange('uanMode', e.target.value)}>
+                          <select className={`form-control ${errors.uanMode ? `is-${errors.uanMode.type || 'error'}` : ''}`} value={formData.uanMode} onChange={e => handleInputChange('uanMode', e.target.value)}>
                             <option value="new">Pending / New Registration</option>
                             <option value="existing_transfer">Existing UAN</option>
                           </select>
@@ -1435,7 +1512,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                         {formData.uanMode === 'existing_transfer' && (
                           <div className="form-group" style={{ marginBottom: "0" }}>
                             <label>UAN Number <span style={{ color: "var(--status-danger)" }}>*</span></label>
-                            <input type="text" className={`form-control ${errors.uan ? 'is-invalid' : ''}`} value={formData.uan} onChange={e => handleInputChange('uan', e.target.value)} placeholder="12-digit UAN" maxLength="12" />
+                            <input type="text" className={`form-control ${errors.uan ? `is-${errors.uan.type || 'error'}` : ''}`} value={formData.uan} onChange={e => handleInputChange('uan', e.target.value)} placeholder="12-digit UAN" maxLength="12" />
                             {errors.uan && <div className={`field-msg ${errors.uan.type || 'error'} show`}>{errors.uan.msg || errors.uan}</div>}
                           </div>
                         )}
@@ -1446,7 +1523,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                           <label>PF Member ID (Member Account No.) <span style={{ color: "var(--status-danger)" }}>*</span></label>
                           <input 
                             type="text" 
-                            className={`form-control ${errors.pfMemberId ? 'is-invalid' : ''}`} 
+                            className={`form-control ${errors.pfMemberId ? `is-${errors.pfMemberId.type || 'error'}` : ''}`} 
                             value={formData.pfMemberId} 
                             onChange={e => handleInputChange('pfMemberId', e.target.value)} 
                             placeholder="e.g. DLCPM00123450000000271" 
@@ -1541,7 +1618,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                       <div className="form-row">
                         <div className="form-group" style={{ marginBottom: "0.75rem" }}>
                           <label>ESI Mode <span style={{ color: "var(--status-danger)" }}>*</span></label>
-                          <select className={`form-control ${errors.esiMode ? 'is-invalid' : ''}`} value={formData.esiMode} onChange={e => handleInputChange('esiMode', e.target.value)}>
+                          <select className={`form-control ${errors.esiMode ? `is-${errors.esiMode.type || 'error'}` : ''}`} value={formData.esiMode} onChange={e => handleInputChange('esiMode', e.target.value)}>
                             <option value="new">Pending / New Registration</option>
                             <option value="existing_transfer">Existing IP Number</option>
                           </select>
@@ -1558,7 +1635,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                         {formData.esiMode === 'existing_transfer' && (
                           <div className="form-group" style={{ marginBottom: "0.75rem" }}>
                             <label>ESIC IP Number <span style={{ color: "var(--status-danger)" }}>*</span></label>
-                            <input type="text" className={`form-control ${errors.esiNo ? 'is-invalid' : ''}`} value={formData.esiNo} onChange={e => handleInputChange('esiNo', e.target.value)} placeholder="10-digit ESIC Number" maxLength="10" />
+                            <input type="text" className={`form-control ${errors.esiNo ? `is-${errors.esiNo.type || 'error'}` : ''}`} value={formData.esiNo} onChange={e => handleInputChange('esiNo', e.target.value)} placeholder="10-digit ESIC Number" maxLength="17" />
                             {errors.esiNo && <div className={`field-msg ${errors.esiNo.type || 'error'} show`}>{errors.esiNo.msg || errors.esiNo}</div>}
                           </div>
                         )}
