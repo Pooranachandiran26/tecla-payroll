@@ -77,7 +77,7 @@ export default function PayslipTemplateCustomizer({ clients, selectedClient, tem
       font_size: visibleSections.font_size || 'normal',
       t: Date.now().toString()
     });
-    setPreviewSrc(`/admin/payslip-templates/preview?${params.toString()}`);
+    setPreviewSrc(route('admin.payslip-templates.preview') + '?' + params.toString());
   }, [selectedTemplate, accentColor, visibleSections, activeClient]);
 
   const handleClientChange = (clientId) => {
@@ -269,7 +269,7 @@ export default function PayslipTemplateCustomizer({ clients, selectedClient, tem
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '1.75rem' }}>
                 {safeTemplates.map(tpl => {
                   const isCurrentDefault = (activeClient?.payslip_template || 'standard') === tpl.key;
-                  const previewUrl = `/admin/payslip-templates/preview?client_id=${activeClient?.id}&template=${tpl.key}`;
+                  const previewUrl = route('admin.payslip-templates.preview', { client_id: activeClient?.id, template: tpl.key });
 
                   return (
                     <div 
@@ -644,7 +644,7 @@ export default function PayslipTemplateCustomizer({ clients, selectedClient, tem
                   const tplKey = c.payslip_template || 'standard';
                   const tplName = safeTemplates.find(t => t.key === tplKey)?.name || tplKey;
                   const cColor = c.accent_color || '#1F3864';
-                  const cPreviewUrl = `/admin/payslip-templates/preview?client_id=${c.id}&template=${tplKey}&accent_color=${encodeURIComponent(cColor)}`;
+                  const cPreviewUrl = route('admin.payslip-templates.preview', { client_id: c.id, template: tplKey, accent_color: cColor });
 
                   return (
                     <div key={c.id} style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#ffffff' }}>
