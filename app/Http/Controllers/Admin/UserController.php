@@ -170,8 +170,20 @@ class UserController extends Controller
         }
 
         $userName = $user->name;
-        $user->delete();
 
-        return back()->with('message', "User account '{$userName}' deleted successfully.");
+        try {
+            $user->delete();
+            return back()->with('message', "User account '{$userName}' deleted successfully.");
+        } catch (\Illuminate\Database\QueryException $e) {
+            // Foreign key constraint violation (e.g. attendance uploads, payroll runs, approvals)
+            if ($e->getCode() == '23000' || str_contains($e->getMessage(), 'Integrity constraint violation')) {
+                // If user has historical audit activity, suspend/deactivate the user to protect audit compliance
+                $user->update(['status' => 'suspended']);
+                return back()->with('message', "User account '{$userName}' cannot be permanently deleted because they have associated historical audit records (such as attendance batches or approval logs). The user account has been deactivated & suspended instead.");
+            }
+            return back()->withErrors(['message' => 'Failed to delete user: ' . $e->getMessage()]);
+        } catch (\Throwable $e) {
+            return back()->withErrors(['message' => 'An error occurred while deleting user: ' . $e->getMessage()]);
+        }
     }
 }
