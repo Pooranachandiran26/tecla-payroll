@@ -131,6 +131,14 @@ class EmployeeController extends Controller
     {
         $data = $request->validated();
         
+        $salaryService = app(SalaryCalculationService::class);
+        $salaryCalc = $salaryService->calculateStructuralSalary($data);
+        $data['gross_monthly_salary'] = $salaryCalc['gross_monthly_salary'] ?? 0;
+        $data['employer_pf_monthly'] = $salaryCalc['employer_pf_monthly'] ?? 0;
+        $data['employer_esi_monthly'] = $salaryCalc['employer_esi_monthly'] ?? 0;
+        $data['net_take_home_monthly'] = $salaryCalc['net_take_home_monthly'] ?? 0;
+        $data['ctc_monthly'] = $salaryCalc['ctc_monthly'] ?? 0;
+
         $employee = \DB::transaction(function () use ($data) {
             $attempts = 0;
             $maxAttempts = 5;

@@ -829,7 +829,7 @@ export default function BulkUpload({ clients = [], active_session_batch = null, 
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-blue-600 mt-1.5 shrink-0" />
-                    <span><strong>Statutory Toggles:</strong> Use <strong>1</strong> for Yes/True and <strong>0</strong> for No/False (e.g., pf_applicable, esi_applicable).</span>
+                    <span><strong>Statutory Toggles & PwD:</strong> Use <strong>1</strong> for Yes/True and <strong>0</strong> for No/False (e.g., <code>pf_applicable</code>, <code>esi_applicable</code>, <code>is_disabled</code>).</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-blue-600 mt-1.5 shrink-0" />
@@ -837,7 +837,7 @@ export default function BulkUpload({ clients = [], active_session_batch = null, 
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-blue-600 mt-1.5 shrink-0" />
-                    <span><strong>ESI Rule:</strong> ESI will strictly be overridden to ₹0 if Gross Salary exceeds ₹21,000.</span>
+                    <span><strong>ESI Rule:</strong> ESI applies up to standard ₹21,000 ceiling, or ₹25,000 ceiling when <code>is_disabled=1</code> (PwD benchmark).</span>
                   </li>
                 </ul>
               </div>

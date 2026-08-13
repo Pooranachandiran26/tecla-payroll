@@ -59,6 +59,10 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       spouseName: emp?.spouse_name || '',
       fullName: emp?.full_name || '',
       gender: emp?.gender || '',
+      isDisabled: emp ? Boolean(emp.is_disabled) : false,
+      disabilityType: emp?.disability_type || '',
+      disabilityPercentage: emp?.disability_percentage ?? '',
+      udidCardNumber: emp?.udid_card_number || '',
       bloodGroup: emp?.blood_group || '',
       maritalStatus: emp?.marital_status || '',
       dob: emp?.date_of_birth || '',
@@ -166,6 +170,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
           medical_allowance: formData.medicalSal || 0,
           special_allowance: formData.specialSal || 0,
           other_additions: formData.otherSal || 0,
+          is_disabled: formData.isDisabled,
           pf_applicable: formData.pfToggle,
           eps_applicable: formData.epsToggle,
           esi_applicable: formData.esiToggle,
@@ -802,6 +807,21 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
     return true;
   };
 
+  const validateDisabilityPercentage = (val = formData.disabilityPercentage, isDisabled = formData.isDisabled) => {
+    if (isDisabled && val !== '' && val !== null && val !== undefined) {
+      const pct = parseInt(val, 10);
+      if (isNaN(pct) || pct < 40 || pct > 100) {
+        const msg = '⛔ Disability percentage must be at least 40% (and up to 100%) to qualify as a Person with Benchmark Disability (PwD) under the RPwD Act, 2016 for the ₹25,000 ESI ceiling.';
+        setErrorMsg('disabilityPercentage', msg, 'error');
+        addBlocker('Disability percentage must be at least 40%');
+        return false;
+      }
+    }
+    clearErrorMsg('disabilityPercentage');
+    removeBlocker('Disability percentage must be at least 40%');
+    return true;
+  };
+
   const validateAllFields = async () => {
     let valid = true;
     if (!validateFirstName(formData.firstName)) valid = false;
@@ -813,6 +833,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
     if (!validateDOJ(formData.doj)) valid = false;
     if (!validateAddress(formData.address)) valid = false;
     if (!validatePAN(formData.pan)) valid = false;
+    if (!validateDisabilityPercentage(formData.disabilityPercentage, formData.isDisabled)) valid = false;
     
     const emailValid = await validatePersonalEmail();
     if (!emailValid) valid = false;
@@ -839,15 +860,17 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
 
   // ESI limits check
   useEffect(() => {
-    const limit = activeClientDefaults ? activeClientDefaults.esiLimit : 21000;
+    const defaultLimit = formData.isDisabled ? 25000 : 21000;
+    const clientLimit = activeClientDefaults ? (activeClientDefaults.esiLimit || 21000) : 21000;
+    const limit = formData.isDisabled ? Math.max(25000, clientLimit) : clientLimit;
     if (grossCTC > limit) {
       if (formMode !== 'add' && formData.esiToggle) {
-        setErrorMsg('esiWarning', `ℹ Gross salary now exceeds ESI threshold (₹${limit}). ESI contribution continues until end of period.`, 'warn');
+        setErrorMsg('esiWarning', `ℹ Gross salary now exceeds ESI threshold (₹${limit.toLocaleString('en-IN')}). ESI contribution continues until end of period.`, 'warn');
       } else {
         if (!overrides.esi) {
           handleInputChange('esiToggle', false);
         }
-        setErrorMsg('esiWarning', `⚠ Gross salary exceeds ESI threshold (₹${limit}) — ESI does not apply.`, 'error');
+        setErrorMsg('esiWarning', `⚠ Gross salary exceeds ESI threshold (₹${limit.toLocaleString('en-IN')}) — ESI does not apply.`, 'error');
       }
     } else {
       clearErrorMsg('esiWarning');
@@ -855,7 +878,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
         handleInputChange('esiToggle', true);
       }
     }
-  }, [grossCTC, activeClientDefaults, formMode]);
+  }, [grossCTC, activeClientDefaults, formMode, formData.isDisabled]);
 
   // Handlers
   const handleEmpTypeChange = (e) => {
@@ -906,6 +929,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       'residential_address': 'address', 'bank_account_number': 'accountNo', 'bank_ifsc': 'ifsc',
       'bank_name': 'bankName', 'bank_branch': 'bankBranch', 'account_holder_name': 'accountHolder',
       'gender': 'gender', 'blood_group': 'bloodGroup', 'marital_status': 'maritalStatus',
+      'is_disabled': 'isDisabled', 'disability_type': 'disabilityType', 'disability_percentage': 'disabilityPercentage', 'udid_card_number': 'udidCardNumber',
       'pan_number': 'pan', 'aadhaar_number': 'aadhaar', 'uan_mode': 'uanMode', 'uan_number': 'uan', 'pf_member_id': 'pfMemberId', 'member_relationship': 'memberRelationship',
       'esi_mode': 'esiMode', 'esic_number': 'esiNo', 'basic_pay': 'basicSal', 'hra': 'hraSal', 'conveyance': 'conveyanceSal',
       'da': 'daSal', 'medical_allowance': 'medicalSal', 'special_allowance': 'specialSal',
@@ -1094,6 +1118,105 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                       <option value="Unknown">Unknown</option>
                     </select>
                   </div>
+                </div>
+
+                {/* Person with Benchmark Disability (PwD) Section */}
+                <div style={{ marginTop: "0.5rem", marginBottom: "1.25rem", padding: "1rem", backgroundColor: formData.isDisabled ? "#F0FDF4" : "#F8FAFC", border: formData.isDisabled ? "1px solid #86EFAC" : "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", transition: "all 0.2s ease" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div>
+                      <label className="toggle-container" style={{ margin: 0, cursor: "pointer" }}>
+                        <input
+                          type="checkbox"
+                          className="toggle-input"
+                          checked={formData.isDisabled}
+                          onChange={e => {
+                            const val = e.target.checked;
+                            handleInputChange('isDisabled', val);
+                            if (!val) {
+                              clearErrorMsg('disabilityPercentage');
+                              removeBlocker('Disability percentage must be at least 40%');
+                            }
+                          }}
+                        />
+                        <span className="toggle-switch"></span>
+                        <span style={{ fontWeight: "700", color: formData.isDisabled ? "#166534" : "var(--primary-navy)", fontSize: "0.95rem" }}>
+                          Person with Benchmark Disability (PwD)
+                        </span>
+                      </label>
+                      <div style={{ fontSize: "0.78rem", color: formData.isDisabled ? "#15803D" : "var(--text-muted)", marginTop: "0.25rem", marginLeft: "2.75rem" }}>
+                        Qualifies for statutory ESI wage ceiling override to <strong>₹25,000 / month</strong> (RPwD Act, 2016 / ESI Rule 50).
+                      </div>
+                    </div>
+                    {formData.isDisabled && (
+                      <span className="badge badge-success" style={{ backgroundColor: "#DCFCE7", color: "#166534", border: "1px solid #86EFAC" }}>
+                        ₹25,000 ESI Ceiling Active
+                      </span>
+                    )}
+                  </div>
+
+                  {formData.isDisabled && (
+                    <div style={{ marginTop: "1rem", paddingTop: "0.75rem", borderTop: "1px dashed #86EFAC" }}>
+                      <div className="form-row" style={{ marginBottom: "0.5rem" }}>
+                        <div className="form-group" style={{ flex: 1 }}>
+                          <label style={{ fontSize: "0.85rem" }}>Disability Category / Type</label>
+                          <select
+                            className="form-control"
+                            value={formData.disabilityType}
+                            onChange={e => handleInputChange('disabilityType', e.target.value)}
+                          >
+                            <option value="">-- Select Category (Optional) --</option>
+                            <option value="locomotor">Locomotor Disability / Cerebral Palsy</option>
+                            <option value="visual">Visual Impairment / Blindness / Low Vision</option>
+                            <option value="hearing">Hearing Impairment / Deaf / Hard of Hearing</option>
+                            <option value="speech">Speech and Language Disability</option>
+                            <option value="intellectual">Intellectual Disability / Specific Learning</option>
+                            <option value="mental_illness">Mental Illness</option>
+                            <option value="multiple">Multiple Disabilities</option>
+                            <option value="other">Other Benchmark Disability</option>
+                          </select>
+                        </div>
+                        <div className="form-group" style={{ flex: 1 }}>
+                          <label style={{ fontSize: "0.85rem" }}>
+                            Disability Percentage (%) <span style={{ fontSize: "0.75rem", color: "#64748B" }}>(Min. 40%)</span>
+                          </label>
+                          <input
+                            type="number"
+                            min="40"
+                            max="100"
+                            className={`form-control ${errors.disabilityPercentage ? `is-${errors.disabilityPercentage.type || 'error'}` : ''}`}
+                            value={formData.disabilityPercentage}
+                            onChange={e => {
+                              const val = e.target.value;
+                              handleInputChange('disabilityPercentage', val);
+                              if (val !== '' && (parseInt(val, 10) < 40 || parseInt(val, 10) > 100)) {
+                                setErrorMsg('disabilityPercentage', '⛔ Disability percentage must be at least 40% (and up to 100%) under the RPwD Act, 2016.', 'error');
+                                addBlocker('Disability percentage must be at least 40%');
+                              } else {
+                                clearErrorMsg('disabilityPercentage');
+                                removeBlocker('Disability percentage must be at least 40%');
+                              }
+                            }}
+                            placeholder="e.g. 40, 50, 75"
+                          />
+                          {errors.disabilityPercentage && (
+                            <div className={`field-msg ${errors.disabilityPercentage.type || 'error'} show`}>
+                              {errors.disabilityPercentage.msg}
+                            </div>
+                          )}
+                        </div>
+                        <div className="form-group" style={{ flex: 1 }}>
+                          <label style={{ fontSize: "0.85rem" }}>UDID Card Number</label>
+                          <input
+                            type="text"
+                            className="form-control"
+                            value={formData.udidCardNumber}
+                            onChange={e => handleInputChange('udidCardNumber', e.target.value)}
+                            placeholder="Unique Disability ID (Optional)"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="form-row">
@@ -1674,7 +1797,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                         )}
                       </div>
                       <label className="toggle-container">
-                        <input type="checkbox" className="toggle-input" checked={formData.esiToggle} onChange={e => { handleInputChange('esiToggle', e.target.checked); toggleOverride('esi'); }} disabled={grossCTC > (activeClientDefaults?.esiLimit||21000) && (!formData.esiToggle)} />
+                        <input type="checkbox" className="toggle-input" checked={formData.esiToggle} onChange={e => { handleInputChange('esiToggle', e.target.checked); toggleOverride('esi'); }} disabled={grossCTC > (formData.isDisabled ? Math.max(25000, (activeClientDefaults?.esiLimit || 21000)) : (activeClientDefaults?.esiLimit || 21000)) && (!formData.esiToggle)} />
                         <span className="toggle-switch"></span>
                       </label>
                     </div>
@@ -1742,7 +1865,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                       </div>
                     ) : (
                       <div style={{ backgroundColor: "#F8FAFC", padding: "0.75rem 1rem", borderRadius: "var(--radius-sm)", border: "1px solid #E2E8F0", marginTop: "0.5rem", fontSize: "0.75rem", color: "#64748B" }}>
-                        <strong>Establishment Policy:</strong> This client establishment does not provide commercial Group Medical Insurance for employees above the ESI ceiling (&gt; ₹21,000/mo).
+                        <strong>Establishment Policy:</strong> This client establishment does not provide commercial Group Medical Insurance for employees above the ESI ceiling (&gt; ₹{(formData.isDisabled ? 25000 : 21000).toLocaleString('en-IN')}{formData.isDisabled ? ' PwD Ceiling' : ''}/mo).
                       </div>
                     )
                   )}

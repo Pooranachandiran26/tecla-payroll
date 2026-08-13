@@ -403,6 +403,18 @@ const renderDocumentRows = () => {
                   <h4 className="data-label">Marital Status</h4>
                   <span className="data-value" style={{"textTransform": "capitalize"}}>{employee.marital_status || 'N/A'}</span>
                 </div>
+                <div>
+                  <h4 className="data-label">PwD Status</h4>
+                  <span className="data-value">
+                    {employee.is_disabled ? (
+                      <span className="badge badge-success" style={{ backgroundColor: "#DCFCE7", color: "#166534", border: "1px solid #86EFAC" }}>
+                        PwD Benchmark {employee.disability_percentage ? `(${employee.disability_percentage}%)` : ''} {employee.disability_type ? `• ${employee.disability_type}` : ''}
+                      </span>
+                    ) : (
+                      <span style={{ color: "var(--text-muted)" }}>No Disability (Standard ₹21,000 ESI)</span>
+                    )}
+                  </span>
+                </div>
               </div>
 
               <hr style={{"border":"0","borderTop":"1px solid var(--border-color)"}} />
@@ -614,7 +626,7 @@ const renderDocumentRows = () => {
                           <span className="badge badge-neutral">Not Applicable</span>
                         </div>
                         <div style={{"fontSize":"0.75rem","color":"var(--text-muted)","marginTop":"-0.5rem","textAlign":"right"}}>
-                          Exempt (Gross &gt; ₹21,000 ESI Ceiling)
+                          Exempt (Gross &gt; ₹{employee.is_disabled ? '25,000 PwD' : '21,000'} ESI Ceiling)
                         </div>
                       </>
                     )

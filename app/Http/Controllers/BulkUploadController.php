@@ -141,7 +141,8 @@ class BulkUploadController extends Controller
 
         $headers = [
             'employee_code', 'full_name', 'client_code', 'branch_name', 'personal_email', 'phone_number',
-            'date_of_birth', 'date_of_joining', 'designation', 'employment_model', 'prior_employment_flag',
+            'date_of_birth', 'date_of_joining', 'designation', 'employment_model', 'is_disabled', 'disability_type',
+            'disability_percentage', 'udid_card_number', 'prior_employment_flag',
             'residential_address', 'bank_account_number', 'bank_ifsc', 'bank_name', 'bank_branch',
             'account_holder_name', 'pan_number', 'basic_pay', 'hra', 'conveyance', 'da',
             'medical_allowance', 'special_allowance', 'other_additions', 'pf_applicable', 'eps_applicable',
@@ -173,6 +174,10 @@ class BulkUploadController extends Controller
             'date_of_joining' => '2023-01-01',
             'designation' => 'Software Engineer',
             'employment_model' => ($client->contract_type === 'agency') ? 'agency_contract' : 'eor',
+            'is_disabled' => '0',
+            'disability_type' => '',
+            'disability_percentage' => '',
+            'udid_card_number' => '',
             'prior_employment_flag' => '0',
             'residential_address' => '123 Tech Park, City',
             'bank_account_number' => '123456789012',

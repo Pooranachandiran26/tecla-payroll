@@ -10,9 +10,14 @@ class SalaryCalculationService
     public const PF_WAGE_CEILING = 15000;
 
     /**
-     * The statutory ceiling for ESI calculation.
+     * The statutory ceiling for ESI calculation for standard employees.
      */
     public const ESI_WAGE_CEILING = 21000;
+
+    /**
+     * The statutory ceiling for ESI calculation for Persons with Benchmark Disabilities (PwD).
+     */
+    public const ESI_DISABILITY_WAGE_CEILING = 25000;
 
     /**
      * The statutory ceiling for EPS calculation.
@@ -114,7 +119,11 @@ class SalaryCalculationService
         // 3. Calculate ESI
         $employerEsi = 0;
         $employeeEsi = 0;
-        $esiLimit = (float) data_get($employeeData, 'esi_limit', self::ESI_WAGE_CEILING);
+        $isDisabled = filter_var(data_get($employeeData, 'is_disabled', false), FILTER_VALIDATE_BOOLEAN);
+        $clientEsiLimit = $client ? (float)($client->esi_limit ?? self::ESI_WAGE_CEILING) : self::ESI_WAGE_CEILING;
+        $effectiveDefaultCeiling = $isDisabled ? max((float)self::ESI_DISABILITY_WAGE_CEILING, $clientEsiLimit) : $clientEsiLimit;
+
+        $esiLimit = (float) data_get($employeeData, 'esi_limit', $effectiveDefaultCeiling);
         if (data_get($employeeData, 'esi_applicable', true) && $gross <= $esiLimit) {
             $employeeEsi = $gross * 0.0075; // 0.75%
             $employerEsi = $gross * 0.0325; // 3.25%
