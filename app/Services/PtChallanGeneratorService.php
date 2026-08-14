@@ -40,7 +40,7 @@ class PtChallanGeneratorService
             ->get();
 
         $ptItems = $items->filter(function ($item) {
-            return $item->employee && (float)$item->professional_tax > 0;
+            return $item->employee && ((float)$item->professional_tax > 0 || (float)($item->pt_shortfall_recovery ?? 0) > 0);
         })->values();
 
         if ($ptItems->isEmpty()) {
@@ -55,7 +55,7 @@ class PtChallanGeneratorService
         foreach ($ptItems as $item) {
             $state = $this->resolvePtState($item->employee, $client);
             $regNo = $this->resolvePtRegNo($item->employee, $client, $state);
-            $amount = (float)$item->professional_tax;
+            $amount = (float)$item->professional_tax + (float)($item->pt_shortfall_recovery ?? 0);
             $gross = (float)$item->gross_total;
 
             if (!isset($stateBreakdown[$state])) {
@@ -106,7 +106,7 @@ class PtChallanGeneratorService
             ->get();
 
         $ptItems = $items->filter(function ($item) {
-            return $item->employee && (float)$item->professional_tax > 0;
+            return $item->employee && ((float)$item->professional_tax > 0 || (float)($item->pt_shortfall_recovery ?? 0) > 0);
         })->values();
 
         if ($ptItems->isEmpty()) {
@@ -121,7 +121,7 @@ class PtChallanGeneratorService
         $fileHash = hash('sha256', $fileContent);
         $fileName = basename($filePath);
 
-        $totalPt = $ptItems->sum(fn($i) => (float)$i->professional_tax);
+        $totalPt = $ptItems->sum(fn($i) => (float)$i->professional_tax + (float)($i->pt_shortfall_recovery ?? 0));
 
         $existingBatch = PtChallanBatch::where('payroll_run_id', $payrollRun->id)->first();
 
@@ -238,7 +238,7 @@ class PtChallanGeneratorService
 
             $stateSummary[$state]['count']++;
             $stateSummary[$state]['gross'] += (float)$item->gross_total;
-            $stateSummary[$state]['pt'] += (float)$item->professional_tax;
+            $stateSummary[$state]['pt'] += (float)$item->professional_tax + (float)($item->pt_shortfall_recovery ?? 0);
         }
 
         $rowNum = 2;
@@ -274,7 +274,7 @@ class PtChallanGeneratorService
             $sheet2->setCellValue("F{$rowNum2}", ucfirst($emp->gender ?? 'N/A'));
             $sheet2->setCellValue("G{$rowNum2}", $emp->branch->name ?? 'Head Office');
             $sheet2->setCellValue("H{$rowNum2}", round((float)$item->gross_total, 2));
-            $sheet2->setCellValue("I{$rowNum2}", round((float)$item->professional_tax, 2));
+            $sheet2->setCellValue("I{$rowNum2}", round((float)$item->professional_tax + (float)($item->pt_shortfall_recovery ?? 0), 2));
             $rowNum2++;
         }
 

@@ -17,6 +17,7 @@ return new class extends Migration
             $table->decimal('min_salary', 10, 2);
             $table->decimal('max_salary', 10, 2)->nullable(); // null means 'No Limit'
             $table->decimal('deduction_amount', 10, 2);
+            $table->decimal('half_yearly_amount', 10, 2)->nullable();
             $table->string('deduction_note')->nullable(); // e.g. '/ month'
             $table->string('exceptions_text')->nullable();
             $table->boolean('is_active')->default(true);

@@ -12,6 +12,23 @@ export default function AddressSection({ formData, errors, onChange, hook }) {
         <h3>Registered &amp; Billing Address</h3>
       </div>
 
+      {/* Prominent Validation Error Alert Banner */}
+      {(errors.regState || errors['branches.0.gstin'] || errors.regAddressLine1 || errors.regCity || errors.regPin) && (
+        <div style={{
+          display: 'flex', alignItems: 'flex-start', gap: '0.75rem',
+          padding: '0.875rem 1rem', marginBottom: '1.25rem',
+          background: '#FEF2F2', border: '1px solid #F87171',
+          borderRadius: 'var(--radius-sm, 6px)', color: '#991B1B', fontSize: '0.875rem',
+          lineHeight: '1.4'
+        }}>
+          <AlertCircle size={20} style={{ flexShrink: 0, marginTop: '1px', color: '#DC2626' }} />
+          <div>
+            <strong style={{ display: 'block', marginBottom: '2px', color: '#B91C1C' }}>Address &amp; State Validation:</strong>
+            {errors.regState?.msg || errors['branches.0.gstin']?.msg || errors.regAddressLine1?.msg || errors.regCity?.msg || errors.regPin?.msg || 'Please review and fix the highlighted address fields.'}
+          </div>
+        </div>
+      )}
+
       {/* Registered Address */}
       <div className="form-group">
         <label>Registered Office Address Line 1 <span style={{ color: 'var(--status-danger)' }}>*</span></label>
