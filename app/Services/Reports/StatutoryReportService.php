@@ -30,6 +30,7 @@ class StatutoryReportService extends BaseReportService
             'employee_name'             => 'Employee Name',
             'basic_pay'                 => 'Basic Pay (₹)',
             'employee_pf'               => 'Emp PF (₹)',
+            'employee_vpf'              => 'Emp VPF (₹)',
             'employee_esi'              => 'Emp ESI (₹)',
             'professional_tax'          => 'PT (₹)',
             'lwf_deduction'             => 'LWF (₹)',
@@ -97,6 +98,7 @@ class StatutoryReportService extends BaseReportService
             $client = $run?->client;
 
             $empPf   = (float) $item->employee_pf;
+            $empVpf  = (float) ($item->employee_vpf ?? 0.00);
             $empEsi  = (float) $item->employee_esi;
             $pt      = (float) $item->professional_tax;
             $lwf     = (float) $item->lwf_deduction;
@@ -105,7 +107,7 @@ class StatutoryReportService extends BaseReportService
             $erEsi   = (float) $item->employer_esi;
             $erLwf   = (float) $item->employer_lwf;
 
-            $totalStatutory = round($empPf + $empEsi + $pt + $lwf + $tds + $erPf + $erEsi + $erLwf, 2);
+            $totalStatutory = round($empPf + $empVpf + $empEsi + $pt + $lwf + $tds + $erPf + $erEsi + $erLwf, 2);
 
             return [
                 'payroll_month'             => $run ? Carbon::parse($run->payroll_month)->format('M Y') : '—',
@@ -114,6 +116,7 @@ class StatutoryReportService extends BaseReportService
                 'employee_name'             => $emp->full_name ?? 'Unknown',
                 'basic_pay'                 => (float) $item->basic_pay,
                 'employee_pf'               => $empPf,
+                'employee_vpf'              => $empVpf,
                 'employee_esi'              => $empEsi,
                 'professional_tax'          => $pt,
                 'lwf_deduction'             => $lwf,
@@ -145,7 +148,7 @@ class StatutoryReportService extends BaseReportService
 
         $kpis = [
             'total_rows'       => $rows->count(),
-            'total_emp_stat'   => round($rows->sum('employee_pf') + $rows->sum('employee_esi') + $rows->sum('professional_tax') + $rows->sum('lwf_deduction') + $rows->sum('tds_deduction'), 2),
+            'total_emp_stat'   => round($rows->sum('employee_pf') + $rows->sum('employee_vpf') + $rows->sum('employee_esi') + $rows->sum('professional_tax') + $rows->sum('lwf_deduction') + $rows->sum('tds_deduction'), 2),
             'total_er_stat'    => round($rows->sum('employer_pf') + $rows->sum('employer_esi') + $rows->sum('employer_lwf'), 2),
             'total_liability'  => round($rows->sum('total_statutory_liability'), 2),
         ];

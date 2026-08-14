@@ -99,6 +99,9 @@ class StoreEmployeeRequest extends FormRequest
             'pt_deduction_override' => $this->ptDeduction ?? $this->pt_deduction_override,
             'pf_applicable' => filter_var($this->pfToggle ?? $this->pf_applicable ?? true, FILTER_VALIDATE_BOOLEAN) ? 1 : 0,
             'eps_applicable' => $this->epsToggle !== null ? (filter_var($this->epsToggle, FILTER_VALIDATE_BOOLEAN) ? 1 : 0) : ($this->eps_applicable !== null ? (filter_var($this->eps_applicable, FILTER_VALIDATE_BOOLEAN) ? 1 : 0) : 1),
+            'vpf_enabled' => ($this->vpfToggle !== null || $this->vpf_enabled !== null || $this->vpfEnabled !== null) ? (filter_var($this->vpfToggle ?? $this->vpfEnabled ?? $this->vpf_enabled, FILTER_VALIDATE_BOOLEAN) ? 1 : 0) : 0,
+            'vpf_type' => $this->vpfType ?: $this->vpf_type ?: null,
+            'vpf_value' => ($this->vpfValue !== null && $this->vpfValue !== '') ? (float)$this->vpfValue : (($this->vpf_value !== null && $this->vpf_value !== '') ? (float)$this->vpf_value : null),
             'esi_applicable' => filter_var($this->esiToggle ?? $this->esi_applicable ?? true, FILTER_VALIDATE_BOOLEAN) ? 1 : 0,
             'health_insurance_provider' => $this->insuranceProvider ?? $this->health_insurance_provider ?? null,
             'health_insurance_policy_no' => $this->insurancePolicyNo ?? $this->health_insurance_policy_no ?? null,
@@ -223,6 +226,9 @@ class StoreEmployeeRequest extends FormRequest
             ],
             'pf_applicable' => 'boolean',
             'eps_applicable' => 'nullable|boolean',
+            'vpf_enabled' => 'nullable|boolean',
+            'vpf_type' => 'nullable|required_if:vpf_enabled,1,true|in:percentage,fixed_amount',
+            'vpf_value' => 'nullable|required_if:vpf_enabled,1,true|numeric|min:0.01',
             'joint_declaration_status' => 'nullable|string|in:not_required,pending,submitted,approved',
             'esi_applicable' => 'boolean',
             'health_insurance_provider' => 'nullable|string|max:100',
@@ -275,6 +281,25 @@ class StoreEmployeeRequest extends FormRequest
                         if ($status === 'not_required' || empty($status)) {
                             $validator->errors()->add('joint_declaration_status', 'EPF Para 26(6) Joint Declaration Status must be Pending Attestation, Submitted, or Approved when PF wage basis is Actual Basic+DA and Basic+DA exceeds ₹15,000.');
                         }
+                    }
+                }
+            }
+
+            if ($this->vpf_enabled) {
+                $basicDa = ((float)($this->basic_pay ?? 0)) + ((float)($this->da ?? 0));
+                if ($this->vpf_type === 'percentage') {
+                    if ((float)$this->vpf_value > 88.0) {
+                        $validator->errors()->add('vpf_value', 'VPF percentage cannot exceed 88% (Statutory cap: Mandatory 12% + VPF cannot exceed 100% of Basic+DA under EPF Scheme Para 29).');
+                    }
+                } elseif ($this->vpf_type === 'fixed_amount') {
+                    $clientModel = $clientId ? \App\Models\Client::find($clientId) : null;
+                    $empBasis = $this->employee_pf_wage_basis ?: ($clientModel ? ($clientModel->employee_pf_wage_basis ?? 'ceiling') : 'ceiling');
+                    $pfCeiling = (float)($clientModel ? ($clientModel->pf_ceiling ?? 15000) : 15000);
+                    $mandatoryPfWage = ($empBasis === 'actual_basic_da') ? $basicDa : min($basicDa, $pfCeiling);
+                    $mandatoryPf = round($mandatoryPfWage * 0.12, 2);
+                    $maxFixed = max(0.00, $basicDa - $mandatoryPf);
+                    if ((float)$this->vpf_value > $maxFixed) {
+                        $validator->errors()->add('vpf_value', "VPF fixed amount cannot exceed ₹" . number_format($maxFixed, 2) . " (Basic+DA minus mandatory EPF).");
                     }
                 }
             }

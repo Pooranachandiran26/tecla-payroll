@@ -322,12 +322,22 @@ export default function PayrollCorrectionModal({ isOpen, onClose, parentRun, ite
                                 </tr>
                                 <tr style={{ borderBottom: '1px solid #F1F5F9' }}>
                                     <td style={{ padding: '0.5rem 0.85rem' }}>Employee PF</td>
-                                    <td style={{ padding: '0.5rem 0.85rem', textAlign: 'right' }}>₹{parseFloat(previewData.original.employee_pf).toLocaleString()}</td>
+                                    <td style={{ padding: '0.5rem 0.85rem', textAlign: 'right' }}>₹{parseFloat(previewData.original.employee_pf || 0).toLocaleString()}</td>
                                     <td style={{ padding: '0.5rem 0.85rem', textAlign: 'right' }}>₹{previewData.corrected.employee_pf.toLocaleString()}</td>
                                     <td style={{ padding: '0.5rem 0.85rem', textAlign: 'right', fontWeight: 'bold', color: '#374151' }}>
                                         {previewData.delta.employee_pf >= 0 ? '+' : ''}₹{previewData.delta.employee_pf.toLocaleString()}
                                     </td>
                                 </tr>
+                                {(parseFloat(previewData.original.employee_vpf || 0) > 0 || (previewData.corrected.employee_vpf || 0) > 0) && (
+                                    <tr style={{ borderBottom: '1px solid #F1F5F9', color: '#1E40AF' }}>
+                                        <td style={{ padding: '0.5rem 0.85rem' }}>Voluntary PF (VPF)</td>
+                                        <td style={{ padding: '0.5rem 0.85rem', textAlign: 'right' }}>₹{parseFloat(previewData.original.employee_vpf || 0).toLocaleString()}</td>
+                                        <td style={{ padding: '0.5rem 0.85rem', textAlign: 'right' }}>₹{(previewData.corrected.employee_vpf || 0).toLocaleString()}</td>
+                                        <td style={{ padding: '0.5rem 0.85rem', textAlign: 'right', fontWeight: 'bold' }}>
+                                            {(previewData.delta.employee_vpf || 0) >= 0 ? '+' : ''}₹{(previewData.delta.employee_vpf || 0).toLocaleString()}
+                                        </td>
+                                    </tr>
+                                )}
                                 <tr style={{ borderBottom: '1px solid #F1F5F9' }}>
                                     <td style={{ padding: '0.5rem 0.85rem' }}>Professional Tax (PT)</td>
                                     <td style={{ padding: '0.5rem 0.85rem', textAlign: 'right' }}>₹{parseFloat(previewData.original.professional_tax).toLocaleString()}</td>

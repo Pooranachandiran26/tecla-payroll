@@ -323,6 +323,12 @@ export default function SalaryRevision({ employee, revisions }) {
                                                     <span>• Employee PF (12%)</span>
                                                     <span className="font-semibold">{formatCurrency(emp.employee_pf_monthly)}</span>
                                                 </div>
+                                                {(emp.vpf_enabled || (emp.employee_vpf_monthly || 0) > 0) && (
+                                                    <div className="flex justify-between items-center text-blue-700">
+                                                        <span>• Voluntary PF (VPF)</span>
+                                                        <span className="font-semibold">{formatCurrency(emp.employee_vpf_monthly)}</span>
+                                                    </div>
+                                                )}
                                                 <div className="flex justify-between items-center text-slate-600">
                                                     <span>• Employee ESIC (0.75%)</span>
                                                     <span className="font-semibold">{formatCurrency(emp.employee_esi_monthly)}</span>
@@ -520,6 +526,12 @@ export default function SalaryRevision({ employee, revisions }) {
                                                     <span>• Employee PF (12%)</span>
                                                     <span className="font-semibold">{previewLoading ? '...' : (preview ? formatCurrency(preview.employee_pf_monthly) : '—')}</span>
                                                 </div>
+                                                {(preview?.employee_vpf_monthly || 0) > 0 && (
+                                                    <div className="flex justify-between items-center text-blue-700">
+                                                        <span>• Voluntary PF (VPF)</span>
+                                                        <span className="font-semibold">{previewLoading ? '...' : (preview ? formatCurrency(preview.employee_vpf_monthly) : '—')}</span>
+                                                    </div>
+                                                )}
                                                 <div className="flex justify-between items-center text-slate-700">
                                                     <span>• Employee ESIC (0.75%)</span>
                                                     <span className="font-semibold">{previewLoading ? '...' : (preview ? formatCurrency(preview.employee_esi_monthly) : '—')}</span>

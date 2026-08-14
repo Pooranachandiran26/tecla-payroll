@@ -1,6 +1,7 @@
 @php
     $totalDeductionsVal = (
         (($visibleSections['show_pf_details'] ?? true) ? (float)$item->employee_pf : 0) +
+        (($visibleSections['show_pf_details'] ?? true) ? (float)($item->employee_vpf ?? 0) : 0) +
         (($visibleSections['show_esi_details'] ?? true) ? (float)$item->employee_esi : 0) +
         (($visibleSections['show_pt_details'] ?? true) ? (float)$item->professional_tax : 0) +
         (($visibleSections['show_lwf_details'] ?? true) ? (float)$item->lwf_deduction : 0) +
@@ -80,6 +81,9 @@
         <tbody>
             @if($visibleSections['show_pf_details'] ?? true)
             <tr><td>Employee PF</td><td style="text-align: right; font-weight: bold;">{{ number_format((float)$item->employee_pf, 2) }}</td>@if($showStd)<td style="text-align: right; color: #64748b;">EPFO</td>@endif</tr>
+            @if((float)($item->employee_vpf ?? 0) > 0)
+            <tr><td>Voluntary PF (VPF)</td><td style="text-align: right; font-weight: bold;">{{ number_format((float)$item->employee_vpf, 2) }}</td>@if($showStd)<td style="text-align: right; color: #64748b;">VPF</td>@endif</tr>
+            @endif
             @endif
             @if($visibleSections['show_esi_details'] ?? true)
             <tr><td>Employee ESIC</td><td style="text-align: right; font-weight: bold;">{{ number_format((float)$item->employee_esi, 2) }}</td>@if($showStd)<td style="text-align: right; color: #64748b;">ESIC</td>@endif</tr>
@@ -176,6 +180,9 @@
                     <tbody>
                         @if($visibleSections['show_pf_details'] ?? true)
                         <tr><td>Employee PF</td><td style="text-align: right;">{{ number_format((float)$item->employee_pf, 2) }}</td></tr>
+                        @if((float)($item->employee_vpf ?? 0) > 0)
+                        <tr><td>Voluntary PF (VPF)</td><td style="text-align: right;">{{ number_format((float)$item->employee_vpf, 2) }}</td></tr>
+                        @endif
                         @endif
                         @if($visibleSections['show_esi_details'] ?? true)
                         <tr><td>Employee ESIC</td><td style="text-align: right;">{{ number_format((float)$item->employee_esi, 2) }}</td></tr>

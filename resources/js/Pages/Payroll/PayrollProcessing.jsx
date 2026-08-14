@@ -63,7 +63,7 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
         if (!items || items.length === 0) return null;
         let t = {
             basic: 0, hra: 0, conv: 0, da: 0, med: 0, special: 0, other: 0, gross: 0,
-            pf: 0, esi: 0, pt: 0, lop: 0, tds: 0, loan: 0, totalDeduct: 0, net: 0, ctc: 0
+            pf: 0, vpf: 0, esi: 0, pt: 0, lop: 0, tds: 0, loan: 0, totalDeduct: 0, net: 0, ctc: 0
         };
         items.forEach(item => {
             if (item.is_excluded) return;
@@ -76,12 +76,13 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
             t.other += parseFloat(item.other_additions || 0);
             t.gross += parseFloat(item.gross_total || 0);
             t.pf += parseFloat(item.employee_pf || 0);
+            t.vpf += parseFloat(item.employee_vpf || 0);
             t.esi += parseFloat(item.employee_esi || 0);
             t.pt += parseFloat(item.professional_tax || 0);
             t.lop += parseFloat(item.lop_deduction || 0);
             t.tds += parseFloat(item.tds_deduction || 0);
             t.loan += parseFloat(item.loan_emi_deduction || 0);
-            t.totalDeduct += (parseFloat(item.employee_pf || 0) + parseFloat(item.employee_esi || 0) + parseFloat(item.professional_tax || 0) + parseFloat(item.tds_deduction || 0) + parseFloat(item.loan_emi_deduction || 0));
+            t.totalDeduct += (parseFloat(item.employee_pf || 0) + parseFloat(item.employee_vpf || 0) + parseFloat(item.employee_esi || 0) + parseFloat(item.professional_tax || 0) + parseFloat(item.tds_deduction || 0) + parseFloat(item.loan_emi_deduction || 0));
             t.net += parseFloat(item.net_pay || 0);
             t.ctc += parseFloat(item.ctc_display ?? (parseFloat(item.gross_total || 0) + parseFloat(item.employer_pf || 0) + parseFloat(item.employer_esi || 0) + parseFloat(item.employer_lwf || 0)));
         });
@@ -362,7 +363,7 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
                                     {earnVisible && <th colSpan="7" className="col-group-earn">Earnings</th>}
                                     <th rowSpan="2" className="col-group-total">Gross Total</th>
                                     <th rowSpan="2" className="col-group-total" style={{ background: "#F8FAFC", color: "#475569" }}>Unpaid LOP <span style={{ fontWeight: "normal", fontSize: "0.75em", display: "block" }}>(Already Subtracted)</span></th>
-                                    {deductVisible && <th colSpan="6" className="col-group-deduct">Deductions</th>}
+                                    {deductVisible && <th colSpan="7" className="col-group-deduct">Deductions</th>}
                                     <th rowSpan="2" className="col-group-total">Total Deduct.</th>
                                     <th rowSpan="2" className="col-group-total" style={{ color: "var(--primary-navy)" }}>Net Pay</th>
                                     <th rowSpan="2" className="col-group-total" style={{ color: "#047857", background: "#ECFDF5" }}>CTC (Er Cost)</th>
@@ -383,6 +384,7 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
                                     {deductVisible && (
                                         <>
                                             <th className="col-group-deduct">PF</th>
+                                            <th className="col-group-deduct">VPF</th>
                                             <th className="col-group-deduct">ESI</th>
                                             <th className="col-group-deduct">PT</th>
                                             <th className="col-group-deduct">Welfare</th>
@@ -400,7 +402,7 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
                                                 <tr key={`ex-${row.id}`} style={{ opacity: 0.6, background: "#F8FAFC" }}>
                                                     <td>{row.employee_code}</td>
                                                     <td><strong>{row.full_name}</strong></td>
-                                                    <td colSpan={earnVisible ? (deductVisible ? 20 : 13) : (deductVisible ? 12 : 5)} style={{ color: "var(--status-danger)", paddingLeft: "1.5rem" }}>
+                                                    <td colSpan={earnVisible ? (deductVisible ? 21 : 13) : (deductVisible ? 13 : 5)} style={{ color: "var(--status-danger)", paddingLeft: "1.5rem" }}>
                                                         Excluded: {row.exclusion_reason}
                                                     </td>
                                                     <td><span className="badge badge-danger">Excluded</span></td>
@@ -408,7 +410,7 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
                                             );
                                         }
 
-                                        const itemDeductions = (parseFloat(row.employee_pf) + parseFloat(row.employee_esi) + parseFloat(row.professional_tax) + parseFloat(row.lwf_deduction) + parseFloat(row.tds_deduction) + parseFloat(row.loan_emi_deduction));
+                                        const itemDeductions = (parseFloat(row.employee_pf || 0) + parseFloat(row.employee_vpf || 0) + parseFloat(row.employee_esi || 0) + parseFloat(row.professional_tax || 0) + parseFloat(row.lwf_deduction || 0) + parseFloat(row.tds_deduction || 0) + parseFloat(row.loan_emi_deduction || 0));
                                         const ctcVal = parseFloat(row.ctc_display ?? (parseFloat(row.gross_total || 0) + parseFloat(row.employer_pf || 0) + parseFloat(row.employer_esi || 0) + parseFloat(row.employer_lwf || 0)));
 
                                         return (
@@ -435,12 +437,13 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
                                                     
                                                     {deductVisible && (
                                                         <>
-                                                            <td>₹{parseFloat(row.employee_pf).toLocaleString()}</td>
-                                                            <td>₹{parseFloat(row.employee_esi).toLocaleString()}</td>
-                                                            <td>₹{parseFloat(row.professional_tax).toLocaleString()}</td>
-                                                            <td>₹{parseFloat(row.lwf_deduction).toLocaleString()}</td>
-                                                            <td>₹{parseFloat(row.tds_deduction).toLocaleString()}</td>
-                                                            <td>₹{parseFloat(row.loan_emi_deduction).toLocaleString()}</td>
+                                                            <td>₹{parseFloat(row.employee_pf || 0).toLocaleString()}</td>
+                                                            <td>₹{parseFloat(row.employee_vpf || 0).toLocaleString()}</td>
+                                                            <td>₹{parseFloat(row.employee_esi || 0).toLocaleString()}</td>
+                                                            <td>₹{parseFloat(row.professional_tax || 0).toLocaleString()}</td>
+                                                            <td>₹{parseFloat(row.lwf_deduction || 0).toLocaleString()}</td>
+                                                            <td>₹{parseFloat(row.tds_deduction || 0).toLocaleString()}</td>
+                                                            <td>₹{parseFloat(row.loan_emi_deduction || 0).toLocaleString()}</td>
                                                         </>
                                                     )}
                                                     
@@ -460,7 +463,7 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
                                                 {Boolean(row.salary_revision_applied) && (
                                                     <tr className="split-row">
                                                         <td colSpan="3"></td>
-                                                        <td colSpan={earnVisible ? (deductVisible ? 20 : 13) : (deductVisible ? 12 : 5)}>
+                                                        <td colSpan={earnVisible ? (deductVisible ? 21 : 13) : (deductVisible ? 13 : 5)}>
                                                             ↳ <em>{row.mid_cycle_note || row.warning_notes || 'Mid-Cycle Split Applied'}</em>
                                                         </td>
                                                     </tr>
@@ -469,7 +472,7 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
                                         );
                                     })
                                 ) : (
-                                    <tr><td colSpan="23" style={{ textAlign: "center", padding: "3rem", color: "var(--text-muted)" }}>No payroll calculations run yet for this month. Choose client and click "Calculate & Process".</td></tr>
+                                    <tr><td colSpan="24" style={{ textAlign: "center", padding: "3rem", color: "var(--text-muted)" }}>No payroll calculations run yet for this month. Choose client and click "Calculate & Process".</td></tr>
                                 )}
                             </tbody>
                             {totals && (
@@ -493,6 +496,7 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
                                         {deductVisible && (
                                             <>
                                                 <td>₹{totals.pf.toLocaleString()}</td>
+                                                <td>₹{totals.vpf.toLocaleString()}</td>
                                                 <td>₹{totals.esi.toLocaleString()}</td>
                                                 <td>₹{totals.pt.toLocaleString()}</td>
                                                 <td>—</td>

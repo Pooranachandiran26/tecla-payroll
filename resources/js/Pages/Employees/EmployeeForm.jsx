@@ -101,6 +101,9 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       ptDeduction: emp?.pt_deduction_override ?? '',
       pfToggle: emp ? Boolean(emp.pf_applicable) : true,
       epsToggle: emp ? (emp.eps_applicable !== undefined ? Boolean(emp.eps_applicable) : true) : true,
+      vpfToggle: emp ? Boolean(emp.vpf_enabled) : false,
+      vpfType: emp?.vpf_type || 'percentage',
+      vpfValue: emp?.vpf_value ?? '',
       esiToggle: emp ? Boolean(emp.esi_applicable) : true,
       tdsToggle: emp ? Boolean(emp.tds_applicable) : true,
       ptToggle: emp ? Boolean(emp.pt_applicable) : true,
@@ -173,6 +176,9 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
           is_disabled: formData.isDisabled,
           pf_applicable: formData.pfToggle,
           eps_applicable: formData.epsToggle,
+          vpf_enabled: formData.vpfToggle,
+          vpf_type: formData.vpfType,
+          vpf_value: formData.vpfValue,
           esi_applicable: formData.esiToggle,
           pt_applicable: formData.ptToggle,
           lwf_applicable: formData.lwfToggle,
@@ -193,8 +199,9 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
     formData.clientPartner, formData.gender, formData.dob,
     formData.basicSal, formData.hraSal, formData.conveyanceSal, 
     formData.daSal, formData.medicalSal, formData.specialSal, 
-    formData.otherSal, formData.pfToggle, formData.epsToggle, formData.esiToggle, 
-    formData.ptToggle, formData.lwfToggle, formData.ptDeduction
+    formData.otherSal, formData.pfToggle, formData.epsToggle, 
+    formData.vpfToggle, formData.vpfType, formData.vpfValue,
+    formData.esiToggle, formData.ptToggle, formData.lwfToggle, formData.ptDeduction
   ]);
 
   const [activeClientDefaults, setActiveClientDefaults] = useState(null);
@@ -379,6 +386,9 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
     if (field === 'esiToggle') {
       validateESINo(formData.esiNo, formData.esiMode, value);
     }
+    if (field === 'vpfToggle') validateVPF(value, formData.vpfType, formData.vpfValue);
+    if (field === 'vpfType') validateVPF(formData.vpfToggle, value, formData.vpfValue);
+    if (field === 'vpfValue') validateVPF(formData.vpfToggle, formData.vpfType, value);
   };
 
   // Initialization (URL parse)
@@ -392,6 +402,40 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
     if (mode === 'edit-active') {
       // Just a visual indicator that some fields are locked. Do not block form submission.
       setErrorMsg('doj', 'Date of Joining is locked as payroll history exists.', 'warn');
+    }
+
+    // Auto-scroll, expand Existing UAN dropdown & focus UAN input if requested
+    const hash = window.location.hash;
+    const urlParams = new URLSearchParams(window.location.search);
+    const focusParam = urlParams.get('focus');
+
+    if (hash === '#uan' || hash === '#uan_number' || focusParam === 'uan') {
+      setFormData(prev => ({
+        ...prev,
+        pfToggle: true,
+        uanMode: 'existing_transfer'
+      }));
+
+      const scrollAndFocus = () => {
+        const uanElement = document.getElementById('uan-input-field') || document.querySelector('input[placeholder="12-digit UAN"]');
+        if (uanElement) {
+          uanElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          setTimeout(() => {
+            uanElement.focus();
+            uanElement.style.transition = 'all 0.3s ease-in-out';
+            uanElement.style.boxShadow = '0 0 0 4px rgba(239, 68, 68, 0.4)';
+            uanElement.style.borderColor = '#EF4444';
+            setTimeout(() => {
+              uanElement.style.boxShadow = '';
+              uanElement.style.borderColor = '';
+            }, 3000);
+          }, 400);
+        }
+      };
+
+      scrollAndFocus();
+      setTimeout(scrollAndFocus, 350);
+      setTimeout(scrollAndFocus, 700);
     }
   }, []);
 
@@ -822,6 +866,49 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
     return true;
   };
 
+  const validateVPF = (vpfToggle = formData.vpfToggle, vpfType = formData.vpfType, vpfValue = formData.vpfValue) => {
+    if (!vpfToggle) {
+      clearErrorMsg('vpfValue');
+      removeBlocker('VPF value exceeds statutory ceiling');
+      removeBlocker('VPF value is required');
+      return true;
+    }
+    const num = Number(vpfValue);
+    if (vpfValue === '' || vpfValue === null || vpfValue === undefined || isNaN(num) || num <= 0) {
+      setErrorMsg('vpfValue', '⛔ Enter a valid VPF rate or amount greater than 0.', 'error');
+      addBlocker('VPF value is required');
+      return false;
+    }
+    removeBlocker('VPF value is required');
+
+    const basicDa = (Number(formData.basicSal) || 0) + (Number(formData.daSal) || 0);
+
+    if (vpfType === 'percentage') {
+      if (num > 88.0) {
+        setErrorMsg('vpfValue', '⛔ VPF percentage cannot exceed 88% (Mandatory 12% + VPF cannot exceed 100% of Basic+DA under EPF Para 29).', 'error');
+        addBlocker('VPF value exceeds statutory ceiling');
+        return false;
+      }
+    } else if (vpfType === 'fixed_amount') {
+      const client = clients.find(c => String(c.id) === String(formData.clientPartner));
+      const empBasis = activeClientDefaults?.employeePfWageBasis || client?.employee_pf_wage_basis || 'ceiling';
+      const pfCeiling = activeClientDefaults?.pfCeiling || client?.pf_ceiling || 15000;
+      const mandatoryPfWage = empBasis === 'actual_basic_da' ? basicDa : Math.min(basicDa, pfCeiling);
+      const mandatoryPf = Math.round(mandatoryPfWage * 0.12 * 100) / 100;
+      const maxFixed = Math.max(0, basicDa - mandatoryPf);
+
+      if (num > maxFixed) {
+        setErrorMsg('vpfValue', `⛔ VPF fixed amount cannot exceed ₹${maxFixed.toLocaleString('en-IN', { minimumFractionDigits: 2 })} (Basic+DA minus mandatory 12% EPF).`, 'error');
+        addBlocker('VPF value exceeds statutory ceiling');
+        return false;
+      }
+    }
+
+    clearErrorMsg('vpfValue');
+    removeBlocker('VPF value exceeds statutory ceiling');
+    return true;
+  };
+
   const validateAllFields = async () => {
     let valid = true;
     if (!validateFirstName(formData.firstName)) valid = false;
@@ -854,6 +941,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
     if (!validateUAN(formData.uan, formData.uanMode, formData.pfToggle)) valid = false;
     if (!validateESINo(formData.esiNo, formData.esiMode, formData.esiToggle)) valid = false;
     if (!validateJointDeclaration(formData.jointDeclarationStatus)) valid = false;
+    if (!validateVPF(formData.vpfToggle, formData.vpfType, formData.vpfValue)) valid = false;
 
     return valid;
   };
@@ -941,6 +1029,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       'esi_contribution_period_end': 'esiPeriodEnd', 'designation': 'designation', 'branch_id': 'branchPartner',
       'health_insurance_provider': 'insuranceProvider', 'health_insurance_policy_no': 'insurancePolicyNo', 'health_insurance_sum_insured': 'insuranceSumInsured',
       'joint_declaration_status': 'jointDeclarationStatus',
+      'vpf_enabled': 'vpfToggle', 'vpf_type': 'vpfType', 'vpf_value': 'vpfValue',
     };
     
     const url = isAdd ? route('employees.store') : route('employees.update', empId);
@@ -1686,9 +1775,17 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                           </small>
                         </div>
                         {formData.uanMode === 'existing_transfer' && (
-                          <div className="form-group" style={{ marginBottom: "0" }}>
+                          <div className="form-group" id="uan-input-group" style={{ marginBottom: "0" }}>
                             <label>UAN Number <span style={{ color: "var(--status-danger)" }}>*</span></label>
-                            <input type="text" className={`form-control ${errors.uan ? `is-${errors.uan.type || 'error'}` : ''}`} value={formData.uan} onChange={e => handleInputChange('uan', e.target.value)} placeholder="12-digit UAN" maxLength="12" />
+                            <input
+                              id="uan-input-field"
+                              type="text" 
+                              className={`form-control ${errors.uan ? `is-${errors.uan.type || 'error'}` : ''}`} 
+                              value={formData.uan} 
+                              onChange={e => handleInputChange('uan', e.target.value)} 
+                              placeholder="12-digit UAN" 
+                              maxLength="12" 
+                            />
                             {errors.uan && <div className={`field-msg ${errors.uan.type || 'error'} show`}>{errors.uan.msg || errors.uan}</div>}
                           </div>
                         )}
@@ -1778,6 +1875,84 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                           </div>
                         </div>
                       )}
+
+                      {/* Voluntary Provident Fund (VPF) Sub-Card */}
+                      <div style={{ marginTop: "0.75rem", paddingTop: "0.75rem", borderTop: "1px dashed var(--border-color)" }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <div>
+                            <strong style={{ fontSize: "0.85rem", color: "var(--primary-navy)" }}>Voluntary Provident Fund (VPF — EPF Para 29)</strong>
+                            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "2px", maxWidth: "600px" }}>
+                              Employee-elected voluntary contribution deposited directly into their EPF account. 100% employee-funded — does <em>not</em> alter employer contribution.
+                            </div>
+                          </div>
+                          <label className="toggle-container" style={{ flexShrink: 0, marginLeft: "1rem" }}>
+                            <input 
+                              type="checkbox" 
+                              className="toggle-input" 
+                              checked={formData.vpfToggle} 
+                              onChange={e => {
+                                handleInputChange('vpfToggle', e.target.checked);
+                                if (!e.target.checked) {
+                                  clearErrorMsg('vpfValue');
+                                  removeBlocker('VPF value exceeds statutory ceiling');
+                                  removeBlocker('VPF value is required');
+                                }
+                              }} 
+                            />
+                            <span className="toggle-switch"></span>
+                          </label>
+                        </div>
+
+                        {formData.vpfToggle && (
+                          <div style={{ marginTop: "0.75rem", padding: "0.75rem", backgroundColor: "#F8FAFC", borderRadius: "var(--radius-sm)", border: "1px solid #E2E8F0" }}>
+                            <div className="form-row" style={{ marginBottom: "0.5rem" }}>
+                              <div className="form-group" style={{ marginBottom: "0", flex: 1 }}>
+                                <label style={{ fontSize: "0.8rem", fontWeight: "600" }}>VPF Contribution Type <span style={{ color: "var(--status-danger)" }}>*</span></label>
+                                <select 
+                                  className="form-control" 
+                                  value={formData.vpfType} 
+                                  onChange={e => handleInputChange('vpfType', e.target.value)}
+                                >
+                                  <option value="percentage">Percentage of Actual Basic+DA (%)</option>
+                                  <option value="fixed_amount">Fixed Rupee Amount (₹ / Month)</option>
+                                </select>
+                              </div>
+                              <div className="form-group" style={{ marginBottom: "0", flex: 1 }}>
+                                <label style={{ fontSize: "0.8rem", fontWeight: "600" }}>
+                                  {formData.vpfType === 'percentage' ? 'VPF Percentage Rate (%)' : 'VPF Monthly Amount (₹)'} <span style={{ color: "var(--status-danger)" }}>*</span>
+                                </label>
+                                <input 
+                                  type="number" 
+                                  step={formData.vpfType === 'percentage' ? '0.1' : '1'} 
+                                  min="0.01" 
+                                  max={formData.vpfType === 'percentage' ? '88' : undefined}
+                                  className={`form-control ${errors.vpfValue ? `is-${errors.vpfValue.type || 'error'}` : ''}`} 
+                                  value={formData.vpfValue} 
+                                  onChange={e => handleInputChange('vpfValue', e.target.value)}
+                                  placeholder={formData.vpfType === 'percentage' ? 'e.g. 8 (Max 88%)' : 'e.g. 2000'}
+                                />
+                                {errors.vpfValue && <div className={`field-msg ${errors.vpfValue.type || 'error'} show`}>{errors.vpfValue.msg || errors.vpfValue}</div>}
+                              </div>
+                            </div>
+                            
+                            {/* Live preview badge for VPF */}
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "0.75rem", color: "#1E293B", backgroundColor: "#EFF6FF", padding: "0.5rem 0.75rem", borderRadius: "4px", marginTop: "0.5rem", border: "1px solid #BFDBFE" }}>
+                              <div>
+                                <span>Monthly VPF Deduction: </span>
+                                <strong>
+                                  ₹{Number(previewCalculations?.employee_vpf_monthly || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </strong>
+                              </div>
+                              <div>
+                                <span>Total Employee PF (12% + VPF): </span>
+                                <strong style={{ color: "var(--primary-navy)" }}>
+                                  ₹{Number(previewCalculations?.total_employee_pf_monthly || ((previewCalculations?.employee_pf_monthly || 0) + (previewCalculations?.employee_vpf_monthly || 0))).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </strong>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
                   <hr style={{ border: "0", borderTop: "1px solid var(--border-color)" }} />
@@ -2062,8 +2237,8 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                       </div>
                       
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", color: "var(--text-muted)" }}>
-                        <span>Estimated Employee Deductions (PF, ESI, PT):</span>
-                        <span style={{ fontWeight: "600", color: "#991B1B" }}>- ₹{previewCalculations ? (previewCalculations.employee_pf_monthly + previewCalculations.employee_esi_monthly + previewCalculations.pt_monthly)?.toLocaleString('en-IN') : '0'}</span>
+                        <span>Estimated Employee Deductions (PF{(previewCalculations?.employee_vpf_monthly || 0) > 0 ? ', VPF' : ''}, ESI, PT):</span>
+                        <span style={{ fontWeight: "600", color: "#991B1B" }}>- ₹{previewCalculations ? ((previewCalculations.employee_pf_monthly || 0) + (previewCalculations.employee_vpf_monthly || 0) + (previewCalculations.employee_esi_monthly || 0) + (previewCalculations.pt_monthly || 0))?.toLocaleString('en-IN') : '0'}</span>
                       </div>
 
                       {previewCalculations && (
@@ -2071,9 +2246,16 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                           <div style={{ fontWeight: "700", color: "#9B2C2C", marginBottom: "0.15rem" }}>Employee Deductions Breakdown:</div>
                           
                           <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: "0.5rem" }}>
-                            <span>• Employee PF Contribution (12%):</span>
+                            <span>• Employee PF Contribution (12%){(previewCalculations.employee_vpf_monthly || 0) > 0 ? ' — Mandatory' : ''}:</span>
                             <strong>₹{(previewCalculations.employee_pf_monthly || 0).toLocaleString('en-IN')}</strong>
                           </div>
+
+                          {(previewCalculations.employee_vpf_monthly || 0) > 0 && (
+                            <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: "0.5rem", color: "#1E40AF" }}>
+                              <span>• Voluntary PF (VPF — EPF Para 29):</span>
+                              <strong>₹{(previewCalculations.employee_vpf_monthly || 0).toLocaleString('en-IN')}</strong>
+                            </div>
+                          )}
 
                           <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: "0.5rem" }}>
                             <span>• Employee ESI Contribution (0.75%):</span>
@@ -2087,7 +2269,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
 
                           <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px dashed #FEB2B2", paddingTop: "0.35rem", marginTop: "0.15rem", fontWeight: "700", color: "#742A2A" }}>
                             <span>Total Employee Deductions:</span>
-                            <span>- ₹{(previewCalculations.employee_pf_monthly + previewCalculations.employee_esi_monthly + previewCalculations.pt_monthly).toLocaleString('en-IN')}</span>
+                            <span>- ₹{((previewCalculations.employee_pf_monthly || 0) + (previewCalculations.employee_vpf_monthly || 0) + (previewCalculations.employee_esi_monthly || 0) + (previewCalculations.pt_monthly || 0)).toLocaleString('en-IN')}</span>
                           </div>
                         </div>
                       )}
