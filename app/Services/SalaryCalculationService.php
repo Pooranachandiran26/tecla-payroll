@@ -206,6 +206,7 @@ class SalaryCalculationService
         $bonusAccrual = 0.00;
         $bonusApplicable = $client ? (bool)($client->statutory_bonus_applicable ?? false) : (bool)data_get($employeeData, 'statutory_bonus_applicable', false);
         $bonusPct = $client ? (float)($client->bonus_rate_percentage ?? $client->statutory_bonus_percentage ?? 8.33) : (float)data_get($employeeData, 'statutory_bonus_percentage', 8.33);
+        $bonusType = $client ? ($client->statutory_bonus_type ?? 'ctc_accrual') : data_get($employeeData, 'statutory_bonus_type', 'ctc_accrual');
 
         if ($bonusApplicable && $basic <= 21000.00) {
             $stateMinWage = (float)data_get($employeeData, 'state_minimum_wage', 0);
@@ -214,13 +215,21 @@ class SalaryCalculationService
             $bonusAccrual = $bonusBase * ($bonusPct / 100);
         }
 
+        // If statutory_bonus_type is 'part_of_gross', statutory bonus is included in Monthly Gross Pay!
+        $statutoryBonusMonthly = 0.00;
+        if ($bonusType === 'part_of_gross') {
+            $statutoryBonusMonthly = round($bonusAccrual, 2);
+            $gross += $statutoryBonusMonthly;
+        }
+
         // 7. Net Take Home
         // Deductions: PF (Mandatory EPF + Voluntary VPF) + ESI + PT
         $totalEmployeePf = $employeePf + $employeeVpf;
         $netTakeHome = $gross - ($totalEmployeePf + $employeeEsi + $pt);
 
-        // 8. CTC = Gross + Employer PF + Employer ESI + Gratuity Accrual + Statutory Bonus Accrual
-        $ctc = $gross + $employerPf + $employerEsi + $gratuityAccrual + $bonusAccrual;
+        // 8. CTC = Gross + Employer PF + Employer ESI + Gratuity Accrual + (if ctc_accrual ? Statutory Bonus Accrual : 0)
+        $ctcBonusContribution = ($bonusType === 'part_of_gross') ? 0.00 : $bonusAccrual;
+        $ctc = $gross + $employerPf + $employerEsi + $gratuityAccrual + $ctcBonusContribution;
 
         return [
             'gross_monthly_salary' => round($gross, 2),
@@ -232,6 +241,8 @@ class SalaryCalculationService
             'employer_esi_monthly' => round($employerEsi, 2),
             'gratuity_accrual_monthly' => round($gratuityAccrual, 2),
             'bonus_accrual_monthly' => round($bonusAccrual, 2),
+            'statutory_bonus_monthly' => round($statutoryBonusMonthly, 2),
+            'statutory_bonus_type' => $bonusType,
             'net_take_home_monthly' => round($netTakeHome, 2),
             'ctc_monthly' => round($ctc, 2),
             // Including employee deductions to allow full UI breakdown

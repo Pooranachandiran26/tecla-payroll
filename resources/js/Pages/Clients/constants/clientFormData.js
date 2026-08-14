@@ -323,7 +323,7 @@ export function getDefaultFormData() {
     lwfFrequency: 'annual', lwfApplicable: false,
     tdsRegime: 'new', tdsApplicable: true,
     gratuityMode: 'ctc_included', gratuityApplicable: true,
-    bonusPct: 8.33, bonusApplicable: false,
+    bonusPct: 8.33, bonusType: 'ctc_accrual', bonusApplicable: false,
     healthInsuranceEnabled: true,
     weeklyOffPattern: 'sat,sun',
     lopBasis: '30', // Strictly 30 days divisor

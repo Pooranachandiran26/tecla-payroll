@@ -1055,6 +1055,8 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
       gratuityMode: formData.gratuityMode,
       gratuityApplicable: formData.gratuityApplicable,
       bonusPct: parseFloat(formData.bonusPct || '8.33'),
+      bonusType: formData.bonusType || 'ctc_accrual',
+      statutoryBonusType: formData.bonusType || 'ctc_accrual',
       bonusApplicable: formData.bonusApplicable,
       bonusRate: parseFloat(formData.bonusPct || '8.33'),
       statutoryBonusApplicable: formData.bonusApplicable,
@@ -1380,8 +1382,9 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
         const map = { payable_on_separation: 'over_ctc', over_and_above: 'over_ctc', not_applicable: 'na' };
         return map[m] || m || 'ctc_included';
       })(client.default_gratuity_mode),
-      gratuityApplicable: true, // Not in DB, default true
+      gratuityApplicable: client.gratuity_applicable !== undefined && client.gratuity_applicable !== null ? Boolean(client.gratuity_applicable) : (client.gratuityApplicable !== undefined && client.gratuityApplicable !== null ? Boolean(client.gratuityApplicable) : true),
       bonusPct: client.bonus_rate_percentage || 8.33,
+      bonusType: client.statutory_bonus_type || 'ctc_accrual',
       bonusApplicable: client.statutory_bonus_applicable !== undefined ? client.statutory_bonus_applicable : false,
       healthInsuranceEnabled: client.health_insurance_enabled !== undefined ? Boolean(client.health_insurance_enabled) : true,
       weeklyOffPattern: client.weekly_off_pattern || client.weeklyOffPattern || 'sat,sun',

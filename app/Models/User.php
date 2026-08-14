@@ -133,19 +133,14 @@ class User extends Authenticatable
         if ($this->role === 'manager') {
             $amClientIds = Client::where('account_manager_id', $this->id)
                 ->orWhere('backup_account_manager_id', $this->id)
+                ->orWhere('created_by', $this->id)
                 ->pluck('id');
 
             $pivotClientIds = DB::table('client_user')
                 ->where('user_id', $this->id)
                 ->pluck('client_id');
 
-            $ids = $amClientIds->merge($pivotClientIds)->unique()->filter()->values()->toArray();
-
-            if (empty($ids)) {
-                return Client::where('status', 'active')->pluck('id')->toArray();
-            }
-
-            return $ids;
+            return $amClientIds->merge($pivotClientIds)->unique()->filter()->values()->toArray();
         }
 
         if ($this->role === 'client' && $this->client_id) {
