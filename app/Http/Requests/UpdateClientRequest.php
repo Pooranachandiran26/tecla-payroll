@@ -97,6 +97,7 @@ class UpdateClientRequest extends FormRequest
             'statutory_bonus_applicable' => $this->has('statutoryBonusApplicable')
                 ? ($this->boolean('statutoryBonusApplicable') ? 1 : 0)
                 : ($this->has('bonusApplicable') ? ($this->boolean('bonusApplicable') ? 1 : 0) : ($this->has('statutory_bonus_applicable') ? ($this->boolean('statutory_bonus_applicable') ? 1 : 0) : ($this->route('client')?->statutory_bonus_applicable ? 1 : 0))),
+            'statutory_bonus_type' => $this->bonusType ?: $this->statutoryBonusType ?: $this->statutory_bonus_type ?: ($this->route('client')?->statutory_bonus_type ?? 'ctc_accrual'),
             'health_insurance_enabled' => $this->has('healthInsuranceEnabled')
                 ? ($this->boolean('healthInsuranceEnabled') ? 1 : 0)
                 : ($this->has('health_insurance_enabled')
@@ -335,6 +336,7 @@ class UpdateClientRequest extends FormRequest
             'default_gratuity_mode' => 'nullable|string',
             'gratuity_applicable' => 'nullable|boolean',
             'statutory_bonus_applicable' => 'nullable|boolean',
+            'statutory_bonus_type' => 'nullable|string|in:ctc_accrual,part_of_gross',
             'health_insurance_enabled' => 'nullable|boolean',
             'bonus_rate_percentage' => 'nullable|numeric|min:0|max:100',
             'pf_ceiling' => 'nullable|numeric|min:0|max:15000',
