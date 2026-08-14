@@ -1037,6 +1037,8 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
       gratuityMode: formData.gratuityMode,
       gratuityApplicable: formData.gratuityApplicable,
       bonusPct: parseFloat(formData.bonusPct || '8.33'),
+      bonusType: formData.bonusType || 'ctc_accrual',
+      statutoryBonusType: formData.bonusType || 'ctc_accrual',
       bonusApplicable: formData.bonusApplicable,
       bonusRate: parseFloat(formData.bonusPct || '8.33'),
       statutoryBonusApplicable: formData.bonusApplicable,
@@ -1344,6 +1346,7 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
       })(client.default_gratuity_mode),
       gratuityApplicable: true, // Not in DB, default true
       bonusPct: client.bonus_rate_percentage || 8.33,
+      bonusType: client.statutory_bonus_type || 'ctc_accrual',
       bonusApplicable: client.statutory_bonus_applicable !== undefined ? client.statutory_bonus_applicable : false,
       healthInsuranceEnabled: client.health_insurance_enabled !== undefined ? Boolean(client.health_insurance_enabled) : true,
       weeklyOffPattern: client.weekly_off_pattern || client.weeklyOffPattern || 'sat,sun',
