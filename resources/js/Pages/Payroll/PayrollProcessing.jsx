@@ -77,11 +77,11 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
             t.gross += parseFloat(item.gross_total || 0);
             t.pf += parseFloat(item.employee_pf || 0);
             t.esi += parseFloat(item.employee_esi || 0);
-            t.pt += parseFloat(item.professional_tax || 0);
+            t.pt += parseFloat(item.professional_tax || 0) + parseFloat(item.pt_shortfall_recovery || 0);
             t.lop += parseFloat(item.lop_deduction || 0);
             t.tds += parseFloat(item.tds_deduction || 0);
             t.loan += parseFloat(item.loan_emi_deduction || 0);
-            t.totalDeduct += (parseFloat(item.employee_pf || 0) + parseFloat(item.employee_esi || 0) + parseFloat(item.professional_tax || 0) + parseFloat(item.tds_deduction || 0) + parseFloat(item.loan_emi_deduction || 0));
+            t.totalDeduct += (parseFloat(item.employee_pf || 0) + parseFloat(item.employee_esi || 0) + parseFloat(item.professional_tax || 0) + parseFloat(item.pt_shortfall_recovery || 0) + parseFloat(item.lwf_deduction || 0) + parseFloat(item.tds_deduction || 0) + parseFloat(item.loan_emi_deduction || 0));
             t.net += parseFloat(item.net_pay || 0);
             t.ctc += parseFloat(item.ctc_display ?? (parseFloat(item.gross_total || 0) + parseFloat(item.employer_pf || 0) + parseFloat(item.employer_esi || 0) + parseFloat(item.employer_lwf || 0)));
         });
@@ -408,7 +408,7 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
                                             );
                                         }
 
-                                        const itemDeductions = (parseFloat(row.employee_pf) + parseFloat(row.employee_esi) + parseFloat(row.professional_tax) + parseFloat(row.lwf_deduction) + parseFloat(row.tds_deduction) + parseFloat(row.loan_emi_deduction));
+                                        const itemDeductions = (parseFloat(row.employee_pf) + parseFloat(row.employee_esi) + parseFloat(row.professional_tax) + parseFloat(row.pt_shortfall_recovery || 0) + parseFloat(row.lwf_deduction) + parseFloat(row.tds_deduction) + parseFloat(row.loan_emi_deduction));
                                         const ctcVal = parseFloat(row.ctc_display ?? (parseFloat(row.gross_total || 0) + parseFloat(row.employer_pf || 0) + parseFloat(row.employer_esi || 0) + parseFloat(row.employer_lwf || 0)));
 
                                         return (
@@ -437,7 +437,14 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
                                                         <>
                                                             <td>₹{parseFloat(row.employee_pf).toLocaleString()}</td>
                                                             <td>₹{parseFloat(row.employee_esi).toLocaleString()}</td>
-                                                            <td>₹{parseFloat(row.professional_tax).toLocaleString()}</td>
+                                                            <td>
+                                                                ₹{parseFloat(row.professional_tax).toLocaleString()}
+                                                                {parseFloat(row.pt_shortfall_recovery || 0) > 0 && (
+                                                                    <span style={{ display: 'block', fontSize: '0.72rem', color: '#D97706', fontWeight: 600 }}>
+                                                                        +₹{parseFloat(row.pt_shortfall_recovery).toLocaleString()} Shortfall
+                                                                    </span>
+                                                                )}
+                                                            </td>
                                                             <td>₹{parseFloat(row.lwf_deduction).toLocaleString()}</td>
                                                             <td>₹{parseFloat(row.tds_deduction).toLocaleString()}</td>
                                                             <td>₹{parseFloat(row.loan_emi_deduction).toLocaleString()}</td>

@@ -8,6 +8,42 @@ export default function SlaSection({ formData, errors, onChange, hook }) {
   const showCustomCycle = formData.payrollMonthConvention === 'custom';
   const isInhouse = formData.billingModel === 'inhouse';
 
+  // Helper to resolve timeline order for a lock day value
+  const getLockOrder = (val) => {
+    const found = PAYROLL_LOCK_DAYS.find(d => String(d.value) === String(val));
+    if (found) return found.order;
+    const num = parseInt(val, 10);
+    return !isNaN(num) && num <= 15 ? 100 + num : (num || 103);
+  };
+
+  const selectedLockOrder = getLockOrder(formData.payrollLockDay);
+
+  // Filter salary credit days to strictly show days AFTER the selected payroll lock day
+  const availableSalaryCreditDays = SALARY_CREDIT_DAYS.filter(d => d.order > selectedLockOrder);
+
+  // Separate into groups for clean optgroup display
+  const currentMonthLockDays = PAYROLL_LOCK_DAYS.filter(d => d.order <= 31);
+  const nextMonthLockDays = PAYROLL_LOCK_DAYS.filter(d => d.order > 31);
+
+  const currentMonthCreditDays = availableSalaryCreditDays.filter(d => d.order <= 31);
+  const nextMonthCreditDays = availableSalaryCreditDays.filter(d => d.order > 31);
+
+  const handleLockDayChange = (newVal) => {
+    onChange('payrollLockDay', newVal);
+    const newLockOrder = getLockOrder(newVal);
+    const validDays = SALARY_CREDIT_DAYS.filter(d => d.order > newLockOrder);
+
+    // Check if current credit day is invalid (<= newLockOrder)
+    const currentCreditOption = SALARY_CREDIT_DAYS.find(d => String(d.value) === String(formData.salaryCreditDay));
+    const currentCreditOrder = currentCreditOption ? currentCreditOption.order : 0;
+
+    if (currentCreditOrder <= newLockOrder && validDays.length > 0) {
+      // Pick first valid credit day or smart default
+      const defaultOption = validDays.find(d => d.value === '30_current' || d.value === 'eom_current' || d.value === '7' || d.value === '10') || validDays[0];
+      onChange('salaryCreditDay', defaultOption.value);
+    }
+  };
+
   return (
     <>
       <div className="section-header">
@@ -28,10 +64,15 @@ export default function SlaSection({ formData, errors, onChange, hook }) {
       <div className="form-row">
         <div className="form-group">
           <label>Payroll Lock / Processing Day</label>
-          <select className="form-control" value={formData.payrollLockDay} onChange={e => onChange('payrollLockDay', e.target.value)}>
-            {PAYROLL_LOCK_DAYS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+          <select className="form-control" value={formData.payrollLockDay} onChange={e => handleLockDayChange(e.target.value)}>
+            <optgroup label="Same Month (21st to 30th)">
+              {currentMonthLockDays.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+            </optgroup>
+            <optgroup label="Next Month (1st to 10th)">
+              {nextMonthLockDays.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+            </optgroup>
           </select>
-          <div className="field-hint">Payroll is locked and finalized by this date.</div>
+          <div className="field-hint">Payroll calculations are locked and finalized by this date.</div>
         </div>
       </div>
 
@@ -39,8 +80,18 @@ export default function SlaSection({ formData, errors, onChange, hook }) {
         <div className="form-group">
           <label>Salary Credit Day</label>
           <select className="form-control" value={formData.salaryCreditDay} onChange={e => onChange('salaryCreditDay', e.target.value)}>
-            {SALARY_CREDIT_DAYS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+            {currentMonthCreditDays.length > 0 && (
+              <optgroup label="Same Month Payout (After Lock Day)">
+                {currentMonthCreditDays.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+              </optgroup>
+            )}
+            {nextMonthCreditDays.length > 0 && (
+              <optgroup label="Next Month Payout">
+                {nextMonthCreditDays.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+              </optgroup>
+            )}
           </select>
+          <div className="field-hint">Target day employees receive salary credits in their bank accounts.</div>
         </div>
         {/* Invoice Dispute Window — hidden for In-House */}
         {!isInhouse && (

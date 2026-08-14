@@ -3,6 +3,7 @@
         (($visibleSections['show_pf_details'] ?? true) ? (float)$item->employee_pf : 0) +
         (($visibleSections['show_esi_details'] ?? true) ? (float)$item->employee_esi : 0) +
         (($visibleSections['show_pt_details'] ?? true) ? (float)$item->professional_tax : 0) +
+        (float)($item->pt_shortfall_recovery ?? 0) +
         (($visibleSections['show_lwf_details'] ?? true) ? (float)$item->lwf_deduction : 0) +
         (float)$item->tds_deduction +
         (float)$item->loan_emi_deduction
@@ -86,6 +87,9 @@
             @endif
             @if($visibleSections['show_pt_details'] ?? true)
             <tr><td>Professional Tax</td><td style="text-align: right; font-weight: bold;">{{ number_format((float)$item->professional_tax, 2) }}</td>@if($showStd)<td style="text-align: right; color: #64748b;">P-Tax</td>@endif</tr>
+            @endif
+            @if((float)($item->pt_shortfall_recovery ?? 0) > 0)
+            <tr><td>PT Shortfall Recovery</td><td style="text-align: right; font-weight: bold;">{{ number_format((float)$item->pt_shortfall_recovery, 2) }}</td>@if($showStd)<td style="text-align: right; color: #64748b;">H1/H2 PT</td>@endif</tr>
             @endif
             @if($visibleSections['show_lwf_details'] ?? true)
             <tr><td>Labour Welfare Fund (LWF)</td><td style="text-align: right; font-weight: bold;">{{ number_format((float)$item->lwf_deduction, 2) }}</td>@if($showStd)<td style="text-align: right; color: #64748b;">LWF</td>@endif</tr>
@@ -182,6 +186,9 @@
                         @endif
                         @if($visibleSections['show_pt_details'] ?? true)
                         <tr><td>Professional Tax</td><td style="text-align: right;">{{ number_format((float)$item->professional_tax, 2) }}</td></tr>
+                        @endif
+                        @if((float)($item->pt_shortfall_recovery ?? 0) > 0)
+                        <tr><td>PT Shortfall Recovery</td><td style="text-align: right;">{{ number_format((float)$item->pt_shortfall_recovery, 2) }}</td></tr>
                         @endif
                         @if($visibleSections['show_lwf_details'] ?? true)
                         <tr><td>Labour Welfare Fund (LWF)</td><td style="text-align: right;">{{ number_format((float)$item->lwf_deduction, 2) }}</td></tr>

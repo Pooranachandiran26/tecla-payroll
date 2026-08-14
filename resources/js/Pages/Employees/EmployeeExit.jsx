@@ -708,6 +708,13 @@ export default function EmployeeExit({ employee: rawEmployee, initialExitData })
                   <td className="text-right amount-neg">-₹{Number(settlementPreview.tds_amount).toLocaleString('en-IN')}</td>
                 </tr>
                 )}
+                {Number(settlementPreview.pt_shortfall_recovery || 0) > 0 && (
+                <tr className="bg-[#FEF3C7]">
+                  <td><strong>Professional Tax (PT) Shortfall Recovery</strong></td>
+                  <td>Statutory Half-Yearly Cycle Reconciliation ({employee.client?.pt_state || 'TN'})</td>
+                  <td className="text-right amount-neg font-bold text-[#D97706]">-₹{Number(settlementPreview.pt_shortfall_recovery).toLocaleString('en-IN')}</td>
+                </tr>
+                )}
                 {adhocs.map((a, i) => (
                   <tr key={i} className="bg-[#FFFBEB]">
                     <td><strong>Ad-hoc Adjustment</strong></td>
