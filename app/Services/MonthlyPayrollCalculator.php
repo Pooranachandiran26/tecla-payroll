@@ -60,8 +60,8 @@ class MonthlyPayrollCalculator
             $attendanceSource = empty($sources) ? 'live_punch' : (count(array_unique($sources)) === 1 ? reset($sources) : 'mixed');
         } else {
             $attendance = $this->attendanceService->resolveForEmployee($employee, $monthStartStr, $monthEndStr);
-            $paidDays = $attendance['paid_days'];
-            $lopDays = $attendance['lop_days'];
+            $paidDays = array_key_exists('paid_days', $overrides) ? (float)$overrides['paid_days'] : $attendance['paid_days'];
+            $lopDays = array_key_exists('lop_days', $overrides) ? (float)$overrides['lop_days'] : $attendance['lop_days'];
             $attendanceSource = $attendance['attendance_source'];
         }
 
@@ -160,9 +160,15 @@ class MonthlyPayrollCalculator
         // Determine dynamic ESI applicability based on transition rules
         $isEsiActive = $this->isEsiApplicableForMonth($employee, $payrollRun, $grossTotal);
 
+        $clientLimit = (float)($employee->client?->esi_limit ?? SalaryCalculationService::ESI_WAGE_CEILING);
+        $esiCeiling = (bool)$employee->is_disabled 
+            ? max((float)SalaryCalculationService::ESI_DISABILITY_WAGE_CEILING, $clientLimit) 
+            : $clientLimit;
+
         // Build structural array and invoke SalaryCalculationService
         $employeeData = array_merge($proRatedComponents, [
             'client_id' => $employee->client_id,
+            'is_disabled' => (bool)$employee->is_disabled,
             'date_of_birth' => $employee->date_of_birth,
             'payroll_month' => $payrollRun->payroll_month,
             'pf_applicable' => (bool)$employee->pf_applicable,
@@ -170,7 +176,7 @@ class MonthlyPayrollCalculator
             'employee_pf_wage_basis' => $employee->employee_pf_wage_basis,
             'employer_pf_wage_basis' => $employee->employer_pf_wage_basis,
             'esi_applicable' => $isEsiActive,
-            'esi_limit' => ($isEsiActive && $grossTotal > 21000) ? 99999999.00 : 21000.00,
+            'esi_limit' => ($isEsiActive && $grossTotal > $esiCeiling) ? 99999999.00 : $esiCeiling,
             'pt_applicable' => false, // We handle PT calculation separately below
             'pt_deduction_override' => 0.00,
         ]);
@@ -428,6 +434,11 @@ class MonthlyPayrollCalculator
             return false;
         }
 
+        $clientLimit = (float)($employee->client?->esi_limit ?? SalaryCalculationService::ESI_WAGE_CEILING);
+        $esiCeiling = (bool)$employee->is_disabled 
+            ? max((float)SalaryCalculationService::ESI_DISABILITY_WAGE_CEILING, $clientLimit) 
+            : $clientLimit;
+
         $currentDate = Carbon::parse($payrollRun->payroll_month)->startOfDay();
         [$periodStart, $periodEnd] = $this->getEsiPeriod($currentDate);
 
@@ -443,7 +454,7 @@ class MonthlyPayrollCalculator
         $startMonthStr = $periodStart->toDateString();
         
         if ($currentDate->toDateString() === $startMonthStr) {
-            if ($grossTotal <= 21000) {
+            if ($grossTotal <= $esiCeiling) {
                 return true;
             }
             return false;
@@ -474,8 +485,8 @@ class MonthlyPayrollCalculator
                 // If there's no prior payroll history in the current contribution period:
                 $doj = Carbon::parse($employee->date_of_joining)->startOfDay();
                 if ($doj->greaterThanOrEqualTo($periodStart)) {
-                    // Genuinely NEW employee joining mid-period: ESI active ONLY if initial gross <= 21,000
-                    $wasEsiActiveAtStart = ($grossTotal <= 21000);
+                    // Genuinely NEW employee joining mid-period: ESI active ONLY if initial gross <= ceiling
+                    $wasEsiActiveAtStart = ($grossTotal <= $esiCeiling);
                 } else {
                     // Existing employee who joined in a prior period with ESI enabled:
                     // They entered ESI active in a prior period and crossed threshold
@@ -485,7 +496,7 @@ class MonthlyPayrollCalculator
         }
 
         if ($wasEsiActiveAtStart) {
-            if ($grossTotal <= 21000) {
+            if ($grossTotal <= $esiCeiling) {
                 return true;
             } else {
                 // First time crossing mid-period! Persist the crossing month.

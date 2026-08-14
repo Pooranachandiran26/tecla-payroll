@@ -31,6 +31,8 @@ class Employee extends Model
         'aadhaar_number' => 'encrypted',
         'eps_applicable' => 'boolean',
         'pf_applicable' => 'boolean',
+        'is_disabled' => 'boolean',
+        'disability_percentage' => 'integer',
         'health_insurance_sum_insured' => 'float',
     ];
 
@@ -137,7 +139,9 @@ class Employee extends Model
     {
         if (!$this->esi_applicable) return 0.00;
         $gross = (float)$this->gross_monthly_salary;
-        $esiLimit = \App\Services\SalaryCalculationService::ESI_WAGE_CEILING;
+        $esiLimit = (bool)$this->is_disabled 
+            ? \App\Services\SalaryCalculationService::ESI_DISABILITY_WAGE_CEILING 
+            : \App\Services\SalaryCalculationService::ESI_WAGE_CEILING;
         return $gross <= $esiLimit ? round($gross * 0.0075, 2) : 0.00;
     }
 }

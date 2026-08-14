@@ -138,7 +138,7 @@ class PayrollEligibilityService
             $warnings[] = "Salary revision with effective date inside this payroll month";
         }
 
-        // C. Near ESI Threshold Warning (gross salary between 19000 and 21000)
+        // C. Near ESI Threshold Warning (within ₹2,000 of threshold)
         $grossSalary = (float)$employee->basic_pay + 
                        (float)$employee->hra + 
                        (float)$employee->conveyance + 
@@ -147,8 +147,12 @@ class PayrollEligibilityService
                        (float)$employee->special_allowance + 
                        (float)$employee->other_additions;
 
-        if ($grossSalary >= 19000 && $grossSalary <= 21000) {
-            $warnings[] = "Employee near the ESI ₹21,000 threshold";
+        $esiThreshold = (bool)$employee->is_disabled ? 25000.00 : 21000.00;
+        $nearMin = $esiThreshold - 2000.00;
+        if ($grossSalary >= $nearMin && $grossSalary <= $esiThreshold) {
+            $fmtThreshold = number_format($esiThreshold, 0);
+            $typeLabel = (bool)$employee->is_disabled ? ' (PwD)' : '';
+            $warnings[] = "Employee near the ESI ₹{$fmtThreshold}{$typeLabel} threshold";
         }
 
         // D. Incomplete Punch & Unexpected Status Anomaly Warnings

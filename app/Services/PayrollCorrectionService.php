@@ -121,21 +121,27 @@ class PayrollCorrectionService
 
         $grossTotal = round((float)array_sum($proRatedComponents), 2);
 
+        $clientLimit = (float)($clientModel?->esi_limit ?? SalaryCalculationService::ESI_WAGE_CEILING);
+        $esiCeiling = (bool)$employee->is_disabled 
+            ? max((float)SalaryCalculationService::ESI_DISABILITY_WAGE_CEILING, $clientLimit) 
+            : $clientLimit;
+
         // Derive ESI applicability
         $isEsiActive = (bool)$employee->esi_applicable;
-        if ($isEsiActive && $grossTotal > 21000) {
+        if ($isEsiActive && $grossTotal > $esiCeiling) {
             $isEsiActive = false; // Gross ceiling
         }
 
         $employeeData = array_merge($proRatedComponents, [
             'client_id' => $employee->client_id,
+            'is_disabled' => (bool)$employee->is_disabled,
             'pf_applicable' => (bool)$employee->pf_applicable,
             'eps_applicable' => (bool)$employee->eps_applicable,
             'employee_pf_wage_basis' => $employee->employee_pf_wage_basis,
             'employer_pf_wage_basis' => $employee->employer_pf_wage_basis,
             'date_of_birth' => $employee->date_of_birth,
             'esi_applicable' => $isEsiActive,
-            'esi_limit' => $grossTotal > 21000 ? 99999999.00 : 21000.00,
+            'esi_limit' => $grossTotal > $esiCeiling ? 99999999.00 : $esiCeiling,
             'pt_applicable' => false,
             'pt_deduction_override' => 0.00,
         ]);
