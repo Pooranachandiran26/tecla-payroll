@@ -1380,7 +1380,7 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
         const map = { payable_on_separation: 'over_ctc', over_and_above: 'over_ctc', not_applicable: 'na' };
         return map[m] || m || 'ctc_included';
       })(client.default_gratuity_mode),
-      gratuityApplicable: true, // Not in DB, default true
+      gratuityApplicable: client.gratuity_applicable !== undefined && client.gratuity_applicable !== null ? Boolean(client.gratuity_applicable) : (client.gratuityApplicable !== undefined && client.gratuityApplicable !== null ? Boolean(client.gratuityApplicable) : true),
       bonusPct: client.bonus_rate_percentage || 8.33,
       bonusApplicable: client.statutory_bonus_applicable !== undefined ? client.statutory_bonus_applicable : false,
       healthInsuranceEnabled: client.health_insurance_enabled !== undefined ? Boolean(client.health_insurance_enabled) : true,
