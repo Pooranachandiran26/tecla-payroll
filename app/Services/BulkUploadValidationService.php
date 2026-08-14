@@ -243,6 +243,12 @@ class BulkUploadValidationService
                 $bonusToggle = filter_var($bonusToggle, FILTER_VALIDATE_BOOLEAN);
             }
 
+            // VPF Normalization
+            $rawVpf = $normalizedRow['vpf_enabled'] ?? $normalizedRow['vpf'] ?? null;
+            $vpfEnabled = ($rawVpf !== null && $rawVpf !== '') ? filter_var($rawVpf, FILTER_VALIDATE_BOOLEAN) : false;
+            $vpfType = !empty($normalizedRow['vpf_type']) ? strtolower(trim((string)$normalizedRow['vpf_type'])) : ($vpfEnabled ? 'percentage' : null);
+            $vpfValue = (isset($normalizedRow['vpf_value']) && $normalizedRow['vpf_value'] !== '') ? (float)$normalizedRow['vpf_value'] : null;
+
             $tdsRegime = $normalizedRow['tds_regime'] ?? 'new';
             $gratuityMode = $normalizedRow['gratuity_mode'] ?? 'part_of_ctc';
             $lopBasisDays = '30';
@@ -350,6 +356,9 @@ class BulkUploadValidationService
                 'udid_card_number' => $udidCardNumber,
                 'pf_applicable' => $pfApplicable,
                 'eps_applicable' => $epsApplicable,
+                'vpf_enabled' => $vpfEnabled,
+                'vpf_type' => $vpfType,
+                'vpf_value' => $vpfValue,
                 'esi_applicable' => $esiApplicable,
                 'pt_applicable' => $ptApplicable,
                 'lwf_applicable' => $lwfApplicable,
@@ -413,6 +422,9 @@ class BulkUploadValidationService
                 'aadhaar_number' => 'nullable|string',
                 
                 // Statutory
+                'vpf_enabled' => 'nullable|boolean',
+                'vpf_type' => 'nullable|in:percentage,fixed_amount',
+                'vpf_value' => 'nullable|numeric|min:0.01',
                 'uan_mode' => 'nullable|in:new,existing_transfer',
                 'uan_number' => [
                     'nullable',

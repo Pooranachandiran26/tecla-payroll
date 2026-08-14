@@ -72,12 +72,17 @@ class EmployeeResource extends JsonResource
             'employer_esi_monthly' => $calc['employer_esi_monthly'],
             'ctc_monthly' => $calc['ctc_monthly'],
             'employee_pf_monthly' => $calc['employee_pf_monthly'],
+            'employee_vpf_monthly' => $calc['employee_vpf_monthly'] ?? 0.00,
+            'total_employee_pf_monthly' => $calc['total_employee_pf_monthly'] ?? round($calc['employee_pf_monthly'] + ($calc['employee_vpf_monthly'] ?? 0.00), 2),
             'employee_esi_monthly' => $calc['employee_esi_monthly'],
             'pt_monthly' => $calc['pt_monthly'],
             
             // Statutory settings & PF Basis
             'pf_applicable' => $this->pf_applicable !== null ? (bool)$this->pf_applicable : true,
             'eps_applicable' => $this->eps_applicable !== null ? (bool)$this->eps_applicable : true,
+            'vpf_enabled' => (bool)$this->vpf_enabled,
+            'vpf_type' => $this->vpf_type,
+            'vpf_value' => $this->vpf_value !== null ? (float)$this->vpf_value : null,
             'employee_pf_wage_basis' => $this->employee_pf_wage_basis ?: ($this->relationLoaded('client') && $this->client ? ($this->client->employee_pf_wage_basis ?? 'ceiling') : 'ceiling'),
             'employer_pf_wage_basis' => $this->employer_pf_wage_basis ?: ($this->relationLoaded('client') && $this->client ? ($this->client->employer_pf_wage_basis ?? 'ceiling') : 'ceiling'),
             'joint_declaration_status' => $this->joint_declaration_status ?? 'not_required',

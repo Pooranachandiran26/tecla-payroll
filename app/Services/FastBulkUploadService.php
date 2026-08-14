@@ -309,6 +309,10 @@ class FastBulkUploadService
         // 5. Statutory Inheritance & Fallbacks
         $pfApplicable = filter_var($normalizedRow['pf_applicable'] ?? ($client ? $client->pf_applicable : false), FILTER_VALIDATE_BOOLEAN);
         $epsApplicable = filter_var($normalizedRow['eps_applicable'] ?? true, FILTER_VALIDATE_BOOLEAN);
+        $rawVpf = $normalizedRow['vpf_enabled'] ?? $normalizedRow['vpf'] ?? null;
+        $vpfEnabled = ($rawVpf !== null && $rawVpf !== '') ? filter_var($rawVpf, FILTER_VALIDATE_BOOLEAN) : false;
+        $vpfType = !empty($normalizedRow['vpf_type']) ? strtolower(trim((string)$normalizedRow['vpf_type'])) : ($vpfEnabled ? 'percentage' : null);
+        $vpfValue = (isset($normalizedRow['vpf_value']) && $normalizedRow['vpf_value'] !== '') ? (float)$normalizedRow['vpf_value'] : null;
         $esiApplicable = filter_var($normalizedRow['esi_applicable'] ?? ($client ? $client->esi_applicable : false), FILTER_VALIDATE_BOOLEAN);
         $ptApplicable = filter_var($normalizedRow['pt_applicable'] ?? ($client ? $client->pt_applicable : false), FILTER_VALIDATE_BOOLEAN);
         $lwfApplicable = filter_var($normalizedRow['lwf_applicable'] ?? ($client ? $client->lwf_applicable : false), FILTER_VALIDATE_BOOLEAN);
@@ -410,6 +414,9 @@ class FastBulkUploadService
             'disability_percentage' => $disabilityPercentage,
             'pf_applicable' => $pfApplicable,
             'eps_applicable' => $epsApplicable,
+            'vpf_enabled' => $vpfEnabled,
+            'vpf_type' => $vpfType,
+            'vpf_value' => $vpfValue,
             'esi_applicable' => $esiApplicable,
             'pt_applicable' => $ptApplicable,
             'lwf_applicable' => $lwfApplicable,
@@ -441,7 +448,7 @@ class FastBulkUploadService
                 $validationData['special_allowance'] ?? 0,
                 $validationData['other_additions'] ?? 0,
                 $isDisabled,
-                $pfApplicable, $epsApplicable, $esiApplicable, $ptApplicable, $lwfApplicable, $tdsApplicable,
+                $pfApplicable, $epsApplicable, $vpfEnabled, $vpfType, $vpfValue, $esiApplicable, $ptApplicable, $lwfApplicable, $tdsApplicable,
                 $validationData['date_of_birth'] ?? '', $validationData['date_of_joining'] ?? ''
             ]));
 

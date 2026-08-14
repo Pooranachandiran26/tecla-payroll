@@ -65,6 +65,7 @@ class SalaryCalculationService
         $epfAdmin = 0.00;
         $employerPf = 0.00;
         $employeePf = 0.00;
+        $employeeVpf = 0.00;
 
         if (data_get($employeeData, 'pf_applicable', true)) {
             $pfCeiling = (float) data_get($employeeData, 'pf_ceiling', $client->pf_ceiling ?? self::PF_WAGE_CEILING);
@@ -113,6 +114,22 @@ class SalaryCalculationService
             } else {
                 $employerEps = 0.00;
                 $employerEpf = round($employerEpfTotal, 2);
+            }
+
+            // Voluntary Provident Fund (VPF) — 100% Employee-Side Only (EPF Scheme 1952, Para 29)
+            // Calculated ALWAYS on actual Basic+DA regardless of mandatory EPF wage basis (ceiling vs actual)
+            $vpfEnabled = filter_var(data_get($employeeData, 'vpf_enabled', false), FILTER_VALIDATE_BOOLEAN);
+            if ($vpfEnabled) {
+                $vpfType = data_get($employeeData, 'vpf_type', 'percentage');
+                $vpfValue = (float) data_get($employeeData, 'vpf_value', 0);
+
+                if ($vpfType === 'percentage' && $vpfValue > 0) {
+                    $vpfRate = min(88.0, $vpfValue); // Capped at 88% so mandatory 12% + VPF <= 100% of Basic+DA
+                    $employeeVpf = round($basicDa * ($vpfRate / 100), 2);
+                } elseif ($vpfType === 'fixed_amount' && $vpfValue > 0) {
+                    $maxVpf = max(0.00, $basicDa - $employeePf);
+                    $employeeVpf = round(min($vpfValue, $maxVpf), 2);
+                }
             }
         }
 
@@ -198,8 +215,9 @@ class SalaryCalculationService
         }
 
         // 7. Net Take Home
-        // Deductions: PF + ESI + PT
-        $netTakeHome = $gross - ($employeePf + $employeeEsi + $pt);
+        // Deductions: PF (Mandatory EPF + Voluntary VPF) + ESI + PT
+        $totalEmployeePf = $employeePf + $employeeVpf;
+        $netTakeHome = $gross - ($totalEmployeePf + $employeeEsi + $pt);
 
         // 8. CTC = Gross + Employer PF + Employer ESI + Gratuity Accrual + Statutory Bonus Accrual
         $ctc = $gross + $employerPf + $employerEsi + $gratuityAccrual + $bonusAccrual;
@@ -218,6 +236,8 @@ class SalaryCalculationService
             'ctc_monthly' => round($ctc, 2),
             // Including employee deductions to allow full UI breakdown
             'employee_pf_monthly' => round($employeePf, 2),
+            'employee_vpf_monthly' => round($employeeVpf, 2),
+            'total_employee_pf_monthly' => round($totalEmployeePf, 2),
             'employee_esi_monthly' => round($employeeEsi, 2),
             'pt_monthly' => round($pt, 2),
         ];

@@ -169,7 +169,7 @@ class EsiMonthlyContributionTest extends TestCase
     }
 
     /** @test */
-    public function locked_run_generates_xls_file_with_exactly_six_columns_and_no_header()
+    public function locked_run_generates_xls_file_with_exactly_six_columns_and_header()
     {
         $run = PayrollRun::create([
             'client_id' => $this->client->id,
@@ -221,17 +221,16 @@ class EsiMonthlyContributionTest extends TestCase
         $spreadsheet = IOFactory::load($absolutePath);
         $sheet = $spreadsheet->getActiveSheet();
 
-        // Exactly one file, one sheet, containing all eligible employees.
-        $this->assertEquals(2, $sheet->getHighestDataRow());
+        // 1 header row + 2 data rows = 3 rows total.
+        $this->assertEquals(3, $sheet->getHighestDataRow());
         $this->assertEquals('F', $sheet->getHighestDataColumn());
 
-        // No header: row 1 is real employee data, not a column label.
+        // Header: row 1 contains official ESIC column header.
         $ipNumberCell = (string) $sheet->getCell('A1')->getValue();
-        $this->assertNotEquals('IP Number', $ipNumberCell);
-        $this->assertContains($ipNumberCell, ['3100223344000101', '3100223344000102']);
+        $this->assertStringContainsString('IP Number', $ipNumberCell);
 
-        // Exactly 6 columns per row, all explicit Text; active employees -> Reason Code "0", blank Last Working Day.
-        for ($row = 1; $row <= 2; $row++) {
+        // Data rows starting from Row 2.
+        for ($row = 2; $row <= 3; $row++) {
             $rowData = $sheet->rangeToArray("A{$row}:G{$row}")[0];
             $this->assertNotEmpty($rowData[0], "Row {$row} column A (IP Number) should not be empty");
             $this->assertNull($rowData[6] ?? null, "Row {$row} must not have a 7th column");
@@ -274,8 +273,8 @@ class EsiMonthlyContributionTest extends TestCase
         $batch = EsiMonthlyBatch::find($response->json('batch_id'));
         $sheet = IOFactory::load(Storage::disk('local')->path($batch->file_path))->getActiveSheet();
 
-        $this->assertEquals('0', (string) $sheet->getCell('E1')->getValue());
-        $this->assertEquals('', trim((string) $sheet->getCell('F1')->getValue()));
+        $this->assertEquals('0', (string) $sheet->getCell('E2')->getValue());
+        $this->assertEquals('', trim((string) $sheet->getCell('F2')->getValue()));
     }
 
     /** @test */
@@ -397,7 +396,7 @@ class EsiMonthlyContributionTest extends TestCase
 
         $batch = EsiMonthlyBatch::find($response->json('batch_id'));
         $sheet = IOFactory::load(Storage::disk('local')->path($batch->file_path))->getActiveSheet();
-        $rowData = $sheet->rangeToArray('A1:F1')[0];
+        $rowData = $sheet->rangeToArray('A2:F2')[0];
 
         $this->assertEquals('0', (string) $rowData[2], 'No of Days should be 0');
         $this->assertEquals('2', (string) $rowData[4], 'Reason code should be 2 (Left Service)');

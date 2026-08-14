@@ -175,6 +175,9 @@ class MonthlyPayrollCalculator
             'eps_applicable' => (bool)$employee->eps_applicable,
             'employee_pf_wage_basis' => $employee->employee_pf_wage_basis,
             'employer_pf_wage_basis' => $employee->employer_pf_wage_basis,
+            'vpf_enabled' => (bool)$employee->vpf_enabled,
+            'vpf_type' => $employee->vpf_type,
+            'vpf_value' => (float)$employee->vpf_value,
             'esi_applicable' => $isEsiActive,
             'esi_limit' => ($isEsiActive && $grossTotal > $esiCeiling) ? 99999999.00 : $esiCeiling,
             'pt_applicable' => false, // We handle PT calculation separately below
@@ -183,6 +186,8 @@ class MonthlyPayrollCalculator
 
         $calc = $this->salaryService->calculateStructuralSalary($employeeData);
         $employeePf = (float)$calc['employee_pf_monthly'];
+        $employeeVpf = (float)($calc['employee_vpf_monthly'] ?? 0.00);
+        $totalEmployeePf = (float)($calc['total_employee_pf_monthly'] ?? ($employeePf + $employeeVpf));
         $employeeEsi = (float)$calc['employee_esi_monthly'];
         $employerPf = (float)$calc['employer_pf_monthly'];
         $employerEpf = (float)$calc['employer_epf_monthly'];
@@ -316,7 +321,7 @@ class MonthlyPayrollCalculator
         }
 
         // f. Apply the 50%-deduction cap
-        $statutoryAndTaxDeductions = $employeePf + $employeeEsi + $pt + $ptShortfall + $lwfDeduction + $tdsDeduction;
+        $statutoryAndTaxDeductions = $totalEmployeePf + $employeeEsi + $pt + $ptShortfall + $lwfDeduction + $tdsDeduction;
         $totalDeductions = $statutoryAndTaxDeductions + $loanEmiDeduction;
         $capLimit = 0.5 * $grossTotal;
 
@@ -377,6 +382,7 @@ class MonthlyPayrollCalculator
             'other_additions' => $proRatedComponents['other_additions'],
             'gross_total' => $grossTotal,
             'employee_pf' => $employeePf,
+            'employee_vpf' => $employeeVpf,
             'employee_esi' => $employeeEsi,
             'professional_tax' => $pt,
             'pt_shortfall_recovery' => $ptShortfall,
@@ -408,6 +414,8 @@ class MonthlyPayrollCalculator
             'lop_days' => $lopDays,
             'gross_total' => $grossTotal,
             'employee_pf' => $employeePf,
+            'employee_vpf' => $employeeVpf,
+            'total_employee_pf' => $totalEmployeePf,
             'employee_esi' => $employeeEsi,
             'professional_tax' => $pt,
             'pt_shortfall_recovery' => $ptShortfall,

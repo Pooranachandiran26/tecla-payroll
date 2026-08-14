@@ -989,7 +989,10 @@ export default function ComplianceReports() {
                   </div>
                   <div className="bg-indigo-50 border border-indigo-200 p-3 rounded text-center">
                     <div className="text-xl font-bold text-indigo-900">₹{Number(previewData.summary.total_employee_epf).toLocaleString('en-IN')}</div>
-                    <div className="text-xs font-semibold text-indigo-700 uppercase">Employee EPF (12%)</div>
+                    <div className="text-xs font-semibold text-indigo-700 uppercase">Employee EPF & VPF</div>
+                    <div className="text-[10px] text-blue-800 font-medium mt-0.5">
+                      (EPF 12%: ₹{Number(previewData.summary.total_employee_pf ?? (previewData.summary.total_employee_epf - (previewData.summary.total_vpf || 0))).toLocaleString('en-IN')} + VPF: ₹{Number(previewData.summary.total_vpf || 0).toLocaleString('en-IN')})
+                    </div>
                   </div>
                   <div className="bg-purple-50 border border-purple-200 p-3 rounded text-center">
                     <div className="text-xl font-bold text-purple-900">₹{Number(previewData.summary.total_employer_epf).toLocaleString('en-IN')}</div>
@@ -1018,7 +1021,9 @@ export default function ComplianceReports() {
                             <th className="p-2">Employee Name</th>
                             <th className="p-2">UAN</th>
                             <th className="p-2">EPF Wages</th>
-                            <th className="p-2">EE EPF</th>
+                            <th className="p-2">EE PF (12%)</th>
+                            <th className="p-2 text-blue-700">EE VPF</th>
+                            <th className="p-2">EE Remitted (Field 7)</th>
                             <th className="p-2">ER EPF</th>
                             <th className="p-2">EPS</th>
                             <th className="p-2">NCP</th>
@@ -1033,6 +1038,8 @@ export default function ComplianceReports() {
                               <td className="p-2 font-semibold text-gray-900">{emp.member_name}</td>
                               <td className="p-2 font-mono text-gray-600">{emp.uan}</td>
                               <td className="p-2">₹{Number(emp.epf_wages).toLocaleString('en-IN')}</td>
+                              <td className="p-2">₹{Number(emp.ee_pf ?? (emp.ee_epf - (emp.vpf || 0))).toLocaleString('en-IN')}</td>
+                              <td className="p-2 font-semibold text-blue-700">₹{Number(emp.vpf || 0).toLocaleString('en-IN')}</td>
                               <td className="p-2 font-semibold text-indigo-700">₹{Number(emp.ee_epf).toLocaleString('en-IN')}</td>
                               <td className="p-2 font-semibold text-purple-700">₹{Number(emp.er_epf).toLocaleString('en-IN')}</td>
                               <td className="p-2">₹{Number(emp.eps_contribution).toLocaleString('en-IN')}</td>

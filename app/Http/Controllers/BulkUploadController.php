@@ -146,6 +146,7 @@ class BulkUploadController extends Controller
             'residential_address', 'bank_account_number', 'bank_ifsc', 'bank_name', 'bank_branch',
             'account_holder_name', 'pan_number', 'basic_pay', 'hra', 'conveyance', 'da',
             'medical_allowance', 'special_allowance', 'other_additions', 'pf_applicable', 'eps_applicable',
+            'vpf_enabled', 'vpf_type', 'vpf_value',
             'esi_applicable', 'pt_applicable', 'lwf_applicable', 'tds_applicable', 'uan_mode',
             'uan_number', 'esi_mode', 'esic_number', 'tds_regime', 'gratuity_mode', 'lop_basis_days',
             'declarations_accepted', 'reporting_manager_code'
@@ -195,6 +196,9 @@ class BulkUploadController extends Controller
             'other_additions' => '0',
             'pf_applicable' => '1',
             'eps_applicable' => '1',
+            'vpf_enabled' => '0',
+            'vpf_type' => 'percentage',
+            'vpf_value' => '0',
             'esi_applicable' => '0',
             'pt_applicable' => '1',
             'lwf_applicable' => '0',
@@ -293,6 +297,12 @@ class BulkUploadController extends Controller
             'Field' => 'EPS Age 58+ Auto-Cutoff',
             'Configured Value' => '1 (YES) — Enabled',
             'Instructions / Notes' => 'Employees aged 58+ automatically cut off to ₹0 EPS with 100% employer PF allocated to EPF.'
+        ]);
+        $writer->addRow([
+            'Category' => '3. Statutory Rules',
+            'Field' => 'Voluntary Provident Fund (VPF)',
+            'Configured Value' => 'Employee-Elected (Para 29)',
+            'Instructions / Notes' => '100% Employee-Side voluntary deduction calculated on actual Basic+DA (up to 88% or remaining Basic+DA). Employer statutory costs remain completely unaffected.'
         ]);
         $writer->addRow([
             'Category' => '3. Statutory Rules',
@@ -504,6 +514,24 @@ class BulkUploadController extends Controller
             'Required?' => 'Optional',
             'Format / Example' => '1 (Yes) or 0 (No)',
             'Rules & Guidance' => 'Employee Pension Scheme (8.33% up to ₹1,249.50) flag. Auto-cut off at age 58.'
+        ]);
+        $writer->addRow([
+            'Column Header' => 'vpf_enabled',
+            'Required?' => 'Optional',
+            'Format / Example' => '1 (Yes) or 0 (No)',
+            'Rules & Guidance' => 'Voluntary Provident Fund toggle. Enables employee-elected additional PF contribution.'
+        ]);
+        $writer->addRow([
+            'Column Header' => 'vpf_type',
+            'Required?' => 'Conditional (if vpf_enabled=1)',
+            'Format / Example' => 'percentage / fixed_amount',
+            'Rules & Guidance' => 'VPF deduction type: percentage (on actual Basic+DA) or fixed_amount (flat ₹ deduction).'
+        ]);
+        $writer->addRow([
+            'Column Header' => 'vpf_value',
+            'Required?' => 'Conditional (if vpf_enabled=1)',
+            'Format / Example' => '8 (for 8%) / 2000 (for ₹2,000)',
+            'Rules & Guidance' => 'If percentage: max 88% (Mandatory 12% + VPF <= 100% of Basic+DA). If fixed_amount: max (Basic+DA - Mandatory EPF).'
         ]);
         $writer->addRow([
             'Column Header' => 'esi_applicable',
