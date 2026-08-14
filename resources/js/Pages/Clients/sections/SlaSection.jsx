@@ -1,6 +1,7 @@
 import React from 'react';
 import { usePage } from '@inertiajs/react';
 import { CUTOFF_DAYS, PAYROLL_LOCK_DAYS, SALARY_CREDIT_DAYS, INVOICE_RAISE_DAYS, PAYROLL_CONVENTIONS } from '../constants/clientFormData';
+import Select2 from '../../../Components/ui/Select2';
 import { Clock, Calendar, Info } from 'lucide-react';
 
 export default function SlaSection({ formData, errors, onChange, hook }) {
@@ -20,13 +21,6 @@ export default function SlaSection({ formData, errors, onChange, hook }) {
 
   // Filter salary credit days to strictly show days AFTER the selected payroll lock day
   const availableSalaryCreditDays = SALARY_CREDIT_DAYS.filter(d => d.order > selectedLockOrder);
-
-  // Separate into groups for clean optgroup display
-  const currentMonthLockDays = PAYROLL_LOCK_DAYS.filter(d => d.order <= 31);
-  const nextMonthLockDays = PAYROLL_LOCK_DAYS.filter(d => d.order > 31);
-
-  const currentMonthCreditDays = availableSalaryCreditDays.filter(d => d.order <= 31);
-  const nextMonthCreditDays = availableSalaryCreditDays.filter(d => d.order > 31);
 
   const handleLockDayChange = (newVal) => {
     onChange('payrollLockDay', newVal);
@@ -65,9 +59,12 @@ export default function SlaSection({ formData, errors, onChange, hook }) {
       <div className="form-row">
         <div className="form-group">
           <label>Payroll Month Convention</label>
-          <select className="form-control" value={formData.payrollMonthConvention} onChange={e => onChange('payrollMonthConvention', e.target.value)}>
-            {PAYROLL_CONVENTIONS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-          </select>
+          <Select2
+            value={formData.payrollMonthConvention}
+            onChange={val => onChange('payrollMonthConvention', val)}
+            options={PAYROLL_CONVENTIONS}
+            searchable={false}
+          />
           <div className="field-hint">Choose standard calendar month (1st to EOM) or custom attendance cycle dates.</div>
         </div>
       </div>
@@ -94,31 +91,25 @@ export default function SlaSection({ formData, errors, onChange, hook }) {
       <div className="form-row" style={{ marginTop: '1rem' }}>
         <div className="form-group">
           <label>Payroll Lock / Processing Day</label>
-          <select className="form-control" value={formData.payrollLockDay} onChange={e => handleLockDayChange(e.target.value)}>
-            <optgroup label="Same Month (21st to 30th)">
-              {currentMonthLockDays.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
-            </optgroup>
-            <optgroup label="Next Month (1st to 10th)">
-              {nextMonthLockDays.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
-            </optgroup>
-          </select>
+          <Select2
+            value={formData.payrollLockDay}
+            onChange={handleLockDayChange}
+            options={PAYROLL_LOCK_DAYS}
+            searchable={true}
+            placeholder="Select Lock Day..."
+          />
           <div className="field-hint">Payroll calculations are locked and finalized by this date.</div>
         </div>
 
         <div className="form-group">
           <label>Salary Credit Day</label>
-          <select className="form-control" value={formData.salaryCreditDay} onChange={e => onChange('salaryCreditDay', e.target.value)}>
-            {currentMonthCreditDays.length > 0 && (
-              <optgroup label="Same Month Payout (After Lock Day)">
-                {currentMonthCreditDays.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
-              </optgroup>
-            )}
-            {nextMonthCreditDays.length > 0 && (
-              <optgroup label="Next Month Payout">
-                {nextMonthCreditDays.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
-              </optgroup>
-            )}
-          </select>
+          <Select2
+            value={formData.salaryCreditDay}
+            onChange={val => onChange('salaryCreditDay', val)}
+            options={availableSalaryCreditDays}
+            searchable={true}
+            placeholder="Select Credit Day..."
+          />
           <div className="field-hint">Target day employees receive salary credits in their bank accounts.</div>
         </div>
       </div>
@@ -128,9 +119,12 @@ export default function SlaSection({ formData, errors, onChange, hook }) {
         <div className="form-row" style={{ marginTop: '1rem' }}>
           <div className="form-group">
             <label>Invoice Raise Day <span style={{ color: 'var(--status-danger)' }}>*</span></label>
-            <select className="form-control" value={formData.invoiceRaiseDay} onChange={e => onChange('invoiceRaiseDay', e.target.value)}>
-              {INVOICE_RAISE_DAYS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
-            </select>
+            <Select2
+              value={formData.invoiceRaiseDay}
+              onChange={val => onChange('invoiceRaiseDay', val)}
+              options={INVOICE_RAISE_DAYS}
+              searchable={false}
+            />
             <div className="field-hint">Invoice is generated this many days after payroll is locked.</div>
           </div>
 
