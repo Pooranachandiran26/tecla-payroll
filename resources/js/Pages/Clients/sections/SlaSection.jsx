@@ -61,7 +61,37 @@ export default function SlaSection({ formData, errors, onChange, hook }) {
         </div>
       </div>
 
+      {/* 1. Payroll Month Convention */}
       <div className="form-row">
+        <div className="form-group">
+          <label>Payroll Month Convention</label>
+          <select className="form-control" value={formData.payrollMonthConvention} onChange={e => onChange('payrollMonthConvention', e.target.value)}>
+            {PAYROLL_CONVENTIONS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+          </select>
+          <div className="field-hint">Choose standard calendar month (1st to EOM) or custom attendance cycle dates.</div>
+        </div>
+      </div>
+
+      {/* 1b. Custom Cycle Dates if custom */}
+      {showCustomCycle && (
+        <div className="form-row" style={{ marginTop: '0.5rem' }}>
+          <div className="form-group">
+            <label>Cycle Start Day</label>
+            <input type="number" className="form-control" min="1" max="31"
+              value={formData.cycleStartDay} onChange={e => onChange('cycleStartDay', e.target.value)} />
+            <div className="field-hint">e.g. 21 (Attendance cycle start day)</div>
+          </div>
+          <div className="form-group">
+            <label>Cycle End Day (Attendance Cutoff)</label>
+            <input type="number" className="form-control" min="1" max="31"
+              value={formData.cycleEndDay} onChange={e => onChange('cycleEndDay', e.target.value)} />
+            <div className="field-hint">e.g. 20 (Attendance cutoff day)</div>
+          </div>
+        </div>
+      )}
+
+      {/* 2 & 3. Payroll Lock Day & Salary Credit Day in a balanced 2-column row */}
+      <div className="form-row" style={{ marginTop: '1rem' }}>
         <div className="form-group">
           <label>Payroll Lock / Processing Day</label>
           <select className="form-control" value={formData.payrollLockDay} onChange={e => handleLockDayChange(e.target.value)}>
@@ -74,9 +104,7 @@ export default function SlaSection({ formData, errors, onChange, hook }) {
           </select>
           <div className="field-hint">Payroll calculations are locked and finalized by this date.</div>
         </div>
-      </div>
 
-      <div className="form-row">
         <div className="form-group">
           <label>Salary Credit Day</label>
           <select className="form-control" value={formData.salaryCreditDay} onChange={e => onChange('salaryCreditDay', e.target.value)}>
@@ -93,20 +121,11 @@ export default function SlaSection({ formData, errors, onChange, hook }) {
           </select>
           <div className="field-hint">Target day employees receive salary credits in their bank accounts.</div>
         </div>
-        {/* Invoice Dispute Window — hidden for In-House */}
-        {!isInhouse && (
-          <div className="form-group">
-            <label>Invoice Dispute Window (days)</label>
-            <input type="number" className="form-control" placeholder="e.g. 7" min="1" max="30"
-              value={formData.invoiceDisputeDays} onChange={e => onChange('invoiceDisputeDays', e.target.value)} />
-            <div className="field-hint">Days client can raise a dispute after invoice is raised.</div>
-          </div>
-        )}
       </div>
 
-      {/* Invoice Raise Day & Payroll Month Convention — Invoice Raise Day hidden for In-House */}
-      <div className="form-row" style={{ marginTop: '1rem' }}>
-        {!isInhouse && (
+      {/* 4. Invoice Raise Day & Invoice Dispute Window — hidden for In-House */}
+      {!isInhouse && (
+        <div className="form-row" style={{ marginTop: '1rem' }}>
           <div className="form-group">
             <label>Invoice Raise Day <span style={{ color: 'var(--status-danger)' }}>*</span></label>
             <select className="form-control" value={formData.invoiceRaiseDay} onChange={e => onChange('invoiceRaiseDay', e.target.value)}>
@@ -114,31 +133,17 @@ export default function SlaSection({ formData, errors, onChange, hook }) {
             </select>
             <div className="field-hint">Invoice is generated this many days after payroll is locked.</div>
           </div>
-        )}
-        <div className="form-group">
-          <label>Payroll Month Convention</label>
-          <select className="form-control" value={formData.payrollMonthConvention} onChange={e => onChange('payrollMonthConvention', e.target.value)}>
-            {PAYROLL_CONVENTIONS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-          </select>
-        </div>
-      </div>
 
-      {showCustomCycle && (
-        <div className="form-row" style={{ marginTop: '1rem' }}>
           <div className="form-group">
-            <label>Cycle Start Day</label>
-            <input type="number" className="form-control" min="1" max="28"
-              value={formData.cycleStartDay} onChange={e => onChange('cycleStartDay', e.target.value)} />
-          </div>
-          <div className="form-group">
-            <label>Cycle End Day</label>
-            <input type="number" className="form-control" min="1" max="28"
-              value={formData.cycleEndDay} onChange={e => onChange('cycleEndDay', e.target.value)} />
+            <label>Invoice Dispute Window (days)</label>
+            <input type="number" className="form-control" placeholder="e.g. 7" min="1" max="30"
+              value={formData.invoiceDisputeDays} onChange={e => onChange('invoiceDisputeDays', e.target.value)} />
+            <div className="field-hint">Days client can raise a dispute after invoice is raised.</div>
           </div>
         </div>
       )}
 
-      {/* Account Manager — hidden for In-House */}
+      {/* 5. Account Manager — hidden for In-House */}
       {!isInhouse && (
         <div className="form-row" style={{ marginTop: '1rem' }}>
           <div className="form-group">
