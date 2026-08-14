@@ -189,7 +189,18 @@ class ClientController extends Controller
             $validated = $request->validated();
             $clientData = collect($validated)->except(['contacts', 'branches', 'documents', 'work_locations_count'])->toArray();
             
+            $user = $request->user();
+            if ($user && $user->isManager()) {
+                if (empty($clientData['account_manager_id'])) {
+                    $clientData['account_manager_id'] = $user->id;
+                }
+            }
+
             $client = Client::create($clientData);
+
+            if ($user && $user->isManager()) {
+                $user->managedClients()->syncWithoutDetaching([$client->id]);
+            }
 
             if (!empty($validated['contacts'])) {
                 foreach ($validated['contacts'] as $contactData) {

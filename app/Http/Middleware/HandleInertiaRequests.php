@@ -102,9 +102,14 @@ class HandleInertiaRequests extends Middleware
                     : 0;
             },
             'activeClients' => function () use ($request) {
-                return ($request->user() && in_array($request->user()->role, ['admin', 'manager']))
-                    ? \App\Models\Client::where('status', 'active')->select('id', 'company_name', 'client_code')->orderBy('company_name')->get()
-                    : [];
+                if (!$request->user() || !in_array($request->user()->role, ['admin', 'manager'])) {
+                    return [];
+                }
+                $query = \App\Models\Client::where('status', 'active');
+                if ($request->user()->isManager()) {
+                    $query->whereIn('id', $request->user()->getManagedClientIds());
+                }
+                return $query->select('id', 'company_name', 'client_code')->orderBy('company_name')->get();
             },
             'activeClientId' => function () use ($request) {
                 return $request->session()->get('active_client_id', 'all');
