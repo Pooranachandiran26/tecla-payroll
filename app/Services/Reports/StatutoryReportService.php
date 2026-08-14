@@ -33,6 +33,7 @@ class StatutoryReportService extends BaseReportService
             'employee_vpf'              => 'Emp VPF (₹)',
             'employee_esi'              => 'Emp ESI (₹)',
             'professional_tax'          => 'PT (₹)',
+            'pt_shortfall_recovery'     => 'PT Shortfall (₹)',
             'lwf_deduction'             => 'LWF (₹)',
             'tds_deduction'             => 'TDS (₹)',
             'employer_pf'               => 'Employer PF (₹)',
@@ -101,13 +102,14 @@ class StatutoryReportService extends BaseReportService
             $empVpf  = (float) ($item->employee_vpf ?? 0.00);
             $empEsi  = (float) $item->employee_esi;
             $pt      = (float) $item->professional_tax;
+            $ptShortfall = (float) ($item->pt_shortfall_recovery ?? 0);
             $lwf     = (float) $item->lwf_deduction;
             $tds     = (float) $item->tds_deduction;
             $erPf    = (float) $item->employer_pf;
             $erEsi   = (float) $item->employer_esi;
             $erLwf   = (float) $item->employer_lwf;
 
-            $totalStatutory = round($empPf + $empVpf + $empEsi + $pt + $lwf + $tds + $erPf + $erEsi + $erLwf, 2);
+            $totalStatutory = round($empPf + $empVpf + $empEsi + $pt + $ptShortfall + $lwf + $tds + $erPf + $erEsi + $erLwf, 2);
 
             return [
                 'payroll_month'             => $run ? Carbon::parse($run->payroll_month)->format('M Y') : '—',
@@ -119,6 +121,7 @@ class StatutoryReportService extends BaseReportService
                 'employee_vpf'              => $empVpf,
                 'employee_esi'              => $empEsi,
                 'professional_tax'          => $pt,
+                'pt_shortfall_recovery'     => $ptShortfall,
                 'lwf_deduction'             => $lwf,
                 'tds_deduction'             => $tds,
                 'employer_pf'               => $erPf,
@@ -139,7 +142,7 @@ class StatutoryReportService extends BaseReportService
                 'total_employees'   => $rows->count(),
                 'total_emp_pf'      => round($rows->sum('employee_pf'), 2),
                 'total_emp_esi'     => round($rows->sum('employee_esi'), 2),
-                'total_pt'          => round($rows->sum('professional_tax'), 2),
+                'total_pt'          => round($rows->sum('professional_tax') + $rows->sum('pt_shortfall_recovery'), 2),
                 'total_er_pf'       => round($rows->sum('employer_pf'), 2),
                 'total_er_esi'      => round($rows->sum('employer_esi'), 2),
                 'total_liability'   => round($rows->sum('total_statutory_liability'), 2),
@@ -148,7 +151,7 @@ class StatutoryReportService extends BaseReportService
 
         $kpis = [
             'total_rows'       => $rows->count(),
-            'total_emp_stat'   => round($rows->sum('employee_pf') + $rows->sum('employee_vpf') + $rows->sum('employee_esi') + $rows->sum('professional_tax') + $rows->sum('lwf_deduction') + $rows->sum('tds_deduction'), 2),
+            'total_emp_stat'   => round($rows->sum('employee_pf') + $rows->sum('employee_vpf') + $rows->sum('employee_esi') + $rows->sum('professional_tax') + $rows->sum('pt_shortfall_recovery') + $rows->sum('lwf_deduction') + $rows->sum('tds_deduction'), 2),
             'total_er_stat'    => round($rows->sum('employer_pf') + $rows->sum('employer_esi') + $rows->sum('employer_lwf'), 2),
             'total_liability'  => round($rows->sum('total_statutory_liability'), 2),
         ];

@@ -596,17 +596,21 @@ class PayrollController extends Controller
                     ]);
                 }
 
-                $client = \App\Models\Client::findOrFail($clientId);
-                $employees = \App\Models\Employee::where('client_id', $clientId)
-                    ->where('status', 'active')
-                    ->get();
-
-                if ($employees->count() > 500) {
-                    throw new \Exception("Roster exceeds the 500-employee limit for synchronous processing.");
-                }
-
                 $monthStart = \Carbon\Carbon::parse($payrollMonth)->startOfMonth()->toDateString();
                 $monthEnd = \Carbon\Carbon::parse($payrollMonth)->endOfMonth()->toDateString();
+
+                $client = \App\Models\Client::findOrFail($clientId);
+                $employees = \App\Models\Employee::where('client_id', $clientId)
+                    ->where(function($q) use ($monthStart, $monthEnd) {
+                        $q->where('status', 'active')
+                          ->orWhere(function($sub) use ($monthStart, $monthEnd) {
+                              $sub->where('status', 'exited')
+                                  ->whereHas('exitRequest', function($exit) use ($monthStart, $monthEnd) {
+                                      $exit->whereBetween('last_working_day', [$monthStart, $monthEnd]);
+                                  });
+                          });
+                    })
+                    ->get();
 
                 $eligibilityService = app(\App\Services\PayrollEligibilityService::class);
                 $attendanceService = app(\App\Services\AttendanceResolutionService::class);

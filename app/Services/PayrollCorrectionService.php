@@ -228,7 +228,8 @@ class PayrollCorrectionService
         // Loan EMI Calculation
         $loanEmiDeduction = $employee->activeLoansEmiSumForMonth($parentRun->payroll_month);
 
-        $statutoryAndTaxDeductions = $totalEmployeePf + $employeeEsi + $pt + $lwfDeduction + $tdsDeduction;
+        $shortfallPt = (float)($originalItem->pt_shortfall_recovery ?? 0.00);
+        $statutoryAndTaxDeductions = $totalEmployeePf + $employeeEsi + $pt + $shortfallPt + $lwfDeduction + $tdsDeduction;
         $totalDeductions = $statutoryAndTaxDeductions + $loanEmiDeduction;
         $capLimit = 0.5 * $grossTotal;
 
@@ -263,6 +264,7 @@ class PayrollCorrectionService
             'employee_vpf' => $employeeVpf,
             'employee_esi' => $employeeEsi,
             'professional_tax' => $pt,
+            'pt_shortfall_recovery' => $shortfallPt,
             'lwf_deduction' => $lwfDeduction,
             'lop_deduction' => $lopDeduction,
             'tds_deduction' => $tdsDeduction,
@@ -621,7 +623,7 @@ class PayrollCorrectionService
         $numericFields = [
             'paid_days', 'lop_days', 'basic_pay', 'hra', 'conveyance', 'da',
             'medical_allowance', 'special_allowance', 'other_additions',
-            'gross_total', 'employee_pf', 'employee_vpf', 'employee_esi', 'professional_tax',
+            'gross_total', 'employee_pf', 'employee_vpf', 'employee_esi', 'professional_tax', 'pt_shortfall_recovery',
             'lwf_deduction', 'lop_deduction', 'tds_deduction', 'loan_emi_deduction',
             'net_pay', 'employer_pf', 'employer_esi', 'employer_lwf'
         ];

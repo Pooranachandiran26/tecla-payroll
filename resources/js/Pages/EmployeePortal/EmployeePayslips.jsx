@@ -88,7 +88,7 @@ export default function EmployeePayslips({ employee, payslips = [] }) {
                                 {filteredPayslips.map((item) => {
                                     const monthLabel = new Date(item.payroll_month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
                                     const releasedDate = item.payslip_released_at ? new Date(item.payslip_released_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
-                                    const totalDeductions = parseFloat(item.employee_pf || 0) + parseFloat(item.employee_vpf || 0) + parseFloat(item.employee_esi || 0) + parseFloat(item.professional_tax || 0) + parseFloat(item.lwf_deduction || 0) + parseFloat(item.tds_deduction || 0) + parseFloat(item.loan_emi_deduction || 0);
+                                    const totalDeductions = parseFloat(item.employee_pf || 0) + parseFloat(item.employee_vpf || 0) + parseFloat(item.employee_esi || 0) + parseFloat(item.professional_tax || 0) + parseFloat(item.pt_shortfall_recovery || 0) + parseFloat(item.lwf_deduction || 0) + parseFloat(item.tds_deduction || 0) + parseFloat(item.loan_emi_deduction || 0);
 
                                     return (
                                         <tr key={item.id} className="hover:bg-gray-50 transition-colors">

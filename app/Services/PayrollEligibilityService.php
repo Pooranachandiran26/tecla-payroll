@@ -40,7 +40,23 @@ class PayrollEligibilityService
 
         // 1. Employee Status Validation
         if ($employee->status !== 'active') {
-            $exclusions[] = "Employee status: " . $employee->status;
+            $exitedInPeriod = false;
+            if ($employee->status === 'exited') {
+                $exitRecord = DB::table('employee_exits')
+                    ->where('employee_id', $employee->id)
+                    ->whereNull('deleted_at')
+                    ->first();
+                if ($exitRecord && !empty($exitRecord->last_working_day)) {
+                    $lwd = Carbon::parse($exitRecord->last_working_day);
+                    if ($lwd->between(Carbon::parse($monthStart), Carbon::parse($monthEnd))) {
+                        $exitedInPeriod = true;
+                    }
+                }
+            }
+
+            if (!$exitedInPeriod) {
+                $exclusions[] = "Employee status: " . $employee->status;
+            }
         }
 
         // 2. Bank Details Validation

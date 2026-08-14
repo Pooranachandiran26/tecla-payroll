@@ -33,6 +33,7 @@ return new class extends Migration
             $table->decimal('employee_pf', 12, 2);
             $table->decimal('employee_esi', 12, 2);
             $table->decimal('professional_tax', 12, 2);
+            $table->decimal('pt_shortfall_recovery', 12, 2)->default(0.00);
             $table->decimal('lwf_deduction', 12, 2);
             $table->decimal('lop_deduction', 12, 2);
             $table->decimal('tds_deduction', 12, 2);

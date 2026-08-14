@@ -254,6 +254,22 @@ class MonthlyPayrollCalculator
             }
         }
 
+        // 1b. PT Shortfall Recovery — sync approved F&F shortfall into exit month payroll run
+        $ptShortfall = 0.00;
+        $exitRecord = DB::table('employee_exits')
+            ->where('employee_id', $employee->id)
+            ->whereIn('settlement_status', ['approved', 'pending_approval'])
+            ->latest('id')
+            ->first();
+
+        if ($exitRecord && !empty($exitRecord->last_working_day)) {
+            $lwdMonth = Carbon::parse($exitRecord->last_working_day)->format('Y-m');
+            $runMonth = Carbon::parse($payrollRun->payroll_month)->format('Y-m');
+            if ($lwdMonth === $runMonth) {
+                $ptShortfall = (float)($exitRecord->pt_shortfall_recovery ?? 0.00);
+            }
+        }
+
         // 2. LWF Calculation — respect employee lwf_applicable toggle
         $lwfDeduction = 0.00;
         $employerLwf = 0.00;
@@ -305,7 +321,7 @@ class MonthlyPayrollCalculator
         }
 
         // f. Apply the 50%-deduction cap
-        $statutoryAndTaxDeductions = $totalEmployeePf + $employeeEsi + $pt + $lwfDeduction + $tdsDeduction;
+        $statutoryAndTaxDeductions = $totalEmployeePf + $employeeEsi + $pt + $ptShortfall + $lwfDeduction + $tdsDeduction;
         $totalDeductions = $statutoryAndTaxDeductions + $loanEmiDeduction;
         $capLimit = 0.5 * $grossTotal;
 
@@ -369,6 +385,7 @@ class MonthlyPayrollCalculator
             'employee_vpf' => $employeeVpf,
             'employee_esi' => $employeeEsi,
             'professional_tax' => $pt,
+            'pt_shortfall_recovery' => $ptShortfall,
             'lwf_deduction' => $lwfDeduction,
             'lop_deduction' => $lopDeduction,
             'tds_deduction' => $tdsDeduction,
@@ -401,6 +418,7 @@ class MonthlyPayrollCalculator
             'total_employee_pf' => $totalEmployeePf,
             'employee_esi' => $employeeEsi,
             'professional_tax' => $pt,
+            'pt_shortfall_recovery' => $ptShortfall,
             'lwf_deduction' => $lwfDeduction,
             'lop_deduction' => $lopDeduction,
             'tds_deduction' => $tdsDeduction,

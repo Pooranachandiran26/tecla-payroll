@@ -182,6 +182,10 @@ export const STATE_REG_OPTIONS = [
 ];
 
 export const CUTOFF_DAYS = [
+  { value: '15', label: '15th of month' },
+  { value: '18', label: '18th of month' },
+  { value: '20', label: '20th of month' },
+  { value: '22', label: '22nd of month' },
   { value: '25', label: '25th of month' },
   { value: '26', label: '26th of month' },
   { value: '27', label: '27th of month' },
@@ -190,19 +194,57 @@ export const CUTOFF_DAYS = [
 ];
 
 export const PAYROLL_LOCK_DAYS = [
-  { value: '1', label: '1st of next month' },
-  { value: '2', label: '2nd of next month' },
-  { value: '3', label: '3rd of next month' },
-  { value: '4', label: '4th of next month' },
-  { value: '5', label: '5th of next month' },
+  // Same Month (21st - 30th + EOM)
+  { value: '21_current', label: '21st of current month', group: 'Current Month (Before 30th)', order: 21 },
+  { value: '22_current', label: '22nd of current month', group: 'Current Month (Before 30th)', order: 22 },
+  { value: '23_current', label: '23rd of current month', group: 'Current Month (Before 30th)', order: 23 },
+  { value: '24_current', label: '24th of current month', group: 'Current Month (Before 30th)', order: 24 },
+  { value: '25_current', label: '25th of current month', group: 'Current Month (Before 30th)', order: 25 },
+  { value: '26_current', label: '26th of current month', group: 'Current Month (Before 30th)', order: 26 },
+  { value: '27_current', label: '27th of current month', group: 'Current Month (Before 30th)', order: 27 },
+  { value: '28_current', label: '28th of current month', group: 'Current Month (Before 30th)', order: 28 },
+  { value: '29_current', label: '29th of current month', group: 'Current Month (Before 30th)', order: 29 },
+  { value: '30_current', label: '30th of current month', group: 'Current Month (Before 30th)', order: 30 },
+  { value: 'eom_current', label: 'Last day of current month (EOM)', group: 'Current Month (Before 30th)', order: 31 },
+
+  // Next Month (1st - 10th)
+  { value: '1', label: '1st of next month', group: 'Next Month', order: 101 },
+  { value: '2', label: '2nd of next month', group: 'Next Month', order: 102 },
+  { value: '3', label: '3rd of next month', group: 'Next Month', order: 103 },
+  { value: '4', label: '4th of next month', group: 'Next Month', order: 104 },
+  { value: '5', label: '5th of next month', group: 'Next Month', order: 105 },
+  { value: '6', label: '6th of next month', group: 'Next Month', order: 106 },
+  { value: '7', label: '7th of next month', group: 'Next Month', order: 107 },
+  { value: '8', label: '8th of next month', group: 'Next Month', order: 108 },
+  { value: '9', label: '9th of next month', group: 'Next Month', order: 109 },
+  { value: '10', label: '10th of next month', group: 'Next Month', order: 110 },
 ];
 
 export const SALARY_CREDIT_DAYS = [
-  { value: '1', label: '1st of month' },
-  { value: '5', label: '5th of month' },
-  { value: '7', label: '7th of month' },
-  { value: '10', label: '10th of month' },
-  { value: 'eom', label: 'Last working day' },
+  // Same Month (22nd - 30th + EOM)
+  { value: '22_current', label: '22nd of current month', group: 'Current Month', order: 22 },
+  { value: '23_current', label: '23rd of current month', group: 'Current Month', order: 23 },
+  { value: '24_current', label: '24th of current month', group: 'Current Month', order: 24 },
+  { value: '25_current', label: '25th of current month', group: 'Current Month', order: 25 },
+  { value: '26_current', label: '26th of current month', group: 'Current Month', order: 26 },
+  { value: '27_current', label: '27th of current month', group: 'Current Month', order: 27 },
+  { value: '28_current', label: '28th of current month', group: 'Current Month', order: 28 },
+  { value: '29_current', label: '29th of current month', group: 'Current Month', order: 29 },
+  { value: '30_current', label: '30th of current month', group: 'Current Month', order: 30 },
+  { value: 'eom_current', label: 'Last working day of current month (EOM)', group: 'Current Month', order: 31 },
+
+  // Next Month (1st - 10th + EOM)
+  { value: '1', label: '1st of next month', group: 'Next Month', order: 101 },
+  { value: '2', label: '2nd of next month', group: 'Next Month', order: 102 },
+  { value: '3', label: '3rd of next month', group: 'Next Month', order: 103 },
+  { value: '4', label: '4th of next month', group: 'Next Month', order: 104 },
+  { value: '5', label: '5th of next month', group: 'Next Month', order: 105 },
+  { value: '6', label: '6th of next month', group: 'Next Month', order: 106 },
+  { value: '7', label: '7th of next month', group: 'Next Month', order: 107 },
+  { value: '8', label: '8th of next month', group: 'Next Month', order: 108 },
+  { value: '9', label: '9th of next month', group: 'Next Month', order: 109 },
+  { value: '10', label: '10th of next month', group: 'Next Month', order: 110 },
+  { value: 'eom', label: 'Last working day of next month (EOM)', group: 'Next Month', order: 131 },
 ];
 
 export const INVOICE_RAISE_DAYS = [

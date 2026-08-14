@@ -1,12 +1,42 @@
 import React from 'react';
 import { usePage } from '@inertiajs/react';
 import { CUTOFF_DAYS, PAYROLL_LOCK_DAYS, SALARY_CREDIT_DAYS, INVOICE_RAISE_DAYS, PAYROLL_CONVENTIONS } from '../constants/clientFormData';
+import Select2 from '../../../Components/ui/Select2';
 import { Clock, Calendar, Info } from 'lucide-react';
 
 export default function SlaSection({ formData, errors, onChange, hook }) {
   const { accountManagers = [] } = usePage().props;
   const showCustomCycle = formData.payrollMonthConvention === 'custom';
   const isInhouse = formData.billingModel === 'inhouse';
+
+  // Helper to resolve timeline order for a lock day value
+  const getLockOrder = (val) => {
+    const found = PAYROLL_LOCK_DAYS.find(d => String(d.value) === String(val));
+    if (found) return found.order;
+    const num = parseInt(val, 10);
+    return !isNaN(num) && num <= 15 ? 100 + num : (num || 103);
+  };
+
+  const selectedLockOrder = getLockOrder(formData.payrollLockDay);
+
+  // Filter salary credit days to strictly show days AFTER the selected payroll lock day
+  const availableSalaryCreditDays = SALARY_CREDIT_DAYS.filter(d => d.order > selectedLockOrder);
+
+  const handleLockDayChange = (newVal) => {
+    onChange('payrollLockDay', newVal);
+    const newLockOrder = getLockOrder(newVal);
+    const validDays = SALARY_CREDIT_DAYS.filter(d => d.order > newLockOrder);
+
+    // Check if current credit day is invalid (<= newLockOrder)
+    const currentCreditOption = SALARY_CREDIT_DAYS.find(d => String(d.value) === String(formData.salaryCreditDay));
+    const currentCreditOrder = currentCreditOption ? currentCreditOption.order : 0;
+
+    if (currentCreditOrder <= newLockOrder && validDays.length > 0) {
+      // Pick first valid credit day or smart default
+      const defaultOption = validDays.find(d => d.value === '30_current' || d.value === 'eom_current' || d.value === '7' || d.value === '10') || validDays[0];
+      onChange('salaryCreditDay', defaultOption.value);
+    }
+  };
 
   return (
     <>
@@ -25,69 +55,89 @@ export default function SlaSection({ formData, errors, onChange, hook }) {
         </div>
       </div>
 
+      {/* 1. Payroll Month Convention */}
       <div className="form-row">
         <div className="form-group">
-          <label>Payroll Lock / Processing Day</label>
-          <select className="form-control" value={formData.payrollLockDay} onChange={e => onChange('payrollLockDay', e.target.value)}>
-            {PAYROLL_LOCK_DAYS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
-          </select>
-          <div className="field-hint">Payroll is locked and finalized by this date.</div>
+          <label>Payroll Month Convention</label>
+          <Select2
+            value={formData.payrollMonthConvention}
+            onChange={val => onChange('payrollMonthConvention', val)}
+            options={PAYROLL_CONVENTIONS}
+            searchable={false}
+          />
+          <div className="field-hint">Choose standard calendar month (1st to EOM) or custom attendance cycle dates.</div>
         </div>
       </div>
 
-      <div className="form-row">
+      {/* 1b. Custom Cycle Dates if custom */}
+      {showCustomCycle && (
+        <div className="form-row" style={{ marginTop: '0.5rem' }}>
+          <div className="form-group">
+            <label>Cycle Start Day</label>
+            <input type="number" className="form-control" min="1" max="31"
+              value={formData.cycleStartDay} onChange={e => onChange('cycleStartDay', e.target.value)} />
+            <div className="field-hint">e.g. 21 (Attendance cycle start day)</div>
+          </div>
+          <div className="form-group">
+            <label>Cycle End Day (Attendance Cutoff)</label>
+            <input type="number" className="form-control" min="1" max="31"
+              value={formData.cycleEndDay} onChange={e => onChange('cycleEndDay', e.target.value)} />
+            <div className="field-hint">e.g. 20 (Attendance cutoff day)</div>
+          </div>
+        </div>
+      )}
+
+      {/* 2 & 3. Payroll Lock Day & Salary Credit Day in a balanced 2-column row */}
+      <div className="form-row" style={{ marginTop: '1rem' }}>
+        <div className="form-group">
+          <label>Payroll Lock / Processing Day</label>
+          <Select2
+            value={formData.payrollLockDay}
+            onChange={handleLockDayChange}
+            options={PAYROLL_LOCK_DAYS}
+            searchable={true}
+            placeholder="Select Lock Day..."
+          />
+          <div className="field-hint">Payroll calculations are locked and finalized by this date.</div>
+        </div>
+
         <div className="form-group">
           <label>Salary Credit Day</label>
-          <select className="form-control" value={formData.salaryCreditDay} onChange={e => onChange('salaryCreditDay', e.target.value)}>
-            {SALARY_CREDIT_DAYS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
-          </select>
+          <Select2
+            value={formData.salaryCreditDay}
+            onChange={val => onChange('salaryCreditDay', val)}
+            options={availableSalaryCreditDays}
+            searchable={true}
+            placeholder="Select Credit Day..."
+          />
+          <div className="field-hint">Target day employees receive salary credits in their bank accounts.</div>
         </div>
-        {/* Invoice Dispute Window — hidden for In-House */}
-        {!isInhouse && (
+      </div>
+
+      {/* 4. Invoice Raise Day & Invoice Dispute Window — hidden for In-House */}
+      {!isInhouse && (
+        <div className="form-row" style={{ marginTop: '1rem' }}>
+          <div className="form-group">
+            <label>Invoice Raise Day <span style={{ color: 'var(--status-danger)' }}>*</span></label>
+            <Select2
+              value={formData.invoiceRaiseDay}
+              onChange={val => onChange('invoiceRaiseDay', val)}
+              options={INVOICE_RAISE_DAYS}
+              searchable={false}
+            />
+            <div className="field-hint">Invoice is generated this many days after payroll is locked.</div>
+          </div>
+
           <div className="form-group">
             <label>Invoice Dispute Window (days)</label>
             <input type="number" className="form-control" placeholder="e.g. 7" min="1" max="30"
               value={formData.invoiceDisputeDays} onChange={e => onChange('invoiceDisputeDays', e.target.value)} />
             <div className="field-hint">Days client can raise a dispute after invoice is raised.</div>
           </div>
-        )}
-      </div>
-
-      {/* Invoice Raise Day & Payroll Month Convention — Invoice Raise Day hidden for In-House */}
-      <div className="form-row" style={{ marginTop: '1rem' }}>
-        {!isInhouse && (
-          <div className="form-group">
-            <label>Invoice Raise Day <span style={{ color: 'var(--status-danger)' }}>*</span></label>
-            <select className="form-control" value={formData.invoiceRaiseDay} onChange={e => onChange('invoiceRaiseDay', e.target.value)}>
-              {INVOICE_RAISE_DAYS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
-            </select>
-            <div className="field-hint">Invoice is generated this many days after payroll is locked.</div>
-          </div>
-        )}
-        <div className="form-group">
-          <label>Payroll Month Convention</label>
-          <select className="form-control" value={formData.payrollMonthConvention} onChange={e => onChange('payrollMonthConvention', e.target.value)}>
-            {PAYROLL_CONVENTIONS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-          </select>
-        </div>
-      </div>
-
-      {showCustomCycle && (
-        <div className="form-row" style={{ marginTop: '1rem' }}>
-          <div className="form-group">
-            <label>Cycle Start Day</label>
-            <input type="number" className="form-control" min="1" max="28"
-              value={formData.cycleStartDay} onChange={e => onChange('cycleStartDay', e.target.value)} />
-          </div>
-          <div className="form-group">
-            <label>Cycle End Day</label>
-            <input type="number" className="form-control" min="1" max="28"
-              value={formData.cycleEndDay} onChange={e => onChange('cycleEndDay', e.target.value)} />
-          </div>
         </div>
       )}
 
-      {/* Account Manager — hidden for In-House */}
+      {/* 5. Account Manager — hidden for In-House */}
       {!isInhouse && (
         <div className="form-row" style={{ marginTop: '1rem' }}>
           <div className="form-group">
