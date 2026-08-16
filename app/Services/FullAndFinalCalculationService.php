@@ -166,8 +166,8 @@ class FullAndFinalCalculationService
                 ->first();
 
             if ($ptSlab) {
-                // Target half-yearly liability = monthly deduction rate * 6
-                $targetHalfYearlyLiability = (float)$ptSlab->deduction_amount * 6;
+                // Target half-yearly liability = clean statutory half_yearly_amount (e.g. ₹1,250.00), fallback to deduction_amount * 6
+                $targetHalfYearlyLiability = (float)($ptSlab->half_yearly_amount ?? round((float)$ptSlab->deduction_amount * 6, 2));
 
                 // Determine active 6-month half-year window (Apr-Sep vs Oct-Mar) using ESI period pattern
                 $year = $lwd->year;
@@ -188,7 +188,7 @@ class FullAndFinalCalculationService
                     ->where('payroll_run_items.employee_id', $employee->id)
                     ->where('payroll_runs.status', 'locked')
                     ->whereBetween('payroll_runs.payroll_month', [$cycleStart->toDateString(), $cycleEnd->toDateString()])
-                    ->sum('payroll_run_items.professional_tax');
+                    ->sum(\Illuminate\Support\Facades\DB::raw('payroll_run_items.professional_tax + COALESCE(payroll_run_items.pt_shortfall_recovery, 0)'));
 
                 $calculations['pt_shortfall_recovery'] = max(0.00, round($targetHalfYearlyLiability - $actualDeductedSoFar, 2));
             }

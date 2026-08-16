@@ -40,7 +40,23 @@ class PayrollEligibilityService
 
         // 1. Employee Status Validation
         if ($employee->status !== 'active') {
-            $exclusions[] = "Employee status: " . $employee->status;
+            $exitedInPeriod = false;
+            if ($employee->status === 'exited') {
+                $exitRecord = DB::table('employee_exits')
+                    ->where('employee_id', $employee->id)
+                    ->whereNull('deleted_at')
+                    ->first();
+                if ($exitRecord && !empty($exitRecord->last_working_day)) {
+                    $lwd = Carbon::parse($exitRecord->last_working_day);
+                    if ($lwd->between(Carbon::parse($monthStart), Carbon::parse($monthEnd))) {
+                        $exitedInPeriod = true;
+                    }
+                }
+            }
+
+            if (!$exitedInPeriod) {
+                $exclusions[] = "Employee status: " . $employee->status;
+            }
         }
 
         // 2. Bank Details Validation
@@ -122,7 +138,7 @@ class PayrollEligibilityService
             $warnings[] = "Salary revision with effective date inside this payroll month";
         }
 
-        // C. Near ESI Threshold Warning (gross salary between 19000 and 21000)
+        // C. Near ESI Threshold Warning (within ₹2,000 of threshold)
         $grossSalary = (float)$employee->basic_pay + 
                        (float)$employee->hra + 
                        (float)$employee->conveyance + 
@@ -131,8 +147,12 @@ class PayrollEligibilityService
                        (float)$employee->special_allowance + 
                        (float)$employee->other_additions;
 
-        if ($grossSalary >= 19000 && $grossSalary <= 21000) {
-            $warnings[] = "Employee near the ESI ₹21,000 threshold";
+        $esiThreshold = (bool)$employee->is_disabled ? 25000.00 : 21000.00;
+        $nearMin = $esiThreshold - 2000.00;
+        if ($grossSalary >= $nearMin && $grossSalary <= $esiThreshold) {
+            $fmtThreshold = number_format($esiThreshold, 0);
+            $typeLabel = (bool)$employee->is_disabled ? ' (PwD)' : '';
+            $warnings[] = "Employee near the ESI ₹{$fmtThreshold}{$typeLabel} threshold";
         }
 
         // D. Incomplete Punch & Unexpected Status Anomaly Warnings

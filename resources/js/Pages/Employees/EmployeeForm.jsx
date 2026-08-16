@@ -59,6 +59,10 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       spouseName: emp?.spouse_name || '',
       fullName: emp?.full_name || '',
       gender: emp?.gender || '',
+      isDisabled: emp ? Boolean(emp.is_disabled) : false,
+      disabilityType: emp?.disability_type || '',
+      disabilityPercentage: emp?.disability_percentage ?? '',
+      udidCardNumber: emp?.udid_card_number || '',
       bloodGroup: emp?.blood_group || '',
       maritalStatus: emp?.marital_status || '',
       dob: emp?.date_of_birth || '',
@@ -97,6 +101,9 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       ptDeduction: emp?.pt_deduction_override ?? '',
       pfToggle: emp ? Boolean(emp.pf_applicable) : true,
       epsToggle: emp ? (emp.eps_applicable !== undefined ? Boolean(emp.eps_applicable) : true) : true,
+      vpfToggle: emp ? Boolean(emp.vpf_enabled) : false,
+      vpfType: emp?.vpf_type || 'percentage',
+      vpfValue: emp?.vpf_value ?? '',
       esiToggle: emp ? Boolean(emp.esi_applicable) : true,
       tdsToggle: emp ? Boolean(emp.tds_applicable) : true,
       ptToggle: emp ? Boolean(emp.pt_applicable) : true,
@@ -166,8 +173,12 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
           medical_allowance: formData.medicalSal || 0,
           special_allowance: formData.specialSal || 0,
           other_additions: formData.otherSal || 0,
+          is_disabled: formData.isDisabled,
           pf_applicable: formData.pfToggle,
           eps_applicable: formData.epsToggle,
+          vpf_enabled: formData.vpfToggle,
+          vpf_type: formData.vpfType,
+          vpf_value: formData.vpfValue,
           esi_applicable: formData.esiToggle,
           pt_applicable: formData.ptToggle,
           lwf_applicable: formData.lwfToggle,
@@ -188,8 +199,9 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
     formData.clientPartner, formData.gender, formData.dob,
     formData.basicSal, formData.hraSal, formData.conveyanceSal, 
     formData.daSal, formData.medicalSal, formData.specialSal, 
-    formData.otherSal, formData.pfToggle, formData.epsToggle, formData.esiToggle, 
-    formData.ptToggle, formData.lwfToggle, formData.ptDeduction
+    formData.otherSal, formData.pfToggle, formData.epsToggle, 
+    formData.vpfToggle, formData.vpfType, formData.vpfValue,
+    formData.esiToggle, formData.ptToggle, formData.lwfToggle, formData.ptDeduction
   ]);
 
   const [activeClientDefaults, setActiveClientDefaults] = useState(null);
@@ -350,9 +362,33 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
     if (field === 'address') validateAddress(value);
     if (field === 'accountNo') validateAccountNo(value);
     if (field === 'accountNoConfirm') validateAccountNoConfirm(value, formData.accountNo);
-    if (field === 'accountHolder') validateAccountHolder(value);
     if (field === 'pan') validatePAN(value);
-    if (field === 'basicSal') validateBasicSal(value);
+    if (field === 'basicSal') {
+      validateBasicSal(value);
+      setTimeout(() => validateJointDeclaration(formData.jointDeclarationStatus), 50);
+    }
+    if (field === 'daSal' || field === 'clientPartner') {
+      setTimeout(() => validateJointDeclaration(formData.jointDeclarationStatus), 50);
+    }
+    if (field === 'jointDeclarationStatus' || field === 'joint_declaration_status') {
+      validateJointDeclaration(value);
+    }
+    if (field === 'pfMemberId') validatePFMemberId(value, formData.pfToggle);
+    if (field === 'uan') validateUAN(value, formData.uanMode, formData.pfToggle);
+    if (field === 'uanMode') validateUAN(formData.uan, value, formData.pfToggle);
+    if (field === 'pfToggle') {
+      validatePFMemberId(formData.pfMemberId, value);
+      validateUAN(formData.uan, formData.uanMode, value);
+      setTimeout(() => validateJointDeclaration(formData.jointDeclarationStatus), 50);
+    }
+    if (field === 'esiNo') validateESINo(value, formData.esiMode, formData.esiToggle);
+    if (field === 'esiMode') validateESINo(formData.esiNo, value, formData.esiToggle);
+    if (field === 'esiToggle') {
+      validateESINo(formData.esiNo, formData.esiMode, value);
+    }
+    if (field === 'vpfToggle') validateVPF(value, formData.vpfType, formData.vpfValue);
+    if (field === 'vpfType') validateVPF(formData.vpfToggle, value, formData.vpfValue);
+    if (field === 'vpfValue') validateVPF(formData.vpfToggle, formData.vpfType, value);
   };
 
   // Initialization (URL parse)
@@ -366,6 +402,40 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
     if (mode === 'edit-active') {
       // Just a visual indicator that some fields are locked. Do not block form submission.
       setErrorMsg('doj', 'Date of Joining is locked as payroll history exists.', 'warn');
+    }
+
+    // Auto-scroll, expand Existing UAN dropdown & focus UAN input if requested
+    const hash = window.location.hash;
+    const urlParams = new URLSearchParams(window.location.search);
+    const focusParam = urlParams.get('focus');
+
+    if (hash === '#uan' || hash === '#uan_number' || focusParam === 'uan') {
+      setFormData(prev => ({
+        ...prev,
+        pfToggle: true,
+        uanMode: 'existing_transfer'
+      }));
+
+      const scrollAndFocus = () => {
+        const uanElement = document.getElementById('uan-input-field') || document.querySelector('input[placeholder="12-digit UAN"]');
+        if (uanElement) {
+          uanElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          setTimeout(() => {
+            uanElement.focus();
+            uanElement.style.transition = 'all 0.3s ease-in-out';
+            uanElement.style.boxShadow = '0 0 0 4px rgba(239, 68, 68, 0.4)';
+            uanElement.style.borderColor = '#EF4444';
+            setTimeout(() => {
+              uanElement.style.boxShadow = '';
+              uanElement.style.borderColor = '';
+            }, 3000);
+          }, 400);
+        }
+      };
+
+      scrollAndFocus();
+      setTimeout(scrollAndFocus, 350);
+      setTimeout(scrollAndFocus, 700);
     }
   }, []);
 
@@ -686,6 +756,159 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
     }
   };
 
+  const validatePFMemberId = (val = formData.pfMemberId, pfToggle = formData.pfToggle) => {
+    if (!pfToggle) {
+      clearErrorMsg('pfMemberId');
+      removeBlocker('PF Member ID is required');
+      return true;
+    }
+    if (!val || !val.trim()) {
+      setErrorMsg('pfMemberId', '⛔ PF Member ID (Member Account No.) is required when Provident Fund is enabled.', 'error');
+      addBlocker('PF Member ID is required');
+      return false;
+    }
+    clearErrorMsg('pfMemberId');
+    removeBlocker('PF Member ID is required');
+    return true;
+  };
+
+  const validateUAN = (val = formData.uan, uanMode = formData.uanMode, pfToggle = formData.pfToggle) => {
+    if (!pfToggle || uanMode !== 'existing_transfer') {
+      clearErrorMsg('uan');
+      removeBlocker('UAN Number is required for existing UAN');
+      removeBlocker('UAN must be 12 digits');
+      return true;
+    }
+    if (!val || !val.trim()) {
+      setErrorMsg('uan', '⛔ 12-digit UAN Number is required for Existing UAN.', 'error');
+      addBlocker('UAN Number is required for existing UAN');
+      return false;
+    }
+    if (!/^[0-9]{12}$/.test(val.trim())) {
+      setErrorMsg('uan', '⛔ UAN must be exactly 12 digits (e.g. 100123456789).', 'error');
+      addBlocker('UAN must be 12 digits');
+      return false;
+    }
+    clearErrorMsg('uan');
+    removeBlocker('UAN Number is required for existing UAN');
+    removeBlocker('UAN must be 12 digits');
+    return true;
+  };
+
+  const validateESINo = (val = formData.esiNo, esiMode = formData.esiMode, esiToggle = formData.esiToggle) => {
+    if (!esiToggle || esiMode !== 'existing_transfer') {
+      clearErrorMsg('esiNo');
+      removeBlocker('ESIC IP Number is required');
+      removeBlocker('ESIC IP Number must be 10 digits');
+      return true;
+    }
+    if (!val || !val.trim()) {
+      setErrorMsg('esiNo', '⛔ ESIC IP Number is required for Existing IP Number.', 'error');
+      addBlocker('ESIC IP Number is required');
+      return false;
+    }
+    if (!/^[0-9]{10,17}$/.test(val.trim())) {
+      setErrorMsg('esiNo', '⛔ ESIC IP Number must be 10 to 17 digits.', 'error');
+      addBlocker('ESIC IP Number must be 10 digits');
+      return false;
+    }
+    clearErrorMsg('esiNo');
+    removeBlocker('ESIC IP Number is required');
+    removeBlocker('ESIC IP Number must be 10 digits');
+    return true;
+  };
+
+  const isJointDeclarationRequired = useMemo(() => {
+    if (!formData.pfToggle) return false;
+    const client = clients.find(c => String(c.id) === String(formData.clientPartner));
+    const isActualOnEmp = (activeClientDefaults?.employeePfWageBasis === 'actual_basic_da' || 
+                           activeClientDefaults?.employee_pf_wage_basis === 'actual_basic_da' ||
+                           client?.employee_pf_wage_basis === 'actual_basic_da');
+    const isActualOnEmpr = (activeClientDefaults?.employerPfWageBasis === 'actual_basic_da' || 
+                            activeClientDefaults?.employer_pf_wage_basis === 'actual_basic_da' ||
+                            client?.employer_pf_wage_basis === 'actual_basic_da');
+    const basicDa = (Number(formData.basicSal) || 0) + (Number(formData.daSal) || 0);
+    return (isActualOnEmp || isActualOnEmpr) && basicDa > 15000;
+  }, [formData.pfToggle, formData.clientPartner, formData.basicSal, formData.daSal, activeClientDefaults, clients]);
+
+  const validateJointDeclaration = (val = formData.jointDeclarationStatus) => {
+    if (!isJointDeclarationRequired) {
+      clearErrorMsg('jointDeclarationStatus');
+      clearErrorMsg('joint_declaration_status');
+      removeBlocker('EPF Para 26(6) Joint Declaration is required');
+      return true;
+    }
+    if (!val || val === 'not_required') {
+      const msg = '⛔ Para 26(6) Joint Declaration Status must be Pending Attestation, Submitted to EPFO, or Approved by RPFC because PF Wage Basis is Actual Basic+DA and Basic+DA exceeds ₹15,000.';
+      setErrorMsg('jointDeclarationStatus', msg, 'error');
+      setErrorMsg('joint_declaration_status', msg, 'error');
+      addBlocker('EPF Para 26(6) Joint Declaration is required');
+      return false;
+    }
+    clearErrorMsg('jointDeclarationStatus');
+    clearErrorMsg('joint_declaration_status');
+    removeBlocker('EPF Para 26(6) Joint Declaration is required');
+    return true;
+  };
+
+  const validateDisabilityPercentage = (val = formData.disabilityPercentage, isDisabled = formData.isDisabled) => {
+    if (isDisabled && val !== '' && val !== null && val !== undefined) {
+      const pct = parseInt(val, 10);
+      if (isNaN(pct) || pct < 40 || pct > 100) {
+        const msg = '⛔ Disability percentage must be at least 40% (and up to 100%) to qualify as a Person with Benchmark Disability (PwD) under the RPwD Act, 2016 for the ₹25,000 ESI ceiling.';
+        setErrorMsg('disabilityPercentage', msg, 'error');
+        addBlocker('Disability percentage must be at least 40%');
+        return false;
+      }
+    }
+    clearErrorMsg('disabilityPercentage');
+    removeBlocker('Disability percentage must be at least 40%');
+    return true;
+  };
+
+  const validateVPF = (vpfToggle = formData.vpfToggle, vpfType = formData.vpfType, vpfValue = formData.vpfValue) => {
+    if (!vpfToggle) {
+      clearErrorMsg('vpfValue');
+      removeBlocker('VPF value exceeds statutory ceiling');
+      removeBlocker('VPF value is required');
+      return true;
+    }
+    const num = Number(vpfValue);
+    if (vpfValue === '' || vpfValue === null || vpfValue === undefined || isNaN(num) || num <= 0) {
+      setErrorMsg('vpfValue', '⛔ Enter a valid VPF rate or amount greater than 0.', 'error');
+      addBlocker('VPF value is required');
+      return false;
+    }
+    removeBlocker('VPF value is required');
+
+    const basicDa = (Number(formData.basicSal) || 0) + (Number(formData.daSal) || 0);
+
+    if (vpfType === 'percentage') {
+      if (num > 88.0) {
+        setErrorMsg('vpfValue', '⛔ VPF percentage cannot exceed 88% (Mandatory 12% + VPF cannot exceed 100% of Basic+DA under EPF Para 29).', 'error');
+        addBlocker('VPF value exceeds statutory ceiling');
+        return false;
+      }
+    } else if (vpfType === 'fixed_amount') {
+      const client = clients.find(c => String(c.id) === String(formData.clientPartner));
+      const empBasis = activeClientDefaults?.employeePfWageBasis || client?.employee_pf_wage_basis || 'ceiling';
+      const pfCeiling = activeClientDefaults?.pfCeiling || client?.pf_ceiling || 15000;
+      const mandatoryPfWage = empBasis === 'actual_basic_da' ? basicDa : Math.min(basicDa, pfCeiling);
+      const mandatoryPf = Math.round(mandatoryPfWage * 0.12 * 100) / 100;
+      const maxFixed = Math.max(0, basicDa - mandatoryPf);
+
+      if (num > maxFixed) {
+        setErrorMsg('vpfValue', `⛔ VPF fixed amount cannot exceed ₹${maxFixed.toLocaleString('en-IN', { minimumFractionDigits: 2 })} (Basic+DA minus mandatory 12% EPF).`, 'error');
+        addBlocker('VPF value exceeds statutory ceiling');
+        return false;
+      }
+    }
+
+    clearErrorMsg('vpfValue');
+    removeBlocker('VPF value exceeds statutory ceiling');
+    return true;
+  };
+
   const validateAllFields = async () => {
     let valid = true;
     if (!validateFirstName(formData.firstName)) valid = false;
@@ -697,6 +920,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
     if (!validateDOJ(formData.doj)) valid = false;
     if (!validateAddress(formData.address)) valid = false;
     if (!validatePAN(formData.pan)) valid = false;
+    if (!validateDisabilityPercentage(formData.disabilityPercentage, formData.isDisabled)) valid = false;
     
     const emailValid = await validatePersonalEmail();
     if (!emailValid) valid = false;
@@ -713,20 +937,28 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       if (!ifscValid) valid = false;
     }
 
+    if (!validatePFMemberId(formData.pfMemberId, formData.pfToggle)) valid = false;
+    if (!validateUAN(formData.uan, formData.uanMode, formData.pfToggle)) valid = false;
+    if (!validateESINo(formData.esiNo, formData.esiMode, formData.esiToggle)) valid = false;
+    if (!validateJointDeclaration(formData.jointDeclarationStatus)) valid = false;
+    if (!validateVPF(formData.vpfToggle, formData.vpfType, formData.vpfValue)) valid = false;
+
     return valid;
   };
 
   // ESI limits check
   useEffect(() => {
-    const limit = activeClientDefaults ? activeClientDefaults.esiLimit : 21000;
+    const defaultLimit = formData.isDisabled ? 25000 : 21000;
+    const clientLimit = activeClientDefaults ? (activeClientDefaults.esiLimit || 21000) : 21000;
+    const limit = formData.isDisabled ? Math.max(25000, clientLimit) : clientLimit;
     if (grossCTC > limit) {
       if (formMode !== 'add' && formData.esiToggle) {
-        setErrorMsg('esiWarning', `ℹ Gross salary now exceeds ESI threshold (₹${limit}). ESI contribution continues until end of period.`, 'warn');
+        setErrorMsg('esiWarning', `ℹ Gross salary now exceeds ESI threshold (₹${limit.toLocaleString('en-IN')}). ESI contribution continues until end of period.`, 'warn');
       } else {
         if (!overrides.esi) {
           handleInputChange('esiToggle', false);
         }
-        setErrorMsg('esiWarning', `⚠ Gross salary exceeds ESI threshold (₹${limit}) — ESI does not apply.`, 'error');
+        setErrorMsg('esiWarning', `⚠ Gross salary exceeds ESI threshold (₹${limit.toLocaleString('en-IN')}) — ESI does not apply.`, 'error');
       }
     } else {
       clearErrorMsg('esiWarning');
@@ -734,7 +966,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
         handleInputChange('esiToggle', true);
       }
     }
-  }, [grossCTC, activeClientDefaults, formMode]);
+  }, [grossCTC, activeClientDefaults, formMode, formData.isDisabled]);
 
   // Handlers
   const handleEmpTypeChange = (e) => {
@@ -763,9 +995,18 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
 
     if (!isValid || blockingErrors.size > 0) {
       setProcessing(false);
+      showToast({
+        type: 'error',
+        title: 'Form Validation Error',
+        message: 'Please resolve the highlighted validation errors before saving the employee profile.'
+      });
       setTimeout(() => {
-        runJQueryValidation('#emp-form', errors);
-      }, 50);
+        const firstErrorEl = document.querySelector('.form-control.is-error, .form-control.is-invalid, .field-msg.error.show');
+        if (firstErrorEl) {
+          firstErrorEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          firstErrorEl.focus?.();
+        }
+      }, 100);
       return;
     }
     
@@ -776,6 +1017,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       'residential_address': 'address', 'bank_account_number': 'accountNo', 'bank_ifsc': 'ifsc',
       'bank_name': 'bankName', 'bank_branch': 'bankBranch', 'account_holder_name': 'accountHolder',
       'gender': 'gender', 'blood_group': 'bloodGroup', 'marital_status': 'maritalStatus',
+      'is_disabled': 'isDisabled', 'disability_type': 'disabilityType', 'disability_percentage': 'disabilityPercentage', 'udid_card_number': 'udidCardNumber',
       'pan_number': 'pan', 'aadhaar_number': 'aadhaar', 'uan_mode': 'uanMode', 'uan_number': 'uan', 'pf_member_id': 'pfMemberId', 'member_relationship': 'memberRelationship',
       'esi_mode': 'esiMode', 'esic_number': 'esiNo', 'basic_pay': 'basicSal', 'hra': 'hraSal', 'conveyance': 'conveyanceSal',
       'da': 'daSal', 'medical_allowance': 'medicalSal', 'special_allowance': 'specialSal',
@@ -787,6 +1029,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       'esi_contribution_period_end': 'esiPeriodEnd', 'designation': 'designation', 'branch_id': 'branchPartner',
       'health_insurance_provider': 'insuranceProvider', 'health_insurance_policy_no': 'insurancePolicyNo', 'health_insurance_sum_insured': 'insuranceSumInsured',
       'joint_declaration_status': 'jointDeclarationStatus',
+      'vpf_enabled': 'vpfToggle', 'vpf_type': 'vpfType', 'vpf_value': 'vpfValue',
     };
     
     const url = isAdd ? route('employees.store') : route('employees.update', empId);
@@ -964,6 +1207,105 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                       <option value="Unknown">Unknown</option>
                     </select>
                   </div>
+                </div>
+
+                {/* Person with Benchmark Disability (PwD) Section */}
+                <div style={{ marginTop: "0.5rem", marginBottom: "1.25rem", padding: "1rem", backgroundColor: formData.isDisabled ? "#F0FDF4" : "#F8FAFC", border: formData.isDisabled ? "1px solid #86EFAC" : "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", transition: "all 0.2s ease" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div>
+                      <label className="toggle-container" style={{ margin: 0, cursor: "pointer" }}>
+                        <input
+                          type="checkbox"
+                          className="toggle-input"
+                          checked={formData.isDisabled}
+                          onChange={e => {
+                            const val = e.target.checked;
+                            handleInputChange('isDisabled', val);
+                            if (!val) {
+                              clearErrorMsg('disabilityPercentage');
+                              removeBlocker('Disability percentage must be at least 40%');
+                            }
+                          }}
+                        />
+                        <span className="toggle-switch"></span>
+                        <span style={{ fontWeight: "700", color: formData.isDisabled ? "#166534" : "var(--primary-navy)", fontSize: "0.95rem" }}>
+                          Person with Benchmark Disability (PwD)
+                        </span>
+                      </label>
+                      <div style={{ fontSize: "0.78rem", color: formData.isDisabled ? "#15803D" : "var(--text-muted)", marginTop: "0.25rem", marginLeft: "2.75rem" }}>
+                        Qualifies for statutory ESI wage ceiling override to <strong>₹25,000 / month</strong> (RPwD Act, 2016 / ESI Rule 50).
+                      </div>
+                    </div>
+                    {formData.isDisabled && (
+                      <span className="badge badge-success" style={{ backgroundColor: "#DCFCE7", color: "#166534", border: "1px solid #86EFAC" }}>
+                        ₹25,000 ESI Ceiling Active
+                      </span>
+                    )}
+                  </div>
+
+                  {formData.isDisabled && (
+                    <div style={{ marginTop: "1rem", paddingTop: "0.75rem", borderTop: "1px dashed #86EFAC" }}>
+                      <div className="form-row" style={{ marginBottom: "0.5rem" }}>
+                        <div className="form-group" style={{ flex: 1 }}>
+                          <label style={{ fontSize: "0.85rem" }}>Disability Category / Type</label>
+                          <select
+                            className="form-control"
+                            value={formData.disabilityType}
+                            onChange={e => handleInputChange('disabilityType', e.target.value)}
+                          >
+                            <option value="">-- Select Category (Optional) --</option>
+                            <option value="locomotor">Locomotor Disability / Cerebral Palsy</option>
+                            <option value="visual">Visual Impairment / Blindness / Low Vision</option>
+                            <option value="hearing">Hearing Impairment / Deaf / Hard of Hearing</option>
+                            <option value="speech">Speech and Language Disability</option>
+                            <option value="intellectual">Intellectual Disability / Specific Learning</option>
+                            <option value="mental_illness">Mental Illness</option>
+                            <option value="multiple">Multiple Disabilities</option>
+                            <option value="other">Other Benchmark Disability</option>
+                          </select>
+                        </div>
+                        <div className="form-group" style={{ flex: 1 }}>
+                          <label style={{ fontSize: "0.85rem" }}>
+                            Disability Percentage (%) <span style={{ fontSize: "0.75rem", color: "#64748B" }}>(Min. 40%)</span>
+                          </label>
+                          <input
+                            type="number"
+                            min="40"
+                            max="100"
+                            className={`form-control ${errors.disabilityPercentage ? `is-${errors.disabilityPercentage.type || 'error'}` : ''}`}
+                            value={formData.disabilityPercentage}
+                            onChange={e => {
+                              const val = e.target.value;
+                              handleInputChange('disabilityPercentage', val);
+                              if (val !== '' && (parseInt(val, 10) < 40 || parseInt(val, 10) > 100)) {
+                                setErrorMsg('disabilityPercentage', '⛔ Disability percentage must be at least 40% (and up to 100%) under the RPwD Act, 2016.', 'error');
+                                addBlocker('Disability percentage must be at least 40%');
+                              } else {
+                                clearErrorMsg('disabilityPercentage');
+                                removeBlocker('Disability percentage must be at least 40%');
+                              }
+                            }}
+                            placeholder="e.g. 40, 50, 75"
+                          />
+                          {errors.disabilityPercentage && (
+                            <div className={`field-msg ${errors.disabilityPercentage.type || 'error'} show`}>
+                              {errors.disabilityPercentage.msg}
+                            </div>
+                          )}
+                        </div>
+                        <div className="form-group" style={{ flex: 1 }}>
+                          <label style={{ fontSize: "0.85rem" }}>UDID Card Number</label>
+                          <input
+                            type="text"
+                            className="form-control"
+                            value={formData.udidCardNumber}
+                            onChange={e => handleInputChange('udidCardNumber', e.target.value)}
+                            placeholder="Unique Disability ID (Optional)"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="form-row">
@@ -1418,7 +1760,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                       <div className="form-row">
                         <div className="form-group" style={{ marginBottom: "0" }}>
                           <label>UAN Mode <span style={{ color: "var(--status-danger)" }}>*</span></label>
-                          <select className={`form-control ${errors.uanMode ? 'is-invalid' : ''}`} value={formData.uanMode} onChange={e => handleInputChange('uanMode', e.target.value)}>
+                          <select className={`form-control ${errors.uanMode ? `is-${errors.uanMode.type || 'error'}` : ''}`} value={formData.uanMode} onChange={e => handleInputChange('uanMode', e.target.value)}>
                             <option value="new">Pending / New Registration</option>
                             <option value="existing_transfer">Existing UAN</option>
                           </select>
@@ -1433,9 +1775,17 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                           </small>
                         </div>
                         {formData.uanMode === 'existing_transfer' && (
-                          <div className="form-group" style={{ marginBottom: "0" }}>
+                          <div className="form-group" id="uan-input-group" style={{ marginBottom: "0" }}>
                             <label>UAN Number <span style={{ color: "var(--status-danger)" }}>*</span></label>
-                            <input type="text" className={`form-control ${errors.uan ? 'is-invalid' : ''}`} value={formData.uan} onChange={e => handleInputChange('uan', e.target.value)} placeholder="12-digit UAN" maxLength="12" />
+                            <input
+                              id="uan-input-field"
+                              type="text" 
+                              className={`form-control ${errors.uan ? `is-${errors.uan.type || 'error'}` : ''}`} 
+                              value={formData.uan} 
+                              onChange={e => handleInputChange('uan', e.target.value)} 
+                              placeholder="12-digit UAN" 
+                              maxLength="12" 
+                            />
                             {errors.uan && <div className={`field-msg ${errors.uan.type || 'error'} show`}>{errors.uan.msg || errors.uan}</div>}
                           </div>
                         )}
@@ -1446,7 +1796,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                           <label>PF Member ID (Member Account No.) <span style={{ color: "var(--status-danger)" }}>*</span></label>
                           <input 
                             type="text" 
-                            className={`form-control ${errors.pfMemberId ? 'is-invalid' : ''}`} 
+                            className={`form-control ${errors.pfMemberId ? `is-${errors.pfMemberId.type || 'error'}` : ''}`} 
                             value={formData.pfMemberId} 
                             onChange={e => handleInputChange('pfMemberId', e.target.value)} 
                             placeholder="e.g. DLCPM00123450000000271" 
@@ -1497,21 +1847,112 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                         <div style={{ marginTop: "0.75rem", paddingTop: "0.75rem", borderTop: "1px dashed var(--border-color)" }}>
                           <div className="form-group" style={{ marginBottom: "0" }}>
                             <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "var(--primary-navy)" }}>
-                              EPF Scheme Para 26(6) Joint Declaration Status
+                              EPF Scheme Para 26(6) Joint Declaration Status {isJointDeclarationRequired && <span style={{ color: "var(--status-danger)" }}>*</span>}
                             </label>
-                            <select className={`form-control ${errors.joint_declaration_status ? 'is-invalid' : ''}`} value={formData.jointDeclarationStatus} onChange={e => { handleInputChange('jointDeclarationStatus', e.target.value); handleInputChange('joint_declaration_status', e.target.value); }}>
+                            <select 
+                              className={`form-control ${errors.jointDeclarationStatus || errors.joint_declaration_status ? `is-${(errors.jointDeclarationStatus?.type || errors.joint_declaration_status?.type || 'error')}` : ''}`} 
+                              value={formData.jointDeclarationStatus} 
+                              onChange={e => { 
+                                handleInputChange('jointDeclarationStatus', e.target.value); 
+                                handleInputChange('joint_declaration_status', e.target.value); 
+                              }}
+                            >
                               <option value="not_required">Not Required (&le; ₹15,000 or Ceiling Base)</option>
                               <option value="pending">Pending Attestation</option>
                               <option value="submitted">Submitted to EPFO</option>
                               <option value="approved">Approved by RPFC</option>
                             </select>
-                            {errors.joint_declaration_status && <div className="field-msg error show">{errors.joint_declaration_status.msg || errors.joint_declaration_status}</div>}
+                            {(errors.jointDeclarationStatus || errors.joint_declaration_status) && (
+                              <div className="field-msg error show">
+                                {errors.jointDeclarationStatus?.msg || errors.jointDeclarationStatus || errors.joint_declaration_status?.msg || errors.joint_declaration_status}
+                              </div>
+                            )}
                             <small style={{ color: "var(--text-muted)", display: "block", marginTop: "4px" }}>
-                              Required whenever candidate earns Basic+DA &gt; ₹15,000/mo and employer or candidate contributes on Actual Basic+DA.
+                              {isJointDeclarationRequired 
+                                ? '⚠️ Required: Candidate earns Basic+DA > ₹15,000/mo and PF is on Actual Basic+DA. Select Pending, Submitted, or Approved.' 
+                                : 'Required whenever candidate earns Basic+DA > ₹15,000/mo and employer or candidate contributes on Actual Basic+DA.'}
                             </small>
                           </div>
                         </div>
                       )}
+
+                      {/* Voluntary Provident Fund (VPF) Sub-Card */}
+                      <div style={{ marginTop: "0.75rem", paddingTop: "0.75rem", borderTop: "1px dashed var(--border-color)" }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <div>
+                            <strong style={{ fontSize: "0.85rem", color: "var(--primary-navy)" }}>Voluntary Provident Fund (VPF — EPF Para 29)</strong>
+                            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "2px", maxWidth: "600px" }}>
+                              Employee-elected voluntary contribution deposited directly into their EPF account. 100% employee-funded — does <em>not</em> alter employer contribution.
+                            </div>
+                          </div>
+                          <label className="toggle-container" style={{ flexShrink: 0, marginLeft: "1rem" }}>
+                            <input 
+                              type="checkbox" 
+                              className="toggle-input" 
+                              checked={formData.vpfToggle} 
+                              onChange={e => {
+                                handleInputChange('vpfToggle', e.target.checked);
+                                if (!e.target.checked) {
+                                  clearErrorMsg('vpfValue');
+                                  removeBlocker('VPF value exceeds statutory ceiling');
+                                  removeBlocker('VPF value is required');
+                                }
+                              }} 
+                            />
+                            <span className="toggle-switch"></span>
+                          </label>
+                        </div>
+
+                        {formData.vpfToggle && (
+                          <div style={{ marginTop: "0.75rem", padding: "0.75rem", backgroundColor: "#F8FAFC", borderRadius: "var(--radius-sm)", border: "1px solid #E2E8F0" }}>
+                            <div className="form-row" style={{ marginBottom: "0.5rem" }}>
+                              <div className="form-group" style={{ marginBottom: "0", flex: 1 }}>
+                                <label style={{ fontSize: "0.8rem", fontWeight: "600" }}>VPF Contribution Type <span style={{ color: "var(--status-danger)" }}>*</span></label>
+                                <select 
+                                  className="form-control" 
+                                  value={formData.vpfType} 
+                                  onChange={e => handleInputChange('vpfType', e.target.value)}
+                                >
+                                  <option value="percentage">Percentage of Actual Basic+DA (%)</option>
+                                  <option value="fixed_amount">Fixed Rupee Amount (₹ / Month)</option>
+                                </select>
+                              </div>
+                              <div className="form-group" style={{ marginBottom: "0", flex: 1 }}>
+                                <label style={{ fontSize: "0.8rem", fontWeight: "600" }}>
+                                  {formData.vpfType === 'percentage' ? 'VPF Percentage Rate (%)' : 'VPF Monthly Amount (₹)'} <span style={{ color: "var(--status-danger)" }}>*</span>
+                                </label>
+                                <input 
+                                  type="number" 
+                                  step={formData.vpfType === 'percentage' ? '0.1' : '1'} 
+                                  min="0.01" 
+                                  max={formData.vpfType === 'percentage' ? '88' : undefined}
+                                  className={`form-control ${errors.vpfValue ? `is-${errors.vpfValue.type || 'error'}` : ''}`} 
+                                  value={formData.vpfValue} 
+                                  onChange={e => handleInputChange('vpfValue', e.target.value)}
+                                  placeholder={formData.vpfType === 'percentage' ? 'e.g. 8 (Max 88%)' : 'e.g. 2000'}
+                                />
+                                {errors.vpfValue && <div className={`field-msg ${errors.vpfValue.type || 'error'} show`}>{errors.vpfValue.msg || errors.vpfValue}</div>}
+                              </div>
+                            </div>
+                            
+                            {/* Live preview badge for VPF */}
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "0.75rem", color: "#1E293B", backgroundColor: "#EFF6FF", padding: "0.5rem 0.75rem", borderRadius: "4px", marginTop: "0.5rem", border: "1px solid #BFDBFE" }}>
+                              <div>
+                                <span>Monthly VPF Deduction: </span>
+                                <strong>
+                                  ₹{Number(previewCalculations?.employee_vpf_monthly || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </strong>
+                              </div>
+                              <div>
+                                <span>Total Employee PF (12% + VPF): </span>
+                                <strong style={{ color: "var(--primary-navy)" }}>
+                                  ₹{Number(previewCalculations?.total_employee_pf_monthly || ((previewCalculations?.employee_pf_monthly || 0) + (previewCalculations?.employee_vpf_monthly || 0))).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </strong>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
                   <hr style={{ border: "0", borderTop: "1px solid var(--border-color)" }} />
@@ -1531,7 +1972,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                         )}
                       </div>
                       <label className="toggle-container">
-                        <input type="checkbox" className="toggle-input" checked={formData.esiToggle} onChange={e => { handleInputChange('esiToggle', e.target.checked); toggleOverride('esi'); }} disabled={grossCTC > (activeClientDefaults?.esiLimit||21000) && (!formData.esiToggle)} />
+                        <input type="checkbox" className="toggle-input" checked={formData.esiToggle} onChange={e => { handleInputChange('esiToggle', e.target.checked); toggleOverride('esi'); }} disabled={grossCTC > (formData.isDisabled ? Math.max(25000, (activeClientDefaults?.esiLimit || 21000)) : (activeClientDefaults?.esiLimit || 21000)) && (!formData.esiToggle)} />
                         <span className="toggle-switch"></span>
                       </label>
                     </div>
@@ -1541,7 +1982,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                       <div className="form-row">
                         <div className="form-group" style={{ marginBottom: "0.75rem" }}>
                           <label>ESI Mode <span style={{ color: "var(--status-danger)" }}>*</span></label>
-                          <select className={`form-control ${errors.esiMode ? 'is-invalid' : ''}`} value={formData.esiMode} onChange={e => handleInputChange('esiMode', e.target.value)}>
+                          <select className={`form-control ${errors.esiMode ? `is-${errors.esiMode.type || 'error'}` : ''}`} value={formData.esiMode} onChange={e => handleInputChange('esiMode', e.target.value)}>
                             <option value="new">Pending / New Registration</option>
                             <option value="existing_transfer">Existing IP Number</option>
                           </select>
@@ -1558,7 +1999,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                         {formData.esiMode === 'existing_transfer' && (
                           <div className="form-group" style={{ marginBottom: "0.75rem" }}>
                             <label>ESIC IP Number <span style={{ color: "var(--status-danger)" }}>*</span></label>
-                            <input type="text" className={`form-control ${errors.esiNo ? 'is-invalid' : ''}`} value={formData.esiNo} onChange={e => handleInputChange('esiNo', e.target.value)} placeholder="10-digit ESIC Number" maxLength="10" />
+                            <input type="text" className={`form-control ${errors.esiNo ? `is-${errors.esiNo.type || 'error'}` : ''}`} value={formData.esiNo} onChange={e => handleInputChange('esiNo', e.target.value)} placeholder="10-digit ESIC Number" maxLength="17" />
                             {errors.esiNo && <div className={`field-msg ${errors.esiNo.type || 'error'} show`}>{errors.esiNo.msg || errors.esiNo}</div>}
                           </div>
                         )}
@@ -1599,7 +2040,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                       </div>
                     ) : (
                       <div style={{ backgroundColor: "#F8FAFC", padding: "0.75rem 1rem", borderRadius: "var(--radius-sm)", border: "1px solid #E2E8F0", marginTop: "0.5rem", fontSize: "0.75rem", color: "#64748B" }}>
-                        <strong>Establishment Policy:</strong> This client establishment does not provide commercial Group Medical Insurance for employees above the ESI ceiling (&gt; ₹21,000/mo).
+                        <strong>Establishment Policy:</strong> This client establishment does not provide commercial Group Medical Insurance for employees above the ESI ceiling (&gt; ₹{(formData.isDisabled ? 25000 : 21000).toLocaleString('en-IN')}{formData.isDisabled ? ' PwD Ceiling' : ''}/mo).
                       </div>
                     )
                   )}
@@ -1796,8 +2237,8 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                       </div>
                       
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", color: "var(--text-muted)" }}>
-                        <span>Estimated Employee Deductions (PF, ESI, PT):</span>
-                        <span style={{ fontWeight: "600", color: "#991B1B" }}>- ₹{previewCalculations ? (previewCalculations.employee_pf_monthly + previewCalculations.employee_esi_monthly + previewCalculations.pt_monthly)?.toLocaleString('en-IN') : '0'}</span>
+                        <span>Estimated Employee Deductions (PF{(previewCalculations?.employee_vpf_monthly || 0) > 0 ? ', VPF' : ''}, ESI, PT):</span>
+                        <span style={{ fontWeight: "600", color: "#991B1B" }}>- ₹{previewCalculations ? ((previewCalculations.employee_pf_monthly || 0) + (previewCalculations.employee_vpf_monthly || 0) + (previewCalculations.employee_esi_monthly || 0) + (previewCalculations.pt_monthly || 0))?.toLocaleString('en-IN') : '0'}</span>
                       </div>
 
                       {previewCalculations && (
@@ -1805,9 +2246,16 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                           <div style={{ fontWeight: "700", color: "#9B2C2C", marginBottom: "0.15rem" }}>Employee Deductions Breakdown:</div>
                           
                           <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: "0.5rem" }}>
-                            <span>• Employee PF Contribution (12%):</span>
+                            <span>• Employee PF Contribution (12%){(previewCalculations.employee_vpf_monthly || 0) > 0 ? ' — Mandatory' : ''}:</span>
                             <strong>₹{(previewCalculations.employee_pf_monthly || 0).toLocaleString('en-IN')}</strong>
                           </div>
+
+                          {(previewCalculations.employee_vpf_monthly || 0) > 0 && (
+                            <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: "0.5rem", color: "#1E40AF" }}>
+                              <span>• Voluntary PF (VPF — EPF Para 29):</span>
+                              <strong>₹{(previewCalculations.employee_vpf_monthly || 0).toLocaleString('en-IN')}</strong>
+                            </div>
+                          )}
 
                           <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: "0.5rem" }}>
                             <span>• Employee ESI Contribution (0.75%):</span>
@@ -1821,7 +2269,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
 
                           <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px dashed #FEB2B2", paddingTop: "0.35rem", marginTop: "0.15rem", fontWeight: "700", color: "#742A2A" }}>
                             <span>Total Employee Deductions:</span>
-                            <span>- ₹{(previewCalculations.employee_pf_monthly + previewCalculations.employee_esi_monthly + previewCalculations.pt_monthly).toLocaleString('en-IN')}</span>
+                            <span>- ₹{((previewCalculations.employee_pf_monthly || 0) + (previewCalculations.employee_vpf_monthly || 0) + (previewCalculations.employee_esi_monthly || 0) + (previewCalculations.pt_monthly || 0)).toLocaleString('en-IN')}</span>
                           </div>
                         </div>
                       )}

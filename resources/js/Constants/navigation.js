@@ -1,10 +1,10 @@
 // Navigation constants — all URLs use Ziggy route() absolute URLs
 // supporting subdirectory deployments out of the box.
 
-const safeRoute = (routeName, fallbackPath) => {
+const safeRoute = (routeName, fallbackPath, params) => {
   try {
     if (typeof route === 'function' && route().has(routeName)) {
-      return route(routeName);
+      return params !== undefined ? route(routeName, params) : route(routeName);
     }
   } catch (e) {}
   return fallbackPath;
@@ -70,7 +70,7 @@ export const subNavs = {
   ],
   reports: [
     { name: 'Reports Catalog', url: safeRoute('admin.reports.index', '/admin/reports'), key: 'reports_catalog' },
-    { name: 'Payroll Register', url: safeRoute('admin.reports.show', '/admin/reports/payroll_register'), key: 'reports_register' },
+    { name: 'Payroll Register', url: safeRoute('admin.reports.payroll_register', '/admin/reports/payroll_register', { reportKey: 'payroll_register' }), key: 'reports_register' },
   ],
   admin: [
     { name: 'Activity Log', url: safeRoute('admin.activity-log', '/admin/activity-log'), key: 'admin_activity_log' },

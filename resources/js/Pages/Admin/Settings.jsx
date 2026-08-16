@@ -2186,7 +2186,7 @@ export default function Settings() {
                       />
                       <Input 
                         type="number" 
-                        label="Max OTP Attempts" 
+                        label="Max OTP Attempts (0 = Unlimited / No Lockout)" 
                         value={renderAuthVal('otp_max_attempts')} 
                         onChange={e => handleAuthChange('otp_max_attempts', e.target.value)} 
                       />
@@ -2201,11 +2201,49 @@ export default function Settings() {
 
                   {/* 2. Lockout & Abuse Protection */}
                   <Card>
-                    <h3 className="font-bold text-lg mb-4 text-slate-800">2. Lockout & Abuse Protection</h3>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                      <h3 className="font-bold text-lg text-slate-800 m-0">2. Lockout & Abuse Protection</h3>
+                      {renderAuthVal('testing_mode_enabled', true) === true || renderAuthVal('testing_mode_enabled', true) === 'true' ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                          Testing Mode ON
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-300">
+                          <ShieldCheck className="w-3 h-3 text-slate-600" />
+                          Strict Protection Active
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Master Testing Mode Toggle Banner */}
+                    <div className={`p-4 rounded-xl border mb-5 transition-all ${
+                      renderAuthVal('testing_mode_enabled', true) === true || renderAuthVal('testing_mode_enabled', true) === 'true'
+                        ? 'bg-emerald-50 border-emerald-300 text-emerald-950 shadow-xs'
+                        : 'bg-slate-50 border-slate-200 text-slate-700'
+                    }`}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="font-bold text-sm text-[#1F3864] flex items-center gap-2">
+                            <span>Enable Testing Mode (Bypass All Lockouts & Throttling)</span>
+                          </div>
+                          <p className="text-xs mt-1 leading-relaxed text-gray-600">
+                            {renderAuthVal('testing_mode_enabled', true) === true || renderAuthVal('testing_mode_enabled', true) === 'true'
+                              ? 'Testing Mode is ON: IP rate-limiting, "Too many attempts" errors, and OTP lockout limits are bypassed so you can test freely.'
+                              : 'Testing Mode is OFF: Strict security is active. Failed login thresholds and IP bans are enforced according to the rules below.'}
+                          </p>
+                        </div>
+                        <Checkbox 
+                          checked={renderAuthVal('testing_mode_enabled', true) === true || renderAuthVal('testing_mode_enabled', true) === 'true'} 
+                          onChange={e => handleAuthChange('testing_mode_enabled', e.target.checked)} 
+                        />
+                      </div>
+                    </div>
+
                     <div className="flex flex-col gap-4">
                       <Input 
                         type="number" 
-                        label="Max Failed Login Attempts" 
+                        label="Max Failed Login Attempts (0 = Unlimited)" 
                         value={renderAuthVal('max_failed_login_attempts')} 
                         onChange={e => handleAuthChange('max_failed_login_attempts', e.target.value)} 
                       />
@@ -2222,7 +2260,7 @@ export default function Settings() {
                       />
                       <Input 
                         type="number" 
-                        label="IP Throttle Failed Attempts Threshold" 
+                        label="IP Throttle Failed Attempts Threshold (0 = Disabled)" 
                         value={renderAuthVal('ip_failed_attempts_threshold')} 
                         onChange={e => handleAuthChange('ip_failed_attempts_threshold', e.target.value)} 
                       />

@@ -100,6 +100,68 @@ export default function ComplianceReports() {
   const [esiReasonCodes, setEsiReasonCodes] = useState([]);
   const [esiZeroDayEmployees, setEsiZeroDayEmployees] = useState([]);
   const [esiReasonSelections, setEsiReasonSelections] = useState({});
+  const [esiPreviewData, setEsiPreviewData] = useState(null);
+
+  // Quick Statutory Code Configuration Modal State (PF & ESI)
+  const [isStatutoryCodeModalOpen, setIsStatutoryCodeModalOpen] = useState(false);
+  const [statutoryCodeType, setStatutoryCodeType] = useState('pf'); // 'pf' | 'esi'
+  const [statutoryClientId, setStatutoryClientId] = useState('');
+  const [statutoryClientName, setStatutoryClientName] = useState('');
+  const [statutoryCodeValue, setStatutoryCodeValue] = useState('');
+  const [statutoryCodeSaving, setStatutoryCodeSaving] = useState(false);
+
+  const openConfigureStatutoryCode = (type, clientId, clientName, currentValue = '') => {
+    setStatutoryCodeType(type);
+    setStatutoryClientId(clientId || '');
+    setStatutoryClientName(clientName || '');
+    setStatutoryCodeValue(currentValue || '');
+    setIsStatutoryCodeModalOpen(true);
+  };
+
+  const handleSaveStatutoryCode = async () => {
+    if (!statutoryClientId) {
+      showToast('⚠️ No client identified.', 'error');
+      return;
+    }
+    if (!statutoryCodeValue.trim()) {
+      showToast(`⚠️ Please enter a valid ${statutoryCodeType === 'pf' ? 'PF Establishment Code' : 'ESI Code Number'}.`, 'error');
+      return;
+    }
+
+    setStatutoryCodeSaving(true);
+    try {
+      const payload = { client_id: statutoryClientId };
+      if (statutoryCodeType === 'pf') {
+        payload.pf_establishment_code = statutoryCodeValue.trim();
+      } else {
+        payload.esi_code_number = statutoryCodeValue.trim();
+      }
+
+      const response = await axios.post(route('compliance.client.update_statutory_code'), payload);
+      if (response.data.success) {
+        showToast(`🎉 ${statutoryCodeType === 'pf' ? 'PF Establishment Code' : 'ESI Code Number'} saved for ${statutoryClientName || 'client'}!`);
+        setIsStatutoryCodeModalOpen(false);
+
+        // Instant refresh of the active generator preview
+        if (statutoryCodeType === 'pf') {
+          fetchEcrRuns(monthFilter);
+          if (selectedRunId) {
+            handlePreviewEcr(selectedRunId);
+          }
+        } else {
+          fetchEsiRuns();
+          if (selectedEsiRunId) {
+            handlePreviewEsi(selectedEsiRunId);
+          }
+        }
+      }
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Failed to update statutory code.';
+      showToast(`❌ ${msg}`, 'error');
+    } finally {
+      setStatutoryCodeSaving(false);
+    }
+  };
 
   const fetchEsiRuns = async () => {
     setEsiLoadingRuns(true);
@@ -131,9 +193,10 @@ export default function ComplianceReports() {
       const response = await axios.post(route('compliance.esi_monthly.preview'), {
         payroll_run_id: targetId
       });
+      setEsiPreviewData(response.data);
       setEsiZeroDayEmployees(response.data.zero_day_employees || []);
     } catch (err) {
-      // Non-fatal for the modal; generate() will surface any real error.
+      setEsiPreviewData(null);
     }
   };
 
@@ -866,17 +929,44 @@ export default function ComplianceReports() {
 
             {/* Step 2: Validation Errors Drawer */}
             {previewData && !previewData.success && (
-              <div className="bg-red-50 border border-red-200 border-l-4 border-l-red-600 p-4 rounded-md">
-                <div className="flex items-center gap-2 text-red-800 font-bold text-sm mb-2">
-                  <AlertTriangle className="w-5 h-5 text-red-600" />
+              <div className="bg-red-50 border border-red-200 border-l-4 border-l-red-600 p-4 rounded-md space-y-3">
+                <div className="flex items-center gap-2 text-red-800 font-bold text-sm">
+                  <AlertTriangle className="w-5 h-5 text-red-600 shrink-0" />
                   ECR Generation Blocked — Data Validation Errors Found
                 </div>
-                <p className="text-xs text-red-700 mb-3">The following mandatory EPFO fields are missing or invalid in your payroll/employee setup. Please correct these records before generating the official return:</p>
+                <p className="text-xs text-red-700 mb-2">The following mandatory EPFO fields are missing or invalid in your payroll/employee setup. Please correct these records before generating the official return:</p>
                 <ul className="list-disc pl-5 space-y-1 text-xs text-red-800 max-h-48 overflow-y-auto">
                   {previewData.errors?.map((err, idx) => (
                     <li key={idx}>{err}</li>
                   ))}
                 </ul>
+
+                {(previewData.missing_pf_est_code || previewData.errors?.some(e => e.includes('PF Establishment Code is not configured'))) && (
+                  <div className="mt-3 pt-3 border-t border-red-200 flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded border border-red-300 shadow-sm">
+                    <div>
+                      <div className="text-xs font-bold text-red-900">
+                        Missing PF Establishment Code for {runs.find(r => String(r.id) === String(selectedRunId))?.client_name || previewData.client_name || 'Client'}
+                      </div>
+                      <div className="text-[11px] text-gray-600">Set and store the PF Establishment Code directly from here to unblock ECR generation.</div>
+                    </div>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      className="bg-amber-600 hover:bg-amber-700 font-bold text-xs shrink-0"
+                      onClick={() => {
+                        const currentRun = runs.find(r => String(r.id) === String(selectedRunId));
+                        openConfigureStatutoryCode(
+                          'pf',
+                          previewData.client_id || currentRun?.client_id,
+                          previewData.client_name || currentRun?.client_name,
+                          currentRun?.pf_establishment_code || ''
+                        );
+                      }}
+                    >
+                      ⚡ Set PF Establishment Code
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -899,7 +989,10 @@ export default function ComplianceReports() {
                   </div>
                   <div className="bg-indigo-50 border border-indigo-200 p-3 rounded text-center">
                     <div className="text-xl font-bold text-indigo-900">₹{Number(previewData.summary.total_employee_epf).toLocaleString('en-IN')}</div>
-                    <div className="text-xs font-semibold text-indigo-700 uppercase">Employee EPF (12%)</div>
+                    <div className="text-xs font-semibold text-indigo-700 uppercase">Employee EPF & VPF</div>
+                    <div className="text-[10px] text-blue-800 font-medium mt-0.5">
+                      (EPF 12%: ₹{Number(previewData.summary.total_employee_pf ?? (previewData.summary.total_employee_epf - (previewData.summary.total_vpf || 0))).toLocaleString('en-IN')} + VPF: ₹{Number(previewData.summary.total_vpf || 0).toLocaleString('en-IN')})
+                    </div>
                   </div>
                   <div className="bg-purple-50 border border-purple-200 p-3 rounded text-center">
                     <div className="text-xl font-bold text-purple-900">₹{Number(previewData.summary.total_employer_epf).toLocaleString('en-IN')}</div>
@@ -928,7 +1021,9 @@ export default function ComplianceReports() {
                             <th className="p-2">Employee Name</th>
                             <th className="p-2">UAN</th>
                             <th className="p-2">EPF Wages</th>
-                            <th className="p-2">EE EPF</th>
+                            <th className="p-2">EE PF (12%)</th>
+                            <th className="p-2 text-blue-700">EE VPF</th>
+                            <th className="p-2">EE Remitted (Field 7)</th>
                             <th className="p-2">ER EPF</th>
                             <th className="p-2">EPS</th>
                             <th className="p-2">NCP</th>
@@ -943,6 +1038,8 @@ export default function ComplianceReports() {
                               <td className="p-2 font-semibold text-gray-900">{emp.member_name}</td>
                               <td className="p-2 font-mono text-gray-600">{emp.uan}</td>
                               <td className="p-2">₹{Number(emp.epf_wages).toLocaleString('en-IN')}</td>
+                              <td className="p-2">₹{Number(emp.ee_pf ?? (emp.ee_epf - (emp.vpf || 0))).toLocaleString('en-IN')}</td>
+                              <td className="p-2 font-semibold text-blue-700">₹{Number(emp.vpf || 0).toLocaleString('en-IN')}</td>
                               <td className="p-2 font-semibold text-indigo-700">₹{Number(emp.ee_epf).toLocaleString('en-IN')}</td>
                               <td className="p-2 font-semibold text-purple-700">₹{Number(emp.er_epf).toLocaleString('en-IN')}</td>
                               <td className="p-2">₹{Number(emp.eps_contribution).toLocaleString('en-IN')}</td>
@@ -1209,7 +1306,38 @@ export default function ComplianceReports() {
               </div>
             )}
 
-            {esiError && (
+            {/* Missing ESI Code Warning & Quick-Config Drawer */}
+            {(esiPreviewData?.missing_esi_code || esiError?.includes('ESI Code Number is not configured')) && (
+              <div className="bg-amber-50 border border-amber-300 border-l-4 border-l-amber-500 p-3.5 rounded-md flex flex-wrap items-center justify-between gap-3 shadow-sm">
+                <div className="flex items-start gap-2 text-xs text-amber-900">
+                  <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                  <div>
+                    <div className="font-bold">
+                      ESI Code Number is not configured for {esiRuns.find(r => String(r.id) === String(selectedEsiRunId))?.client_name || esiPreviewData?.client_name || 'Client'}
+                    </div>
+                    <div className="text-[11px] text-amber-800">Configure the 17-digit ESIC employer code directly here to enable file generation.</div>
+                  </div>
+                </div>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  className="bg-amber-600 hover:bg-amber-700 font-bold text-xs shrink-0"
+                  onClick={() => {
+                    const currentRun = esiRuns.find(r => String(r.id) === String(selectedEsiRunId));
+                    openConfigureStatutoryCode(
+                      'esi',
+                      esiPreviewData?.client_id || currentRun?.client_id,
+                      esiPreviewData?.client_name || currentRun?.client_name,
+                      currentRun?.esi_code_number || ''
+                    );
+                  }}
+                >
+                  ⚡ Set ESI Code Number
+                </Button>
+              </div>
+            )}
+
+            {esiError && !esiError.includes('ESI Code Number is not configured') && (
               <div className="bg-red-50 border border-red-200 border-l-4 border-l-red-600 p-4 rounded-md text-xs text-red-800">
                 <div className="flex items-center gap-2 font-bold mb-1">
                   <AlertTriangle className="w-4 h-4 text-red-600" /> Generation Blocked
@@ -2010,6 +2138,63 @@ export default function ComplianceReports() {
                     </tbody>
                   </table>
                 </div>
+              </div>
+            )}
+          </div>
+        </Modal>
+
+        {/* QUICK STATUTORY CODE CONFIGURATION MODAL (PF & ESI) */}
+        <Modal
+          isOpen={isStatutoryCodeModalOpen}
+          onClose={() => setIsStatutoryCodeModalOpen(false)}
+          title={statutoryCodeType === 'pf' ? `Set PF Establishment Code — ${statutoryClientName}` : `Set ESI Code Number — ${statutoryClientName}`}
+          size="md"
+          footer={
+            <div className="flex justify-end gap-2">
+              <Button variant="secondary" onClick={() => setIsStatutoryCodeModalOpen(false)}>Cancel</Button>
+              <Button
+                variant="primary"
+                className="bg-blue-900 hover:bg-blue-800 font-bold"
+                onClick={handleSaveStatutoryCode}
+                disabled={statutoryCodeSaving}
+              >
+                {statutoryCodeSaving ? 'Saving...' : 'Save & Refresh Preview'}
+              </Button>
+            </div>
+          }
+        >
+          <div className="space-y-4 text-xs">
+            <div className="bg-blue-50 border border-blue-200 p-3 rounded text-blue-900">
+              <p className="m-0 font-medium">
+                Setting this code will store it permanently in client records for <strong>{statutoryClientName}</strong> and instantly re-run validation for your active preview.
+              </p>
+            </div>
+
+            {statutoryCodeType === 'pf' ? (
+              <div className="space-y-1">
+                <Input
+                  label="EPFO PF Establishment Code"
+                  value={statutoryCodeValue}
+                  onChange={(e) => setStatutoryCodeValue(e.target.value)}
+                  placeholder="e.g. MH/BAN/1234567/000 or MHBAN1234567000"
+                  required
+                />
+                <p className="text-[11px] text-gray-500 mt-1">
+                  Format: Region (2 letters) / Office (3 letters) / Establishment Code (7 digits) / Extension (3 digits).
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <Input
+                  label="ESIC Employer Code Number (17 digits)"
+                  value={statutoryCodeValue}
+                  onChange={(e) => setStatutoryCodeValue(e.target.value)}
+                  placeholder="e.g. 31000123450000101"
+                  required
+                />
+                <p className="text-[11px] text-gray-500 mt-1">
+                  Format: 17-digit numeric Employer Code issued by Employees' State Insurance Corporation.
+                </p>
               </div>
             )}
           </div>

@@ -17,13 +17,24 @@ class AuthService
         protected AuditService $audit
     ) {}
 
+    public function isTestingMode(): bool
+    {
+        $val = $this->settings->getAuthSecurity('testing_mode_enabled', true);
+        return $val === true || $val === 'true' || $val === 1 || $val === '1';
+    }
+
     public function checkIpThrottle(string $ip): bool
     {
-        if (!$this->settings->getAuthSecurity('ip_throttling_enabled', true)) {
+        if ($this->isTestingMode()) {
             return true;
         }
-        $maxAttempts = $this->settings->getAuthSecurity('max_failed_login_attempts_per_ip', 10);
-        $blockMinutes = $this->settings->getAuthSecurity('ip_block_duration_minutes', 15);
+
+        $maxAttempts = (int) $this->settings->getAuthSecurity('ip_failed_attempts_threshold', 20);
+        if ($maxAttempts <= 0) {
+            return true;
+        }
+
+        $blockMinutes = (int) $this->settings->getAuthSecurity('ip_throttle_duration_minutes', 15);
         
         $attempt = LoginAttempt::firstOrCreate(['ip_address' => $ip]);
         if ($attempt->attempts >= $maxAttempts) {
@@ -88,9 +99,11 @@ class AuthService
             return false;
         }
 
-        $maxAttempts = $this->settings->getAuthSecurity('max_otp_attempts', 3);
-        if ($otp->attempts >= $maxAttempts) {
-            return false; // Code blocked due to too many attempts
+        if (!$this->isTestingMode()) {
+            $maxAttempts = (int) $this->settings->getAuthSecurity('otp_max_attempts', 5);
+            if ($maxAttempts > 0 && $otp->attempts >= $maxAttempts) {
+                return false; // Code blocked due to too many attempts in strict production mode
+            }
         }
 
         $otp->increment('attempts');

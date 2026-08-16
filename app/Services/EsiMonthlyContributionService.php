@@ -69,10 +69,16 @@ class EsiMonthlyContributionService
             }
         }
 
+        $client = $payrollRun->client;
+        $esiCode = trim((string) ($client->esi_code_number ?? ''));
+
         return [
             'success' => true,
             'payroll_run_id' => $payrollRun->id,
-            'client_name' => $payrollRun->client->company_name ?? '',
+            'client_id' => $client->id,
+            'client_name' => $client->company_name ?? '',
+            'esi_code_number' => $esiCode,
+            'missing_esi_code' => empty($esiCode),
             'normal_employee_count' => count($normal),
             'zero_day_employees' => $zeroDays,
         ];
@@ -102,6 +108,13 @@ class EsiMonthlyContributionService
         }
 
         $client = $payrollRun->client;
+        $esiCode = trim((string) ($client->esi_code_number ?? ''));
+        if (empty($esiCode)) {
+            throw ValidationException::withMessages([
+                'esi' => ["ESI Code Number is not configured for client '{$client->company_name}'. Please update client statutory settings."],
+            ]);
+        }
+
         $eligible = $this->eligibleItems($payrollRun);
 
         if ($eligible->isEmpty()) {
@@ -233,7 +246,7 @@ class EsiMonthlyContributionService
     }
 
     /**
-     * Build the .xls workbook (no header row, exactly 6 explicit-Text columns),
+     * Build the .xls workbook (official ESIC header row on Row 1, exactly 6 explicit-Text columns),
      * verify it before it is ever exposed for download, and save it to local storage.
      */
     protected function writeXlsFile($client, PayrollRun $payrollRun, array $rows): string
@@ -241,12 +254,72 @@ class EsiMonthlyContributionService
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
 
-        $rowNum = 1;
+        // Official ESIC Monthly Contribution Excel Header Row
+        $headers = [
+            "IP Number\n(10 Digits)",
+            "IP Name\n( Only alphabets and space )",
+            "No of Days for which wages paid/payable during the month",
+            "Total Monthly Wages",
+            "Reason Code for Zero workings days(numeric only; provide 0 for all other reasons- Click on the link for reference)",
+            "Last Working Day\n( Format DD/MM/YYYY or DD-MM-YYYY)"
+        ];
+
+        // 1. Set Generous Column Widths to prevent header squishing
+        $widths = [
+            'A' => 18, // IP Number (10 Digits)
+            'B' => 32, // IP Name (Only alphabets and space)
+            'C' => 26, // No of Days for which wages paid/payable...
+            'D' => 22, // Total Monthly Wages
+            'E' => 42, // Reason Code for Zero workings days...
+            'F' => 24, // Last Working Day (Format DD/MM/YYYY...)
+        ];
+
+        foreach ($widths as $col => $w) {
+            $sheet->getColumnDimension($col)->setWidth($w);
+        }
+
+        // Set Header Row Height & Header Styling
+        $sheet->getRowDimension(1)->setRowHeight(52);
+
+        // Write Header Row at Row 1
+        for ($col = 0; $col < self::COLUMN_COUNT; $col++) {
+            $colLetter = chr(65 + $col); // A..F
+            $sheet->setCellValueExplicit("{$colLetter}1", $headers[$col], DataType::TYPE_STRING);
+        }
+
+        // Apply Premium ESIC Header Styling
+        $sheet->getStyle('A1:F1')->applyFromArray([
+            'font' => [
+                'bold' => true,
+                'size' => 9,
+                'name' => 'Calibri',
+                'color' => ['rgb' => '1F3864'],
+            ],
+            'alignment' => [
+                'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+                'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
+                'wrapText' => true,
+            ],
+            'fill' => [
+                'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                'startColor' => ['rgb' => 'EBF5FB'], // Light ESIC Cyan Header fill
+            ],
+        ]);
+
+        // 2. Write Data Rows starting from Row 2 with clean alignments
+        $rowNum = 2;
         foreach ($rows as $row) {
+            $sheet->getRowDimension($rowNum)->setRowHeight(20);
             for ($col = 0; $col < self::COLUMN_COUNT; $col++) {
                 $colLetter = chr(65 + $col); // A..F
                 $sheet->setCellValueExplicit("{$colLetter}{$rowNum}", (string) ($row[$col] ?? ''), DataType::TYPE_STRING);
             }
+            $sheet->getStyle("A{$rowNum}")->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("B{$rowNum}")->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_LEFT);
+            $sheet->getStyle("C{$rowNum}")->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("D{$rowNum}")->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
+            $sheet->getStyle("E{$rowNum}")->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("F{$rowNum}")->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
             $rowNum++;
         }
 
@@ -278,13 +351,15 @@ class EsiMonthlyContributionService
 
     /**
      * Re-opens the freshly written .xls and asserts: exactly 6 columns (A-F),
-     * the expected row count, no 7th column, and no formula cells anywhere.
+     * header row on Row 1, data rows from Row 2, no 7th column, and no formula cells.
      */
-    protected function verifyGeneratedFile(string $path, int $expectedRowCount): void
+    protected function verifyGeneratedFile(string $path, int $dataRowCount): void
     {
-        if ($expectedRowCount < 1) {
+        if ($dataRowCount < 1) {
             return;
         }
+
+        $expectedTotalRows = $dataRowCount + 1; // 1 header row + data rows
 
         $check = IOFactory::load($path);
         $sheet = $check->getActiveSheet();
@@ -298,14 +373,14 @@ class EsiMonthlyContributionService
         }
 
         $highestRow = (int) $sheet->getHighestDataRow();
-        if ($highestRow !== $expectedRowCount) {
+        if ($highestRow !== $expectedTotalRows) {
             $check->disconnectWorksheets();
             throw new \RuntimeException(
-                "ESI Monthly Contribution file failed verification: expected {$expectedRowCount} row(s), found {$highestRow}."
+                "ESI Monthly Contribution file failed verification: expected {$expectedTotalRows} row(s) (1 header + {$dataRowCount} data), found {$highestRow}."
             );
         }
 
-        for ($row = 1; $row <= $expectedRowCount; $row++) {
+        for ($row = 1; $row <= $expectedTotalRows; $row++) {
             $cellG = $sheet->getCell("G{$row}", false);
             if ($cellG !== null && $cellG->getValue() !== null && $cellG->getValue() !== '') {
                 $check->disconnectWorksheets();

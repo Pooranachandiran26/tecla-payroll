@@ -121,27 +121,38 @@ class PayrollCorrectionService
 
         $grossTotal = round((float)array_sum($proRatedComponents), 2);
 
+        $clientLimit = (float)($clientModel?->esi_limit ?? SalaryCalculationService::ESI_WAGE_CEILING);
+        $esiCeiling = (bool)$employee->is_disabled 
+            ? max((float)SalaryCalculationService::ESI_DISABILITY_WAGE_CEILING, $clientLimit) 
+            : $clientLimit;
+
         // Derive ESI applicability
         $isEsiActive = (bool)$employee->esi_applicable;
-        if ($isEsiActive && $grossTotal > 21000) {
+        if ($isEsiActive && $grossTotal > $esiCeiling) {
             $isEsiActive = false; // Gross ceiling
         }
 
         $employeeData = array_merge($proRatedComponents, [
             'client_id' => $employee->client_id,
+            'is_disabled' => (bool)$employee->is_disabled,
             'pf_applicable' => (bool)$employee->pf_applicable,
             'eps_applicable' => (bool)$employee->eps_applicable,
             'employee_pf_wage_basis' => $employee->employee_pf_wage_basis,
             'employer_pf_wage_basis' => $employee->employer_pf_wage_basis,
+            'vpf_enabled' => (bool)$employee->vpf_enabled,
+            'vpf_type' => $employee->vpf_type,
+            'vpf_value' => (float)$employee->vpf_value,
             'date_of_birth' => $employee->date_of_birth,
             'esi_applicable' => $isEsiActive,
-            'esi_limit' => $grossTotal > 21000 ? 99999999.00 : 21000.00,
+            'esi_limit' => $grossTotal > $esiCeiling ? 99999999.00 : $esiCeiling,
             'pt_applicable' => false,
             'pt_deduction_override' => 0.00,
         ]);
 
         $calc = $this->salaryService->calculateStructuralSalary($employeeData);
         $employeePf = (float)$calc['employee_pf_monthly'];
+        $employeeVpf = (float)($calc['employee_vpf_monthly'] ?? 0.00);
+        $totalEmployeePf = (float)($calc['total_employee_pf_monthly'] ?? ($employeePf + $employeeVpf));
         $employeeEsi = (float)$calc['employee_esi_monthly'];
         $employerPf = (float)$calc['employer_pf_monthly'];
         $employerEpf = (float)$calc['employer_epf_monthly'];
@@ -217,7 +228,8 @@ class PayrollCorrectionService
         // Loan EMI Calculation
         $loanEmiDeduction = $employee->activeLoansEmiSumForMonth($parentRun->payroll_month);
 
-        $statutoryAndTaxDeductions = $employeePf + $employeeEsi + $pt + $lwfDeduction + $tdsDeduction;
+        $shortfallPt = (float)($originalItem->pt_shortfall_recovery ?? 0.00);
+        $statutoryAndTaxDeductions = $totalEmployeePf + $employeeEsi + $pt + $shortfallPt + $lwfDeduction + $tdsDeduction;
         $totalDeductions = $statutoryAndTaxDeductions + $loanEmiDeduction;
         $capLimit = 0.5 * $grossTotal;
 
@@ -249,8 +261,10 @@ class PayrollCorrectionService
             'other_additions' => $proRatedComponents['other_additions'],
             'gross_total' => $grossTotal,
             'employee_pf' => $employeePf,
+            'employee_vpf' => $employeeVpf,
             'employee_esi' => $employeeEsi,
             'professional_tax' => $pt,
+            'pt_shortfall_recovery' => $shortfallPt,
             'lwf_deduction' => $lwfDeduction,
             'lop_deduction' => $lopDeduction,
             'tds_deduction' => $tdsDeduction,
@@ -609,7 +623,7 @@ class PayrollCorrectionService
         $numericFields = [
             'paid_days', 'lop_days', 'basic_pay', 'hra', 'conveyance', 'da',
             'medical_allowance', 'special_allowance', 'other_additions',
-            'gross_total', 'employee_pf', 'employee_esi', 'professional_tax',
+            'gross_total', 'employee_pf', 'employee_vpf', 'employee_esi', 'professional_tax', 'pt_shortfall_recovery',
             'lwf_deduction', 'lop_deduction', 'tds_deduction', 'loan_emi_deduction',
             'net_pay', 'employer_pf', 'employer_esi', 'employer_lwf'
         ];
@@ -729,6 +743,7 @@ class PayrollCorrectionService
                 'other_additions' => $delta['other_additions'],
                 'gross_total' => $delta['gross_total'],
                 'employee_pf' => $delta['employee_pf'],
+                'employee_vpf' => $delta['employee_vpf'] ?? 0.00,
                 'employee_esi' => $delta['employee_esi'],
                 'professional_tax' => $delta['professional_tax'],
                 'lwf_deduction' => $delta['lwf_deduction'],

@@ -195,6 +195,50 @@ class ComplianceController extends Controller
         return back()->with('success', strtoupper($request->statute) . ' filing status updated successfully.');
     }
 
+    /**
+     * Quick-update PF Establishment Code or ESI Code Number directly from compliance modals.
+     */
+    public function updateClientStatutoryCode(Request $request)
+    {
+        $request->validate([
+            'client_id' => 'required|exists:clients,id',
+            'pf_establishment_code' => 'nullable|string|max:100',
+            'esi_code_number' => 'nullable|string|max:100',
+        ]);
+
+        $user = $request->user();
+        $client = Client::findOrFail($request->client_id);
+
+        if ($user && $user->role === 'manager' && !$user->isManagerForClient($client->id)) {
+            abort(403, 'Unauthorized to update client statutory code.');
+        }
+
+        $dataToUpdate = [];
+        if ($request->has('pf_establishment_code')) {
+            $code = trim((string)$request->pf_establishment_code);
+            $dataToUpdate['pf_establishment_code'] = $code !== '' ? $code : null;
+        }
+        if ($request->has('esi_code_number')) {
+            $code = trim((string)$request->esi_code_number);
+            $dataToUpdate['esi_code_number'] = $code !== '' ? $code : null;
+        }
+
+        if (!empty($dataToUpdate)) {
+            $client->update($dataToUpdate);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Client statutory code updated successfully.',
+            'client' => [
+                'id' => $client->id,
+                'name' => $client->company_name,
+                'pf_establishment_code' => $client->pf_establishment_code,
+                'esi_code_number' => $client->esi_code_number,
+            ]
+        ]);
+    }
+
     public function showClientDetails(Request $request, $clientId)
     {
         $user = $request->user();
@@ -265,8 +309,8 @@ class ComplianceController extends Controller
                 'code'     => $client->client_code,
                 'status'   => $client->status,
                 'headcount'=> $client->employees->count(),
-                'pf_code'  => $client->pf_establishment_code ?? 'Not Configured',
-                'esi_code' => $client->esi_establishment_code ?? 'Not Configured',
+                'pf_code'  => $client->pf_establishment_code ?: 'Not Configured',
+                'esi_code' => $client->esi_establishment_code ?: ($client->esi_code_number ?: 'Not Configured'),
                 'pan'      => $client->pan_number ?? 'N/A',
                 'tan'      => $client->tan_number ?? 'N/A',
                 'gstin'    => $client->gstin ?? 'N/A',

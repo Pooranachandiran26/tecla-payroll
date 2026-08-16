@@ -832,6 +832,24 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
     }
 
     if (stepNum === 2) {
+      if (formData.country === 'India' && formData.gstin && formData.regState && GST_STATE_CODES[formData.regState]) {
+        const expectedCode = GST_STATE_CODES[formData.regState];
+        const gstinClean = (formData.gstin || '').trim().toUpperCase();
+        if (gstinClean.length >= 2) {
+          const actualCode = gstinClean.substring(0, 2);
+          if (actualCode !== expectedCode) {
+            const expectedStateName = Object.keys(GST_STATE_CODES).find(k => GST_STATE_CODES[k] === actualCode) || actualCode;
+            newErrors.regState = {
+              msg: `Selected State (${formData.regState} - Code ${expectedCode}) does not match GSTIN state code (${actualCode} - ${expectedStateName}).`,
+              type: 'error'
+            };
+            isValid = false;
+            if (!missingLabels.includes('State matches GSTIN')) {
+              missingLabels.push(`State matches GSTIN (${expectedStateName})`);
+            }
+          }
+        }
+      }
       if (formData.workLocationsCount > 1 && !checkAllBranchesGSTIN()) {
         isValid = false;
         missingLabels.push('Valid Branch GSTINs');
@@ -1037,6 +1055,8 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
       gratuityMode: formData.gratuityMode,
       gratuityApplicable: formData.gratuityApplicable,
       bonusPct: parseFloat(formData.bonusPct || '8.33'),
+      bonusType: formData.bonusType || 'ctc_accrual',
+      statutoryBonusType: formData.bonusType || 'ctc_accrual',
       bonusApplicable: formData.bonusApplicable,
       bonusRate: parseFloat(formData.bonusPct || '8.33'),
       statutoryBonusApplicable: formData.bonusApplicable,
@@ -1153,6 +1173,22 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
         if (field === 'gst_registration_type') branchField = 'gstType';
 
         mappedKey = `branches.${index}.${branchField}`;
+
+        // Map primary branch error to registered office fields so user immediately sees error
+        if (index === 0) {
+          if (branchField === 'gstin') {
+            mapped['regState'] = { msg: msgText, type: 'error' };
+            mapped['gstin'] = { msg: msgText, type: 'error' };
+          } else if (branchField === 'state') {
+            mapped['regState'] = { msg: msgText, type: 'error' };
+          } else if (branchField === 'pin') {
+            mapped['regPin'] = { msg: msgText, type: 'error' };
+          } else if (branchField === 'addr1') {
+            mapped['regAddressLine1'] = { msg: msgText, type: 'error' };
+          } else if (branchField === 'city') {
+            mapped['regCity'] = { msg: msgText, type: 'error' };
+          }
+        }
       }
       const rawVal = laravelErrors[key];
       const msgText = Array.isArray(rawVal) ? rawVal[0] : (typeof rawVal === 'object' && rawVal?.msg ? rawVal.msg : String(rawVal));
@@ -1224,6 +1260,10 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
       // Jump to first error step & apply jQuery field validation
       if (Object.keys(mapped).length > 0) {
         const firstErrorKey = Object.keys(mapped)[0];
+        const firstErrorObj = mapped[firstErrorKey];
+        const firstErrorMsg = firstErrorObj?.msg || (typeof firstErrorObj === 'string' ? firstErrorObj : 'Please check required fields.');
+        showToast(`⚠️ ${firstErrorMsg}`);
+
         const step = getStepForField(firstErrorKey);
         setCurrentStep(step);
         setTimeout(() => {
@@ -1342,8 +1382,9 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
         const map = { payable_on_separation: 'over_ctc', over_and_above: 'over_ctc', not_applicable: 'na' };
         return map[m] || m || 'ctc_included';
       })(client.default_gratuity_mode),
-      gratuityApplicable: true, // Not in DB, default true
+      gratuityApplicable: client.gratuity_applicable !== undefined && client.gratuity_applicable !== null ? Boolean(client.gratuity_applicable) : (client.gratuityApplicable !== undefined && client.gratuityApplicable !== null ? Boolean(client.gratuityApplicable) : true),
       bonusPct: client.bonus_rate_percentage || 8.33,
+      bonusType: client.statutory_bonus_type || 'ctc_accrual',
       bonusApplicable: client.statutory_bonus_applicable !== undefined ? client.statutory_bonus_applicable : false,
       healthInsuranceEnabled: client.health_insurance_enabled !== undefined ? Boolean(client.health_insurance_enabled) : true,
       weeklyOffPattern: client.weekly_off_pattern || client.weeklyOffPattern || 'sat,sun',

@@ -189,7 +189,18 @@ class ClientController extends Controller
             $validated = $request->validated();
             $clientData = collect($validated)->except(['contacts', 'branches', 'documents', 'work_locations_count'])->toArray();
             
+            $user = $request->user();
+            if ($user && $user->isManager()) {
+                if (empty($clientData['account_manager_id'])) {
+                    $clientData['account_manager_id'] = $user->id;
+                }
+            }
+
             $client = Client::create($clientData);
+
+            if ($user && $user->isManager()) {
+                $user->managedClients()->syncWithoutDetaching([$client->id]);
+            }
 
             if (!empty($validated['contacts'])) {
                 foreach ($validated['contacts'] as $contactData) {
@@ -451,6 +462,7 @@ class ClientController extends Controller
         if ($request->has('pt_state') && $request->pt_state !== $client->pt_state) $statutoryFieldsChanged = true;
         if ($request->has('default_gratuity_mode') && $request->default_gratuity_mode !== $client->default_gratuity_mode) $statutoryFieldsChanged = true;
         if ($request->has('statutory_bonus_applicable') && (bool)$request->statutory_bonus_applicable !== (bool)$client->statutory_bonus_applicable) $statutoryFieldsChanged = true;
+        if ($request->has('statutory_bonus_type') && $request->statutory_bonus_type !== $client->statutory_bonus_type) $statutoryFieldsChanged = true;
 
         if ($statutoryFieldsChanged) {
             if (app()->runningUnitTests()) {
@@ -739,6 +751,8 @@ class ClientController extends Controller
             'gratuityMode' => $client->default_gratuity_mode,
             'gratuityApplicable' => (bool)$client->gratuity_applicable,
             'statutoryBonusApplicable' => (bool)$client->statutory_bonus_applicable,
+            'statutoryBonusType' => $client->statutory_bonus_type ?? 'ctc_accrual',
+            'statutory_bonus_type' => $client->statutory_bonus_type ?? 'ctc_accrual',
             'bonusRatePercentage' => $client->bonus_rate_percentage,
             'ptApplicable' => !empty($client->pt_state),
             'ptState' => $client->pt_state,

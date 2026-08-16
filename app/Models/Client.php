@@ -225,15 +225,30 @@ class Client extends Model
         }
 
         $month = \Carbon\Carbon::parse($payrollMonth)->startOfDay();
-        $target = $month->copy()->addMonth();
+        $val = (string) $this->payroll_lock_day;
 
-        $day = (int) $this->payroll_lock_day;
-        $clampedDay = min($day, $target->daysInMonth);
+        if (str_contains($val, 'current')) {
+            if ($val === 'eom_current' || $val === 'eom') {
+                return $month->endOfMonth()->format('M j, Y');
+            }
+            $day = (int) filter_var($val, FILTER_SANITIZE_NUMBER_INT);
+            $clampedDay = min($day ?: 28, $month->daysInMonth);
+            return $month->copy()->day($clampedDay)->format('M j, Y');
+        }
+
+        // Next month
+        $target = $month->copy()->addMonth();
+        if ($val === 'eom' || $val === 'eom_next') {
+            return $target->endOfMonth()->format('M j, Y');
+        }
+
+        $day = (int) filter_var($val, FILTER_SANITIZE_NUMBER_INT);
+        $clampedDay = min($day ?: 3, $target->daysInMonth);
         return $target->day($clampedDay)->format('M j, Y');
     }
 
     /**
-     * Compute target salary credit date (Day of next calendar month).
+     * Compute target salary credit date (Day of current or next calendar month).
      *
      * @param string $payrollMonth
      * @return string|null
@@ -245,14 +260,25 @@ class Client extends Model
         }
 
         $month = \Carbon\Carbon::parse($payrollMonth)->startOfDay();
-        $target = $month->copy()->addMonth();
+        $val = (string) $this->salary_credit_day;
 
-        if ($this->salary_credit_day === 'eom') {
+        if (str_contains($val, 'current')) {
+            if ($val === 'eom_current' || $val === 'eom') {
+                return $month->endOfMonth()->format('M j, Y');
+            }
+            $day = (int) filter_var($val, FILTER_SANITIZE_NUMBER_INT);
+            $clampedDay = min($day ?: 30, $month->daysInMonth);
+            return $month->copy()->day($clampedDay)->format('M j, Y');
+        }
+
+        // Next month
+        $target = $month->copy()->addMonth();
+        if ($val === 'eom' || $val === 'eom_next') {
             return $target->endOfMonth()->format('M j, Y');
         }
 
-        $day = (int) $this->salary_credit_day;
-        $clampedDay = min($day, $target->daysInMonth);
+        $day = (int) filter_var($val, FILTER_SANITIZE_NUMBER_INT);
+        $clampedDay = min($day ?: 7, $target->daysInMonth);
         return $target->day($clampedDay)->format('M j, Y');
     }
 

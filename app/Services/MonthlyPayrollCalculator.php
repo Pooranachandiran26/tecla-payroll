@@ -60,8 +60,8 @@ class MonthlyPayrollCalculator
             $attendanceSource = empty($sources) ? 'live_punch' : (count(array_unique($sources)) === 1 ? reset($sources) : 'mixed');
         } else {
             $attendance = $this->attendanceService->resolveForEmployee($employee, $monthStartStr, $monthEndStr);
-            $paidDays = $attendance['paid_days'];
-            $lopDays = $attendance['lop_days'];
+            $paidDays = array_key_exists('paid_days', $overrides) ? (float)$overrides['paid_days'] : $attendance['paid_days'];
+            $lopDays = array_key_exists('lop_days', $overrides) ? (float)$overrides['lop_days'] : $attendance['lop_days'];
             $attendanceSource = $attendance['attendance_source'];
         }
 
@@ -160,23 +160,34 @@ class MonthlyPayrollCalculator
         // Determine dynamic ESI applicability based on transition rules
         $isEsiActive = $this->isEsiApplicableForMonth($employee, $payrollRun, $grossTotal);
 
+        $clientLimit = (float)($employee->client?->esi_limit ?? SalaryCalculationService::ESI_WAGE_CEILING);
+        $esiCeiling = (bool)$employee->is_disabled 
+            ? max((float)SalaryCalculationService::ESI_DISABILITY_WAGE_CEILING, $clientLimit) 
+            : $clientLimit;
+
         // Build structural array and invoke SalaryCalculationService
         $employeeData = array_merge($proRatedComponents, [
             'client_id' => $employee->client_id,
+            'is_disabled' => (bool)$employee->is_disabled,
             'date_of_birth' => $employee->date_of_birth,
             'payroll_month' => $payrollRun->payroll_month,
             'pf_applicable' => (bool)$employee->pf_applicable,
             'eps_applicable' => (bool)$employee->eps_applicable,
             'employee_pf_wage_basis' => $employee->employee_pf_wage_basis,
             'employer_pf_wage_basis' => $employee->employer_pf_wage_basis,
+            'vpf_enabled' => (bool)$employee->vpf_enabled,
+            'vpf_type' => $employee->vpf_type,
+            'vpf_value' => (float)$employee->vpf_value,
             'esi_applicable' => $isEsiActive,
-            'esi_limit' => ($isEsiActive && $grossTotal > 21000) ? 99999999.00 : 21000.00,
+            'esi_limit' => ($isEsiActive && $grossTotal > $esiCeiling) ? 99999999.00 : $esiCeiling,
             'pt_applicable' => false, // We handle PT calculation separately below
             'pt_deduction_override' => 0.00,
         ]);
 
         $calc = $this->salaryService->calculateStructuralSalary($employeeData);
         $employeePf = (float)$calc['employee_pf_monthly'];
+        $employeeVpf = (float)($calc['employee_vpf_monthly'] ?? 0.00);
+        $totalEmployeePf = (float)($calc['total_employee_pf_monthly'] ?? ($employeePf + $employeeVpf));
         $employeeEsi = (float)$calc['employee_esi_monthly'];
         $employerPf = (float)$calc['employer_pf_monthly'];
         $employerEpf = (float)$calc['employer_epf_monthly'];
@@ -243,6 +254,22 @@ class MonthlyPayrollCalculator
             }
         }
 
+        // 1b. PT Shortfall Recovery — sync approved F&F shortfall into exit month payroll run
+        $ptShortfall = 0.00;
+        $exitRecord = DB::table('employee_exits')
+            ->where('employee_id', $employee->id)
+            ->whereIn('settlement_status', ['approved', 'pending_approval'])
+            ->latest('id')
+            ->first();
+
+        if ($exitRecord && !empty($exitRecord->last_working_day)) {
+            $lwdMonth = Carbon::parse($exitRecord->last_working_day)->format('Y-m');
+            $runMonth = Carbon::parse($payrollRun->payroll_month)->format('Y-m');
+            if ($lwdMonth === $runMonth) {
+                $ptShortfall = (float)($exitRecord->pt_shortfall_recovery ?? 0.00);
+            }
+        }
+
         // 2. LWF Calculation — respect employee lwf_applicable toggle
         $lwfDeduction = 0.00;
         $employerLwf = 0.00;
@@ -294,7 +321,7 @@ class MonthlyPayrollCalculator
         }
 
         // f. Apply the 50%-deduction cap
-        $statutoryAndTaxDeductions = $employeePf + $employeeEsi + $pt + $lwfDeduction + $tdsDeduction;
+        $statutoryAndTaxDeductions = $totalEmployeePf + $employeeEsi + $pt + $ptShortfall + $lwfDeduction + $tdsDeduction;
         $totalDeductions = $statutoryAndTaxDeductions + $loanEmiDeduction;
         $capLimit = 0.5 * $grossTotal;
 
@@ -355,8 +382,10 @@ class MonthlyPayrollCalculator
             'other_additions' => $proRatedComponents['other_additions'],
             'gross_total' => $grossTotal,
             'employee_pf' => $employeePf,
+            'employee_vpf' => $employeeVpf,
             'employee_esi' => $employeeEsi,
             'professional_tax' => $pt,
+            'pt_shortfall_recovery' => $ptShortfall,
             'lwf_deduction' => $lwfDeduction,
             'lop_deduction' => $lopDeduction,
             'tds_deduction' => $tdsDeduction,
@@ -385,8 +414,11 @@ class MonthlyPayrollCalculator
             'lop_days' => $lopDays,
             'gross_total' => $grossTotal,
             'employee_pf' => $employeePf,
+            'employee_vpf' => $employeeVpf,
+            'total_employee_pf' => $totalEmployeePf,
             'employee_esi' => $employeeEsi,
             'professional_tax' => $pt,
+            'pt_shortfall_recovery' => $ptShortfall,
             'lwf_deduction' => $lwfDeduction,
             'lop_deduction' => $lopDeduction,
             'tds_deduction' => $tdsDeduction,
@@ -410,6 +442,11 @@ class MonthlyPayrollCalculator
             return false;
         }
 
+        $clientLimit = (float)($employee->client?->esi_limit ?? SalaryCalculationService::ESI_WAGE_CEILING);
+        $esiCeiling = (bool)$employee->is_disabled 
+            ? max((float)SalaryCalculationService::ESI_DISABILITY_WAGE_CEILING, $clientLimit) 
+            : $clientLimit;
+
         $currentDate = Carbon::parse($payrollRun->payroll_month)->startOfDay();
         [$periodStart, $periodEnd] = $this->getEsiPeriod($currentDate);
 
@@ -425,7 +462,7 @@ class MonthlyPayrollCalculator
         $startMonthStr = $periodStart->toDateString();
         
         if ($currentDate->toDateString() === $startMonthStr) {
-            if ($grossTotal <= 21000) {
+            if ($grossTotal <= $esiCeiling) {
                 return true;
             }
             return false;
@@ -456,8 +493,8 @@ class MonthlyPayrollCalculator
                 // If there's no prior payroll history in the current contribution period:
                 $doj = Carbon::parse($employee->date_of_joining)->startOfDay();
                 if ($doj->greaterThanOrEqualTo($periodStart)) {
-                    // Genuinely NEW employee joining mid-period: ESI active ONLY if initial gross <= 21,000
-                    $wasEsiActiveAtStart = ($grossTotal <= 21000);
+                    // Genuinely NEW employee joining mid-period: ESI active ONLY if initial gross <= ceiling
+                    $wasEsiActiveAtStart = ($grossTotal <= $esiCeiling);
                 } else {
                     // Existing employee who joined in a prior period with ESI enabled:
                     // They entered ESI active in a prior period and crossed threshold
@@ -467,7 +504,7 @@ class MonthlyPayrollCalculator
         }
 
         if ($wasEsiActiveAtStart) {
-            if ($grossTotal <= 21000) {
+            if ($grossTotal <= $esiCeiling) {
                 return true;
             } else {
                 // First time crossing mid-period! Persist the crossing month.

@@ -10,9 +10,14 @@ class SalaryCalculationService
     public const PF_WAGE_CEILING = 15000;
 
     /**
-     * The statutory ceiling for ESI calculation.
+     * The statutory ceiling for ESI calculation for standard employees.
      */
     public const ESI_WAGE_CEILING = 21000;
+
+    /**
+     * The statutory ceiling for ESI calculation for Persons with Benchmark Disabilities (PwD).
+     */
+    public const ESI_DISABILITY_WAGE_CEILING = 25000;
 
     /**
      * The statutory ceiling for EPS calculation.
@@ -60,6 +65,7 @@ class SalaryCalculationService
         $epfAdmin = 0.00;
         $employerPf = 0.00;
         $employeePf = 0.00;
+        $employeeVpf = 0.00;
 
         if (data_get($employeeData, 'pf_applicable', true)) {
             $pfCeiling = (float) data_get($employeeData, 'pf_ceiling', $client->pf_ceiling ?? self::PF_WAGE_CEILING);
@@ -109,12 +115,32 @@ class SalaryCalculationService
                 $employerEps = 0.00;
                 $employerEpf = round($employerEpfTotal, 2);
             }
+
+            // Voluntary Provident Fund (VPF) — 100% Employee-Side Only (EPF Scheme 1952, Para 29)
+            // Calculated ALWAYS on actual Basic+DA regardless of mandatory EPF wage basis (ceiling vs actual)
+            $vpfEnabled = filter_var(data_get($employeeData, 'vpf_enabled', false), FILTER_VALIDATE_BOOLEAN);
+            if ($vpfEnabled) {
+                $vpfType = data_get($employeeData, 'vpf_type', 'percentage');
+                $vpfValue = (float) data_get($employeeData, 'vpf_value', 0);
+
+                if ($vpfType === 'percentage' && $vpfValue > 0) {
+                    $vpfRate = min(88.0, $vpfValue); // Capped at 88% so mandatory 12% + VPF <= 100% of Basic+DA
+                    $employeeVpf = round($basicDa * ($vpfRate / 100), 2);
+                } elseif ($vpfType === 'fixed_amount' && $vpfValue > 0) {
+                    $maxVpf = max(0.00, $basicDa - $employeePf);
+                    $employeeVpf = round(min($vpfValue, $maxVpf), 2);
+                }
+            }
         }
 
         // 3. Calculate ESI
         $employerEsi = 0;
         $employeeEsi = 0;
-        $esiLimit = (float) data_get($employeeData, 'esi_limit', self::ESI_WAGE_CEILING);
+        $isDisabled = filter_var(data_get($employeeData, 'is_disabled', false), FILTER_VALIDATE_BOOLEAN);
+        $clientEsiLimit = $client ? (float)($client->esi_limit ?? self::ESI_WAGE_CEILING) : self::ESI_WAGE_CEILING;
+        $effectiveDefaultCeiling = $isDisabled ? max((float)self::ESI_DISABILITY_WAGE_CEILING, $clientEsiLimit) : $clientEsiLimit;
+
+        $esiLimit = (float) data_get($employeeData, 'esi_limit', $effectiveDefaultCeiling);
         if (data_get($employeeData, 'esi_applicable', true) && $gross <= $esiLimit) {
             $employeeEsi = $gross * 0.0075; // 0.75%
             $employerEsi = $gross * 0.0325; // 3.25%
@@ -180,6 +206,7 @@ class SalaryCalculationService
         $bonusAccrual = 0.00;
         $bonusApplicable = $client ? (bool)($client->statutory_bonus_applicable ?? false) : (bool)data_get($employeeData, 'statutory_bonus_applicable', false);
         $bonusPct = $client ? (float)($client->bonus_rate_percentage ?? $client->statutory_bonus_percentage ?? 8.33) : (float)data_get($employeeData, 'statutory_bonus_percentage', 8.33);
+        $bonusType = $client ? ($client->statutory_bonus_type ?? 'ctc_accrual') : data_get($employeeData, 'statutory_bonus_type', 'ctc_accrual');
 
         if ($bonusApplicable && $basic <= 21000.00) {
             $stateMinWage = (float)data_get($employeeData, 'state_minimum_wage', 0);
@@ -188,12 +215,21 @@ class SalaryCalculationService
             $bonusAccrual = $bonusBase * ($bonusPct / 100);
         }
 
-        // 7. Net Take Home
-        // Deductions: PF + ESI + PT
-        $netTakeHome = $gross - ($employeePf + $employeeEsi + $pt);
+        // If statutory_bonus_type is 'part_of_gross', statutory bonus is included in Monthly Gross Pay!
+        $statutoryBonusMonthly = 0.00;
+        if ($bonusType === 'part_of_gross') {
+            $statutoryBonusMonthly = round($bonusAccrual, 2);
+            $gross += $statutoryBonusMonthly;
+        }
 
-        // 8. CTC = Gross + Employer PF + Employer ESI + Gratuity Accrual + Statutory Bonus Accrual
-        $ctc = $gross + $employerPf + $employerEsi + $gratuityAccrual + $bonusAccrual;
+        // 7. Net Take Home
+        // Deductions: PF (Mandatory EPF + Voluntary VPF) + ESI + PT
+        $totalEmployeePf = $employeePf + $employeeVpf;
+        $netTakeHome = $gross - ($totalEmployeePf + $employeeEsi + $pt);
+
+        // 8. CTC = Gross + Employer PF + Employer ESI + Gratuity Accrual + (if ctc_accrual ? Statutory Bonus Accrual : 0)
+        $ctcBonusContribution = ($bonusType === 'part_of_gross') ? 0.00 : $bonusAccrual;
+        $ctc = $gross + $employerPf + $employerEsi + $gratuityAccrual + $ctcBonusContribution;
 
         return [
             'gross_monthly_salary' => round($gross, 2),
@@ -205,10 +241,14 @@ class SalaryCalculationService
             'employer_esi_monthly' => round($employerEsi, 2),
             'gratuity_accrual_monthly' => round($gratuityAccrual, 2),
             'bonus_accrual_monthly' => round($bonusAccrual, 2),
+            'statutory_bonus_monthly' => round($statutoryBonusMonthly, 2),
+            'statutory_bonus_type' => $bonusType,
             'net_take_home_monthly' => round($netTakeHome, 2),
             'ctc_monthly' => round($ctc, 2),
             // Including employee deductions to allow full UI breakdown
             'employee_pf_monthly' => round($employeePf, 2),
+            'employee_vpf_monthly' => round($employeeVpf, 2),
+            'total_employee_pf_monthly' => round($totalEmployeePf, 2),
             'employee_esi_monthly' => round($employeeEsi, 2),
             'pt_monthly' => round($pt, 2),
         ];

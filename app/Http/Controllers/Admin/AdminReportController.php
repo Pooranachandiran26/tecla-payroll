@@ -380,7 +380,7 @@ class AdminReportController extends Controller
             ],
             'statutory_summary' => [
                 'total_rows'       => $allRows->count(),
-                'total_emp_stat'   => round($allRows->sum('employee_pf') + $allRows->sum('employee_esi') + $allRows->sum('professional_tax') + $allRows->sum('lwf_deduction') + $allRows->sum('tds_deduction'), 2),
+                'total_emp_stat'   => round($allRows->sum('employee_pf') + $allRows->sum('employee_vpf') + $allRows->sum('employee_esi') + $allRows->sum('professional_tax') + $allRows->sum('lwf_deduction') + $allRows->sum('tds_deduction'), 2),
                 'total_er_stat'    => round($allRows->sum('employer_pf') + $allRows->sum('employer_esi') + $allRows->sum('employer_lwf'), 2),
                 'total_liability'  => round($allRows->sum('total_statutory_liability'), 2),
             ],

@@ -141,10 +141,12 @@ class BulkUploadController extends Controller
 
         $headers = [
             'employee_code', 'full_name', 'client_code', 'branch_name', 'personal_email', 'phone_number',
-            'date_of_birth', 'date_of_joining', 'designation', 'employment_model', 'prior_employment_flag',
+            'date_of_birth', 'date_of_joining', 'designation', 'employment_model', 'is_disabled', 'disability_type',
+            'disability_percentage', 'udid_card_number', 'prior_employment_flag',
             'residential_address', 'bank_account_number', 'bank_ifsc', 'bank_name', 'bank_branch',
             'account_holder_name', 'pan_number', 'basic_pay', 'hra', 'conveyance', 'da',
             'medical_allowance', 'special_allowance', 'other_additions', 'pf_applicable', 'eps_applicable',
+            'vpf_enabled', 'vpf_type', 'vpf_value',
             'esi_applicable', 'pt_applicable', 'lwf_applicable', 'tds_applicable', 'uan_mode',
             'uan_number', 'esi_mode', 'esic_number', 'tds_regime', 'gratuity_mode', 'lop_basis_days',
             'declarations_accepted', 'reporting_manager_code'
@@ -173,6 +175,10 @@ class BulkUploadController extends Controller
             'date_of_joining' => '2023-01-01',
             'designation' => 'Software Engineer',
             'employment_model' => ($client->contract_type === 'agency') ? 'agency_contract' : 'eor',
+            'is_disabled' => '0',
+            'disability_type' => '',
+            'disability_percentage' => '',
+            'udid_card_number' => '',
             'prior_employment_flag' => '0',
             'residential_address' => '123 Tech Park, City',
             'bank_account_number' => '123456789012',
@@ -190,6 +196,9 @@ class BulkUploadController extends Controller
             'other_additions' => '0',
             'pf_applicable' => '1',
             'eps_applicable' => '1',
+            'vpf_enabled' => '0',
+            'vpf_type' => 'percentage',
+            'vpf_value' => '0',
             'esi_applicable' => '0',
             'pt_applicable' => '1',
             'lwf_applicable' => '0',
@@ -291,9 +300,15 @@ class BulkUploadController extends Controller
         ]);
         $writer->addRow([
             'Category' => '3. Statutory Rules',
+            'Field' => 'Voluntary Provident Fund (VPF)',
+            'Configured Value' => 'Employee-Elected (Para 29)',
+            'Instructions / Notes' => '100% Employee-Side voluntary deduction calculated on actual Basic+DA (up to 88% or remaining Basic+DA). Employer statutory costs remain completely unaffected.'
+        ]);
+        $writer->addRow([
+            'Category' => '3. Statutory Rules',
             'Field' => 'ESI Applicability',
             'Configured Value' => $client->esi_applicable ? '1 (YES) — Active' : '0 (NO) — Inactive',
-            'Instructions / Notes' => '0.75% Employee + 3.25% Employer contribution on Gross Salary <= ₹21,000.'
+            'Instructions / Notes' => '0.75% Employee + 3.25% Employer contribution on Gross Salary <= ₹21,000 (Statutorily elevated to ₹25,000 for Persons with Benchmark Disabilities under RPwD Act 2016 when is_disabled = 1).'
         ]);
         $writer->addRow([
             'Category' => '3. Statutory Rules',
@@ -363,10 +378,52 @@ class BulkUploadController extends Controller
             'Rules & Guidance' => 'Official start date of employment.'
         ]);
         $writer->addRow([
-            'Column Header' => 'pan_number',
+            'Column Header' => 'designation',
             'Required?' => 'Mandatory',
-            'Format / Example' => 'ABCDE1234F',
-            'Rules & Guidance' => '10-character alphanumeric PAN format.'
+            'Format / Example' => 'Software Engineer / Executive',
+            'Rules & Guidance' => 'Official job designation/title.'
+        ]);
+        $writer->addRow([
+            'Column Header' => 'employment_model',
+            'Required?' => 'Mandatory',
+            'Format / Example' => 'eor / agency_contract',
+            'Rules & Guidance' => 'Must match client contract type (eor for Pass-through EOR, agency_contract for Agency).'
+        ]);
+        $writer->addRow([
+            'Column Header' => 'is_disabled',
+            'Required?' => 'Optional',
+            'Format / Example' => '1 (Yes) or 0 (No)',
+            'Rules & Guidance' => 'Person with Disability (PwD) flag. When set to 1, the statutory ESI wage ceiling is automatically elevated from ₹21,000 to ₹25,000 per month under the RPwD Act.'
+        ]);
+        $writer->addRow([
+            'Column Header' => 'disability_type',
+            'Required?' => 'Optional / Conditional',
+            'Format / Example' => 'locomotor / visual / hearing / speech_and_language / intellectual / mental_illness / multiple / other',
+            'Rules & Guidance' => 'Category of disability recognized under the Rights of Persons with Disabilities Act, 2016.'
+        ]);
+        $writer->addRow([
+            'Column Header' => 'disability_percentage',
+            'Required?' => 'Optional / Conditional (>= 40)',
+            'Format / Example' => '40 / 50 / 75 (Integer between 40 and 100)',
+            'Rules & Guidance' => 'Certified disability percentage. Under Section 2(r) of the RPwD Act 2016, benchmark disability requires >= 40%. Any percentage below 40 will be rejected with an error.'
+        ]);
+        $writer->addRow([
+            'Column Header' => 'udid_card_number',
+            'Required?' => 'Optional',
+            'Format / Example' => 'TN01234567890123 / CERT-2024-999',
+            'Rules & Guidance' => 'Unique Disability Identity Card (UDID) number or government disability certificate number.'
+        ]);
+        $writer->addRow([
+            'Column Header' => 'prior_employment_flag',
+            'Required?' => 'Optional',
+            'Format / Example' => '1 (Yes) or 0 (No)',
+            'Rules & Guidance' => 'Indicates if candidate has prior work experience (triggers previous employment document checklist).'
+        ]);
+        $writer->addRow([
+            'Column Header' => 'residential_address',
+            'Required?' => 'Mandatory',
+            'Format / Example' => '123 Main St, Tech Zone, Chennai 600001',
+            'Rules & Guidance' => 'Full residential street address.'
         ]);
         $writer->addRow([
             'Column Header' => 'bank_account_number',
@@ -381,6 +438,30 @@ class BulkUploadController extends Controller
             'Rules & Guidance' => '11-character valid RBI IFSC code.'
         ]);
         $writer->addRow([
+            'Column Header' => 'bank_name',
+            'Required?' => 'Mandatory',
+            'Format / Example' => 'State Bank of India / HDFC Bank',
+            'Rules & Guidance' => 'Bank institution name.'
+        ]);
+        $writer->addRow([
+            'Column Header' => 'bank_branch',
+            'Required?' => 'Mandatory',
+            'Format / Example' => 'Main Branch / Anna Nagar',
+            'Rules & Guidance' => 'Bank branch name.'
+        ]);
+        $writer->addRow([
+            'Column Header' => 'account_holder_name',
+            'Required?' => 'Mandatory',
+            'Format / Example' => 'Rajesh Sharma',
+            'Rules & Guidance' => 'Name as registered with the bank account.'
+        ]);
+        $writer->addRow([
+            'Column Header' => 'pan_number',
+            'Required?' => 'Mandatory',
+            'Format / Example' => 'ABCDE1234F',
+            'Rules & Guidance' => '10-character alphanumeric PAN format (5 uppercase letters, 4 digits, 1 letter).'
+        ]);
+        $writer->addRow([
             'Column Header' => 'basic_pay',
             'Required?' => 'Mandatory',
             'Format / Example' => '25000',
@@ -391,6 +472,178 @@ class BulkUploadController extends Controller
             'Required?' => 'Mandatory',
             'Format / Example' => '10000',
             'Rules & Guidance' => 'Monthly House Rent Allowance in INR.'
+        ]);
+        $writer->addRow([
+            'Column Header' => 'conveyance',
+            'Required?' => 'Optional (default: 0)',
+            'Format / Example' => '1600 / 0',
+            'Rules & Guidance' => 'Monthly conveyance allowance in INR.'
+        ]);
+        $writer->addRow([
+            'Column Header' => 'da',
+            'Required?' => 'Optional (default: 0)',
+            'Format / Example' => '0 / 2000',
+            'Rules & Guidance' => 'Dearness Allowance in INR.'
+        ]);
+        $writer->addRow([
+            'Column Header' => 'medical_allowance',
+            'Required?' => 'Optional (default: 0)',
+            'Format / Example' => '1250 / 0',
+            'Rules & Guidance' => 'Monthly medical allowance in INR.'
+        ]);
+        $writer->addRow([
+            'Column Header' => 'special_allowance',
+            'Required?' => 'Optional (default: 0)',
+            'Format / Example' => '5000 / 0',
+            'Rules & Guidance' => 'Monthly special allowance in INR.'
+        ]);
+        $writer->addRow([
+            'Column Header' => 'other_additions',
+            'Required?' => 'Optional (default: 0)',
+            'Format / Example' => '0',
+            'Rules & Guidance' => 'Other monthly earnings / additions in INR.'
+        ]);
+        $writer->addRow([
+            'Column Header' => 'pf_applicable',
+            'Required?' => 'Optional',
+            'Format / Example' => '1 (Yes) or 0 (No)',
+            'Rules & Guidance' => 'Provident Fund deduction flag (defaults to client setting if blank).'
+        ]);
+        $writer->addRow([
+            'Column Header' => 'eps_applicable',
+            'Required?' => 'Optional',
+            'Format / Example' => '1 (Yes) or 0 (No)',
+            'Rules & Guidance' => 'Employee Pension Scheme (8.33% up to ₹1,249.50) flag. Auto-cut off at age 58.'
+        ]);
+        $writer->addRow([
+            'Column Header' => 'vpf_enabled',
+            'Required?' => 'Optional',
+            'Format / Example' => '1 (Yes) or 0 (No)',
+            'Rules & Guidance' => 'Voluntary Provident Fund toggle. Enables employee-elected additional PF contribution.'
+        ]);
+        $writer->addRow([
+            'Column Header' => 'vpf_type',
+            'Required?' => 'Conditional (if vpf_enabled=1)',
+            'Format / Example' => 'percentage / fixed_amount',
+            'Rules & Guidance' => 'VPF deduction type: percentage (on actual Basic+DA) or fixed_amount (flat ₹ deduction).'
+        ]);
+        $writer->addRow([
+            'Column Header' => 'vpf_value',
+            'Required?' => 'Conditional (if vpf_enabled=1)',
+            'Format / Example' => '8 (for 8%) / 2000 (for ₹2,000)',
+            'Rules & Guidance' => 'If percentage: max 88% (Mandatory 12% + VPF <= 100% of Basic+DA). If fixed_amount: max (Basic+DA - Mandatory EPF).'
+        ]);
+        $writer->addRow([
+            'Column Header' => 'esi_applicable',
+            'Required?' => 'Optional',
+            'Format / Example' => '1 (Yes) or 0 (No)',
+            'Rules & Guidance' => 'ESI deduction toggle. Active for Gross <= ₹21,000 (or <= ₹25,000 if is_disabled=1).'
+        ]);
+        $writer->addRow([
+            'Column Header' => 'pt_applicable',
+            'Required?' => 'Optional',
+            'Format / Example' => '1 (Yes) or 0 (No)',
+            'Rules & Guidance' => 'Professional Tax deduction toggle (auto-deducted based on state slabs).'
+        ]);
+        $writer->addRow([
+            'Column Header' => 'lwf_applicable',
+            'Required?' => 'Optional',
+            'Format / Example' => '1 (Yes) or 0 (No)',
+            'Rules & Guidance' => 'Labour Welfare Fund deduction toggle.'
+        ]);
+        $writer->addRow([
+            'Column Header' => 'tds_applicable',
+            'Required?' => 'Optional',
+            'Format / Example' => '1 (Yes) or 0 (No)',
+            'Rules & Guidance' => 'TDS income tax deduction toggle.'
+        ]);
+        $writer->addRow([
+            'Column Header' => 'uan_mode',
+            'Required?' => 'Optional',
+            'Format / Example' => 'new / existing_transfer',
+            'Rules & Guidance' => 'UAN issuance mode. If existing_transfer, uan_number is required.'
+        ]);
+        $writer->addRow([
+            'Column Header' => 'uan_number',
+            'Required?' => 'Conditional (if uan_mode=existing_transfer)',
+            'Format / Example' => '100123456789 (12 digits)',
+            'Rules & Guidance' => '12-digit Universal Account Number issued by EPFO.'
+        ]);
+        $writer->addRow([
+            'Column Header' => 'esi_mode',
+            'Required?' => 'Optional',
+            'Format / Example' => 'new / existing_transfer',
+            'Rules & Guidance' => 'ESI IP number mode. If existing_transfer, esic_number is required.'
+        ]);
+        $writer->addRow([
+            'Column Header' => 'esic_number',
+            'Required?' => 'Conditional (if esi_mode=existing_transfer)',
+            'Format / Example' => '3123456789 (10 digits)',
+            'Rules & Guidance' => '10-digit ESIC Insurance Person (IP) number.'
+        ]);
+        $writer->addRow([
+            'Column Header' => 'tds_regime',
+            'Required?' => 'Optional',
+            'Format / Example' => 'new / old',
+            'Rules & Guidance' => 'Tax regime selection (defaults to new).'
+        ]);
+        $writer->addRow([
+            'Column Header' => 'gratuity_mode',
+            'Required?' => 'Optional',
+            'Format / Example' => 'part_of_ctc / over_and_above',
+            'Rules & Guidance' => 'Gratuity inclusion mode in monthly CTC structure.'
+        ]);
+        $writer->addRow([
+            'Column Header' => 'lop_basis_days',
+            'Required?' => 'Optional',
+            'Format / Example' => '30 / 26 / 31',
+            'Rules & Guidance' => 'Monthly Loss of Pay (LOP) calendar deduction basis (default 30).'
+        ]);
+        $writer->addRow([
+            'Column Header' => 'declarations_accepted',
+            'Required?' => 'Mandatory',
+            'Format / Example' => '1 (Yes) or 0 (No)',
+            'Rules & Guidance' => 'Statutory compliance & declaration sign-off acknowledgment.'
+        ]);
+        $writer->addRow([
+            'Column Header' => 'reporting_manager_code',
+            'Required?' => 'Optional',
+            'Format / Example' => 'EMP001 / TEC-005',
+            'Rules & Guidance' => 'Employee Code of reporting manager belonging to the same client.'
+        ]);
+
+        if ($healthInsuranceEnabled) {
+            $writer->addRow([
+                'Column Header' => 'health_insurance_provider',
+                'Required?' => 'Optional (GMI)',
+                'Format / Example' => 'Star Health / ICICI Lombard / Care Health',
+                'Rules & Guidance' => 'Group Medical Insurance policy provider name.'
+            ]);
+            $writer->addRow([
+                'Column Header' => 'health_insurance_policy_no',
+                'Required?' => 'Optional (GMI)',
+                'Format / Example' => 'POL-2026-99',
+                'Rules & Guidance' => 'Active group medical insurance policy number.'
+            ]);
+            $writer->addRow([
+                'Column Header' => 'health_insurance_sum_insured',
+                'Required?' => 'Optional (GMI)',
+                'Format / Example' => '300000 / 500000',
+                'Rules & Guidance' => 'Total medical coverage amount in INR.'
+            ]);
+        }
+
+        $writer->addRow([
+            'Column Header' => 'probation_end_date',
+            'Required?' => 'Optional',
+            'Format / Example' => '2024-07-01 (YYYY-MM-DD)',
+            'Rules & Guidance' => 'Date when probation period concludes (must be >= date_of_joining).'
+        ]);
+        $writer->addRow([
+            'Column Header' => 'attendance_tracking_start_date',
+            'Required?' => 'Optional',
+            'Format / Example' => '2024-01-01 (YYYY-MM-DD)',
+            'Rules & Guidance' => 'Date from which attendance/punch records begin (must be >= date_of_joining).'
         ]);
 
         $writer->close();

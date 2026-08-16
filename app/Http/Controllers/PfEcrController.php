@@ -31,7 +31,8 @@ class PfEcrController extends Controller
         ]);
 
         $query = PayrollRun::with('client')
-            ->whereIn('status', ['approved', 'locked']);
+            ->where('status', 'locked')
+            ->whereNotIn('id', PfEcrBatch::select('payroll_run_id'));
 
         if ($request->filled('client_id') && $request->client_id !== 'all') {
             $query->where('client_id', $request->client_id);

@@ -309,6 +309,10 @@ class FastBulkUploadService
         // 5. Statutory Inheritance & Fallbacks
         $pfApplicable = filter_var($normalizedRow['pf_applicable'] ?? ($client ? $client->pf_applicable : false), FILTER_VALIDATE_BOOLEAN);
         $epsApplicable = filter_var($normalizedRow['eps_applicable'] ?? true, FILTER_VALIDATE_BOOLEAN);
+        $rawVpf = $normalizedRow['vpf_enabled'] ?? $normalizedRow['vpf'] ?? null;
+        $vpfEnabled = ($rawVpf !== null && $rawVpf !== '') ? filter_var($rawVpf, FILTER_VALIDATE_BOOLEAN) : false;
+        $vpfType = !empty($normalizedRow['vpf_type']) ? strtolower(trim((string)$normalizedRow['vpf_type'])) : ($vpfEnabled ? 'percentage' : null);
+        $vpfValue = (isset($normalizedRow['vpf_value']) && $normalizedRow['vpf_value'] !== '') ? (float)$normalizedRow['vpf_value'] : null;
         $esiApplicable = filter_var($normalizedRow['esi_applicable'] ?? ($client ? $client->esi_applicable : false), FILTER_VALIDATE_BOOLEAN);
         $ptApplicable = filter_var($normalizedRow['pt_applicable'] ?? ($client ? $client->pt_applicable : false), FILTER_VALIDATE_BOOLEAN);
         $lwfApplicable = filter_var($normalizedRow['lwf_applicable'] ?? ($client ? $client->lwf_applicable : false), FILTER_VALIDATE_BOOLEAN);
@@ -380,6 +384,20 @@ class FastBulkUploadService
             }
         }
 
+        $rawDisabled = $normalizedRow['is_disabled'] ?? $normalizedRow['disabled'] ?? null;
+        $isDisabled = filter_var($rawDisabled, FILTER_VALIDATE_BOOLEAN);
+
+        $rawDisabilityPct = $normalizedRow['disability_percentage'] ?? null;
+        $disabilityPercentage = null;
+        if ($rawDisabilityPct !== null && $rawDisabilityPct !== '') {
+            $parsedPct = filter_var($rawDisabilityPct, FILTER_VALIDATE_INT);
+            if ($parsedPct === false || $parsedPct < 40 || $parsedPct > 100) {
+                $errors[] = "The disability percentage must be between 40 and 100 under the RPwD Act, 2016.";
+            } else {
+                $disabilityPercentage = $parsedPct;
+            }
+        }
+
         $dob = $this->formatExcelDate($normalizedRow['date_of_birth'] ?? null);
         $doj = $this->formatExcelDate($normalizedRow['date_of_joining'] ?? null);
         $probationEndDate = $this->formatExcelDate($normalizedRow['probation_end_date'] ?? null);
@@ -392,8 +410,13 @@ class FastBulkUploadService
             'date_of_birth' => $dob,
             'date_of_joining' => $doj,
             'employment_model' => $employmentModel,
+            'is_disabled' => $isDisabled,
+            'disability_percentage' => $disabilityPercentage,
             'pf_applicable' => $pfApplicable,
             'eps_applicable' => $epsApplicable,
+            'vpf_enabled' => $vpfEnabled,
+            'vpf_type' => $vpfType,
+            'vpf_value' => $vpfValue,
             'esi_applicable' => $esiApplicable,
             'pt_applicable' => $ptApplicable,
             'lwf_applicable' => $lwfApplicable,
@@ -424,7 +447,8 @@ class FastBulkUploadService
                 $validationData['medical_allowance'] ?? 0,
                 $validationData['special_allowance'] ?? 0,
                 $validationData['other_additions'] ?? 0,
-                $pfApplicable, $epsApplicable, $esiApplicable, $ptApplicable, $lwfApplicable, $tdsApplicable,
+                $isDisabled,
+                $pfApplicable, $epsApplicable, $vpfEnabled, $vpfType, $vpfValue, $esiApplicable, $ptApplicable, $lwfApplicable, $tdsApplicable,
                 $validationData['date_of_birth'] ?? '', $validationData['date_of_joining'] ?? ''
             ]));
 

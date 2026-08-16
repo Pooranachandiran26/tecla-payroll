@@ -243,6 +243,12 @@ class BulkUploadValidationService
                 $bonusToggle = filter_var($bonusToggle, FILTER_VALIDATE_BOOLEAN);
             }
 
+            // VPF Normalization
+            $rawVpf = $normalizedRow['vpf_enabled'] ?? $normalizedRow['vpf'] ?? null;
+            $vpfEnabled = ($rawVpf !== null && $rawVpf !== '') ? filter_var($rawVpf, FILTER_VALIDATE_BOOLEAN) : false;
+            $vpfType = !empty($normalizedRow['vpf_type']) ? strtolower(trim((string)$normalizedRow['vpf_type'])) : ($vpfEnabled ? 'percentage' : null);
+            $vpfValue = (isset($normalizedRow['vpf_value']) && $normalizedRow['vpf_value'] !== '') ? (float)$normalizedRow['vpf_value'] : null;
+
             $tdsRegime = $normalizedRow['tds_regime'] ?? 'new';
             $gratuityMode = $normalizedRow['gratuity_mode'] ?? 'part_of_ctc';
             $lopBasisDays = '30';
@@ -332,14 +338,27 @@ class BulkUploadValidationService
                 ? (float)$normalizedRow['health_insurance_sum_insured'] 
                 : null;
 
+            $rawDisabled = $normalizedRow['is_disabled'] ?? $normalizedRow['disabled'] ?? null;
+            $isDisabled = filter_var($rawDisabled, FILTER_VALIDATE_BOOLEAN);
+            $disabilityType = !empty($normalizedRow['disability_type']) ? trim($normalizedRow['disability_type']) : null;
+            $disabilityPercentage = (isset($normalizedRow['disability_percentage']) && $normalizedRow['disability_percentage'] !== '') ? (int)$normalizedRow['disability_percentage'] : null;
+            $udidCardNumber = !empty($normalizedRow['udid_card_number']) ? trim($normalizedRow['udid_card_number']) : null;
+
             $validationData = array_merge($normalizedRow, [
                 'client_id' => $client ? $client->id : null,
                 'branch_id' => $branchId ?: ($client && $client->branches->first() ? $client->branches->first()->id : 1),
                 'date_of_birth' => $dob,
                 'date_of_joining' => $doj,
                 'employment_model' => $employmentModel,
+                'is_disabled' => $isDisabled,
+                'disability_type' => $disabilityType,
+                'disability_percentage' => $disabilityPercentage,
+                'udid_card_number' => $udidCardNumber,
                 'pf_applicable' => $pfApplicable,
                 'eps_applicable' => $epsApplicable,
+                'vpf_enabled' => $vpfEnabled,
+                'vpf_type' => $vpfType,
+                'vpf_value' => $vpfValue,
                 'esi_applicable' => $esiApplicable,
                 'pt_applicable' => $ptApplicable,
                 'lwf_applicable' => $lwfApplicable,
@@ -376,6 +395,10 @@ class BulkUploadValidationService
                 'attendance_tracking_start_date' => 'nullable|date',
                 'designation' => 'required|string|max:255',
                 'gender' => 'nullable|in:male,female,other',
+                'is_disabled' => 'nullable|boolean',
+                'disability_type' => 'nullable|string|max:50',
+                'disability_percentage' => 'nullable|integer|min:40|max:100',
+                'udid_card_number' => 'nullable|string|max:50',
                 'blood_group' => 'nullable|string|max:10',
                 'marital_status' => 'nullable|in:single,married,other',
                 'employment_model' => 'required|in:eor,agency_contract',
@@ -399,6 +422,9 @@ class BulkUploadValidationService
                 'aadhaar_number' => 'nullable|string',
                 
                 // Statutory
+                'vpf_enabled' => 'nullable|boolean',
+                'vpf_type' => 'nullable|in:percentage,fixed_amount',
+                'vpf_value' => 'nullable|numeric|min:0.01',
                 'uan_mode' => 'nullable|in:new,existing_transfer',
                 'uan_number' => [
                     'nullable',
@@ -491,7 +517,8 @@ class BulkUploadValidationService
 
                     // 9. Non-ESI missing Group Medical Insurance warning
                     $grossPay = $salaryPreview['gross_monthly_salary'] ?? 0;
-                    $isEsiActive = $esiApplicable && ($grossPay <= 21000);
+                    $esiCeiling = $isDisabled ? \App\Services\SalaryCalculationService::ESI_DISABILITY_WAGE_CEILING : \App\Services\SalaryCalculationService::ESI_WAGE_CEILING;
+                    $isEsiActive = $esiApplicable && ($grossPay <= $esiCeiling);
                     $clientInsuranceEnabled = $client ? ($client->health_insurance_enabled !== false) : true;
 
                     if (!$isEsiActive && $clientInsuranceEnabled) {

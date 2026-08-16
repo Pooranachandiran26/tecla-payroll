@@ -131,6 +131,14 @@ class EmployeeController extends Controller
     {
         $data = $request->validated();
         
+        $salaryService = app(SalaryCalculationService::class);
+        $salaryCalc = $salaryService->calculateStructuralSalary($data);
+        $data['gross_monthly_salary'] = $salaryCalc['gross_monthly_salary'] ?? 0;
+        $data['employer_pf_monthly'] = $salaryCalc['employer_pf_monthly'] ?? 0;
+        $data['employer_esi_monthly'] = $salaryCalc['employer_esi_monthly'] ?? 0;
+        $data['net_take_home_monthly'] = $salaryCalc['net_take_home_monthly'] ?? 0;
+        $data['ctc_monthly'] = $salaryCalc['ctc_monthly'] ?? 0;
+
         $employee = \DB::transaction(function () use ($data) {
             $attempts = 0;
             $maxAttempts = 5;
@@ -349,6 +357,12 @@ class EmployeeController extends Controller
         }
 
         $employee->update($data);
+        $employee->refresh();
+
+        $autoActivated = $employee->checkAndPerformAutoActivation();
+        $message = $autoActivated 
+            ? 'Employee updated and automatically activated (All required documents verified & UAN present).' 
+            : 'Employee updated successfully.';
 
         // Auto-recalculate any active draft payroll runs for this employee's client
         $draftRuns = \App\Models\PayrollRun::where('client_id', $employee->client_id)->where('status', 'draft')->get();
@@ -362,7 +376,7 @@ class EmployeeController extends Controller
             }
         }
 
-        return redirect()->route('employees.index')->with('success', 'Employee updated successfully.');
+        return redirect()->route('employees.index')->with('success', $message);
     }
 
     public function storeDocument(\App\Http\Requests\StoreEmployeeDocumentRequest $request, $id)
@@ -419,29 +433,14 @@ class EmployeeController extends Controller
 
         // Check for auto-activation
         if ($request->status === 'verified' && $employee->status === 'onboarding') {
-            $employee->load('documents'); // reload to get latest status
+            $employee->refresh();
             if ($employee->documents_verified_count >= $employee->documents_required_count) {
-                // Block activation if UAN number is missing
-                if (empty($employee->uan_number)) {
+                if ((bool)$employee->pf_applicable && empty(trim($employee->uan_number ?? ''))) {
                     return redirect()->back()->with('warning', 'All documents verified, but employee cannot be activated: UAN Number is missing. Please edit the employee profile and add the UAN Number before activation.');
                 }
 
-                $employee->update(['status' => 'active']);
-                
-                if ($employee->personal_email) {
-                    \Illuminate\Support\Facades\Mail::to($employee->personal_email)
-                        ->queue(new \App\Mail\ProfileActivatedMail($employee->full_name));
-                }
-
-                $auditService = app(\App\Services\AuditService::class);
-                $auditService->log(
-                    'employee.auto_activated',
-                    auth()->user(),
-                    $employee,
-                    ['status' => 'onboarding'],
-                    ['status' => 'active'],
-                    ['reason' => 'All required documents verified']
-                );
+                $employee->checkAndPerformAutoActivation();
+                return redirect()->back()->with('success', 'Document verified successfully! All required documents verified — Employee is now Active.');
             }
         }
 
@@ -563,6 +562,18 @@ class EmployeeController extends Controller
     public function activate(Request $request, $id)
     {
         $employee = \App\Models\Employee::findOrFail($id);
+
+        if ($employee->status === 'onboarding') {
+            $employee->load('documents');
+            if ($employee->documents_verified_count < $employee->documents_required_count) {
+                $rem = $employee->documents_required_count - $employee->documents_verified_count;
+                return redirect()->back()->with('warning', "Cannot activate: Employee has {$rem} required document(s) remaining for verification.");
+            }
+            if ((bool)$employee->pf_applicable && empty(trim($employee->uan_number ?? ''))) {
+                return redirect()->back()->with('warning', 'Cannot activate: UAN Number is missing. Please edit the employee profile and set the UAN Number first.');
+            }
+        }
+
         \Illuminate\Support\Facades\DB::transaction(function () use ($employee) {
             $employee->update(['status' => 'active']);
 

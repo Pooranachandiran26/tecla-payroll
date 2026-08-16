@@ -486,6 +486,14 @@ export default function StatutorySection({ formData, onChange, hook }) {
             <span>Statutory annual bonus for eligible candidates earning Basic ≤ ₹21,000/month.</span>
           </div>
           <div className="stat-rate" style={{ minWidth: '240px' }}>
+            <div style={{ marginBottom: '0.4rem' }}>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>Bonus Structure / Payment Mode</div>
+              <select className="stat-rate-input" value={formData.bonusType || 'ctc_accrual'} onChange={e => onChange('bonusType', e.target.value)} {...lockProps}>
+                <option value="ctc_accrual">CTC Accrual / Annual Payout (Excluded from Monthly Gross)</option>
+                <option value="part_of_gross">Include in Monthly Gross Earnings (Added to Monthly Gross Pay)</option>
+              </select>
+            </div>
+
             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>Accrual %</div>
             <input type="number" className="stat-rate-input" placeholder="8.33" step="0.01" max="20" min="8.33"
               value={formData.bonusPct} onChange={e => onChange('bonusPct', e.target.value)} onWheel={e => e.target.blur()} {...lockProps} />
@@ -514,11 +522,15 @@ export default function StatutorySection({ formData, onChange, hook }) {
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', borderTop: '1px dashed #A7F3D0', paddingTop: '0.25rem', marginTop: '0.15rem' }}>
                     <span style={{ color: '#065F46', fontWeight: '600' }}>Accrual & Payout:</span>
-                    <strong style={{ color: '#047857' }}>{formData.bonusPct || '8.33'}% (Annual)</strong>
+                    <strong style={{ color: '#047857' }}>{formData.bonusPct || '8.33'}%</strong>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem' }}>
                     <span style={{ color: '#065F46', fontWeight: '600' }}>Monthly Pay Impact:</span>
-                    <strong style={{ color: '#047857' }}>₹0.00 (CTC Accrual)</strong>
+                    <strong style={{ color: formData.bonusType === 'part_of_gross' ? '#0284C7' : '#047857' }}>
+                      {formData.bonusType === 'part_of_gross'
+                        ? `+ ${(formData.bonusPct || 8.33)}% of min(Basic, ₹7k) (Added to Gross)`
+                        : '₹0.00 (CTC Accrual)'}
+                    </strong>
                   </div>
                 </div>
               </div>

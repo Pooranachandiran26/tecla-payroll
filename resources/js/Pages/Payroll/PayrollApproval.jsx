@@ -309,7 +309,7 @@ export default function PayrollApproval({ clients, selectedClientId, selectedMon
                                                         {items.map((item) => {
                                                             const gross = parseFloat(item.gross_total || 0);
                                                             const net = parseFloat(item.net_pay || 0);
-                                                            const deduct = parseFloat(item.employee_pf || 0) + parseFloat(item.employee_esi || 0) + parseFloat(item.professional_tax || 0) + parseFloat(item.tds_deduction || 0);
+                                                            const deduct = parseFloat(item.employee_pf || 0) + parseFloat(item.employee_vpf || 0) + parseFloat(item.employee_esi || 0) + parseFloat(item.professional_tax || 0) + parseFloat(item.pt_shortfall_recovery || 0) + parseFloat(item.lwf_deduction || 0) + parseFloat(item.tds_deduction || 0) + parseFloat(item.loan_emi_deduction || 0);
                                                             const erCost = parseFloat(item.employer_pf || 0) + parseFloat(item.employer_esi || 0) + parseFloat(item.employer_lwf || 0);
                                                             const ctcVal = gross + erCost;
 

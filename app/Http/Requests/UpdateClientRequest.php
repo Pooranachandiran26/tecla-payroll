@@ -91,8 +91,13 @@ class UpdateClientRequest extends FormRequest
                 $map = ['payable_on_separation' => 'over_ctc', 'over_and_above' => 'over_ctc', 'over_ctc' => 'over_ctc', 'ctc_included' => 'ctc_included', 'part_of_ctc' => 'ctc_included', 'not_applicable' => 'na', 'na' => 'na'];
                 return $map[$mode] ?? $mode;
             })($this->gratuityMode ?: $this->default_gratuity_mode),
-            'gratuity_applicable' => $this->gratuityApplicable ? 1 : 0,
-            'statutory_bonus_applicable' => $this->statutoryBonusApplicable ? 1 : 0,
+            'gratuity_applicable' => $this->has('gratuityApplicable')
+                ? ($this->boolean('gratuityApplicable') ? 1 : 0)
+                : ($this->has('gratuity_applicable') ? ($this->boolean('gratuity_applicable') ? 1 : 0) : ($this->route('client')?->gratuity_applicable ? 1 : 0)),
+            'statutory_bonus_applicable' => $this->has('statutoryBonusApplicable')
+                ? ($this->boolean('statutoryBonusApplicable') ? 1 : 0)
+                : ($this->has('bonusApplicable') ? ($this->boolean('bonusApplicable') ? 1 : 0) : ($this->has('statutory_bonus_applicable') ? ($this->boolean('statutory_bonus_applicable') ? 1 : 0) : ($this->route('client')?->statutory_bonus_applicable ? 1 : 0))),
+            'statutory_bonus_type' => $this->bonusType ?: $this->statutoryBonusType ?: $this->statutory_bonus_type ?: ($this->route('client')?->statutory_bonus_type ?? 'ctc_accrual'),
             'health_insurance_enabled' => $this->has('healthInsuranceEnabled')
                 ? ($this->boolean('healthInsuranceEnabled') ? 1 : 0)
                 : ($this->has('health_insurance_enabled')
@@ -102,16 +107,26 @@ class UpdateClientRequest extends FormRequest
             'pf_ceiling' => $this->pfCeiling !== null ? $this->pfCeiling : ($this->route('client')?->pf_ceiling ?? 15000),
             'employee_pf_wage_basis' => $this->employeePfWageBasis ?? $this->employee_pf_wage_basis ?? ($this->route('client')?->employee_pf_wage_basis ?? 'ceiling'),
             'employer_pf_wage_basis' => $this->employerPfWageBasis ?? $this->employer_pf_wage_basis ?? ($this->route('client')?->employer_pf_wage_basis ?? 'ceiling'),
-            'pf_applicable' => $this->pfApplicable ? 1 : 0,
-            'edli_exempted' => $this->edliExempted ? 1 : 0,
+            'pf_applicable' => $this->has('pfApplicable')
+                ? ($this->boolean('pfApplicable') ? 1 : 0)
+                : ($this->has('pf_applicable') ? ($this->boolean('pf_applicable') ? 1 : 0) : ($this->route('client')?->pf_applicable ? 1 : 0)),
+            'edli_exempted' => $this->has('edliExempted')
+                ? ($this->boolean('edliExempted') ? 1 : 0)
+                : ($this->has('edli_exempted') ? ($this->boolean('edli_exempted') ? 1 : 0) : ($this->route('client')?->edli_exempted ? 1 : 0)),
             'esi_limit' => $this->esiLimit !== null ? $this->esiLimit : ($this->route('client')?->esi_limit ?? 21000),
-            'esi_applicable' => $this->esiApplicable ? 1 : 0,
+            'esi_applicable' => $this->has('esiApplicable')
+                ? ($this->boolean('esiApplicable') ? 1 : 0)
+                : ($this->has('esi_applicable') ? ($this->boolean('esi_applicable') ? 1 : 0) : ($this->route('client')?->esi_applicable ? 1 : 0)),
             'pf_establishment_code' => $this->pfEstablishmentCode ?? $this->pf_establishment_code,
             'esi_code_number' => $this->esiCodeNumber ?? $this->esi_code_number,
             'lwf_frequency' => $this->lwfFrequency,
-            'lwf_applicable' => $this->lwfApplicable ? 1 : 0,
+            'lwf_applicable' => $this->has('lwfApplicable')
+                ? ($this->boolean('lwfApplicable') ? 1 : 0)
+                : ($this->has('lwf_applicable') ? ($this->boolean('lwf_applicable') ? 1 : 0) : ($this->route('client')?->lwf_applicable ? 1 : 0)),
             'tds_regime' => $this->tdsRegime,
-            'tds_applicable' => $this->tdsApplicable ? 1 : 0,
+            'tds_applicable' => $this->has('tdsApplicable')
+                ? ($this->boolean('tdsApplicable') ? 1 : 0)
+                : ($this->has('tds_applicable') ? ($this->boolean('tds_applicable') ? 1 : 0) : ($this->route('client')?->tds_applicable ? 1 : 0)),
             
             // Portal & SLA
             'client_portal_enabled' => $this->portalAccess ? 1 : 0,
@@ -321,6 +336,7 @@ class UpdateClientRequest extends FormRequest
             'default_gratuity_mode' => 'nullable|string',
             'gratuity_applicable' => 'nullable|boolean',
             'statutory_bonus_applicable' => 'nullable|boolean',
+            'statutory_bonus_type' => 'nullable|string|in:ctc_accrual,part_of_gross',
             'health_insurance_enabled' => 'nullable|boolean',
             'bonus_rate_percentage' => 'nullable|numeric|min:0|max:100',
             'pf_ceiling' => 'nullable|numeric|min:0|max:15000',

@@ -128,12 +128,12 @@ const renderDocumentRows = () => {
                         )}
                         {uploadedDoc && uploadedDoc.status === "pending" && (
                             <>
-                                <button className="btn btn-xs" style={{"backgroundColor":"var(--status-success)","color":"white", display: 'inline-flex', alignItems: 'center', gap: '3px'}} onClick={() => router.put(route('employees.documents.verify', { id: employee.id, docId: uploadedDoc.id }), { status: "verified" })}>
+                                <button className="btn btn-xs" style={{"backgroundColor":"var(--status-success)","color":"white", display: 'inline-flex', alignItems: 'center', gap: '3px'}} onClick={() => router.put(route('employees.documents.verify', { id: employee.id, docId: uploadedDoc.id }), { status: "verified" }, { preserveScroll: true, preserveState: true })}>
                                     <Check size={13} /> Verify
                                 </button>
                                 <button className="btn btn-danger btn-xs" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }} onClick={() => {
                                     const reason = prompt("Rejection Reason:");
-                                    if(reason) router.put(route('employees.documents.verify', { id: employee.id, docId: uploadedDoc.id }), { status: "rejected", rejection_reason: reason });
+                                    if(reason) router.put(route('employees.documents.verify', { id: employee.id, docId: uploadedDoc.id }), { status: "rejected", rejection_reason: reason }, { preserveScroll: true, preserveState: true });
                                 }}>
                                     <X size={13} /> Reject
                                 </button>
@@ -146,7 +146,7 @@ const renderDocumentRows = () => {
                                         const formData = new FormData();
                                         formData.append("document_type", docDef.type);
                                         formData.append("file", e.target.files[0]);
-                                        router.post(route('employees.documents.store', employee.id), formData);
+                                        router.post(route('employees.documents.store', employee.id), formData, { preserveScroll: true, preserveState: true });
                                     }
                                 }} />
                                 <button className="btn btn-navy btn-xs" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => document.getElementById(`file_${docDef.type}`).click()}>
@@ -201,7 +201,15 @@ const renderDocumentRows = () => {
               <Edit size={15} /> Edit Profile
             </Link>
             
-            {employee.status === 'suspended' ? (
+            {employee.status === 'onboarding' ? (
+              <button 
+                  className="btn btn-primary" 
+                  style={{ backgroundColor: 'var(--status-success)', color: 'white', borderColor: 'var(--status-success)', display: 'inline-flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}
+                  onClick={() => setReactivateDialogOpen(true)}
+              >
+                  <Play size={15} /> Activate Employee
+              </button>
+            ) : employee.status === 'suspended' ? (
               <button 
                   className="btn btn-primary" 
                   style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}
@@ -306,6 +314,8 @@ const renderDocumentRows = () => {
         onConfirm={() => {
           setActionLoading(true);
           router.post(route('employees.activate', employee.id), {}, {
+            preserveScroll: true,
+            preserveState: true,
             onFinish: () => {
               setActionLoading(false);
               setReactivateDialogOpen(false);
@@ -402,6 +412,18 @@ const renderDocumentRows = () => {
                 <div>
                   <h4 className="data-label">Marital Status</h4>
                   <span className="data-value" style={{"textTransform": "capitalize"}}>{employee.marital_status || 'N/A'}</span>
+                </div>
+                <div>
+                  <h4 className="data-label">PwD Status</h4>
+                  <span className="data-value">
+                    {employee.is_disabled ? (
+                      <span className="badge badge-success" style={{ backgroundColor: "#DCFCE7", color: "#166534", border: "1px solid #86EFAC" }}>
+                        PwD Benchmark {employee.disability_percentage ? `(${employee.disability_percentage}%)` : ''} {employee.disability_type ? `• ${employee.disability_type}` : ''}
+                      </span>
+                    ) : (
+                      <span style={{ color: "var(--text-muted)" }}>No Disability (Standard ₹21,000 ESI)</span>
+                    )}
+                  </span>
                 </div>
               </div>
 
@@ -508,7 +530,16 @@ const renderDocumentRows = () => {
                     <span className={`badge badge-${employee.pf_applicable ? 'success' : 'neutral'}`}>{employee.pf_applicable ? 'PF Active' : 'Not Applicable'}</span>
                   </div>
                   <div style={{"fontSize":"0.75rem","color":"var(--text-muted)","marginTop":"-0.5rem","textAlign":"right"}}>
-                    UAN: {employee.uan_number || 'N/A'} | Member ID: {employee.pf_member_id || 'Pending'} ({employee.member_relationship === 'S' ? 'Spouse' : 'Father'})
+                    UAN: {employee.uan_number ? (
+                      <span className="font-mono text-slate-800 font-semibold">{employee.uan_number}</span>
+                    ) : (
+                      <Link
+                        href={`${route('employees.edit', employee.id)}?focus=uan#uan_number`}
+                        style={{ color: 'var(--status-danger)', fontWeight: '700', textDecoration: 'underline', marginLeft: '4px' }}
+                      >
+                        Enter UAN Number ↗
+                      </Link>
+                    )} | Member ID: {employee.pf_member_id || 'Pending'} ({employee.member_relationship === 'S' ? 'Spouse' : 'Father'})
                   </div>
 
                   <div style={{"display":"flex","justifyContent":"space-between","alignItems":"center","marginTop":"0.25rem"}}>
@@ -524,6 +555,20 @@ const renderDocumentRows = () => {
                       {employee.employer_pf_wage_basis === 'actual_basic_da' ? 'Actual Basic + DA (Para 26(6))' : 'Statutory Ceiling (₹15,000 Max)'}
                     </span>
                   </div>
+
+                  <div style={{"display":"flex","justifyContent":"space-between","alignItems":"center","marginTop":"0.25rem"}}>
+                    <span style={{"fontSize":"0.85rem","fontWeight":"500"}}>Voluntary PF (VPF):</span>
+                    <span className={`badge ${employee.vpf_enabled ? 'badge-success' : 'badge-neutral'}`}>
+                      {employee.vpf_enabled 
+                        ? `VPF Active (${employee.vpf_type === 'percentage' ? `${employee.vpf_value}%` : `₹${Number(employee.vpf_value || 0).toLocaleString('en-IN')}`})` 
+                        : 'Not Opted'}
+                    </span>
+                  </div>
+                  {employee.vpf_enabled && (
+                    <div style={{"fontSize":"0.75rem","color":"var(--text-muted)","marginTop":"-0.25rem","textAlign":"right"}}>
+                      VPF Monthly: <strong>₹{Number(employee.employee_vpf_monthly || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> | Total EE PF: <strong>₹{Number(employee.total_employee_pf_monthly || ((employee.employee_pf_monthly || 0) + (employee.employee_vpf_monthly || 0))).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                    </div>
+                  )}
 
                   {(employee.employee_pf_wage_basis === 'actual_basic_da' || employee.employer_pf_wage_basis === 'actual_basic_da') && (
                     <div style={{"display":"flex","justifyContent":"space-between","alignItems":"center","marginTop":"0.25rem"}}>
@@ -614,7 +659,7 @@ const renderDocumentRows = () => {
                           <span className="badge badge-neutral">Not Applicable</span>
                         </div>
                         <div style={{"fontSize":"0.75rem","color":"var(--text-muted)","marginTop":"-0.5rem","textAlign":"right"}}>
-                          Exempt (Gross &gt; ₹21,000 ESI Ceiling)
+                          Exempt (Gross &gt; ₹{employee.is_disabled ? '25,000 PwD' : '21,000'} ESI Ceiling)
                         </div>
                       </>
                     )
@@ -752,10 +797,17 @@ const renderDocumentRows = () => {
                 </thead>
                 <tbody>
                   <tr>
-                    <td><strong>1. Employee PF</strong></td>
+                    <td><strong>1. Employee PF (Mandatory)</strong></td>
                     <td>Deductions</td>
                     <td>₹{(employee.employee_pf_monthly || 0).toLocaleString('en-IN')}</td>
                   </tr>
+                  {(employee.vpf_enabled || (employee.employee_vpf_monthly || 0) > 0) && (
+                    <tr>
+                      <td><strong>• Voluntary PF (VPF)</strong></td>
+                      <td>Deductions (Voluntary)</td>
+                      <td>₹{(employee.employee_vpf_monthly || 0).toLocaleString('en-IN')}</td>
+                    </tr>
+                  )}
                   <tr>
                     <td><strong>2. Employee ESIC</strong></td>
                     <td>Deductions</td>
@@ -1170,18 +1222,17 @@ const renderDocumentRows = () => {
                     )}
                   </div>
                 </div>
-                {!employee.uan_number && (
+                {!employee.uan_number ? (
                   <Link
-                    href={route('employees.edit', employee.id)}
+                    href={`${route('employees.edit', employee.id)}?focus=uan#uan_number`}
                     className="btn btn-danger"
                     style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', flexShrink: 0 }}
                   >
-                    <Edit size={14} /> Add UAN Number
+                    <Edit size={14} /> Enter UAN Number
                   </Link>
-                )}
-                {employee.uan_number && (
+                ) : (
                   <Link
-                    href={route('employees.edit', employee.id)}
+                    href={`${route('employees.edit', employee.id)}?focus=uan#uan_number`}
                     className="btn"
                     style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', flexShrink: 0, backgroundColor: 'white', border: '1px solid var(--border-color)', color: 'var(--primary-navy)' }}
                   >

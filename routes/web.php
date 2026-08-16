@@ -31,16 +31,16 @@ use App\Http\Controllers\EsiMonthlyController;
 Route::middleware('guest')->group(function () {
     Route::get('/', fn() => redirect('/login'));
     Route::get('/login', [LoginController::class, 'showLogin'])->name('login');
-    Route::post('/login', [LoginController::class, 'login'])->middleware('throttle:5,1')->name('login.post');
+    Route::post('/login', [LoginController::class, 'login'])->name('login.post');
     Route::get('/login/verify-otp', [LoginController::class, 'showVerifyOtp'])->name('login.verify.show');
-    Route::post('/login/verify-otp', [LoginController::class, 'verifyOtp'])->middleware('throttle:5,1')->name('login.verify.post');
-    Route::post('/login/resend-otp', [LoginController::class, 'resendOtp'])->middleware('throttle:1,1')->name('login.resend-otp');
+    Route::post('/login/verify-otp', [LoginController::class, 'verifyOtp'])->name('login.verify.post');
+    Route::post('/login/resend-otp', [LoginController::class, 'resendOtp'])->name('login.resend-otp');
     
     Route::get('/invitation/{token}', [InvitationController::class, 'show'])->name('invitation.show');
     Route::post('/invitation/{token}/complete', [InvitationController::class, 'complete'])->name('invitation.complete');
     
     Route::get('/forgot-password', [PasswordResetController::class, 'showForgotPassword'])->name('password.request');
-    Route::post('/forgot-password', [PasswordResetController::class, 'sendResetOtp'])->middleware('throttle:3,15')->name('password.email');
+    Route::post('/forgot-password', [PasswordResetController::class, 'sendResetOtp'])->name('password.email');
     Route::get('/reset-password/verify-otp', [PasswordResetController::class, 'showVerifyResetOtp'])->name('password.reset.verify.show');
     Route::post('/reset-password/verify-otp', [PasswordResetController::class, 'verifyResetOtp'])->name('password.reset.verify.post');
     Route::get('/reset-password/new', [PasswordResetController::class, 'showNewPassword'])->name('password.reset.new.show');
@@ -302,6 +302,7 @@ Route::middleware(['auth', 'active'])->group(function () {
             Route::middleware('module:compliance')->group(function () {
                 Route::get('/compliance', [\App\Http\Controllers\ComplianceController::class, 'index'])->name('compliance.index');
                 Route::get('/compliance/clients/{client}', [\App\Http\Controllers\ComplianceController::class, 'showClientDetails'])->name('compliance.client_details');
+                Route::post('/compliance/clients/update-statutory-code', [\App\Http\Controllers\ComplianceController::class, 'updateClientStatutoryCode'])->name('compliance.client.update_statutory_code');
                 Route::post('/compliance/mark-filed', [\App\Http\Controllers\ComplianceController::class, 'markFiled'])->name('compliance.mark_filed');
                 
                 // PF ECR Routes
@@ -353,6 +354,7 @@ Route::middleware(['auth', 'active'])->group(function () {
             Route::middleware('module:reports')->group(function () {
                 Route::get('/reports', fn() => redirect('/admin/reports/payroll_register'))->name('reports.index');
                 Route::get('/admin/reports', [\App\Http\Controllers\Admin\AdminReportController::class, 'index'])->name('admin.reports.index');
+                Route::get('/admin/reports/payroll_register', [\App\Http\Controllers\Admin\AdminReportController::class, 'show'])->name('admin.reports.payroll_register');
                 Route::get('/admin/reports/{reportKey}', [\App\Http\Controllers\Admin\AdminReportController::class, 'show'])->name('admin.reports.show');
                 Route::get('/admin/reports/{reportKey}/export', [\App\Http\Controllers\Admin\AdminReportController::class, 'export'])->name('admin.reports.export');
                 Route::get('/admin/reports/{reportKey}/pdf', [\App\Http\Controllers\Admin\AdminReportController::class, 'pdf'])->name('admin.reports.pdf');
@@ -408,7 +410,7 @@ Route::middleware(['auth', 'active'])->group(function () {
             
             Route::get('/admin/settings/email', [SettingsController::class, 'getEmailSettings'])->name('admin.settings.email.show');
             Route::put('/admin/settings/email', [SettingsController::class, 'updateEmailSettings'])->name('admin.settings.email.update');
-            Route::post('/admin/settings/email/test', [SettingsController::class, 'testEmailSettings'])->middleware('throttle:3,1')->name('admin.settings.email.test');
+            Route::post('/admin/settings/email/test', [SettingsController::class, 'testEmailSettings'])->name('admin.settings.email.test');
             
             Route::get('/admin/settings/branding', [SettingsController::class, 'getBranding'])->name('admin.settings.branding.show');
             Route::post('/admin/settings/branding', [SettingsController::class, 'updateBranding'])->name('admin.settings.branding.update');

@@ -60,55 +60,62 @@ class UpdateEmployeeRequest extends FormRequest
             'mother_name' => $motherName,
             'spouse_name' => $spouseName,
             'full_name' => $fullName,
-            'personal_email' => $this->personalEmail,
-            'phone_number' => $this->phone,
-            'emergency_contact_phone' => $this->emergencyContact,
+            'personal_email' => $this->personalEmail ?? $this->personal_email,
+            'phone_number' => $this->phone ?? $this->phone_number,
+            'emergency_contact_phone' => $this->emergencyContact ?? $this->emergency_contact_phone,
             'gender' => $this->gender,
-            'blood_group' => $this->bloodGroup,
-            'marital_status' => $this->maritalStatus,
-            'date_of_birth' => $this->dob,
-            'date_of_joining' => $this->doj,
+            'is_disabled' => ($this->isDisabled !== null || $this->is_disabled !== null) ? (filter_var($this->isDisabled ?? $this->is_disabled, FILTER_VALIDATE_BOOLEAN) ? 1 : 0) : 0,
+            'disability_type' => $this->disabilityType ?: $this->disability_type ?: null,
+            'disability_percentage' => ($this->disabilityPercentage !== null && $this->disabilityPercentage !== '') ? (int)$this->disabilityPercentage : (($this->disability_percentage !== null && $this->disability_percentage !== '') ? (int)$this->disability_percentage : null),
+            'udid_card_number' => $this->udidCardNumber ?: $this->udid_card_number ?: null,
+            'blood_group' => $this->bloodGroup ?? $this->blood_group,
+            'marital_status' => $this->maritalStatus ?? $this->marital_status,
+            'date_of_birth' => $this->dob ?? $this->date_of_birth,
+            'date_of_joining' => $this->doj ?? $this->date_of_joining,
             'attendance_tracking_start_date' => $this->attendanceTrackingStartDate ?: $this->attendance_tracking_start_date,
-            'employment_model' => $this->empType,
-            'prior_employment_flag' => $this->priorEmploymentFlag ? 1 : 0,
-            'residential_address' => $this->address,
-            'bank_account_number' => $this->accountNo,
-            'bank_ifsc' => $this->ifsc,
-            'bank_name' => $this->bankName,
-            'bank_branch' => $this->bankBranch,
-            'account_holder_name' => $this->accountHolder,
-            'pan_number' => $this->pan,
-            'aadhaar_number' => $this->aadhaar,
-            'uan_mode' => $this->uanMode,
-            'uan_number' => $this->uan,
+            'employment_model' => $this->empType ?? $this->employment_model,
+            'prior_employment_flag' => ($this->priorEmploymentFlag !== null || $this->prior_employment_flag !== null) ? (filter_var($this->priorEmploymentFlag ?? $this->prior_employment_flag, FILTER_VALIDATE_BOOLEAN) ? 1 : 0) : 1,
+            'residential_address' => $this->address ?? $this->residential_address,
+            'bank_account_number' => $this->accountNo ?? $this->bank_account_number,
+            'bank_ifsc' => $this->ifsc ?? $this->bank_ifsc,
+            'bank_name' => $this->bankName ?? $this->bank_name,
+            'bank_branch' => $this->bankBranch ?? $this->bank_branch,
+            'account_holder_name' => $this->accountHolder ?? $this->account_holder_name,
+            'pan_number' => $this->pan ?? $this->pan_number,
+            'aadhaar_number' => $this->aadhaar ?? $this->aadhaar_number,
+            'uan_mode' => $this->uanMode ?? $this->uan_mode ?? 'new',
+            'uan_number' => $this->uan ?? $this->uan_number,
             'pf_member_id' => $this->pfMemberId ?? $this->pf_member_id ?? null,
             'member_relationship' => $this->memberRelationship ?? $this->member_relationship ?? 'F',
-            'esi_mode' => $this->esiMode ?? 'new',
-            'esic_number' => $this->esiNo,
-            'basic_pay' => $this->basicSal,
-            'hra' => $this->hraSal,
-            'conveyance' => $this->conveyanceSal,
-            'da' => $this->daSal,
-            'medical_allowance' => $this->medicalSal,
-            'special_allowance' => $this->specialSal,
-            'other_additions' => $this->otherSal,
-            'pt_deduction_override' => $this->ptDeduction,
-            'pf_applicable' => filter_var($this->pfToggle, FILTER_VALIDATE_BOOLEAN) ? 1 : 0,
+            'esi_mode' => $this->esiMode ?? $this->esi_mode ?? 'new',
+            'esic_number' => $this->esiNo ?? $this->esic_number,
+            'basic_pay' => $this->basicSal ?? $this->basic_pay,
+            'hra' => $this->hraSal ?? $this->hra,
+            'conveyance' => $this->conveyanceSal ?? $this->conveyance ?? 0,
+            'da' => $this->daSal ?? $this->da ?? 0,
+            'medical_allowance' => $this->medicalSal ?? $this->medical_allowance ?? 0,
+            'special_allowance' => $this->specialSal ?? $this->special_allowance ?? 0,
+            'other_additions' => $this->otherSal ?? $this->other_additions ?? 0,
+            'pt_deduction_override' => $this->ptDeduction ?? $this->pt_deduction_override,
+            'pf_applicable' => filter_var($this->pfToggle ?? $this->pf_applicable ?? true, FILTER_VALIDATE_BOOLEAN) ? 1 : 0,
             'eps_applicable' => $this->epsToggle !== null ? (filter_var($this->epsToggle, FILTER_VALIDATE_BOOLEAN) ? 1 : 0) : ($this->eps_applicable !== null ? (filter_var($this->eps_applicable, FILTER_VALIDATE_BOOLEAN) ? 1 : 0) : 1),
-            'esi_applicable' => filter_var($this->esiToggle, FILTER_VALIDATE_BOOLEAN) ? 1 : 0,
+            'vpf_enabled' => ($this->vpfToggle !== null || $this->vpf_enabled !== null || $this->vpfEnabled !== null) ? (filter_var($this->vpfToggle ?? $this->vpfEnabled ?? $this->vpf_enabled, FILTER_VALIDATE_BOOLEAN) ? 1 : 0) : 0,
+            'vpf_type' => $this->vpfType ?: $this->vpf_type ?: null,
+            'vpf_value' => ($this->vpfValue !== null && $this->vpfValue !== '') ? (float)$this->vpfValue : (($this->vpf_value !== null && $this->vpf_value !== '') ? (float)$this->vpf_value : null),
+            'esi_applicable' => filter_var($this->esiToggle ?? $this->esi_applicable ?? true, FILTER_VALIDATE_BOOLEAN) ? 1 : 0,
             'health_insurance_provider' => $this->insuranceProvider ?? $this->health_insurance_provider ?? null,
             'health_insurance_policy_no' => $this->insurancePolicyNo ?? $this->health_insurance_policy_no ?? null,
             'health_insurance_sum_insured' => ($this->insuranceSumInsured !== null && $this->insuranceSumInsured !== '') ? (float)$this->insuranceSumInsured : (($this->health_insurance_sum_insured !== null && $this->health_insurance_sum_insured !== '') ? (float)$this->health_insurance_sum_insured : null),
-            'tds_applicable' => filter_var($this->tdsToggle, FILTER_VALIDATE_BOOLEAN) ? 1 : 0,
-            'pt_applicable' => filter_var($this->ptToggle, FILTER_VALIDATE_BOOLEAN) ? 1 : 0,
-            'lwf_applicable' => filter_var($this->lwfToggle, FILTER_VALIDATE_BOOLEAN) ? 1 : 0,
-            'bonus_toggle' => $this->bonusToggle ? 1 : 0,
-            'tds_regime' => $this->taxRegime ?? 'new',
+            'tds_applicable' => filter_var($this->tdsToggle ?? $this->tds_applicable ?? true, FILTER_VALIDATE_BOOLEAN) ? 1 : 0,
+            'pt_applicable' => filter_var($this->ptToggle ?? $this->pt_applicable ?? true, FILTER_VALIDATE_BOOLEAN) ? 1 : 0,
+            'lwf_applicable' => filter_var($this->lwfToggle ?? $this->lwf_applicable ?? true, FILTER_VALIDATE_BOOLEAN) ? 1 : 0,
+            'bonus_toggle' => filter_var($this->bonusToggle ?? $this->bonus_toggle ?? true, FILTER_VALIDATE_BOOLEAN) ? 1 : 0,
+            'tds_regime' => $this->taxRegime ?? $this->tds_regime ?? 'new',
             'declarations_accepted' => ($this->declarations_accepted !== null || $this->declarationsAccepted !== null) ? (filter_var($this->declarations_accepted ?? $this->declarationsAccepted, FILTER_VALIDATE_BOOLEAN) ? 1 : 0) : ($this->declarations === 'yes' ? 1 : 0),
             'gratuity_mode' => $this->gratuityMode ?? 'part_of_ctc',
             'lop_basis_days' => '30',
             'weekly_off_pattern' => $this->weeklyOffPattern ?: $this->weekly_off_pattern ?: null,
-            'emergency_contact_name' => $this->emergencyContactName,
+            'emergency_contact_name' => $this->emergencyContactName ?? $this->emergency_contact_name,
             'previous_employer_name' => $this->prevEmployerName,
             'previous_employer_uan' => $this->prevEmployerUAN,
             'probation_end_date' => $this->probationEndDate,
@@ -143,6 +150,10 @@ class UpdateEmployeeRequest extends FormRequest
             'attendance_tracking_start_date' => 'nullable|date|date_format:Y-m-d|after_or_equal:date_of_joining',
             'designation' => 'required|string|max:255',
             'gender' => 'nullable|in:male,female,other',
+            'is_disabled' => 'nullable|boolean',
+            'disability_type' => 'nullable|string|max:50',
+            'disability_percentage' => 'nullable|integer|min:40|max:100',
+            'udid_card_number' => 'nullable|string|max:50',
             'blood_group' => 'nullable|string|max:10',
             'marital_status' => 'nullable|in:single,married,other',
             'employment_model' => 'required|in:eor,agency_contract',
@@ -211,6 +222,9 @@ class UpdateEmployeeRequest extends FormRequest
             ],
             'pf_applicable' => 'boolean',
             'eps_applicable' => 'nullable|boolean',
+            'vpf_enabled' => 'nullable|boolean',
+            'vpf_type' => 'nullable|required_if:vpf_enabled,1,true|in:percentage,fixed_amount',
+            'vpf_value' => 'nullable|required_if:vpf_enabled,1,true|numeric|min:0.01',
             'joint_declaration_status' => 'nullable|string|in:not_required,pending,submitted,approved',
             'esi_applicable' => 'boolean',
             'health_insurance_provider' => 'nullable|string|max:100',
@@ -260,12 +274,39 @@ class UpdateEmployeeRequest extends FormRequest
 
                     if (($isActualOnEmp || $isActualOnEmpr) && $basicDa > 15000) {
                         $status = $this->joint_declaration_status ?? $this->jointDeclarationStatus ?? 'not_required';
-                        if (!in_array($status, ['submitted', 'approved'])) {
-                            $validator->errors()->add('joint_declaration_status', 'Para 26(6) Joint Declaration is required when PF wage basis is Actual Basic+DA and Basic+DA exceeds ₹15,000.');
+                        if ($status === 'not_required' || empty($status)) {
+                            $validator->errors()->add('joint_declaration_status', 'EPF Para 26(6) Joint Declaration Status must be Pending Attestation, Submitted, or Approved when PF wage basis is Actual Basic+DA and Basic+DA exceeds ₹15,000.');
                         }
                     }
                 }
             }
+
+            if ($this->vpf_enabled) {
+                $basicDa = ((float)($this->basic_pay ?? 0)) + ((float)($this->da ?? 0));
+                if ($this->vpf_type === 'percentage') {
+                    if ((float)$this->vpf_value > 88.0) {
+                        $validator->errors()->add('vpf_value', 'VPF percentage cannot exceed 88% (Statutory cap: Mandatory 12% + VPF cannot exceed 100% of Basic+DA under EPF Scheme Para 29).');
+                    }
+                } elseif ($this->vpf_type === 'fixed_amount') {
+                    $clientModel = $clientId ? \App\Models\Client::find($clientId) : null;
+                    $empBasis = $this->employee_pf_wage_basis ?: ($clientModel ? ($clientModel->employee_pf_wage_basis ?? 'ceiling') : 'ceiling');
+                    $pfCeiling = (float)($clientModel ? ($clientModel->pf_ceiling ?? 15000) : 15000);
+                    $mandatoryPfWage = ($empBasis === 'actual_basic_da') ? $basicDa : min($basicDa, $pfCeiling);
+                    $mandatoryPf = round($mandatoryPfWage * 0.12, 2);
+                    $maxFixed = max(0.00, $basicDa - $mandatoryPf);
+                    if ((float)$this->vpf_value > $maxFixed) {
+                        $validator->errors()->add('vpf_value', "VPF fixed amount cannot exceed ₹" . number_format($maxFixed, 2) . " (Basic+DA minus mandatory EPF).");
+                    }
+                }
+            }
         });
+    }
+
+    public function messages(): array
+    {
+        return [
+            'disability_percentage.min' => 'Disability percentage must be at least 40% to qualify as a Person with Benchmark Disability (PwD) under the RPwD Act, 2016 for the ₹25,000 ESI ceiling.',
+            'disability_percentage.max' => 'Disability percentage cannot exceed 100%.',
+        ];
     }
 }

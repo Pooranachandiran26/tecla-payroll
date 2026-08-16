@@ -266,15 +266,15 @@ class AttendanceUploadValidationService
                 if ($hasLockedItem) {
                     $monthLabel = $monthStart->format('F Y');
                     $status = 'blocked_locked';
-                    $notes = "⚠️ Payroll for {$monthLabel} is already locked for {$employee->employee_code}. Use Payroll Correction instead of re-uploading attendance.";
+                    $notes = "🔒 Payroll Already Locked: Payroll for {$monthLabel} is already locked for {$employee->employee_code}. Use Attendance Corrections instead of re-uploading.";
                     $errorCount++;
                 } else
                 // Parse days as non-negative integers
                 if (!is_numeric($rawDaysPresent) || (int) $rawDaysPresent < 0) {
-                    $notes = "Invalid days_present: '{$rawDaysPresent}'. Must be a non-negative integer.";
+                    $notes = "⛔ Invalid Present Days: '{$rawDaysPresent}' is not a valid number. Please enter a whole number (e.g. 21).";
                     $errorCount++;
                 } elseif (!is_numeric($rawDaysLOP) || (int) $rawDaysLOP < 0) {
-                    $notes = "Invalid days_lop: '{$rawDaysLOP}'. Must be a non-negative integer.";
+                    $notes = "⛔ Invalid LOP Days: '{$rawDaysLOP}' is not a valid number. Please enter a whole number (e.g. 0).";
                     $errorCount++;
                 } else {
                     $daysPresent = (int) $rawDaysPresent;
@@ -314,7 +314,7 @@ class AttendanceUploadValidationService
                         $skippedCount++;
                         $reconciledPresent = 0;
                         $reconciledLop = 0;
-                        $notes = "⚠️ Not yet joined — {$employee->employee_code} joined {$dojFormatted}. No attendance recorded for {$monthLabel}.";
+                        $notes = "ℹ️ Future Joining Date: {$employee->employee_code} joined on {$dojFormatted} (after {$monthLabel}). Row skipped.";
                         $dbPayloads = [];
                     } elseif ($uploadedTotal === $availableSlots) {
                         // Perfect match
@@ -329,7 +329,7 @@ class AttendanceUploadValidationService
                         $matchedRows++;
                         $reconciledPresent = $daysPresent;
                         $reconciledLop = $availableSlots - $daysPresent;
-                        $notes = "Warning: Shortfall. Uploaded: {$daysPresent} present / {$daysLOP} LOP. Saved: {$reconciledPresent} present / {$reconciledLop} LOP (due to unfilled slots).";
+                        $notes = "ℹ️ Missing Days Auto-Filled: Entered {$daysPresent} Present days out of {$availableSlots} required working days. The remaining {$reconciledLop} days were automatically marked as Absent (LOP) to complete the month.";
                     } else {
                         // Over-count
                         $scheduleReason = "";
@@ -341,7 +341,7 @@ class AttendanceUploadValidationService
 
                         if ($daysLOP > 0) {
                             // Reject over-count with LOP
-                            $notes = "⚠️ Numbers don't match — you entered {$uploadedTotal} days total, but this month only has {$availableSlots} working days{$scheduleReason}. Please fix and re-upload.";
+                            $notes = "⚠️ Total Days Exceeded: You entered {$uploadedTotal} days (Present: {$daysPresent} + LOP: {$daysLOP}), but this month only has {$availableSlots} working days{$scheduleReason}. Total days cannot exceed {$availableSlots}.";
                             $errorCount++;
                         } else {
                             // Cap present days if LOP is 0
@@ -349,12 +349,12 @@ class AttendanceUploadValidationService
                             $matchedRows++;
                             $reconciledPresent = $availableSlots;
                             $reconciledLop = 0;
-                            $notes = "⚠️ Adjusted — you entered {$daysPresent} present days, but this month only has {$availableSlots}{$scheduleReason}. We've automatically capped it to {$availableSlots}.";
+                            $notes = "ℹ️ Capped to Month Limit: You entered {$daysPresent} Present days, but this month only has {$availableSlots} working days{$scheduleReason}. Automatically capped to {$availableSlots} Present days.";
                         }
                     }
                 }
             } else {
-                $notes = "Employee code '{$rawEmpCode}' not found for this client.";
+                $notes = "⛔ Employee Code Not Found: No active employee with code '{$rawEmpCode}' exists under this client. Please verify the code.";
                 $errorCount++;
             }
 

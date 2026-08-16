@@ -31,6 +31,10 @@ class Employee extends Model
         'aadhaar_number' => 'encrypted',
         'eps_applicable' => 'boolean',
         'pf_applicable' => 'boolean',
+        'vpf_enabled' => 'boolean',
+        'vpf_value' => 'float',
+        'is_disabled' => 'boolean',
+        'disability_percentage' => 'integer',
         'health_insurance_sum_insured' => 'float',
     ];
 
@@ -102,9 +106,59 @@ class Employee extends Model
 
     public function getDocumentsVerifiedCountAttribute()
     {
-        return $this->documents->whereIn('document_type', $this->required_document_types)
-                               ->where('status', 'verified')
-                               ->count();
+        if ($this->relationLoaded('documents')) {
+            return $this->documents
+                ->whereIn('document_type', $this->required_document_types)
+                ->where('status', 'verified')
+                ->count();
+        }
+
+        return $this->documents()
+            ->whereIn('document_type', $this->required_document_types)
+            ->where('status', 'verified')
+            ->count();
+    }
+
+    public function checkAndPerformAutoActivation(): bool
+    {
+        if ($this->status !== 'onboarding') {
+            return false;
+        }
+
+        $this->load('documents');
+
+        if ($this->documents_verified_count >= $this->documents_required_count) {
+            if ((bool)$this->pf_applicable && empty(trim($this->uan_number ?? ''))) {
+                return false;
+            }
+
+            $this->update(['status' => 'active']);
+
+            if ($this->personal_email) {
+                try {
+                    \Illuminate\Support\Facades\Mail::to($this->personal_email)
+                        ->queue(new \App\Mail\ProfileActivatedMail($this->full_name));
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::error("ProfileActivatedMail error: " . $e->getMessage());
+                }
+            }
+
+            try {
+                $auditService = app(\App\Services\AuditService::class);
+                $auditService->log(
+                    'employee.auto_activated',
+                    auth()->user() ?? null,
+                    $this,
+                    ['status' => 'onboarding'],
+                    ['status' => 'active'],
+                    ['reason' => 'All required documents verified and UAN provided']
+                );
+            } catch (\Throwable $e) {}
+
+            return true;
+        }
+
+        return false;
     }
 
     public function loans()
@@ -130,14 +184,38 @@ class Employee extends Model
         if ($pfCeiling <= 0) {
             $pfCeiling = \App\Services\SalaryCalculationService::PF_WAGE_CEILING;
         }
-        return round(min((float)$this->basic_pay, $pfCeiling) * 0.12, 2);
+        $empBasis = $this->employee_pf_wage_basis ?: ($this->client?->employee_pf_wage_basis ?? 'ceiling');
+        $basicDa = (float)$this->basic_pay + (float)($this->da ?? 0);
+        $pfWage = ($empBasis === 'actual_basic_da') ? $basicDa : min($basicDa, $pfCeiling);
+        return round($pfWage * 0.12, 2);
+    }
+
+    public function getEmployeeVpfMonthlyAttribute()
+    {
+        if (!$this->pf_applicable || !$this->vpf_enabled) return 0.00;
+        $basicDa = (float)$this->basic_pay + (float)($this->da ?? 0);
+        if ($this->vpf_type === 'percentage' && $this->vpf_value > 0) {
+            $vpfRate = min(88.0, (float)$this->vpf_value);
+            return round($basicDa * ($vpfRate / 100), 2);
+        } elseif ($this->vpf_type === 'fixed_amount' && $this->vpf_value > 0) {
+            $maxVpf = max(0.00, $basicDa - $this->employee_pf_monthly);
+            return round(min((float)$this->vpf_value, $maxVpf), 2);
+        }
+        return 0.00;
+    }
+
+    public function getEmployeeTotalPfMonthlyAttribute()
+    {
+        return round($this->employee_pf_monthly + $this->employee_vpf_monthly, 2);
     }
 
     public function getEmployeeEsiMonthlyAttribute()
     {
         if (!$this->esi_applicable) return 0.00;
         $gross = (float)$this->gross_monthly_salary;
-        $esiLimit = \App\Services\SalaryCalculationService::ESI_WAGE_CEILING;
+        $esiLimit = (bool)$this->is_disabled 
+            ? \App\Services\SalaryCalculationService::ESI_DISABILITY_WAGE_CEILING 
+            : \App\Services\SalaryCalculationService::ESI_WAGE_CEILING;
         return $gross <= $esiLimit ? round($gross * 0.0075, 2) : 0.00;
     }
 }

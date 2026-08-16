@@ -98,6 +98,7 @@ class PtSlabSeeder extends Seeder
                 'min_salary' => 0.00,
                 'max_salary' => 3500.00, // Monthly equivalent of ≤ ₹21,000 half-yearly
                 'deduction_amount' => 0.00,
+                'half_yearly_amount' => 0.00,
                 'deduction_note' => '/ month (Half-yearly ₹0)',
                 'exceptions_text' => 'Half-yearly slab up to ₹21,000 = ₹0',
                 'frequency' => 'half_yearly',
@@ -110,6 +111,7 @@ class PtSlabSeeder extends Seeder
                 'min_salary' => 3501.00,
                 'max_salary' => 5000.00, // Monthly equivalent of ₹21,001–₹30,000 half-yearly
                 'deduction_amount' => 30.00, // ₹180 / 6
+                'half_yearly_amount' => 180.00,
                 'deduction_note' => '/ month (Half-yearly ₹180)',
                 'exceptions_text' => 'Half-yearly ₹180 spread over 6 months',
                 'frequency' => 'half_yearly',
@@ -122,6 +124,7 @@ class PtSlabSeeder extends Seeder
                 'min_salary' => 5001.00,
                 'max_salary' => 7500.00, // Monthly equivalent of ₹30,001–₹45,000 half-yearly
                 'deduction_amount' => 70.83, // ₹425 / 6
+                'half_yearly_amount' => 425.00,
                 'deduction_note' => '/ month (Half-yearly ₹425)',
                 'exceptions_text' => 'Half-yearly ₹425 spread over 6 months',
                 'frequency' => 'half_yearly',
@@ -134,6 +137,7 @@ class PtSlabSeeder extends Seeder
                 'min_salary' => 7501.00,
                 'max_salary' => 10000.00, // Monthly equivalent of ₹45,001–₹60,000 half-yearly
                 'deduction_amount' => 155.00, // ₹930 / 6
+                'half_yearly_amount' => 930.00,
                 'deduction_note' => '/ month (Half-yearly ₹930)',
                 'exceptions_text' => 'Half-yearly ₹930 spread over 6 months',
                 'frequency' => 'half_yearly',
@@ -146,6 +150,7 @@ class PtSlabSeeder extends Seeder
                 'min_salary' => 10001.00,
                 'max_salary' => 12500.00, // Monthly equivalent of ₹60,001–₹75,000 half-yearly
                 'deduction_amount' => 170.83, // ₹1025 / 6
+                'half_yearly_amount' => 1025.00,
                 'deduction_note' => '/ month (Half-yearly ₹1,025)',
                 'exceptions_text' => 'Half-yearly ₹1,025 spread over 6 months',
                 'frequency' => 'half_yearly',
@@ -158,6 +163,7 @@ class PtSlabSeeder extends Seeder
                 'min_salary' => 12501.00,
                 'max_salary' => null, // No limit (> ₹75,000 half-yearly)
                 'deduction_amount' => 208.33, // ₹1250 / 6
+                'half_yearly_amount' => 1250.00,
                 'deduction_note' => '/ month (Half-yearly ₹1,250)',
                 'exceptions_text' => 'Half-yearly ₹1,250 spread over 6 months',
                 'frequency' => 'half_yearly',
