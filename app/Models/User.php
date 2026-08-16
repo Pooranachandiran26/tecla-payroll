@@ -112,17 +112,51 @@ class User extends Authenticatable
     }
 
     // Relationships
-    public function employee() { return $this->belongsTo(Employee::class); }
-    public function client() { return $this->belongsTo(Client::class); }
-    public function managedClients() { return $this->belongsToMany(Client::class, 'client_user'); }
-    public function otpCodes() { return $this->hasMany(OtpCode::class); }
-    public function passwordHistories() { return $this->hasMany(PasswordHistory::class); }
-    public function auditLogs() { return $this->hasMany(AuditLog::class); }
+    public function employee()
+    {
+        return $this->belongsTo(Employee::class);
+    }
+
+    public function client()
+    {
+        return $this->belongsTo(Client::class);
+    }
+
+    public function managedClients()
+    {
+        return $this->belongsToMany(Client::class, 'client_user');
+    }
+
+    public function otpCodes()
+    {
+        return $this->hasMany(OtpCode::class);
+    }
+
+    public function passwordHistories()
+    {
+        return $this->hasMany(PasswordHistory::class);
+    }
+
+    public function auditLogs()
+    {
+        return $this->hasMany(AuditLog::class);
+    }
 
     // Helpers
-    public function isAdmin() { return $this->role === 'admin'; }
-    public function isManager() { return $this->role === 'manager'; }
-    public function isLocked() { return in_array($this->status, ['locked', 'suspended']) || ($this->locked_until && $this->locked_until->isFuture()); }
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
+    }
+
+    public function isManager(): bool
+    {
+        return $this->role === 'manager';
+    }
+
+    public function isLocked(): bool
+    {
+        return in_array($this->status, ['locked', 'suspended']) || ($this->locked_until && $this->locked_until->isFuture());
+    }
 
     public function getManagedClientIds(): array
     {
@@ -163,10 +197,17 @@ class User extends Authenticatable
         return false;
     }
 
-    public function incrementFailedAttempts() {
+    public function incrementFailedAttempts(): void
+    {
         $this->increment('failed_login_attempts');
     }
-    public function resetFailedAttempts() {
-        $this->update(['failed_login_attempts' => 0, 'locked_until' => null, 'status' => 'active']);
+
+    public function resetFailedAttempts(): void
+    {
+        $this->update([
+            'failed_login_attempts' => 0,
+            'locked_until' => null,
+            'status' => 'active'
+        ]);
     }
 }
