@@ -1,9 +1,12 @@
 import React from 'react';
-import { INDIAN_STATES, COUNTRIES } from '../constants/clientFormData';
-import { MapPin, Building, Trash2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { INDIAN_STATES, COUNTRIES, GST_STATE_CODES } from '../constants/clientFormData';
+import { MapPin, Building, Trash2, CheckCircle2, AlertCircle, Edit3, Lightbulb } from 'lucide-react';
 
 export default function AddressSection({ formData, errors, onChange, hook }) {
   const isIndia = formData.country === 'India';
+  const hasGstinStateMismatch = errors.regState?.msg && errors.regState.msg.includes('does not match GSTIN state code');
+  const gstinCode = (formData.gstin || '').trim().substring(0, 2);
+  const gstinStateName = Object.keys(GST_STATE_CODES).find(k => GST_STATE_CODES[k] === gstinCode) || gstinCode;
 
   return (
     <>
@@ -12,20 +15,60 @@ export default function AddressSection({ formData, errors, onChange, hook }) {
         <h3>Registered &amp; Billing Address</h3>
       </div>
 
-      {/* Prominent Validation Error Alert Banner */}
+      {/* Actionable Quick Fix Validation Error Card */}
       {(errors.regState || errors['branches.0.gstin'] || errors.regAddressLine1 || errors.regCity || errors.regPin) && (
-        <div style={{
-          display: 'flex', alignItems: 'flex-start', gap: '0.75rem',
-          padding: '0.875rem 1rem', marginBottom: '1.25rem',
-          background: '#FEF2F2', border: '1px solid #F87171',
-          borderRadius: 'var(--radius-sm, 6px)', color: '#991B1B', fontSize: '0.875rem',
-          lineHeight: '1.4'
-        }}>
-          <AlertCircle size={20} style={{ flexShrink: 0, marginTop: '1px', color: '#DC2626' }} />
-          <div>
-            <strong style={{ display: 'block', marginBottom: '2px', color: '#B91C1C' }}>Address &amp; State Validation:</strong>
-            {errors.regState?.msg || errors['branches.0.gstin']?.msg || errors.regAddressLine1?.msg || errors.regCity?.msg || errors.regPin?.msg || 'Please review and fix the highlighted address fields.'}
+        <div className="quick-fix-card">
+          <div className="quick-fix-card-header">
+            <AlertCircle size={20} style={{ color: '#DC2626', flexShrink: 0 }} />
+            <span>{hasGstinStateMismatch ? "⚠ GSTIN & State Don't Match" : "⚠ Address & State Validation"}</span>
           </div>
+
+          <div className="quick-fix-card-body">
+            {hasGstinStateMismatch ? (
+              <>
+                The selected State is <strong>{formData.regState || 'Selected State'}</strong> (Code {GST_STATE_CODES[formData.regState] || '—'}),
+                but GSTIN <code>{formData.gstin}</code> belongs to State Code <strong>{gstinCode} ({gstinStateName})</strong>.
+                Please verify the GSTIN or the selected State.
+              </>
+            ) : (
+              errors.regState?.msg || errors['branches.0.gstin']?.msg || errors.regAddressLine1?.msg || errors.regCity?.msg || errors.regPin?.msg || 'Please review and fix the highlighted address fields.'
+            )}
+          </div>
+
+          {/* Quick Action Buttons */}
+          {hasGstinStateMismatch && (
+            <div className="quick-fix-actions">
+              <button
+                type="button"
+                className="btn-quick-fix"
+                onClick={() => hook.jumpToField && hook.jumpToField(1, 'gstin')}
+                title="Jump to Identity section and focus GSTIN field"
+              >
+                <Edit3 size={13} /> Edit GSTIN
+              </button>
+              <button
+                type="button"
+                className="btn-quick-fix-secondary"
+                onClick={() => hook.jumpToField && hook.jumpToField(2, 'regState')}
+                title="Focus State select field"
+              >
+                <Edit3 size={13} /> Focus State Field
+              </button>
+            </div>
+          )}
+
+          {/* Smart Quick Help Box */}
+          {hasGstinStateMismatch && (
+            <div className="quick-fix-help-box">
+              <strong style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginBottom: '2px' }}>
+                <Lightbulb size={14} color="#D97706" /> Smart Quick Help:
+              </strong>
+              <div>
+                GSTIN starts with a 2-digit state code (e.g., Tamil Nadu = 33, Karnataka = 29, Maharashtra = 27, Delhi = 07).
+                The selected State must match the GSTIN state code. Clicking <strong>Edit GSTIN</strong> takes you directly to section 1, and returns you back here automatically when corrected.
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -56,8 +99,8 @@ export default function AddressSection({ formData, errors, onChange, hook }) {
 
       <div className="form-row">
         <div className="form-group">
-          <label>State <span style={{ color: 'var(--status-danger)' }}>*</span></label>
-          <select className={`form-control ${errors.regState ? 'invalid' : ''}`}
+          <label htmlFor="regState">State <span style={{ color: 'var(--status-danger)' }}>*</span></label>
+          <select id="regState" name="regState" className={`form-control ${errors.regState ? 'invalid' : ''}`}
             value={formData.regState}
             onChange={e => onChange('regState', e.target.value)}>
             <option value="">-- Select State --</option>

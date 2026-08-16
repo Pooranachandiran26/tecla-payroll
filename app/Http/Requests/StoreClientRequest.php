@@ -21,14 +21,27 @@ class StoreClientRequest extends FormRequest
     {
         \Illuminate\Support\Facades\Log::info('StoreClientRequest payload received', $this->all());
 
+        $isDraft = $this->boolean('is_draft') || $this->status === 'draft';
+        $companyName = $this->name ?: $this->company_name;
+        if (!$companyName && $isDraft) {
+            $companyName = 'Draft Client ' . date('d M Y H:i');
+        }
+
+        $clientCode = $this->code ?: $this->client_code;
+        if (!$clientCode && $isDraft) {
+            $clientCode = 'DFT-' . strtoupper(substr(md5(uniqid(mt_rand(), true)), 0, 6));
+        }
+
         $mapped = [
-            'company_name' => $this->name,
-            'company_type' => $this->type,
-            'client_code' => $this->code,
+            'company_name' => $companyName,
+            'company_type' => ($this->type ?: $this->company_type) ?: ($isDraft ? 'pvt_ltd' : null),
+            'client_code' => $clientCode,
             'trust_registration_number' => $this->trustRegNo,
             'pan_number' => $this->pan,
             'industry' => $this->industry,
-            'status' => $this->status ?: 'onboarding',
+            'status' => $isDraft ? 'draft' : ($this->status ?: 'onboarding'),
+            'onboarding_current_step' => $this->currentStep ?? $this->onboarding_current_step ?? 1,
+            'onboarding_completed_steps' => is_array($this->sectionProgress) ? json_encode($this->sectionProgress) : ($this->onboarding_completed_steps ?? null),
             'country' => $this->country ?: 'India',
             'cin_number' => $this->cin,
             'incorporation_date' => $this->incorporationDate,
@@ -37,23 +50,23 @@ class StoreClientRequest extends FormRequest
             'accent_color' => $this->accentColor,
             
             // Address
-            'registered_address_line_1' => $this->regAddressLine1,
+            'registered_address_line_1' => $this->regAddressLine1 ?: ($isDraft ? 'Draft Address' : null),
             'registered_address_line_2' => $this->regAddressLine2,
-            'registered_city' => $this->regCity,
-            'registered_state' => $this->regState,
-            'registered_pin' => $this->regPin,
+            'registered_city' => $this->regCity ?: ($isDraft ? 'Draft City' : null),
+            'registered_state' => $this->regState ?: ($isDraft ? 'Tamil Nadu' : null),
+            'registered_pin' => $this->regPin ?: ($isDraft ? '600001' : null),
             'tax_id' => $this->taxId,
             'tan_number' => $this->tan,
             'registration_number' => $this->regNo,
             
             // Contract & Billing
-            'contract_type' => $this->contractType,
-            'billing_model' => $this->billingModel,
+            'contract_type' => $this->contractType ?: ($isDraft ? 'agency' : null),
+            'billing_model' => $this->billingModel ?: ($isDraft ? 'markup' : null),
             'markup_percentage' => $this->markupPct,
             'fixed_fee_amount' => $this->fixedFeeAmount,
             'hourly_rate' => $this->hourlyRate,
-            'work_locations_count' => $this->locationsCount,
-            'contract_start_date' => $this->contractStart,
+            'work_locations_count' => $this->locationsCount ?: 1,
+            'contract_start_date' => $this->contractStart ?: ($isDraft ? date('Y-m-d') : null),
             'contract_end_date' => $this->contractEnd,
             
             'ot_billing_rule' => $this->otBilling,
@@ -156,9 +169,9 @@ class StoreClientRequest extends FormRequest
 
             'account_manager_id' => $this->accountManager ?: null,
             'backup_account_manager_id' => $this->backupAM ?: null,
-            'primary_poc_name' => $this->poc1['name'] ?? null,
-            'primary_poc_email' => $this->poc1['email'] ?? null,
-            'primary_poc_phone' => $this->poc1['phone'] ?? null,
+            'primary_poc_name' => ($this->poc1['name'] ?? null) ?: ($isDraft ? 'Draft Primary Contact' : null),
+            'primary_poc_email' => ($this->poc1['email'] ?? null) ?: ($isDraft ? 'draft@example.com' : null),
+            'primary_poc_phone' => ($this->poc1['phone'] ?? null) ?: ($isDraft ? '9999999999' : null),
         ];
 
         $contacts = [];
@@ -282,7 +295,9 @@ class StoreClientRequest extends FormRequest
             'gstin' => ['nullable', 'string', 'size:15', 'regex:/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/'],
             'work_locations_count' => 'required|integer|min:1',
             'industry' => 'nullable|string|max:255',
-            'status' => 'required|string|in:onboarding,active,inactive,suspended',
+            'status' => 'required|string|in:draft,onboarding,active,inactive,suspended',
+            'onboarding_current_step' => 'nullable|integer',
+            'onboarding_completed_steps' => 'nullable|string',
             'country' => 'nullable|string|max:100',
             'cin_number' => 'nullable|string|max:50',
             'incorporation_date' => 'nullable|date',

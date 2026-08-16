@@ -167,6 +167,7 @@ export default function ClientsList({ clients, stats = {} }) {
               <select name="onboarding" className="form-control" style={{ padding: "0.4rem 0.75rem" }} title="Onboarding Status" value={filters.onboarding} onChange={handleFilterChange}>
                 <option value="">All Onboarding Status</option>
                 <option value="complete">100% Complete</option>
+                <option value="draft">Draft (Unfinished)</option>
                 <option value="pending">Pending Configuration</option>
               </select>
             </div>
@@ -174,7 +175,9 @@ export default function ClientsList({ clients, stats = {} }) {
             <div>
               <select name="status" className="form-control" style={{ padding: "0.4rem 0.75rem" }} title="Status" value={filters.status} onChange={handleFilterChange}>
                 <option value="all">All Statuses</option>
+                <option value="draft">Draft Clients</option>
                 <option value="active">Active Clients</option>
+                <option value="onboarding">In Progress / Onboarding</option>
                 <option value="inactive">Inactive / Offboarded</option>
                 <option value="suspended">Suspended</option>
               </select>
@@ -216,16 +219,23 @@ export default function ClientsList({ clients, stats = {} }) {
           </div>
 
           {/* Summary Stats Bar */}
-          <div className="card" style={{ padding: "1rem", marginBottom: "1.5rem", borderLeft: "4px solid var(--primary-navy)", backgroundColor: "var(--bg-light)", display: "flex", gap: "1rem", fontSize: "0.95rem", fontWeight: "600", color: "var(--primary-navy)" }}>
+          <div className="card" style={{ padding: "1rem", marginBottom: "1.5rem", borderLeft: "4px solid var(--primary-navy)", backgroundColor: "var(--bg-light)", display: "flex", gap: "1rem", fontSize: "0.95rem", fontWeight: "600", color: "var(--primary-navy)", alignItems: "center", flexWrap: "wrap" }}>
             <span>Total: {stats.total || 0}</span>
             <span style={{ color: "var(--border-color)" }}>|</span>
-            <span>Active: {stats.active || 0}</span>
+            <span style={{ color: "#059669" }}>Active: {stats.active || 0}</span>
+            <span style={{ color: "var(--border-color)" }}>|</span>
+            <span 
+              style={{ color: "#D97706", cursor: "pointer" }} 
+              onClick={() => setFilters(prev => ({ ...prev, status: 'draft' }))}
+              title="Filter by Draft clients"
+            >
+              Drafts: {stats.drafts || 0}
+            </span>
             <span style={{ color: "var(--border-color)" }}>|</span>
             <span style={{ color: "var(--status-warning)" }}>Onboarding: {stats.onboarding || 0}</span>
             <span style={{ color: "var(--border-color)" }}>|</span>
             <span title="Coming with Invoicing module">
               Total Outstanding: <span style={{ color: "var(--status-danger)" }}>—</span>
-              {/* SUGGESTION: Replace with real invoice data once the Invoicing module exists */}
             </span>
             <span style={{ color: "var(--border-color)" }}>|</span>
             <span>Total Deployed: {stats.total_deployed || 0} candidates</span>
@@ -258,8 +268,15 @@ export default function ClientsList({ clients, stats = {} }) {
                       </td>
                     </tr>
                   ) : (
-                    dataList.map(c => (
-                      <tr key={c.id} style={c.status === 'suspended' ? { borderLeft: '3px solid var(--status-warning)', opacity: 0.85 } : {}}>
+                    dataList.map(c => {
+                      const stepNames = { 1: 'Identity', 2: 'Address', 3: 'Contacts', 4: 'Contract', 5: 'Statutory', 6: 'Documents', 7: 'Portal', 8: 'SLA' };
+                      const currentStepName = stepNames[c.onboarding_current_step] || 'Identity';
+                      const isDraft = c.status === 'draft';
+                      const completedCount = c.completed_sections_count !== undefined ? c.completed_sections_count : (c.status === 'active' ? 8 : 0);
+                      const pct = c.completion_percentage !== undefined ? c.completion_percentage : Math.round((completedCount / 8) * 100);
+
+                      return (
+                      <tr key={c.id} style={c.status === 'suspended' ? { borderLeft: '3px solid var(--status-warning)', opacity: 0.85 } : (isDraft ? { backgroundColor: '#FFFDF5' } : {})}>
                         <td>
                           <div>
                             <Link href={route('clients.show', c.id)} prefetch className="client-name">{c.company_name}</Link>
@@ -284,13 +301,28 @@ export default function ClientsList({ clients, stats = {} }) {
                           </div>
                         </td>
                         <td>
-                          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                            <div style={{ width: "30px", height: "4px", backgroundColor: c.status === 'active' ? 'var(--status-success)' : 'var(--status-warning)', borderRadius: "2px" }}></div>
-                            <span style={{ fontSize: "0.75rem", color: c.status === 'active' ? 'var(--text-muted)' : 'var(--status-warning)' }}>
-                              {c.status === 'active' ? 'Complete' : 'Pending'}
-                              {/* SUGGESTION: Replace with real onboarding progress % once added */}
-                            </span>
-                          </div>
+                          {isDraft ? (
+                            <div>
+                              <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", marginBottom: "0.15rem" }}>
+                                <div style={{ width: "45px", height: "5px", backgroundColor: "#E2E8F0", borderRadius: "3px", overflow: "hidden" }}>
+                                  <div style={{ width: `${pct}%`, height: "100%", backgroundColor: "#F59E0B" }}></div>
+                                </div>
+                                <span style={{ fontSize: "0.75rem", fontWeight: "700", color: "#D97706" }}>
+                                  {completedCount} / 8 Completed
+                                </span>
+                              </div>
+                              <div style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>
+                                Last section: <strong>{currentStepName}</strong>
+                              </div>
+                            </div>
+                          ) : (
+                            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                              <div style={{ width: "30px", height: "4px", backgroundColor: c.status === 'active' ? 'var(--status-success)' : 'var(--status-warning)', borderRadius: "2px" }}></div>
+                              <span style={{ fontSize: "0.75rem", color: c.status === 'active' ? 'var(--text-muted)' : 'var(--status-warning)' }}>
+                                {c.status === 'active' ? '8 / 8 Completed' : 'Pending'}
+                              </span>
+                            </div>
+                          )}
                         </td>
                         <td>
                           <div style={{ fontSize: "0.85rem" }}>Since: {formatDate(c.contract_start_date) || '—'}</div>
@@ -312,7 +344,6 @@ export default function ClientsList({ clients, stats = {} }) {
                         </td>
                         <td>
                           <div style={{ fontSize: "0.85rem" }}>—</div>
-                          {/* SUGGESTION: Replace with real invoice data once the Invoicing module exists */}
                         </td>
                         <td style={{ fontWeight: "600" }}>
                           —
@@ -321,46 +352,77 @@ export default function ClientsList({ clients, stats = {} }) {
                           {c.employees_count || 0}
                         </td>
                         <td>
-                          <span className={`badge badge-${c.status === 'active' ? 'success' : c.status === 'suspended' ? 'warning' : 'secondary'}`}>
-                            {c.status}
-                          </span>
+                          {isDraft ? (
+                            <span className="badge" style={{ backgroundColor: '#FEF3C7', color: '#D97706', border: '1px solid #FDE68A', fontWeight: '700', padding: '0.25rem 0.55rem', borderRadius: '4px', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                              🟡 Draft
+                            </span>
+                          ) : (
+                            <span className={`badge badge-${c.status === 'active' ? 'success' : c.status === 'suspended' ? 'warning' : 'secondary'}`}>
+                              {c.status}
+                            </span>
+                          )}
                         </td>
                         <td>
-                          <select 
-                            className="form-control" 
-                            style={{ padding: "0.2rem 0.5rem", fontSize: "0.8rem", width: "110px", display: "inline-block" }}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              e.target.value = ""; 
-                              if (val === 'view') router.visit(route('clients.show', c.id));
-                              else if (val === 'edit') router.visit(route('clients.edit', c.id));
-                              else if (val === 'deactivate') setDeactivateClient(c);
-                              else if (val === 'restore') handleRestore(c.id);
-                              else if (val === 'delete') setDeleteDialog({ client: c, confirmText: '', reason: '' });
-                              else if (val === 'onboard') router.visit(route('employees.create', { client_id: c.id }));
-                              else if (val) alert("Coming soon: This feature is pending the next phase.");
-                            }}
-                          >
-                            <option value="">-- Actions --</option>
-                            <option value="view">View Details</option>
-                            <option value="edit">Edit Config</option>
-                            <option value="onboard">Onboard Candidate</option>
-                            
-                            {(c.status === 'active' || c.status === 'onboarding') && (
-                              <option value="deactivate">Deactivate Client</option>
+                          <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                            {isDraft && (
+                              <Link
+                                href={route('clients.edit', c.id)}
+                                className="btn btn-primary"
+                                style={{
+                                  padding: "0.25rem 0.6rem",
+                                  fontSize: "0.75rem",
+                                  fontWeight: "700",
+                                  backgroundColor: "#2563EB",
+                                  borderColor: "#1D4ED8",
+                                  color: "white",
+                                  borderRadius: "6px",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "3px",
+                                  textDecoration: "none",
+                                  whiteSpace: "nowrap"
+                                }}
+                              >
+                                Resume
+                              </Link>
                             )}
-                            
-                            {c.status === 'inactive' && auth.user.role === 'admin' && (
-                              <option value="restore">Restore Client</option>
-                            )}
+                            <select 
+                              className="form-control" 
+                              style={{ padding: "0.2rem 0.4rem", fontSize: "0.78rem", width: isDraft ? "85px" : "110px", display: "inline-block" }}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                e.target.value = ""; 
+                                if (val === 'resume' || val === 'edit') router.visit(route('clients.edit', c.id));
+                                else if (val === 'view') router.visit(route('clients.show', c.id));
+                                else if (val === 'deactivate') setDeactivateClient(c);
+                                else if (val === 'restore') handleRestore(c.id);
+                                else if (val === 'delete') setDeleteDialog({ client: c, confirmText: '', reason: '' });
+                                else if (val === 'onboard') router.visit(route('employees.create', { client_id: c.id }));
+                              }}
+                            >
+                              <option value="">Actions</option>
+                              {isDraft && <option value="resume">Resume Onboarding</option>}
+                              <option value="view">View Details</option>
+                              <option value="edit">Edit Config</option>
+                              <option value="onboard">Onboard Candidate</option>
+                              
+                              {(c.status === 'active' || c.status === 'onboarding') && (
+                                <option value="deactivate">Deactivate Client</option>
+                              )}
+                              
+                              {c.status === 'inactive' && auth.user.role === 'admin' && (
+                                <option value="restore">Restore Client</option>
+                              )}
 
-                            {auth.user.role === 'admin' && (
-                              <option value="delete">Delete Client</option>
-                            )}
-                          </select>
+                              {auth.user.role === 'admin' && (
+                                <option value="delete">Delete Client</option>
+                              )}
+                            </select>
+                          </div>
                         </td>
                       </tr>
-                    ))
+                    );
+                    })
                   )}
                 </tbody>
               </table>

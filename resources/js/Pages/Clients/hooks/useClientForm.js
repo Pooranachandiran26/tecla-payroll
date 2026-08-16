@@ -21,6 +21,7 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
   const [errors, setErrors] = useState({});
   const [hints, setHints] = useState({});
   const [currentStep, setCurrentStep] = useState(1);
+  const [returnStep, setReturnStep] = useState(null);
   const [sectionProgress, setSectionProgress] = useState({
     1: false, 2: false, 3: false, 4: false, 5: false, 6: false, 7: false, 8: false,
   });
@@ -892,16 +893,37 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
     return allSteps;
   }, [isInhouse]);
 
+  const jumpToField = useCallback((targetStep, fieldId) => {
+    setReturnStep(currentStep);
+    setCurrentStep(targetStep);
+    setTimeout(() => {
+      const el = document.getElementById(fieldId) || document.querySelector(`[name="${fieldId}"]`) || document.querySelector(`.${fieldId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.focus();
+        el.classList.add('field-highlight-pulse');
+        setTimeout(() => el.classList.remove('field-highlight-pulse'), 3500);
+      }
+    }, 150);
+  }, [currentStep]);
+
   const nextStep = useCallback(() => {
     if (validateStep(currentStep)) {
       markProgress(currentStep);
+      if (returnStep) {
+        const target = returnStep;
+        setReturnStep(null);
+        setCurrentStep(target);
+        showToast(`🔄 Returned to Step ${target} to verify correction.`);
+        return;
+      }
       const activeSteps = getActiveSteps();
       const currentIdx = activeSteps.indexOf(currentStep);
       if (currentIdx < activeSteps.length - 1) {
         setCurrentStep(activeSteps[currentIdx + 1]);
       }
     }
-  }, [currentStep, validateStep, markProgress, getActiveSteps]);
+  }, [currentStep, validateStep, markProgress, getActiveSteps, returnStep, showToast]);
 
   const prevStep = useCallback(() => {
     const activeSteps = getActiveSteps();
@@ -1117,9 +1139,55 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
       savedAt: new Date().toISOString(),
     };
     localStorage.setItem(key, JSON.stringify(draftPayload));
-    if (!isAuto) showToast('💾 Draft saved successfully!');
+
+    // Submit backend draft persistence payload to store/update client with status 'draft'
+    const backendPayload = {
+      ...getFormPayload(),
+      is_draft: true,
+      status: 'draft',
+      currentStep,
+      sectionProgress,
+    };
+
+    setIsSubmitting(true);
+
+    const handleDraftSuccess = (page) => {
+      setIsSubmitting(false);
+      const updatedClient = page.props?.client || page.props?.clients?.data?.[0];
+      if (updatedClient && updatedClient.id) {
+        setIsEditMode(true);
+        setEditId(updatedClient.id);
+        if (window.history && window.history.replaceState) {
+          window.history.replaceState(null, '', route('clients.edit', updatedClient.id));
+        }
+      }
+      if (!isAuto) showToast('💾 Draft saved successfully! Client is stored in Directory as Draft.');
+    };
+
+    const handleDraftError = (err) => {
+      setIsSubmitting(false);
+      console.warn('Draft save notice:', err);
+      if (!isAuto) showToast('💾 Progress saved locally as draft!');
+    };
+
+    if (isEditMode && editId) {
+      router.put(route('clients.update', editId), backendPayload, {
+        onSuccess: handleDraftSuccess,
+        onError: handleDraftError,
+        preserveScroll: true,
+        preserveState: true,
+      });
+    } else {
+      router.post(route('clients.store'), backendPayload, {
+        onSuccess: handleDraftSuccess,
+        onError: handleDraftError,
+        preserveScroll: true,
+        preserveState: true,
+      });
+    }
+
     return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  }, [getDraftKey, formData, clientBranches, extraContacts, agencyBranches, stateRegistrations, sectionProgress, currentStep, showToast]);
+  }, [getDraftKey, formData, clientBranches, extraContacts, agencyBranches, stateRegistrations, sectionProgress, currentStep, showToast, getFormPayload, isEditMode, editId]);
 
   const errorKeyMap = useCallback((laravelErrors) => {
     const mapped = {};
@@ -1516,13 +1584,42 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
         size: doc.file_size_kb * 1024,
         type: doc.document_type,
         verified: doc.verification_status === 'verified',
-        verification_status: doc.verification_status,
-        rejection_reason: doc.rejection_reason,
         file: null // already in DB
       })));
     }
 
-    setSectionProgress({ 1: true, 2: true, 3: true, 4: true, 5: true, 6: true, 7: true, 8: true });
+    if (client.status === 'draft' || client.status === 'onboarding') {
+      let progressObj = { 1: false, 2: false, 3: false, 4: false, 5: false, 6: false, 7: false, 8: false };
+      let savedProgress = client.onboarding_completed_steps;
+      if (typeof savedProgress === 'string') {
+        try { savedProgress = JSON.parse(savedProgress); } catch (e) {}
+      }
+      if (savedProgress && typeof savedProgress === 'object') {
+        progressObj = { ...progressObj, ...savedProgress };
+      } else {
+        if (client.company_name) progressObj[1] = true;
+        if (client.registered_address_line_1) progressObj[2] = true;
+        if (client.primary_poc_name) progressObj[3] = true;
+        if (client.contract_type) progressObj[4] = true;
+      }
+      setSectionProgress(progressObj);
+
+      let targetStep = client.onboarding_current_step || 1;
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('step')) {
+        targetStep = parseInt(urlParams.get('step')) || targetStep;
+      } else if (!client.onboarding_current_step) {
+        for (let s = 1; s <= 8; s++) {
+          if (!progressObj[s]) {
+            targetStep = s;
+            break;
+          }
+        }
+      }
+      setCurrentStep(targetStep);
+    } else {
+      setSectionProgress({ 1: true, 2: true, 3: true, 4: true, 5: true, 6: true, 7: true, 8: true });
+    }
   }, []);
 
   // ═══ INITIALIZATION ═══════════════════════════════
@@ -1651,8 +1748,8 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
     // Logo
     handleLogoSelect,
 
-    // Wizard
-    goToStep, nextStep, prevStep,
+    // Wizard & Quick Fix Jump
+    goToStep, nextStep, prevStep, jumpToField, returnStep, setReturnStep,
 
     // Completion
     completionPct, completionCount,

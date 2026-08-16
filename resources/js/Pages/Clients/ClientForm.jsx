@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import RoleGuard from '../../Components/RoleGuard.jsx';
@@ -7,6 +7,8 @@ import './ClientForm.css';
 import useClientForm from './hooks/useClientForm';
 import Toast from './components/Toast';
 import FormProgress from './components/FormProgress';
+import OnboardingSectionNav from './components/OnboardingSectionNav';
+import OnboardingContextHelp from './components/OnboardingContextHelp';
 
 import IdentitySection from './sections/IdentitySection';
 import AddressSection from './sections/AddressSection';
@@ -16,13 +18,42 @@ import StatutorySection from './sections/StatutorySection';
 import DocumentsSection from './sections/DocumentsSection';
 import PortalSection from './sections/PortalSection';
 import SlaSection from './sections/SlaSection';
-import { 
-  ArrowLeft, ArrowRight, Save, CheckCircle2, Trash2,
-  Building2, Receipt, Hash, MapPin, Building, Zap,
-  User, Briefcase, Smartphone, Info, Calendar, ShieldCheck,
-  Scale, FileText, FolderOpen, Upload, Lock, Shield, Settings,
-  Users, Star, Award, CheckCircle, FileCheck
+
+import {
+  ArrowLeft,
+  ArrowRight,
+  Save,
+  CheckCircle2,
+  Trash2,
+  Building2,
+  MapPin,
+  Users,
+  FileText,
+  ShieldCheck,
+  FolderOpen,
+  Globe,
+  Clock,
+  Palette,
+  Check
 } from 'lucide-react';
+
+const STEP_HEADER_META = {
+  1: { icon: Building2, title: 'Identity', desc: 'Company details & registration' },
+  2: { icon: MapPin, title: 'Address', desc: 'Locations & addresses' },
+  3: { icon: Users, title: 'Contacts', desc: 'Primary contacts' },
+  4: { icon: FileText, title: 'Contract', desc: 'Terms & billing' },
+  5: { icon: ShieldCheck, title: 'Statutory', desc: 'Compliance details' },
+  6: { icon: FolderOpen, title: 'Documents', desc: 'Upload documents' },
+  7: { icon: Globe, title: 'Portal', desc: 'Portal access & users' },
+  8: { icon: Clock, title: 'SLA', desc: 'Service level agreement' },
+};
+
+const INHOUSE_STEP_HEADER_META = {
+  ...STEP_HEADER_META,
+  4: { icon: FileText, title: 'Payroll', desc: 'Internal payroll settings' },
+  7: { icon: Palette, title: 'Branding', desc: 'Payslip logo & colors' },
+  8: { icon: Clock, title: 'Calendar', desc: 'Payroll processing dates' },
+};
 
 export default function ClientForm({ client, defaultLopBasis, gstSettings }) {
   const hook = useClientForm(defaultLopBasis, client);
@@ -51,350 +82,210 @@ export default function ClientForm({ client, defaultLopBasis, gstSettings }) {
     };
   }, [client, loadClientData]);
 
+  const activeSteps = hook.getActiveSteps ? hook.getActiveSteps() : [1, 2, 3, 4, 5, 6, 7, 8];
+  const totalStepCount = activeSteps.length;
+  const isLastStep = currentStep === activeSteps[activeSteps.length - 1];
+
+  const metaSource = hook.isInhouse ? INHOUSE_STEP_HEADER_META : STEP_HEADER_META;
+  const currentMeta = metaSource[currentStep] || metaSource[1];
+  const StepHeaderIcon = currentMeta.icon;
+
   return (
     <RoleGuard allowedRoles={['admin', 'manager']} moduleKey="clients">
       <AuthenticatedLayout>
-        <Head title="Add / Edit Client — Tecla Payroll" />
-        
+        <Head title={client ? 'Edit Client — Tecla Payroll' : 'Add New Client — Tecla Payroll'} />
+
         <div className="legacy-react-wrapper">
-          {/* Page Header */}
-          <div className="mb-6">
-            <Link href={route('clients.index')} className="text-[0.85rem] font-semibold text-[#1F3864] hover:underline inline-flex items-center gap-1">
+          {/* Top Page Header */}
+          <div className="client-form-header">
+            <Link href={route('clients.index')} className="back-link">
               ← Back to Clients Directory
             </Link>
-            <div className="flex items-end justify-between mt-2">
+            <div className="header-title-row">
               <div>
-                <h2 className="text-2xl font-bold text-[#1F3864] mb-1">{client ? 'Edit Client Organization' : 'Add New Client Organization'}</h2>
-                <p className="text-gray-500 text-sm">
-                  Configure client organization profile, contract terms, billing model, branch locations, and statutory settings.
+                <h2>{client ? 'Edit Client Organization' : 'Add New Client Organization'}</h2>
+                <p>
+                  Create a new client profile by providing details in the following steps.
                 </p>
               </div>
-              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                <button type="button" className="btn btn-secondary" onClick={() => saveDraft(false)} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              <div className="header-actions">
+                <button type="button" className="btn-save-draft" onClick={() => saveDraft(false)}>
                   <Save size={15} /> Save Draft
                 </button>
-                <button type="button" className="btn btn-primary" onClick={submitForm} disabled={isSubmitting} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                <button type="button" className="btn-activate-primary" onClick={submitForm} disabled={isSubmitting}>
                   <CheckCircle2 size={15} /> {isSubmitting ? 'Saving...' : 'Save & Activate Client'}
                 </button>
               </div>
             </div>
           </div>
 
-          {/* Progress Bar */}
-          <FormProgress currentStep={currentStep} sectionProgress={sectionProgress} onTabClick={goToStep} isInhouse={hook.isInhouse} />
+          {/* Top Horizontal Progress Indicator */}
+          <FormProgress
+            currentStep={currentStep}
+            sectionProgress={sectionProgress}
+            onTabClick={goToStep}
+            isInhouse={hook.isInhouse}
+          />
 
-          <div className="grid-layout">
-            {/* ═══════════════ MAIN FORM ═══════════════ */}
-            <div className="card">
-              <form onSubmit={e => e.preventDefault()} id="client-form">
-                <div className={`form-step-section ${currentStep === 1 ? 'active' : ''}`} style={{ display: currentStep === 1 ? 'block' : 'none' }}>
-                  <IdentitySection formData={formData} errors={errors} hints={hints} onChange={handleChange} hook={hook} />
-                </div>
-                
-                <div className={`form-step-section ${currentStep === 2 ? 'active' : ''}`} style={{ display: currentStep === 2 ? 'block' : 'none' }}>
-                  <AddressSection formData={formData} errors={errors} onChange={handleChange} hook={hook} />
-                </div>
-                
-                <div className={`form-step-section ${currentStep === 3 ? 'active' : ''}`} style={{ display: currentStep === 3 ? 'block' : 'none' }}>
-                  <ContactsSection formData={formData} errors={errors} onChange={handleChange} onPocChange={handlePocChange} onPocPrefChange={handlePocPrefChange} hook={hook} />
-                </div>
-                
-                <div className={`form-step-section ${currentStep === 4 ? 'active' : ''}`} style={{ display: currentStep === 4 ? 'block' : 'none' }}>
-                  <ContractSection formData={formData} errors={errors} onChange={handleChange} hook={hook} gstSettings={gstSettings} />
-                </div>
-                
-                <div className={`form-step-section ${currentStep === 5 ? 'active' : ''}`} style={{ display: currentStep === 5 ? 'block' : 'none' }}>
-                  <StatutorySection formData={formData} onChange={handleChange} hook={hook} />
-                </div>
-                
-                {!hook.isInhouse && (
-                <div className={`form-step-section ${currentStep === 6 ? 'active' : ''}`} style={{ display: currentStep === 6 ? 'block' : 'none' }}>
-                  <DocumentsSection formData={formData} hook={hook} />
-                </div>
-                )}
-                
-                <div className={`form-step-section ${currentStep === 7 ? 'active' : ''}`} style={{ display: currentStep === 7 ? 'block' : 'none' }}>
-                  <PortalSection formData={formData} onChange={handleChange} hook={hook} />
-                </div>
-                
-                <div className={`form-step-section ${currentStep === 8 ? 'active' : ''}`} style={{ display: currentStep === 8 ? 'block' : 'none' }}>
-                  <SlaSection formData={formData} errors={errors} onChange={handleChange} hook={hook} />
-                </div>
-
-                {/* FORM ACTIONS */}
-                <div style={{
-                  display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', alignItems: 'center',
-                  marginTop: '2.5rem', paddingTop: '1.5rem', borderTop: '2px solid var(--border-color)'
-                }}>
-                  <button type="button" className="btn btn-secondary" onClick={clearDraft} style={{ marginRight: 'auto', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                    <Trash2 size={15} /> Clear Draft
-                  </button>
-                  <button type="button" className="btn btn-secondary" onClick={() => saveDraft(false)} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                    <Save size={15} /> Save as Draft
-                  </button>
-                  
-                  {currentStep > 1 && (
-                    <button type="button" className="btn btn-secondary" onClick={prevStep} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                      <ArrowLeft size={15} /> Previous Step
-                    </button>
-                  )}
-                  
-                  {currentStep < hook.getActiveSteps()[hook.getActiveSteps().length - 1] ? (
-                    <button type="button" className="btn btn-primary" onClick={nextStep} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                      Next Step <ArrowRight size={15} />
-                    </button>
-                  ) : (
-                    <button type="button" className="btn btn-primary" onClick={submitForm} disabled={isSubmitting} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                      <CheckCircle2 size={15} /> {isSubmitting ? 'Saving...' : 'Save & Activate Client'}
-                    </button>
-                  )}
-                </div>
-              </form>
+          {/* Main 3-Column Grid Layout */}
+          <div className="onboarding-grid-container">
+            {/* ═══════════════ LEFT COLUMN: VERTICAL STEPPER NAV ═══════════════ */}
+            <div className="grid-col-left">
+              <OnboardingSectionNav
+                currentStep={currentStep}
+                sectionProgress={sectionProgress}
+                onStepSelect={goToStep}
+                isInhouse={hook.isInhouse}
+              />
             </div>
 
-            {/* ═══════════════ SIDEBAR HELPER CARDS ═══════════════ */}
-            <div className="sidebar-cards-container">
-              
-              {currentStep === 1 && (
-                <>
-                  <div className="card" style={{ background: '#F0F9FF', border: '1px solid #BAE6FD' }}>
-                    <h4 style={{ marginBottom: '0.75rem', fontSize: '0.9rem', color: '#0369A1', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Building2 size={16} /> Legal Identity & KYC
-                    </h4>
-                    <p style={{ fontSize: '0.78rem', color: '#0C4A6E', margin: 0, lineHeight: '1.6' }}>Ensure the company name matches exactly as per MCA/Govt records to avoid compliance mismatches later.</p>
-                  </div>
-                  <div className="card" style={{ background: '#F0F9FF', border: '1px solid #BAE6FD' }}>
-                    <h4 style={{ marginBottom: '0.75rem', fontSize: '0.9rem', color: '#0369A1', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Receipt size={16} /> Tax Registration
-                    </h4>
-                    <p style={{ fontSize: '0.78rem', color: '#0C4A6E', margin: 0, lineHeight: '1.6' }}>GSTIN and PAN are cross-verified. Ensure the PAN characters match the corresponding GSTIN characters.</p>
-                  </div>
-                  <div className="card" style={{ background: '#F0F9FF', border: '1px solid #BAE6FD' }}>
-                    <h4 style={{ marginBottom: '0.75rem', fontSize: '0.9rem', color: '#0369A1', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Hash size={16} /> Identification Numbers
-                    </h4>
-                    <p style={{ fontSize: '0.78rem', color: '#0C4A6E', margin: 0, lineHeight: '1.6' }}>TAN is strictly required for clients where TDS deduction filing is applicable on agency invoices.</p>
-                  </div>
-                </>
-              )}
-
-              {currentStep === 2 && (
-                <>
-                  <div className="card" style={{ background: '#F0FDF4', border: '1px solid #86EFAC' }}>
-                    <h4 style={{ marginBottom: '0.75rem', fontSize: '0.9rem', color: '#166534', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <MapPin size={16} /> Registered vs Billing Address
-                    </h4>
-                    <p style={{ fontSize: '0.78rem', color: '#14532D', margin: 0, lineHeight: '1.6' }}>The registered address must match the MCA records. Billing address determines GST state codes for invoicing.</p>
-                  </div>
-                  <div className="card" style={{ background: '#F0FDF4', border: '1px solid #86EFAC' }}>
-                    <h4 style={{ marginBottom: '0.75rem', fontSize: '0.9rem', color: '#166534', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Building size={16} /> Branch Offices
-                    </h4>
-                    <p style={{ fontSize: '0.78rem', color: '#14532D', margin: 0, lineHeight: '1.6' }}>Add multiple branches if you need to raise separate invoices or apply different state compliances for this client.</p>
-                  </div>
-                  <div className="card" style={{ background: '#F0FDF4', border: '1px solid #86EFAC' }}>
-                    <h4 style={{ marginBottom: '0.75rem', fontSize: '0.9rem', color: '#166534', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Zap size={16} /> PIN Code Auto-fill
-                    </h4>
-                    <p style={{ fontSize: '0.78rem', color: '#14532D', margin: 0, lineHeight: '1.6' }}>Entering a valid 6-digit PIN code will automatically fetch and populate the associated City and State.</p>
-                  </div>
-                </>
-              )}
-
-              {currentStep === 3 && (
-                <>
-                  <div className="card" style={{ background: '#FEF2F2', border: '1px solid #FECACA' }}>
-                    <h4 style={{ marginBottom: '0.75rem', fontSize: '0.9rem', color: '#991B1B', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <User size={16} /> Primary POC
-                    </h4>
-                    <p style={{ fontSize: '0.78rem', color: '#7F1D1D', margin: 0, lineHeight: '1.6' }}>The Primary POC acts as the main escalation contact for all overall engagements and contract renewals.</p>
-                  </div>
-                  <div className="card" style={{ background: '#FEF2F2', border: '1px solid #FECACA' }}>
-                    <h4 style={{ marginBottom: '0.75rem', fontSize: '0.9rem', color: '#991B1B', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Briefcase size={16} /> Operational vs Billing
-                    </h4>
-                    <p style={{ fontSize: '0.78rem', color: '#7F1D1D', margin: 0, lineHeight: '1.6' }}>Assign separate contacts for operations and billing to ensure invoices and daily updates reach the right teams.</p>
-                  </div>
-                  <div className="card" style={{ background: '#FEF2F2', border: '1px solid #FECACA' }}>
-                    <h4 style={{ marginBottom: '0.75rem', fontSize: '0.9rem', color: '#991B1B', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Smartphone size={16} /> Communication Preferences
-                    </h4>
-                    <p style={{ fontSize: '0.78rem', color: '#7F1D1D', margin: 0, lineHeight: '1.6' }}>Toggle Email, SMS, or WhatsApp preferences to dictate how automated alerts are routed to each contact.</p>
-                  </div>
-                </>
-              )}
-
-              {currentStep === 4 && !hook.isInhouse && (
-                <>
-                  <div className="card" style={{ background: '#FDF4FF', border: '1px solid #F5D0FE' }}>
-                    <h4 style={{ marginBottom: '0.75rem', fontSize: '0.9rem', color: '#86198F', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Info size={16} /> Billing Model Guide
-                    </h4>
-                    <div style={{ fontSize: '0.78rem', color: '#701A75', lineHeight: '1.7' }}>
-                      <div><strong>CTC + Markup:</strong> You bill CTC × (1 + markup%). Best for agency model.</div>
-                      <div><strong>Fixed/Candidate:</strong> Flat fee per head per month. Predictable for client.</div>
-                      <div><strong>Monthly Retainer:</strong> Flat monthly fee regardless of headcount.</div>
-                      <div><strong>Hourly:</strong> Bill per hour worked. Common for consulting engagements.</div>
+            {/* ═══════════════ MIDDLE COLUMN: CURRENT SECTION FORM CONTENT ═══════════════ */}
+            <div className="grid-col-middle">
+              <div className="onboarding-form-card">
+                {/* Active Section Header */}
+                <div className="step-card-header">
+                  <div className="step-header-left">
+                    <div className="step-header-icon-box">
+                      <StepHeaderIcon size={22} />
+                    </div>
+                    <div>
+                      <h3 className="step-header-title">
+                        {currentStep}. {currentMeta.title}
+                      </h3>
+                      <p className="step-header-subtitle">{currentMeta.desc}</p>
                     </div>
                   </div>
-                  <div className="card" style={{ background: '#FDF4FF', border: '1px solid #F5D0FE' }}>
-                    <h4 style={{ marginBottom: '0.75rem', fontSize: '0.9rem', color: '#86198F', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Calendar size={16} /> Invoice & Payment Terms
-                    </h4>
-                    <p style={{ fontSize: '0.78rem', color: '#701A75', margin: 0, lineHeight: '1.6' }}>Set the correct invoicing cycle and Net Terms to accurately generate alerts for outstanding dues.</p>
-                  </div>
-                  <div className="card" style={{ background: '#FDF4FF', border: '1px solid #F5D0FE' }}>
-                    <h4 style={{ marginBottom: '0.75rem', fontSize: '0.9rem', color: '#86198F', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Receipt size={16} /> Taxation & RCM
-                    </h4>
-                    <p style={{ fontSize: '0.78rem', color: '#701A75', margin: 0, lineHeight: '1.6' }}>Configure RCM if the client is liable to pay GST directly, and define TDS applicability on your agency invoices.</p>
-                  </div>
-                </>
-              )}
+                  <span className="step-badge">
+                    Step {currentStep} of {totalStepCount}
+                  </span>
+                </div>
 
-              {currentStep === 4 && hook.isInhouse && (
-                <>
-                  <div className="card" style={{ background: '#EFF6FF', border: '1px solid #93C5FD' }}>
-                    <h4 style={{ marginBottom: '0.75rem', fontSize: '0.9rem', color: '#1E40AF', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Building2 size={16} /> In-House Payroll Mode
-                    </h4>
-                    <p style={{ fontSize: '0.78rem', color: '#1E3A8A', margin: 0, lineHeight: '1.6' }}>This entity is configured for internal staff payroll only. No invoicing, markup, or billing configuration is required.</p>
+                {/* Form Inputs Container */}
+                <form onSubmit={(e) => e.preventDefault()} id="client-form">
+                  <div className={`form-step-section ${currentStep === 1 ? 'active' : ''}`} style={{ display: currentStep === 1 ? 'block' : 'none' }}>
+                    <IdentitySection formData={formData} errors={errors} hints={hints} onChange={handleChange} hook={hook} />
                   </div>
-                  <div className="card" style={{ background: '#EFF6FF', border: '1px solid #93C5FD' }}>
-                    <h4 style={{ marginBottom: '0.75rem', fontSize: '0.9rem', color: '#1E40AF', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <CheckCircle size={16} /> What's Included
-                    </h4>
-                    <div style={{ fontSize: '0.78rem', color: '#1E3A8A', lineHeight: '1.7' }}>
-                      <div>✅ Full salary processing</div>
-                      <div>✅ PF, ESI, PT compliance</div>
-                      <div>✅ Payslip & Form 16</div>
-                      <div>✅ TDS computation</div>
+
+                  <div className={`form-step-section ${currentStep === 2 ? 'active' : ''}`} style={{ display: currentStep === 2 ? 'block' : 'none' }}>
+                    <AddressSection formData={formData} errors={errors} onChange={handleChange} hook={hook} />
+                  </div>
+
+                  <div className={`form-step-section ${currentStep === 3 ? 'active' : ''}`} style={{ display: currentStep === 3 ? 'block' : 'none' }}>
+                    <ContactsSection formData={formData} errors={errors} onChange={handleChange} onPocChange={handlePocChange} onPocPrefChange={handlePocPrefChange} hook={hook} />
+                  </div>
+
+                  <div className={`form-step-section ${currentStep === 4 ? 'active' : ''}`} style={{ display: currentStep === 4 ? 'block' : 'none' }}>
+                    <ContractSection formData={formData} errors={errors} onChange={handleChange} hook={hook} gstSettings={gstSettings} />
+                  </div>
+
+                  <div className={`form-step-section ${currentStep === 5 ? 'active' : ''}`} style={{ display: currentStep === 5 ? 'block' : 'none' }}>
+                    <StatutorySection formData={formData} onChange={handleChange} hook={hook} />
+                  </div>
+
+                  {!hook.isInhouse && (
+                    <div className={`form-step-section ${currentStep === 6 ? 'active' : ''}`} style={{ display: currentStep === 6 ? 'block' : 'none' }}>
+                      <DocumentsSection formData={formData} hook={hook} />
+                    </div>
+                  )}
+
+                  <div className={`form-step-section ${currentStep === 7 ? 'active' : ''}`} style={{ display: currentStep === 7 ? 'block' : 'none' }}>
+                    <PortalSection formData={formData} onChange={handleChange} hook={hook} />
+                  </div>
+
+                  <div className={`form-step-section ${currentStep === 8 ? 'active' : ''}`} style={{ display: currentStep === 8 ? 'block' : 'none' }}>
+                    <SlaSection formData={formData} errors={errors} onChange={handleChange} hook={hook} />
+                  </div>
+
+                  {/* Inline Form Card Actions */}
+                  <div className="form-card-actions">
+                    <button type="button" className="btn-save-draft" onClick={() => saveDraft(false)}>
+                      <Save size={15} /> Save Draft
+                    </button>
+
+                    <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'center' }}>
+                      {currentStep > 1 && (
+                        <button type="button" className="btn-prev-secondary" onClick={prevStep}>
+                          <ArrowLeft size={15} /> Previous Step
+                        </button>
+                      )}
+
+                      {!isLastStep ? (
+                        <button type="button" className="btn-continue-primary" onClick={nextStep}>
+                          Save & Continue <ArrowRight size={15} />
+                        </button>
+                      ) : (
+                        <button type="button" className="btn-activate-primary" onClick={submitForm} disabled={isSubmitting}>
+                          <CheckCircle2 size={15} /> {isSubmitting ? 'Saving...' : 'Save & Activate Client'}
+                        </button>
+                      )}
                     </div>
                   </div>
-                </>
-              )}
+                </form>
+              </div>
+            </div>
 
-              {currentStep === 5 && (
-                <>
-                  <div className="card" style={{ background: 'var(--primary-navy)', color: 'white' }}>
-                    <h4 style={{ color: 'white', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Scale size={16} /> Statutory Inheritance
-                    </h4>
-                    <p style={{ fontSize: '0.78rem', opacity: '0.9', lineHeight: '1.6', margin: 0 }}>
-                      All statutory defaults you set here are <strong style={{ color: '#FDD835' }}>automatically inherited</strong> by
-                      every new candidate onboarded under this client.
-                    </p>
-                  </div>
-                  <div className="card" style={{ background: '#F1F5F9', border: '1px solid #CBD5E1' }}>
-                    <h4 style={{ marginBottom: '0.75rem', fontSize: '0.9rem', color: '#334155', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <ShieldCheck size={16} /> PF & ESI Ceilings
-                    </h4>
-                    <p style={{ fontSize: '0.78rem', color: '#475569', margin: 0, lineHeight: '1.6' }}>Standard PF statutory wage ceiling is ₹15,000 and ESIC limit is ₹21,000. Voluntary contributions will ignore these limits.</p>
-                  </div>
-                  <div className="card" style={{ background: '#F1F5F9', border: '1px solid #CBD5E1' }}>
-                    <h4 style={{ marginBottom: '0.75rem', fontSize: '0.9rem', color: '#334155', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <FileCheck size={16} /> Additional Compliance
-                    </h4>
-                    <p style={{ fontSize: '0.78rem', color: '#475569', margin: 0, lineHeight: '1.6' }}>Configure Professional Tax (PT), Labour Welfare Fund (LWF), and statutory bonus structures to ensure accurate payroll.</p>
-                  </div>
-                </>
-              )}
+            {/* ═══════════════ RIGHT COLUMN: CONTEXTUAL HELP SIDEBAR ═══════════════ */}
+            <div className="grid-col-right">
+              <OnboardingContextHelp
+                currentStep={currentStep}
+                completionPct={completionPct}
+                completionCount={completionCount}
+                totalSteps={totalStepCount}
+              />
+            </div>
+          </div>
 
-              {currentStep === 6 && !hook.isInhouse && (
-                <>
-                  <div className="card" style={{ background: '#FFF7ED', border: '1px solid #FDBA74' }}>
-                    <h4 style={{ marginBottom: '0.75rem', fontSize: '0.9rem', color: '#9A3412', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <FileText size={16} /> Document Guidelines
-                    </h4>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.78rem', color: '#9A3412' }}>
-                      <div><strong>MSA</strong> — Governs entire engagement. Mandatory before first invoice.</div>
-                      <div><strong>NDA</strong> — Required before sharing candidate data.</div>
-                      <div><strong>Work Order</strong> — Scope of each deployment. Renew annually.</div>
+          {/* ═══════════════ STICKY BOTTOM NAVIGATION BAR ═══════════════ */}
+          <div className="sticky-bottom-nav-wrapper">
+            <div className="bottom-nav-content">
+              <button
+                type="button"
+                className="btn-prev-secondary"
+                onClick={prevStep}
+                disabled={currentStep === 1}
+              >
+                <ArrowLeft size={15} /> Back to Previous
+              </button>
+
+              <div className="bottom-nav-dots">
+                {activeSteps.map((stepNum) => {
+                  const isCurrent = stepNum === currentStep;
+                  const isCompleted = stepNum < currentStep || sectionProgress[stepNum];
+
+                  let dotCls = 'dot-step';
+                  if (isCurrent) dotCls += ' active';
+                  else if (isCompleted) dotCls += ' completed';
+                  else dotCls += ' pending';
+
+                  return (
+                    <div
+                      key={stepNum}
+                      className={dotCls}
+                      onClick={() => goToStep(stepNum)}
+                      title={`Go to step ${stepNum}`}
+                    >
+                      {isCompleted ? <Check size={12} /> : stepNum}
                     </div>
-                  </div>
-                  <div className="card" style={{ background: '#FFF7ED', border: '1px solid #FDBA74' }}>
-                    <h4 style={{ marginBottom: '0.75rem', fontSize: '0.9rem', color: '#9A3412', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <FolderOpen size={16} /> Upload Limits
-                    </h4>
-                    <p style={{ fontSize: '0.78rem', color: '#9A3412', margin: 0, lineHeight: '1.6' }}>Supported formats include PDF, JPG, PNG, and XLSX. Maximum file size allowed is 10 MB per document.</p>
-                  </div>
-                  <div className="card" style={{ background: '#FFF7ED', border: '1px solid #FDBA74' }}>
-                    <h4 style={{ marginBottom: '0.75rem', fontSize: '0.9rem', color: '#9A3412', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <CheckCircle2 size={16} /> Verification Process
-                    </h4>
-                    <p style={{ fontSize: '0.78rem', color: '#9A3412', margin: 0, lineHeight: '1.6' }}>Uploaded documents remain in 'Pending' state until manually reviewed and marked as 'Verified' by an authorized admin.</p>
-                  </div>
-                </>
-              )}
+                  );
+                })}
+              </div>
 
-              {currentStep === 7 && !hook.isInhouse && (
-                <>
-                  <div className="card" style={{ background: '#F5F3FF', border: '1px solid #C4B5FD' }}>
-                    <h4 style={{ marginBottom: '0.75rem', fontSize: '0.9rem', color: '#5B21B6', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Building2 size={16} /> Client Portal Capabilities
-                    </h4>
-                    <p style={{ fontSize: '0.78rem', color: '#4C1D95', margin: 0, lineHeight: '1.6' }}>Providing portal access allows the client to securely view invoices, track candidate statuses, and download payslips.</p>
-                  </div>
-                  <div className="card" style={{ background: '#F5F3FF', border: '1px solid #C4B5FD' }}>
-                    <h4 style={{ marginBottom: '0.75rem', fontSize: '0.9rem', color: '#5B21B6', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Lock size={16} /> Access Security
-                    </h4>
-                    <p style={{ fontSize: '0.78rem', color: '#4C1D95', margin: 0, lineHeight: '1.6' }}>For higher security, enforce Two-Factor Authentication (2FA) and strict session timeouts for the client portal.</p>
-                  </div>
-                  <div className="card" style={{ background: '#F5F3FF', border: '1px solid #C4B5FD' }}>
-                    <h4 style={{ marginBottom: '0.75rem', fontSize: '0.9rem', color: '#5B21B6', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Settings size={16} /> Module Permissions
-                    </h4>
-                    <p style={{ fontSize: '0.78rem', color: '#4C1D95', margin: 0, lineHeight: '1.6' }}>Granular permissions give you control over whether the client can view sensitive data like salary components or raise support requests.</p>
-                  </div>
-                </>
-              )}
-
-              {currentStep === 7 && hook.isInhouse && (
-                <>
-                  <div className="card" style={{ background: '#FFF7ED', border: '1px solid #FDBA74' }}>
-                    <h4 style={{ marginBottom: '0.75rem', fontSize: '0.9rem', color: '#9A3412', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      🎨 Payslip Branding
-                    </h4>
-                    <p style={{ fontSize: '0.78rem', color: '#9A3412', margin: 0, lineHeight: '1.6' }}>Customize how your internal payslips appear — upload your company logo and set brand colors for a professional look.</p>
-                  </div>
-                </>
-              )}
-
-              {currentStep === 8 && !hook.isInhouse && (
-                <>
-                  <div className="card" style={{ background: '#ECFEFF', border: '1px solid #67E8F9' }}>
-                    <h4 style={{ marginBottom: '0.75rem', fontSize: '0.9rem', color: '#155E75', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Calendar size={16} /> Payroll Calendar
-                    </h4>
-                    <p style={{ fontSize: '0.78rem', color: '#164E63', margin: 0, lineHeight: '1.6' }}>Define specific days for attendance cutoff, payroll locking, invoice generation, and final salary credits to maintain SLA targets.</p>
-                  </div>
-                  <div className="card" style={{ background: '#ECFEFF', border: '1px solid #67E8F9' }}>
-                    <h4 style={{ marginBottom: '0.75rem', fontSize: '0.9rem', color: '#155E75', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Users size={16} /> Account Management
-                    </h4>
-                    <p style={{ fontSize: '0.78rem', color: '#164E63', margin: 0, lineHeight: '1.6' }}>Assign dedicated Primary and Backup Account Managers so the client always has a clear point of contact.</p>
-                  </div>
-                  <div className="card" style={{ background: '#ECFEFF', border: '1px solid #67E8F9' }}>
-                    <h4 style={{ marginBottom: '0.75rem', fontSize: '0.9rem', color: '#155E75', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Star size={16} /> SLA Tiers
-                    </h4>
-                    <p style={{ fontSize: '0.78rem', color: '#164E63', margin: 0, lineHeight: '1.6' }}>Premium SLA tiers guarantee faster response times and dedicated dispute resolution windows for high-value clients.</p>
-                  </div>
-                </>
-              )}
-
-              {currentStep === 8 && hook.isInhouse && (
-                <>
-                  <div className="card" style={{ background: '#ECFEFF', border: '1px solid #67E8F9' }}>
-                    <h4 style={{ marginBottom: '0.75rem', fontSize: '0.9rem', color: '#155E75', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Calendar size={16} /> Payroll Calendar
-                    </h4>
-                    <p style={{ fontSize: '0.78rem', color: '#164E63', margin: 0, lineHeight: '1.6' }}>Set the payroll lock day and salary credit date for your internal staff. These drive the monthly payroll processing cycle.</p>
-                  </div>
-                </>
-              )}
-
+              <div className="bottom-nav-right">
+                {!isLastStep && (
+                  <button type="button" className="btn-skip-link" onClick={nextStep}>
+                    Skip for Now
+                  </button>
+                )}
+                {!isLastStep ? (
+                  <button type="button" className="btn-continue-primary" onClick={nextStep}>
+                    Save & Continue <ArrowRight size={15} />
+                  </button>
+                ) : (
+                  <button type="button" className="btn-activate-primary" onClick={submitForm} disabled={isSubmitting}>
+                    <CheckCircle2 size={15} /> {isSubmitting ? 'Saving...' : 'Save & Activate Client'}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 

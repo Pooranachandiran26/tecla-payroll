@@ -56,8 +56,8 @@ export default function IdentitySection({ formData, errors, hints, onChange, onV
         <div className="form-row">
           {!isGovt && !isTrust && (
             <div className="form-group">
-              <label>GSTIN <span style={{ color: 'var(--status-danger)' }}>*</span></label>
-              <input type="text" className={`form-control ${errors.gstin ? 'invalid' : ''}`}
+              <label htmlFor="gstin">GSTIN <span style={{ color: 'var(--status-danger)' }}>*</span></label>
+              <input type="text" id="gstin" name="gstin" className={`form-control ${errors.gstin ? 'invalid' : ''}`}
                 placeholder="e.g. 27AAACM1234A1Z1" maxLength="15"
                 style={{ textTransform: 'uppercase' }}
                 value={formData.gstin}

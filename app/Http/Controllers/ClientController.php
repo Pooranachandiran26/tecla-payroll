@@ -54,7 +54,9 @@ class ClientController extends Controller
         }
 
         if ($status = $request->input('status')) {
-            $query->where('status', $status);
+            if ($status !== 'all' && $status !== '') {
+                $query->where('status', $status);
+            }
         }
 
         if ($industry = $request->input('industry')) {
@@ -78,9 +80,11 @@ class ClientController extends Controller
 
         if ($onboarding = $request->input('onboarding')) {
             if ($onboarding === 'complete') {
-                $query->where('status', '!=', 'onboarding');
+                $query->where('status', 'active');
+            } elseif ($onboarding === 'draft') {
+                $query->where('status', 'draft');
             } else {
-                $query->where('status', 'onboarding');
+                $query->whereIn('status', ['onboarding', 'draft']);
             }
         }
 
@@ -103,7 +107,8 @@ class ClientController extends Controller
         $stats = [
             'total' => (clone $statsBaseQuery)->count(),
             'active' => (clone $statsBaseQuery)->where('status', 'active')->count(),
-            'onboarding' => (clone $statsBaseQuery)->where('status', 'onboarding')->count(),
+            'drafts' => (clone $statsBaseQuery)->where('status', 'draft')->count(),
+            'onboarding' => (clone $statsBaseQuery)->whereIn('status', ['onboarding', 'draft'])->count(),
             'total_deployed' => $employeesBaseQuery->count(),
         ];
 

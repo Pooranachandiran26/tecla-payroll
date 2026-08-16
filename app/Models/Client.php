@@ -69,6 +69,8 @@ class Client extends Model
         'pref_format_xlsx' => 'boolean',
         'client_tds_percentage' => 'float',
         'hourly_rate' => 'float',
+        'onboarding_completed_steps' => 'array',
+        'onboarding_current_step' => 'integer',
     ];
 
     public function getPayslipVisibleSectionsAttribute($value)

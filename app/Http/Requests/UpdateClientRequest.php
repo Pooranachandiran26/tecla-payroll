@@ -19,6 +19,7 @@ class UpdateClientRequest extends FormRequest
 
     protected function prepareForValidation()
     {
+        $isDraft = $this->boolean('is_draft') || $this->status === 'draft';
         $mapped = [
             'company_name' => $this->name ?: $this->company_name,
             'company_type' => $this->type ?: $this->company_type,
@@ -26,7 +27,9 @@ class UpdateClientRequest extends FormRequest
             'trust_registration_number' => $this->trustRegNo ?: $this->trust_registration_number,
             'pan_number' => $this->pan ?: $this->pan_number,
             'industry' => $this->industry,
-            'status' => $this->status ?: 'onboarding',
+            'status' => $isDraft ? 'draft' : ($this->status ?: 'onboarding'),
+            'onboarding_current_step' => $this->currentStep ?? $this->onboarding_current_step ?? 1,
+            'onboarding_completed_steps' => is_array($this->sectionProgress) ? json_encode($this->sectionProgress) : ($this->onboarding_completed_steps ?? null),
             'country' => $this->country ?: 'India',
             'cin_number' => $this->cin ?: $this->cin_number,
             'incorporation_date' => $this->incorporationDate ?: $this->incorporation_date,
@@ -286,7 +289,9 @@ class UpdateClientRequest extends FormRequest
             'gstin' => ['nullable', 'string', 'size:15', 'regex:/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/'],
             'work_locations_count' => 'required|integer|min:1',
             'industry' => 'nullable|string|max:255',
-            'status' => 'required|string|in:onboarding,active,inactive,suspended',
+            'status' => 'required|string|in:draft,onboarding,active,inactive,suspended',
+            'onboarding_current_step' => 'nullable|integer',
+            'onboarding_completed_steps' => 'nullable|string',
             'country' => 'nullable|string|max:100',
             'cin_number' => 'nullable|string|max:50',
             'incorporation_date' => 'nullable|date',

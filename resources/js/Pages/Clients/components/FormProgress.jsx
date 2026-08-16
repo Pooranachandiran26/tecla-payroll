@@ -1,14 +1,15 @@
 import React from 'react';
-import { 
-  Building2, 
-  MapPin, 
-  Users, 
-  FileText, 
-  ShieldCheck, 
-  FolderOpen, 
-  Globe, 
+import {
+  Building2,
+  MapPin,
+  Users,
+  FileText,
+  ShieldCheck,
+  FolderOpen,
+  Globe,
   Clock,
-  Palette
+  Palette,
+  Check
 } from 'lucide-react';
 
 const STEP_ICONS = {
@@ -23,31 +24,29 @@ const STEP_ICONS = {
 };
 
 const STEP_LABELS = {
-  1: 'Identity',
-  2: 'Address',
-  3: 'Contacts',
-  4: 'Contract',
-  5: 'Statutory',
-  6: 'Documents',
-  7: 'Portal',
-  8: 'SLA',
+  1: '1. Identity',
+  2: '2. Address',
+  3: '3. Contacts',
+  4: '4. Contract',
+  5: '5. Statutory',
+  6: '6. Documents',
+  7: '7. Portal',
+  8: '8. SLA',
 };
 
-// In-House mode overrides
 const INHOUSE_STEP_ICONS = {
   ...STEP_ICONS,
-  7: Palette,  // Portal → Branding icon
+  7: Palette,
 };
 
 const INHOUSE_STEP_LABELS = {
   ...STEP_LABELS,
-  4: 'Payroll',     // Contract → Payroll Config
-  7: 'Branding',    // Portal → Branding
-  8: 'Calendar',    // SLA → Calendar
+  4: '4. Payroll',
+  7: '7. Branding',
+  8: '8. Calendar',
 };
 
 export default function FormProgress({ currentStep, sectionProgress, onTabClick, isInhouse = false }) {
-  // In-House: skip Documents tab (step 6)
   const visibleSteps = isInhouse
     ? [1, 2, 3, 4, 5, 7, 8]
     : [1, 2, 3, 4, 5, 6, 7, 8];
@@ -56,24 +55,50 @@ export default function FormProgress({ currentStep, sectionProgress, onTabClick,
   const labels = isInhouse ? INHOUSE_STEP_LABELS : STEP_LABELS;
 
   return (
-    <div className="form-progress">
-      {visibleSteps.map(stepNum => {
+    <div className="top-horizontal-stepper">
+      {visibleSteps.map((stepNum, idx) => {
         const Icon = icons[stepNum];
-        let cls = 'progress-step';
-        if (stepNum === currentStep) cls += ' active';
-        else if (stepNum < currentStep || sectionProgress[stepNum]) cls += ' complete';
+        const isCurrent = stepNum === currentStep;
+        const isCompleted = stepNum < currentStep || sectionProgress[stepNum];
+        const isPending = !isCurrent && !isCompleted;
+
+        let stepCls = 'stepper-item';
+        if (isCurrent) stepCls += ' active';
+        else if (isCompleted) stepCls += ' completed';
+        else stepCls += ' pending';
 
         return (
-          <div 
-            key={stepNum} 
-            className={cls} 
-            onClick={() => onTabClick && onTabClick(stepNum)} 
-            style={{ cursor: 'pointer' }}
-            title={`Step ${stepNum}: ${labels[stepNum]}`}
-          >
-            <Icon size={14} style={{ flexShrink: 0 }} />
-            <span>{labels[stepNum]}</span>
-          </div>
+          <React.Fragment key={stepNum}>
+            <div
+              className={stepCls}
+              onClick={() => onTabClick && onTabClick(stepNum)}
+              title={`Go to step ${stepNum}: ${labels[stepNum]}`}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === 'Enter' && onTabClick && onTabClick(stepNum)}
+            >
+              <div className="stepper-circle">
+                {isCompleted ? (
+                  <Check size={14} className="check-icon" />
+                ) : (
+                  <Icon size={14} className="step-icon" />
+                )}
+              </div>
+              <span className="stepper-label">{labels[stepNum]}</span>
+            </div>
+
+            {idx < visibleSteps.length - 1 && (
+              <div
+                className={`stepper-line ${
+                  isCompleted
+                    ? 'line-completed'
+                    : isCurrent
+                    ? 'line-active'
+                    : 'line-pending'
+                }`}
+              />
+            )}
+          </React.Fragment>
         );
       })}
     </div>
