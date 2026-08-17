@@ -130,7 +130,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
   });
 
   const [overrides, setOverrides] = useState({
-    pf: false, esi: false, tds: false, pt: false, lwf: false, bonus: false, gratuity: false, lop: false, noticePeriod: false, weeklyOff: emp ? Boolean(emp.weekly_off_pattern || emp.weeklyOffPattern) : false
+    pf: false, esi: emp ? (!Boolean(emp.esi_applicable)) : false, tds: false, pt: false, lwf: false, bonus: false, gratuity: false, lop: false, noticePeriod: false, weeklyOff: emp ? Boolean(emp.weekly_off_pattern || emp.weeklyOffPattern) : false
   });
 
   const [errors, setErrors] = useState({});
@@ -283,16 +283,18 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
             return next;
           });
         } else {
-          // In edit mode: dynamically evaluate if saved LOP / notice period differ from client defaults
+          // In edit mode: dynamically evaluate if saved LOP / notice period / ESI differ from client defaults
           setOverrides(prev => {
             const currentLop = formData.lopBasis ? String(formData.lopBasis).replace(/\D/g, '') : '';
             const currentNotice = formData.noticePeriodDays !== undefined && formData.noticePeriodDays !== null && formData.noticePeriodDays !== '' ? String(formData.noticePeriodDays) : '';
             
             const isLopOverridden = currentLop !== '' && currentLop !== clientLop;
             const isNoticeOverridden = currentNotice !== '' && currentNotice !== clientNotice;
+            const isEsiOverridden = employee ? (Boolean(employee.esi_applicable) !== Boolean(d.esiApplicable)) : prev.esi;
 
             return {
               ...prev,
+              esi: isEsiOverridden,
               lop: isLopOverridden,
               noticePeriod: isNoticeOverridden,
             };
@@ -962,11 +964,13 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       }
     } else {
       clearErrorMsg('esiWarning');
-      if (grossCTC > 0 && !overrides.esi) {
-        handleInputChange('esiToggle', true);
+      if (isAdd && grossCTC > 0 && !overrides.esi && activeClientDefaults) {
+        if (formData.esiToggle !== Boolean(activeClientDefaults.esiApplicable)) {
+          handleInputChange('esiToggle', Boolean(activeClientDefaults.esiApplicable));
+        }
       }
     }
-  }, [grossCTC, activeClientDefaults, formMode, formData.isDisabled]);
+  }, [grossCTC, activeClientDefaults, formMode, formData.isDisabled, isAdd]);
 
   // Handlers
   const handleEmpTypeChange = (e) => {
@@ -2236,6 +2240,13 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                         <span style={{ fontSize: "1.2rem", fontWeight: "bold", color: "var(--primary-navy)" }}>₹{previewCalculations ? previewCalculations.gross_monthly_salary?.toLocaleString('en-IN') : grossCTC.toLocaleString('en-IN')}</span>
                       </div>
                       
+                      {previewCalculations?.statutory_bonus_type === 'part_of_gross' && (previewCalculations?.statutory_bonus_monthly > 0 || previewCalculations?.bonus_accrual_monthly > 0) && (
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", color: "#047857", fontSize: "0.78rem", backgroundColor: "#ECFDF5", padding: "0.35rem 0.6rem", borderRadius: "4px", border: "1px solid #A7F3D0" }}>
+                          <span>• Includes Statutory Bonus Allowance (Part of Gross):</span>
+                          <strong>+ ₹{(previewCalculations.statutory_bonus_monthly || previewCalculations.bonus_accrual_monthly || 0).toLocaleString('en-IN')} / month</strong>
+                        </div>
+                      )}
+                      
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", color: "var(--text-muted)" }}>
                         <span>Estimated Employee Deductions (PF{(previewCalculations?.employee_vpf_monthly || 0) > 0 ? ', VPF' : ''}, ESI, PT):</span>
                         <span style={{ fontWeight: "600", color: "#991B1B" }}>- ₹{previewCalculations ? ((previewCalculations.employee_pf_monthly || 0) + (previewCalculations.employee_vpf_monthly || 0) + (previewCalculations.employee_esi_monthly || 0) + (previewCalculations.pt_monthly || 0))?.toLocaleString('en-IN') : '0'}</span>
@@ -2317,7 +2328,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                             </div>
                           )}
 
-                          {previewCalculations.bonus_accrual_monthly > 0 && (
+                          {previewCalculations.statutory_bonus_type !== 'part_of_gross' && previewCalculations.bonus_accrual_monthly > 0 && (
                             <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: "0.5rem", marginTop: "0.15rem", color: "#B45309" }}>
                               <span>• Monthly Statutory Bonus Accrual:</span>
                               <strong>+ ₹{(previewCalculations.bonus_accrual_monthly || 0).toLocaleString('en-IN')}</strong>

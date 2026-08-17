@@ -111,7 +111,7 @@ class StoreClientRequest extends FormRequest
             'statutory_bonus_applicable' => $this->has('statutoryBonusApplicable')
                 ? ($this->boolean('statutoryBonusApplicable') ? 1 : 0)
                 : ($this->has('bonusApplicable') ? ($this->boolean('bonusApplicable') ? 1 : 0) : ($this->has('statutory_bonus_applicable') ? ($this->boolean('statutory_bonus_applicable') ? 1 : 0) : 0)),
-            'statutory_bonus_type' => $this->bonusType ?: $this->statutoryBonusType ?: $this->statutory_bonus_type ?: 'ctc_accrual',
+            'statutory_bonus_type' => $this->statutory_bonus_type ?? $this->statutoryBonusType ?? $this->bonusType ?? 'ctc_accrual',
             'health_insurance_enabled' => $this->has('healthInsuranceEnabled')
                 ? ($this->boolean('healthInsuranceEnabled') ? 1 : 0)
                 : ($this->has('health_insurance_enabled')

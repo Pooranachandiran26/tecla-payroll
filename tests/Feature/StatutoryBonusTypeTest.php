@@ -59,10 +59,10 @@ class StatutoryBonusTypeTest extends TestCase
         ]);
 
         // Base earnings: 12125 + 6062 + 1011 = 19198
-        // Bonus (8.33% of 7000 = 583.10) added to gross pay
-        // Expected gross = 19198 + 583.10 = 19781.10
-        $this->assertEquals(583.10, $calc['statutory_bonus_monthly']);
-        $this->assertEquals(19781.10, $calc['gross_monthly_salary']);
-        $this->assertEquals(19781.10, $calc['ctc_monthly']); // Gross already includes bonus, no double counting
+        // Bonus (8.33% of 12125 Basic = 1010.01) added to gross pay
+        // Expected gross = 19198 + 1010.01 = 20208.01
+        $this->assertEquals(1010.01, $calc['statutory_bonus_monthly']);
+        $this->assertEquals(20208.01, $calc['gross_monthly_salary']);
+        $this->assertEquals(20208.01, $calc['ctc_monthly']); // Gross already includes bonus, no double counting
     }
 }

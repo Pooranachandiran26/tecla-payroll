@@ -209,9 +209,15 @@ class SalaryCalculationService
         $bonusType = $client ? ($client->statutory_bonus_type ?? 'ctc_accrual') : data_get($employeeData, 'statutory_bonus_type', 'ctc_accrual');
 
         if ($bonusApplicable && $basic <= 21000.00) {
-            $stateMinWage = (float)data_get($employeeData, 'state_minimum_wage', 0);
-            $calcCeiling = max(7000.00, $stateMinWage);
-            $bonusBase = min($basic, $calcCeiling);
+            if ($bonusType === 'part_of_gross') {
+                // When Bonus is part of Gross Pay (Bonus Allowance), it is calculated on actual Basic pay (up to Rs 21,000)
+                $bonusBase = $basic;
+            } else {
+                // CTC Accrual mode follows Sec 12 statutory ceiling min(Basic, max(7000, state_min_wage))
+                $stateMinWage = (float)data_get($employeeData, 'state_minimum_wage', 0);
+                $calcCeiling = max(7000.00, $stateMinWage);
+                $bonusBase = min($basic, $calcCeiling);
+            }
             $bonusAccrual = $bonusBase * ($bonusPct / 100);
         }
 

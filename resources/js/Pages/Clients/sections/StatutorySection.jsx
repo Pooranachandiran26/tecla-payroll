@@ -518,7 +518,7 @@ export default function StatutorySection({ formData, onChange, hook }) {
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem' }}>
                     <span style={{ color: '#475569' }}>Calculation Base:</span>
-                    <strong style={{ color: '#059669' }}>min(Basic, ₹7,000)</strong>
+                    <strong style={{ color: '#059669' }}>{formData.bonusType === 'part_of_gross' ? 'Actual Basic pay (≤ ₹21,000/mo)' : 'min(Basic, ₹7,000)'}</strong>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', borderTop: '1px dashed #A7F3D0', paddingTop: '0.25rem', marginTop: '0.15rem' }}>
                     <span style={{ color: '#065F46', fontWeight: '600' }}>Accrual & Payout:</span>
@@ -528,7 +528,7 @@ export default function StatutorySection({ formData, onChange, hook }) {
                     <span style={{ color: '#065F46', fontWeight: '600' }}>Monthly Pay Impact:</span>
                     <strong style={{ color: formData.bonusType === 'part_of_gross' ? '#0284C7' : '#047857' }}>
                       {formData.bonusType === 'part_of_gross'
-                        ? `+ ${(formData.bonusPct || 8.33)}% of min(Basic, ₹7k) (Added to Gross)`
+                        ? `+ ${(formData.bonusPct || 8.33)}% of Basic pay (Added to Gross)`
                         : '₹0.00 (CTC Accrual)'}
                     </strong>
                   </div>
