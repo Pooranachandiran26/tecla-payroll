@@ -24,6 +24,7 @@ import {
   Save,
   CheckCircle2,
   Trash2,
+  RotateCcw,
   Building2,
   MapPin,
   Users,
@@ -207,14 +208,25 @@ export default function ClientForm({ client, defaultLopBasis, gstSettings }) {
           {/* ═══════════════ STICKY BOTTOM NAVIGATION BAR ═══════════════ */}
           <div className="sticky-bottom-nav-wrapper">
             <div className="bottom-nav-content">
-              <button
-                type="button"
-                className="btn-prev-secondary"
-                onClick={prevStep}
-                disabled={currentStep === 1}
-              >
-                <ArrowLeft size={15} /> Back to Previous
-              </button>
+              <div className="bottom-nav-left" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <button
+                  type="button"
+                  className="btn-prev-secondary"
+                  onClick={prevStep}
+                  disabled={currentStep === 1}
+                >
+                  <ArrowLeft size={15} /> Back to Previous
+                </button>
+
+                <button
+                  type="button"
+                  className="btn-sticky-clear"
+                  onClick={() => clearDraft()}
+                  title="Reset form and clear saved draft"
+                >
+                  <RotateCcw size={14} /> Clear Draft
+                </button>
+              </div>
 
               <div className="bottom-nav-dots">
                 {activeSteps.map((stepNum) => {
@@ -240,6 +252,15 @@ export default function ClientForm({ client, defaultLopBasis, gstSettings }) {
               </div>
 
               <div className="bottom-nav-right">
+                <button
+                  type="button"
+                  className="btn-save-draft"
+                  onClick={() => saveDraft(false)}
+                  title="Save draft progress"
+                >
+                  <Save size={14} /> Save Draft
+                </button>
+
                 {!isLastStep && (
                   <button type="button" className="btn-skip-link" onClick={nextStep}>
                     Skip for Now
