@@ -8,7 +8,6 @@ import useClientForm from './hooks/useClientForm';
 import Toast from './components/Toast';
 import FormProgress from './components/FormProgress';
 import OnboardingSectionNav from './components/OnboardingSectionNav';
-import OnboardingContextHelp from './components/OnboardingContextHelp';
 
 import IdentitySection from './sections/IdentitySection';
 import AddressSection from './sections/AddressSection';
@@ -127,7 +126,7 @@ export default function ClientForm({ client, defaultLopBasis, gstSettings }) {
             isInhouse={hook.isInhouse}
           />
 
-          {/* Main 3-Column Grid Layout */}
+          {/* Main 2-Column Grid Layout (Left Nav + Expanded Form) */}
           <div className="onboarding-grid-container">
             {/* ═══════════════ LEFT COLUMN: VERTICAL STEPPER NAV ═══════════════ */}
             <div className="grid-col-left">
@@ -139,7 +138,7 @@ export default function ClientForm({ client, defaultLopBasis, gstSettings }) {
               />
             </div>
 
-            {/* ═══════════════ MIDDLE COLUMN: CURRENT SECTION FORM CONTENT ═══════════════ */}
+            {/* ═══════════════ MAIN EXPANDED FORM CONTENT ═══════════════ */}
             <div className="grid-col-middle">
               <div className="onboarding-form-card">
                 {/* Active Section Header */}
@@ -222,16 +221,6 @@ export default function ClientForm({ client, defaultLopBasis, gstSettings }) {
                   </div>
                 </form>
               </div>
-            </div>
-
-            {/* ═══════════════ RIGHT COLUMN: CONTEXTUAL HELP SIDEBAR ═══════════════ */}
-            <div className="grid-col-right">
-              <OnboardingContextHelp
-                currentStep={currentStep}
-                completionPct={completionPct}
-                completionCount={completionCount}
-                totalSteps={totalStepCount}
-              />
             </div>
           </div>
 

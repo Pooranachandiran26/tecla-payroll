@@ -246,10 +246,10 @@
   background-color: #E2E8F0;
 }
 
-/* ── 3-Column Main Grid Layout ── */
+/* ── 2-Column Main Grid Layout (Expanded Form) ── */
 .onboarding-grid-container {
   display: grid;
-  grid-template-columns: 280px 1fr 310px;
+  grid-template-columns: 260px 1fr;
   gap: 1.25rem;
   align-items: start;
 }
@@ -935,7 +935,7 @@ input[type="number"].stat-rate-input {
 /* ── Responsive Rules ── */
 @media (max-width: 1200px) {
   .onboarding-grid-container {
-    grid-template-columns: 240px 1fr 260px;
+    grid-template-columns: 220px 1fr;
     gap: 1rem;
   }
   .stepper-label {
