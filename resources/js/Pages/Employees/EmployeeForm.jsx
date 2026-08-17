@@ -223,6 +223,11 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
   const [currentStep, setCurrentStep] = useState(1);
   const isLastStep = currentStep === 4;
 
+  // Computed values
+  const isActive = formMode === 'edit-active';
+  const isAdd = formMode === 'add';
+  const isOnboarding = formMode === 'edit-onboarding';
+
   const sectionProgress = useMemo(() => {
     return {
       1: Boolean(formData.firstName && formData.lastName && formData.fatherName && formData.personalEmail && formData.phone && formData.address),
@@ -250,11 +255,6 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       goToStep(currentStep - 1);
     }
   };
-
-  // Computed values
-  const isActive = formMode === 'edit-active';
-  const isAdd = formMode === 'add';
-  const isOnboarding = formMode === 'edit-onboarding';
   
   const grossCTC = useMemo(() => {
     return Number(formData.basicSal) + Number(formData.hraSal) + Number(formData.conveyanceSal) + 
