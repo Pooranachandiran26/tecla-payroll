@@ -18,8 +18,10 @@ class ClientPolicy
 
     public function view(User $user, Client $client): bool
     {
-        return in_array($user->role, ['admin', 'manager'])
-            || ($user->role === 'client' && $user->client_id === $client->id);
+        if ($user->role === 'admin') return true;
+        if ($user->role === 'manager') return $user->isManagerForClient($client->id);
+        if ($user->role === 'client') return (int)$user->client_id === (int)$client->id;
+        return false;
     }
 
     public function create(User $user): bool
@@ -29,7 +31,9 @@ class ClientPolicy
 
     public function update(User $user, Client $client): bool
     {
-        return in_array($user->role, ['admin', 'manager']);
+        if ($user->role === 'admin') return true;
+        if ($user->role === 'manager') return $user->isManagerForClient($client->id);
+        return false;
     }
 
     public function updateStatutory(User $user): bool
@@ -49,8 +53,10 @@ class ClientPolicy
 
     public function viewDocuments(User $user, Client $client): bool
     {
-        return in_array($user->role, ['admin', 'manager'])
-            || ($user->role === 'client' && $user->client_id === $client->id);
+        if ($user->role === 'admin') return true;
+        if ($user->role === 'manager') return $user->isManagerForClient($client->id);
+        if ($user->role === 'client') return (int)$user->client_id === (int)$client->id;
+        return false;
     }
 
     public function verifyDocuments(User $user): bool
