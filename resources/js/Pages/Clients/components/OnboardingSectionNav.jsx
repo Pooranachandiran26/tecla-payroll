@@ -92,13 +92,11 @@ export default function OnboardingSectionNav({
               </div>
 
               <div className="nav-item-right">
-                {isCompleted && (
-                  <span className="status-pill status-completed">Completed</span>
-                )}
-                {isCurrent && (
+                {isCurrent ? (
                   <span className="status-pill status-in-progress">In Progress</span>
-                )}
-                {isPending && (
+                ) : isCompleted ? (
+                  <span className="status-pill status-completed">Completed</span>
+                ) : (
                   <span className="status-pill status-pending">Pending</span>
                 )}
               </div>

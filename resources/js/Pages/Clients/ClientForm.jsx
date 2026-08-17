@@ -81,6 +81,11 @@ export default function ClientForm({ client, defaultLopBasis, gstSettings }) {
     };
   }, [client, loadClientData]);
 
+  // Scroll to top of window whenever active step/tab changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [currentStep]);
+
   const activeSteps = hook.getActiveSteps ? hook.getActiveSteps() : [1, 2, 3, 4, 5, 6, 7, 8];
   const totalStepCount = activeSteps.length;
   const isLastStep = currentStep === activeSteps[activeSteps.length - 1];
@@ -193,31 +198,6 @@ export default function ClientForm({ client, defaultLopBasis, gstSettings }) {
 
                   <div className={`form-step-section ${currentStep === 8 ? 'active' : ''}`} style={{ display: currentStep === 8 ? 'block' : 'none' }}>
                     <SlaSection formData={formData} errors={errors} onChange={handleChange} hook={hook} />
-                  </div>
-
-                  {/* Inline Form Card Actions */}
-                  <div className="form-card-actions">
-                    <button type="button" className="btn-save-draft" onClick={() => saveDraft(false)}>
-                      <Save size={15} /> Save Draft
-                    </button>
-
-                    <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'center' }}>
-                      {currentStep > 1 && (
-                        <button type="button" className="btn-prev-secondary" onClick={prevStep}>
-                          <ArrowLeft size={15} /> Previous Step
-                        </button>
-                      )}
-
-                      {!isLastStep ? (
-                        <button type="button" className="btn-continue-primary" onClick={nextStep}>
-                          Save & Continue <ArrowRight size={15} />
-                        </button>
-                      ) : (
-                        <button type="button" className="btn-activate-primary" onClick={submitForm} disabled={isSubmitting}>
-                          <CheckCircle2 size={15} /> {isSubmitting ? 'Saving...' : 'Save & Activate Client'}
-                        </button>
-                      )}
-                    </div>
                   </div>
                 </form>
               </div>

@@ -322,8 +322,9 @@
 .nav-item-left {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.5rem;
   min-width: 0;
+  flex: 1;
 }
 
 .nav-indicator {
@@ -356,16 +357,20 @@
 
 .nav-text {
   min-width: 0;
+  flex: 1;
 }
 
 .nav-item-title {
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   font-weight: 600;
   color: #1E293B;
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.3rem;
   line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .nav-item.active .nav-item-title {
