@@ -3,17 +3,21 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { 
   ArrowLeft, 
+  ArrowRight,
   Landmark, 
   Lock, 
   Settings, 
   Info, 
   AlertOctagon, 
   User, 
+  Building2,
   IndianRupee, 
   Scale, 
   AlertTriangle, 
   Save, 
   Shield,
+  CheckCircle2,
+  Check,
   X 
 } from 'lucide-react';
 import './EmployeeForm.css';
@@ -21,6 +25,75 @@ import RoleGuard from '../../Components/RoleGuard.jsx';
 import axios from 'axios';
 import useToast from '../../Hooks/useToast';
 import { runJQueryValidation } from '../../Utils/jqueryValidation';
+
+const EMP_STEP_META = [
+  { id: 1, title: 'Personal Profile', desc: 'Personal details & contact info', icon: User },
+  { id: 2, title: 'Employment Profile', desc: 'Role, client partner & dates', icon: Building2 },
+  { id: 3, title: 'Bank & Credentials', desc: 'Disbursement bank & PAN/Aadhaar', icon: Landmark },
+  { id: 4, title: 'Compensation & Rules', desc: 'Salary breakdown & statutory rules', icon: IndianRupee },
+];
+
+function EmployeeSectionNav({ currentStep, sectionProgress, onTabClick }) {
+  return (
+    <div className="emp-nav-card">
+      <div className="emp-nav-header">
+        <h4 className="emp-nav-title">EMPLOYEE STEPS</h4>
+        <span className="emp-nav-step-count">{currentStep} of 4</span>
+      </div>
+
+      <div className="emp-nav-list">
+        {EMP_STEP_META.map(step => {
+          const isCurrent = step.id === currentStep;
+          const isCompleted = sectionProgress[step.id];
+          const Icon = step.icon;
+
+          let itemCls = 'emp-nav-item';
+          if (isCurrent) itemCls += ' active';
+          else if (isCompleted) itemCls += ' completed';
+          else itemCls += ' pending';
+
+          return (
+            <button
+              key={step.id}
+              type="button"
+              className={itemCls}
+              onClick={() => onTabClick(step.id)}
+            >
+              <div className="emp-nav-item-left">
+                <div className="emp-nav-indicator">
+                  {isCompleted && !isCurrent ? (
+                    <Check size={12} />
+                  ) : (
+                    <span>{step.id}</span>
+                  )}
+                </div>
+                <div className="emp-nav-text">
+                  <div className="emp-nav-item-title">
+                    <Icon size={13} className="shrink-0" />
+                    <span>{step.title}</span>
+                  </div>
+                  <div className="emp-nav-item-desc">{step.desc}</div>
+                </div>
+              </div>
+
+              <span
+                className={`emp-status-pill ${
+                  isCurrent
+                    ? 'emp-status-in-progress'
+                    : isCompleted
+                    ? 'emp-status-completed'
+                    : 'emp-status-pending'
+                }`}
+              >
+                {isCurrent ? 'In Progress' : isCompleted ? 'Completed' : 'Pending'}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 
 export default function EmployeeForm({ clients = [], errors: serverErrors, employee = null }) {
@@ -146,6 +219,37 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
   
 
   const [isAadhaarFocused, setIsAadhaarFocused] = useState(false);
+
+  const [currentStep, setCurrentStep] = useState(1);
+  const isLastStep = currentStep === 4;
+
+  const sectionProgress = useMemo(() => {
+    return {
+      1: Boolean(formData.firstName && formData.lastName && formData.fatherName && formData.personalEmail && formData.phone && formData.address),
+      2: Boolean(formData.clientPartner && formData.designation && formData.doj),
+      3: Boolean(isActive || (formData.accountNo && formData.accountNoConfirm && formData.ifsc && formData.accountHolder && formData.pan)),
+      4: Boolean(isActive || (formData.basicSal && Number(formData.basicSal) > 0)),
+    };
+  }, [formData, isActive]);
+
+  const goToStep = (stepNum) => {
+    if (stepNum >= 1 && stepNum <= 4) {
+      setCurrentStep(stepNum);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const nextStep = () => {
+    if (currentStep < 4) {
+      goToStep(currentStep + 1);
+    }
+  };
+
+  const prevStep = () => {
+    if (currentStep > 1) {
+      goToStep(currentStep - 1);
+    }
+  };
 
   // Computed values
   const isActive = formMode === 'edit-active';
@@ -1081,7 +1185,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
             </p>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 340px", gap: "2rem", alignItems: "start" }}>
+          <div style={{ width: "100%" }}>
             <div className="card">
               <form id="emp-form" onSubmit={handleFormSubmit} noValidate>
                 
@@ -2445,67 +2549,6 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
                   </button>
                 </div>
               </form>
-            </div>
-            
-            {/* Right Side Notes Panel */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem", position: "sticky", top: "1.5rem", alignSelf: "start", maxHeight: "calc(100vh - 3rem)", overflowY: "auto", paddingRight: "0.25rem" }}>
-              <div className="card" style={{ padding: "1.25rem", background: "linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)", border: "1px solid #cbd5e1", borderRadius: "10px", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
-                <h4 style={{ margin: "0 0 0.6rem 0", fontSize: "0.95rem", color: "#1e293b", fontWeight: "700", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                  <span style={{ padding: "0.35rem", borderRadius: "6px", background: "#e2e8f0", color: "#1e293b", display: "inline-flex" }}>
-                    <User size={16} />
-                  </span>
-                  Personal &amp; Employment Profile
-                </h4>
-                <p style={{ margin: 0, fontSize: "0.83rem", color: "#475569", lineHeight: "1.6" }}>
-                  • <strong>PAN Name Matching:</strong> Ensure Full Name matches PAN card exactly for statutory filing.<br/>
-                  • <strong>Uniqueness Checks:</strong> Emails, Phone numbers, PAN, and Bank Accounts are checked for duplicate entries.<br/>
-                  • <strong>Filing Entity:</strong> EOR uses Client code; Agency Contract uses Tecla Media code.
-                </p>
-              </div>
-              
-              <div className="card" style={{ padding: "1.25rem", background: "linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)", border: "1px solid #cbd5e1", borderRadius: "10px", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
-                <h4 style={{ margin: "0 0 0.6rem 0", fontSize: "0.95rem", color: "#1e293b", fontWeight: "700", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                  <span style={{ padding: "0.35rem", borderRadius: "6px", background: "#e2e8f0", color: "#1e293b", display: "inline-flex" }}>
-                    <Landmark size={16} />
-                  </span>
-                  Banking Security Info
-                </h4>
-                <p style={{ margin: 0, fontSize: "0.83rem", color: "#475569", lineHeight: "1.6" }}>
-                  • <strong>Live Razorpay Verification:</strong> Valid IFSC codes auto-fetch Bank Name and Branch.<br/>
-                  • <strong>Data Encryption:</strong> Account numbers are encrypted in DB with SHA-256 hash duplication protection.<br/>
-                  • <strong>Lock Rule:</strong> Bank info can only be set during onboarding; active employees must use Bank Change Requests.
-                </p>
-              </div>
-              
-              <div className="card" style={{ padding: "1.25rem", background: "linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)", border: "1px solid #cbd5e1", borderRadius: "10px", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
-                <h4 style={{ margin: "0 0 0.6rem 0", fontSize: "0.95rem", color: "#1e293b", fontWeight: "700", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                  <span style={{ padding: "0.35rem", borderRadius: "6px", background: "#e2e8f0", color: "#1e293b", display: "inline-flex" }}>
-                    <IndianRupee size={16} />
-                  </span>
-                  Salary &amp; Deductions Cap
-                </h4>
-                <p style={{ margin: 0, fontSize: "0.83rem", color: "#475569", lineHeight: "1.6" }}>
-                  • <strong>Wage Code Rule:</strong> Basic Pay should be 50%+ of CTC.<br/>
-                  • <strong>50% Deduction Cap:</strong> Total deductions (PF + ESI + PT + TDS + Loan EMI) are legally capped at 50% gross salary to protect employee take-home pay.
-                </p>
-              </div>
-              
-              <div className="card" style={{ padding: "1.25rem", background: "linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)", border: "1px solid #cbd5e1", borderRadius: "10px", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
-                <h4 style={{ margin: "0 0 0.6rem 0", fontSize: "0.95rem", color: "#1e293b", fontWeight: "700", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                  <span style={{ padding: "0.35rem", borderRadius: "6px", background: "#e2e8f0", color: "#1e293b", display: "inline-flex" }}>
-                    <Scale size={16} />
-                  </span>
-                  Statutory Rules &amp; PF Compliance
-                </h4>
-                <p style={{ margin: 0, fontSize: "0.83rem", color: "#475569", lineHeight: "1.6" }}>
-                  • <strong>PF &amp; ESI Modes:</strong> Select <em>"Pending / New Registration"</em> for first-time workers (EPFO/ESIC portals auto-issue numbers upon upload).<br/>
-                  • <strong>EPF Wage Basis:</strong> Inherited from Client defaults (Statutory Ceiling ₹15k vs Actual Basic+DA).<br/>
-                  • <strong>Para 26(6) Joint Declaration:</strong> Required whenever Actual Basic+DA contribution is active &amp; candidate earns Basic+DA &gt; ₹15,000.<br/>
-                  • <strong>Statutory Caps:</strong> EPS (8.33% = max ₹1,249.50), EDLI (0.5% = max ₹75), and Admin (0.5% = max ₹75) stay capped at ₹15,000 base regardless of employer EPF wage basis.<br/>
-                  • <strong>ESI Limit:</strong> Auto-disables if Gross exceeds ₹21,000.<br/>
-                  • <strong>TDS Slabs:</strong> FY26-27 New Regime tax-free up to ₹12L net taxable income.
-                </p>
-              </div>
             </div>
           </div>
           
