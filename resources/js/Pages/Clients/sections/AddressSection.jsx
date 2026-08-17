@@ -73,21 +73,23 @@ export default function AddressSection({ formData, errors, onChange, hook }) {
       )}
 
       {/* Registered Address */}
-      <div className="form-group">
-        <label>Registered Office Address Line 1 <span style={{ color: 'var(--status-danger)' }}>*</span></label>
-        <textarea rows="2" className={`form-control ${errors.regAddressLine1 ? 'invalid' : ''}`}
-          placeholder="Building Name, Street" value={formData.regAddressLine1}
-          onChange={e => onChange('regAddressLine1', e.target.value)} />
-        {errors.regAddressLine1 && <div className={`field-msg ${errors.regAddressLine1?.type || 'error'} show`}>{errors.regAddressLine1?.msg || errors.regAddressLine1}</div>}
-      </div>
-
-      <div className="form-row">
+      <div className="form-grid-3col">
+        <div className="form-group col-span-2">
+          <label>Registered Office Address Line 1 <span style={{ color: 'var(--status-danger)' }}>*</span></label>
+          <input type="text" className={`form-control ${errors.regAddressLine1 ? 'invalid' : ''}`}
+            placeholder="Building Name, Street" value={formData.regAddressLine1}
+            onChange={e => onChange('regAddressLine1', e.target.value)} />
+          {errors.regAddressLine1 && <div className={`field-msg ${errors.regAddressLine1?.type || 'error'} show`}>{errors.regAddressLine1?.msg || errors.regAddressLine1}</div>}
+        </div>
         <div className="form-group">
           <label>Address Line 2</label>
-          <textarea rows="2" className="form-control" placeholder="Area, Locality"
+          <input type="text" className="form-control" placeholder="Area, Locality"
             value={formData.regAddressLine2}
             onChange={e => onChange('regAddressLine2', e.target.value)} />
         </div>
+      </div>
+
+      <div className="form-grid-3col">
         <div className="form-group">
           <label>City <span style={{ color: 'var(--status-danger)' }}>*</span></label>
           <input type="text" className={`form-control ${errors.regCity ? 'invalid' : ''}`}
@@ -95,9 +97,6 @@ export default function AddressSection({ formData, errors, onChange, hook }) {
             onChange={e => onChange('regCity', e.target.value)} />
           {errors.regCity && <div className={`field-msg ${errors.regCity?.type || 'error'} show`}>{errors.regCity?.msg || errors.regCity}</div>}
         </div>
-      </div>
-
-      <div className="form-row">
         <div className="form-group">
           <label htmlFor="regState">State <span style={{ color: 'var(--status-danger)' }}>*</span></label>
           <select id="regState" name="regState" className={`form-control ${errors.regState ? 'invalid' : ''}`}
@@ -118,6 +117,9 @@ export default function AddressSection({ formData, errors, onChange, hook }) {
             }} />
           {errors.regPin && <div className={`field-msg ${errors.regPin?.type || 'error'} show`}>{errors.regPin?.msg || errors.regPin}</div>}
         </div>
+      </div>
+
+      <div className="form-grid-3col">
         <div className="form-group">
           <label>Country</label>
           <select className="form-control" value={formData.country}

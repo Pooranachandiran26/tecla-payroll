@@ -275,9 +275,9 @@ export default function ContractSection({ formData, errors, onChange, hook, gstS
             )}
           </div>
 
-          {/* Invoice & Payment Terms */}
+          {/* Invoice & Payment Terms (3 Columns) */}
           <h4 style={{ fontSize: '0.9rem', color: 'var(--primary-navy)', marginTop: '1.5rem', marginBottom: '1rem' }}>Invoice & Payment Terms</h4>
-          <div className="form-row">
+          <div className="form-grid-3col">
             <div className="form-group">
               <label>Invoicing Cycle</label>
               <select className="form-control" value={formData.invoiceCycle} onChange={e => onChange('invoiceCycle', e.target.value)}>
@@ -290,18 +290,17 @@ export default function ContractSection({ formData, errors, onChange, hook, gstS
                 {PAYMENT_NET_TERMS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
               </select>
             </div>
-          </div>
-          <div className="form-row">
             <div className="form-group">
               <label>Contract Notice Period (days)</label>
               <input type="number" className="form-control" placeholder="30" value={formData.noticePeriod} onChange={e => onChange('noticePeriod', e.target.value)} />
             </div>
+          </div>
+
+          <div className="form-grid-3col">
             <div className="form-group">
               <label>Credit Limit (₹)</label>
               <input type="number" className="form-control" placeholder="e.g. 1000000" value={formData.creditLimit} onChange={e => onChange('creditLimit', e.target.value)} />
             </div>
-          </div>
-          <div className="form-row">
             <div className="form-group">
               <label>Late Payment Penalty (%)</label>
               <input type="number" className="form-control" step="0.1" value={formData.latePenalty} onChange={e => onChange('latePenalty', e.target.value)} />
@@ -314,10 +313,10 @@ export default function ContractSection({ formData, errors, onChange, hook, gstS
             </div>
           </div>
 
-          {/* Taxation Config */}
+          {/* Taxation Config (3 Columns) */}
           <h4 style={{ fontSize: '0.9rem', color: 'var(--primary-navy)', marginTop: '1.5rem', marginBottom: '1rem' }}>Taxation Configuration</h4>
           {isIndia ? (
-            <div className="form-row">
+            <div className="form-grid-3col">
               <div className="form-group">
                 <label>GST Application Rate</label>
                 <select className="form-control" value={formData.gstRate} onChange={e => hook.handleGSTRateChange(e.target.value)}>
@@ -339,14 +338,13 @@ export default function ContractSection({ formData, errors, onChange, hook, gstS
               </div>
               <div className="form-group">
                 <label>Reverse Charge Applicable</label>
-                <div style={{ marginTop: '0.5rem' }}>
+                <div style={{ marginTop: '0.35rem' }}>
                   <label className="toggle-container" style={{ margin: 0 }}>
                     <input type="checkbox" className="toggle-input"
                       checked={formData.reverseCharge} onChange={e => onChange('reverseCharge', e.target.checked)} />
                     <span className="toggle-switch"></span>
-                    <span style={{ fontSize: '0.875rem', fontWeight: 500, marginLeft: '0.75rem', display: 'inline-block', verticalAlign: 'middle' }}>Shift GST liability to client</span>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 500, marginLeft: '0.5rem', display: 'inline-block', verticalAlign: 'middle' }}>Shift GST liability</span>
                   </label>
-                  <div className="field-hint" style={{ marginTop: '0.5rem' }}>If active, invoice will bear 'Reverse Charge Applicable' note.</div>
                 </div>
               </div>
               <div className="form-group">
@@ -363,7 +361,7 @@ export default function ContractSection({ formData, errors, onChange, hook, gstS
                 </div>
                 {formData.tdsApplicableAgency === 'other' && (
                   <div className="form-group conditional-field" style={{ marginTop: '0.5rem' }}>
-                    <label>Custom TDS Percentage (%) <span style={{ color: 'var(--status-danger)' }}>*</span></label>
+                    <label>Custom TDS (%) <span style={{ color: 'var(--status-danger)' }}>*</span></label>
                     <input type="number" className="form-control" placeholder="e.g. 5.0" step="0.1" min="0" max="100"
                       value={formData.customTdsPercentage || ''} onChange={e => onChange('customTdsPercentage', e.target.value)} />
                   </div>

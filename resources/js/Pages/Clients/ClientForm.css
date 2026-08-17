@@ -810,6 +810,22 @@
   margin-bottom: 1.15rem;
 }
 
+/* 3-Column Field Grid Utility */
+.form-grid-3col {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.15rem 1rem;
+  margin-bottom: 1.15rem;
+}
+
+.form-grid-3col .col-span-2 {
+  grid-column: span 2;
+}
+
+.form-grid-3col .col-span-3 {
+  grid-column: span 3;
+}
+
 .form-group {
   flex: 1;
   display: flex;

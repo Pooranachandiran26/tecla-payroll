@@ -15,9 +15,9 @@ export default function IdentitySection({ formData, errors, hints, onChange, onV
         <span className="section-badge">MANDATORY</span>
       </div>
 
-      {/* Company Name & Type */}
-      <div className="form-row">
-        <div className="form-group" style={{ flex: 2 }}>
+      {/* Row 1: Company Name & Type */}
+      <div className="form-grid-3col">
+        <div className="form-group col-span-2">
           <label>Legal Company Name <span style={{ color: 'var(--status-danger)' }}>*</span></label>
           <input type="text" className={`form-control ${errors.companyName ? 'invalid' : ''}`}
             placeholder="e.g. Mahindra & Mahindra Limited"
@@ -51,168 +51,158 @@ export default function IdentitySection({ formData, errors, hints, onChange, onV
         </div>
       )}
 
-      {/* GSTIN & GST Type (India only, not govt/trust) */}
+      {/* Row 2 & 3: Tax & Registration Details (3 Columns) */}
       {isIndia && (
-        <div className="form-row">
-          {!isGovt && !isTrust && (
+        <>
+          <div className="form-grid-3col">
+            {!isGovt && !isTrust && (
+              <div className="form-group">
+                <label htmlFor="gstin">GSTIN <span style={{ color: 'var(--status-danger)' }}>*</span></label>
+                <input type="text" id="gstin" name="gstin" className={`form-control ${errors.gstin ? 'invalid' : ''}`}
+                  placeholder="e.g. 27AAACM1234A1Z1" maxLength="15"
+                  style={{ textTransform: 'uppercase' }}
+                  value={formData.gstin}
+                  onBlur={async (e) => {
+                    const val = e.target.value.trim();
+                    if (!val || val.length !== 15) return;
+                    try {
+                      const ignoreId = hook.editId ? `&ignore_id=${hook.editId}` : '';
+                      const res = await fetch(`/clients/check-unique?field=gstin&value=${encodeURIComponent(val)}${ignoreId}`);
+                      const data = await res.json();
+                      if (!data.available) {
+                        hook.setErrors(prev => ({ ...prev, gstin: { msg: data.message, type: 'error' } }));
+                      }
+                    } catch (err) {}
+                  }}
+                  onChange={e => {
+                    const val = hook.validateGSTIN(e.target.value);
+                    onChange('gstin', val);
+                  }} />
+                {errors.gstin && <div className={`field-msg ${errors.gstin?.type || 'error'} show`}>{errors.gstin?.msg || errors.gstin}</div>}
+                <div className={`field-hint ${hints.gstin?.type || ''}`}>
+                  {hints.gstin?.text || '15-character GST Registration No.'}
+                </div>
+              </div>
+            )}
             <div className="form-group">
-              <label htmlFor="gstin">GSTIN <span style={{ color: 'var(--status-danger)' }}>*</span></label>
-              <input type="text" id="gstin" name="gstin" className={`form-control ${errors.gstin ? 'invalid' : ''}`}
-                placeholder="e.g. 27AAACM1234A1Z1" maxLength="15"
+              <label>GST Registration Type</label>
+              <select className="form-control" value={formData.gstType}
+                onChange={e => onChange('gstType', e.target.value)}>
+                <option value="regular">Regular Taxpayer</option>
+                <option value="composition">Composition Scheme</option>
+                <option value="unregistered">Unregistered (Exempt)</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Company PAN <span style={{ color: 'var(--status-danger)' }}>*</span></label>
+              <input type="text" className={`form-control ${errors.pan ? 'invalid' : ''}`}
+                placeholder="e.g. AAACM1234A" maxLength="10"
                 style={{ textTransform: 'uppercase' }}
-                value={formData.gstin}
-                onBlur={async (e) => {
-                  const val = e.target.value.trim();
-                  if (!val || val.length !== 15) return;
-                  try {
-                    const ignoreId = hook.editId ? `&ignore_id=${hook.editId}` : '';
-                    const res = await fetch(`/clients/check-unique?field=gstin&value=${encodeURIComponent(val)}${ignoreId}`);
-                    const data = await res.json();
-                    if (!data.available) {
-                      hook.setErrors(prev => ({ ...prev, gstin: { msg: data.message, type: 'error' } }));
-                    }
-                  } catch (err) {}
-                }}
+                value={formData.pan}
+                onBlur={() => hook.checkLiveUniqueness('pan', formData.pan, 'pan')}
                 onChange={e => {
-                  const val = hook.validateGSTIN(e.target.value);
-                  onChange('gstin', val);
+                  const val = hook.validatePAN(e.target.value);
+                  onChange('pan', val);
                 }} />
-              {errors.gstin && <div className={`field-msg ${errors.gstin?.type || 'error'} show`}>{errors.gstin?.msg || errors.gstin}</div>}
-              <div className={`field-hint ${hints.gstin?.type || ''}`}>
-                {hints.gstin?.text || '15-character alphanumeric GST Identification Number.'}
+              {errors.pan && <div className={`field-msg ${errors.pan?.type || 'error'} show`}>{errors.pan?.msg || errors.pan}</div>}
+              <div className={`field-hint ${hints.pan?.type || ''}`}>
+                {hints.pan?.text || '10-character PAN number.'}
               </div>
             </div>
-          )}
-          <div className="form-group">
-            <label>GST Registration Type</label>
-            <select className="form-control" value={formData.gstType}
-              onChange={e => onChange('gstType', e.target.value)}>
-              <option value="regular">Regular Taxpayer</option>
-              <option value="composition">Composition Scheme</option>
-              <option value="unregistered">Unregistered (Exempt)</option>
-            </select>
           </div>
-        </div>
-      )}
 
-      {/* PAN & TAN (India only) */}
-      {isIndia && (
-        <div className="form-row">
-          <div className="form-group">
-            <label>Company PAN <span style={{ color: 'var(--status-danger)' }}>*</span></label>
-            <input type="text" className={`form-control ${errors.pan ? 'invalid' : ''}`}
-              placeholder="e.g. AAACM1234A" maxLength="10"
-              style={{ textTransform: 'uppercase' }}
-              value={formData.pan}
-              onBlur={() => hook.checkLiveUniqueness('pan', formData.pan, 'pan')}
-              onChange={e => {
-                const val = hook.validatePAN(e.target.value);
-                onChange('pan', val);
-              }} />
-            {errors.pan && <div className={`field-msg ${errors.pan?.type || 'error'} show`}>{errors.pan?.msg || errors.pan}</div>}
-            <div className={`field-hint ${hints.pan?.type || ''}`}>
-              {hints.pan?.text || '10-character PAN as per Income Tax.'}
+          <div className="form-grid-3col">
+            <div className="form-group">
+              <label>
+                TAN (Tax Deduction Account) <span style={{ color: 'var(--status-danger)' }}>*</span>
+              </label>
+              <input type="text" className={`form-control ${errors.tan ? 'invalid' : ''}`}
+                placeholder="e.g. MUMD12345A" maxLength="10"
+                style={{ textTransform: 'uppercase' }}
+                value={formData.tan}
+                onBlur={() => hook.checkLiveUniqueness('tan', formData.tan, 'tan')}
+                onChange={e => {
+                  const val = hook.validateTAN(e.target.value);
+                  onChange('tan', val);
+                }} />
+              {errors.tan && <div className={`field-msg ${errors.tan?.type || 'error'} show`}>{errors.tan?.msg || errors.tan}</div>}
+              <div className={`field-hint ${hints.tan?.type || ''}`}>
+                {hints.tan?.text || 'Required for TDS filing.'}
+              </div>
+            </div>
+            <div className="form-group">
+              <label>CIN / LLPIN <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(optional)</span></label>
+              <input type="text" className="form-control" placeholder="e.g. U72900MH2010PTC123456"
+                style={{ textTransform: 'uppercase' }}
+                value={formData.cin}
+                onChange={e => {
+                  const val = hook.validateCIN(e.target.value);
+                  onChange('cin', val);
+                }} />
+              <div className={`field-hint ${hints.cin?.type || ''}`}>
+                {hints.cin?.text || '21-char Corporate ID Number.'}
+              </div>
+            </div>
+            <div className="form-group">
+              <label>Date of Incorporation</label>
+              <input type="date" className={`form-control ${errors.incorporationDate ? 'invalid' : ''}`}
+                value={formData.incorporationDate}
+                onChange={e => { onChange('incorporationDate', e.target.value); hook.checkIncorporation(e.target.value); }} />
+              {errors.incorporationDate && <div className={`field-msg ${errors.incorporationDate?.type || 'error'} show`}>{errors.incorporationDate?.msg || errors.incorporationDate}</div>}
+              <div className="field-hint">Used for gratuity eligibility.</div>
             </div>
           </div>
-          <div className="form-group">
-            <label>
-              TAN (Tax Deduction Account No.) <span style={{ color: 'var(--status-danger)' }}>*</span>
-            </label>
-            <input type="text" className={`form-control ${errors.tan ? 'invalid' : ''}`}
-              placeholder="e.g. MUMD12345A" maxLength="10"
-              style={{ textTransform: 'uppercase' }}
-              value={formData.tan}
-              onBlur={() => hook.checkLiveUniqueness('tan', formData.tan, 'tan')}
-              onChange={e => {
-                const val = hook.validateTAN(e.target.value);
-                onChange('tan', val);
-              }} />
-            {errors.tan && <div className={`field-msg ${errors.tan?.type || 'error'} show`}>{errors.tan?.msg || errors.tan}</div>}
-            <div className={`field-hint ${hints.tan?.type || ''}`}>
-              {hints.tan?.text || 'Required for TDS deduction filing.'}
-            </div>
-          </div>
-        </div>
+        </>
       )}
 
-      {/* CIN & Incorporation Date */}
-      <div className="form-row">
+      {/* Row 4: Statutory EOR Codes & Client Code (3 Columns) */}
+      <div className="form-grid-3col">
         <div className="form-group">
-          <label>CIN / LLPIN <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(if applicable)</span></label>
-          <input type="text" className="form-control" placeholder="e.g. U72900MH2010PTC123456"
-            style={{ textTransform: 'uppercase' }}
-            value={formData.cin}
-            onChange={e => {
-              const val = hook.validateCIN(e.target.value);
-              onChange('cin', val);
-            }} />
-          <div className={`field-hint ${hints.cin?.type || ''}`}>
-            {hints.cin?.text || '21-character Corporate Identity Number from MCA.'}
-          </div>
-        </div>
-        <div className="form-group">
-          <label>Date of Incorporation</label>
-          <input type="date" className={`form-control ${errors.incorporationDate ? 'invalid' : ''}`}
-            value={formData.incorporationDate}
-            onChange={e => { onChange('incorporationDate', e.target.value); hook.checkIncorporation(e.target.value); }} />
-          {errors.incorporationDate && <div className={`field-msg ${errors.incorporationDate?.type || 'error'} show`}>{errors.incorporationDate?.msg || errors.incorporationDate}</div>}
-          <div className="field-hint">Must be in the past. Used for gratuity eligibility calculations.</div>
-        </div>
-      </div>
-
-      {/* Statutory Registration Codes (Client EOR) */}
-      <div className="form-row">
-        <div className="form-group">
-          <label style={{ color: 'var(--text-primary)' }}>PF Establishment Code <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(Required for EOR)</span></label>
+          <label style={{ color: 'var(--text-primary)' }}>PF Establishment Code <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(EOR)</span></label>
           <input type="text" className="form-control text-gray-700" placeholder="e.g. MH/BAN/1234567/000"
             style={{ textTransform: 'uppercase' }}
             value={formData.pfEstablishmentCode || ''}
             onChange={e => onChange('pfEstablishmentCode', e.target.value)} />
-          <div className="field-hint"><Info size={13} style={{ display: 'inline', marginRight: '4px', verticalAlign: '-1px' }} /> Client's statutory PF registration code (Required for <strong>EOR candidate</strong> filings).</div>
+          <div className="field-hint">Client statutory PF code.</div>
         </div>
         <div className="form-group">
-          <label style={{ color: 'var(--text-primary)' }}>ESI Code Number <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(Required for EOR)</span></label>
+          <label style={{ color: 'var(--text-primary)' }}>ESI Code Number <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(EOR)</span></label>
           <input type="text" className="form-control text-gray-700" placeholder="e.g. 31001234560001001"
             style={{ textTransform: 'uppercase' }}
             value={formData.esiCodeNumber || ''}
             onChange={e => onChange('esiCodeNumber', e.target.value)} />
-          <div className="field-hint"><Info size={13} style={{ display: 'inline', marginRight: '4px', verticalAlign: '-1px' }} /> Client's statutory ESI employer code (Required for <strong>EOR candidate</strong> filings).</div>
+          <div className="field-hint">Client statutory ESI employer code.</div>
+        </div>
+        <div className="form-group">
+          <label>Client Code (Internal) <span style={{ color: 'var(--status-danger)' }}>*</span></label>
+          <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+            <input type="text" className={`form-control ${errors.clientCode ? 'invalid' : ''}`}
+              placeholder="e.g. MAH-012"
+              value={formData.clientCode}
+              onBlur={async (e) => {
+                const val = e.target.value.trim();
+                if (!val) return;
+                try {
+                  const ignoreId = hook.editId ? `&ignore_id=${hook.editId}` : '';
+                  const res = await fetch(`/clients/check-unique?field=client_code&value=${encodeURIComponent(val)}${ignoreId}`);
+                  const data = await res.json();
+                  if (!data.available) {
+                    hook.setErrors(prev => ({ ...prev, clientCode: { msg: data.message, type: 'error' } }));
+                  }
+                } catch (err) {}
+              }}
+              onChange={e => onChange('clientCode', e.target.value)} />
+            <button type="button" className="btn btn-secondary" onClick={hook.autoGenerateCode}
+              style={{ whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '0.45rem 0.6rem', fontSize: '0.78rem' }}>
+              <Zap size={13} /> Gen
+            </button>
+          </div>
+          {errors.clientCode && <div className={`field-msg ${errors.clientCode?.type || 'error'} show`}>{errors.clientCode?.msg || errors.clientCode}</div>}
         </div>
       </div>
 
-      {/* Client Code */}
-      <div className="form-group">
-        <label>Client Code (Internal) <span style={{ color: 'var(--status-danger)' }}>*</span></label>
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <input type="text" className={`form-control ${errors.clientCode ? 'invalid' : ''}`}
-            placeholder="e.g. MAH-012" style={{ maxWidth: '200px' }}
-            value={formData.clientCode}
-            onBlur={async (e) => {
-              const val = e.target.value.trim();
-              if (!val) return;
-              try {
-                const ignoreId = hook.editId ? `&ignore_id=${hook.editId}` : '';
-                const res = await fetch(`/clients/check-unique?field=client_code&value=${encodeURIComponent(val)}${ignoreId}`);
-                const data = await res.json();
-                if (!data.available) {
-                  hook.setErrors(prev => ({ ...prev, clientCode: { msg: data.message, type: 'error' } }));
-                }
-              } catch (err) {}
-            }}
-            onChange={e => onChange('clientCode', e.target.value)} />
-          <button type="button" className="btn btn-secondary" onClick={hook.autoGenerateCode}
-            style={{ whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-            <Zap size={14} /> Auto-Generate
-          </button>
-          <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-            Unique internal reference code for payroll processing.
-          </span>
-        </div>
-        {errors.clientCode && <div className={`field-msg ${errors.clientCode?.type || 'error'} show`}>{errors.clientCode?.msg || errors.clientCode}</div>}
-      </div>
-
-      {/* Industry & Status */}
-      <div className="form-row">
+      {/* Row 5: Industry, Status, Work Locations (3 Columns) */}
+      <div className="form-grid-3col">
         <div className="form-group">
           <label>Industry / Sector</label>
           <select className="form-control" value={formData.industry}
@@ -223,7 +213,7 @@ export default function IdentitySection({ formData, errors, hints, onChange, onV
           {formData.industry === 'Other' && (
             <div className="form-group" style={{ marginTop: '0.5rem' }}>
               <label>Sub-Industry / Specialization</label>
-              <input type="text" className="form-control" placeholder="e.g. IT Staffing, Tech Consulting"
+              <input type="text" className="form-control" placeholder="e.g. IT Staffing"
                 value={formData.subIndustry}
                 onChange={e => onChange('subIndustry', e.target.value)} />
             </div>
@@ -239,40 +229,41 @@ export default function IdentitySection({ formData, errors, hints, onChange, onV
             <option value="suspended">Suspended</option>
           </select>
         </div>
-      </div>
-
-      {/* Work Locations & Group Company */}
-      <div className="form-row" style={{ marginTop: '1rem' }}>
         <div className="form-group">
-          <label>Number of Work Locations</label>
+          <label>Work Locations Count</label>
           <input type="number" className="form-control" min="1"
             value={formData.workLocationsCount}
             onChange={e => hook.handleWorkLocationsCountChange(e.target.value)} />
-          <div className="field-hint">If &gt; 1, Professional Tax will be computed per candidate work state.</div>
+          <div className="field-hint">PT computed per state if &gt; 1.</div>
         </div>
-        <div className="form-group">
-          <label style={{ display: 'block', marginBottom: '0.5rem' }}>Group / Holding Company</label>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.5rem' }}>
+      </div>
+
+      {/* Group Company Toggle & Parent Company */}
+      <div className="form-grid-3col" style={{ alignItems: 'center' }}>
+        <div className="form-group col-span-3">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <label className="toggle-container" style={{ margin: 0 }}>
               <input type="checkbox" className="toggle-input"
                 checked={formData.isGroupCompany}
                 onChange={e => onChange('isGroupCompany', e.target.checked)} />
               <span className="toggle-switch"></span>
             </label>
-            <span style={{ fontSize: '0.875rem' }}>Is part of a Group Company</span>
+            <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+              Is part of a Group / Holding Company
+            </span>
           </div>
         </div>
-      </div>
 
-      {formData.isGroupCompany && (
-        <div className="form-group" style={{ marginTop: '1rem' }}>
-          <label>Parent Company</label>
-          <input type="text" className="form-control" placeholder="Type parent company name..."
-            value={formData.parentCompany}
-            onChange={e => onChange('parentCompany', e.target.value)} />
-          <div className="field-hint">Links this client under a parent for consolidated billing reports.</div>
-        </div>
-      )}
+        {formData.isGroupCompany && (
+          <div className="form-group col-span-3" style={{ marginTop: '0.25rem' }}>
+            <label>Parent Company</label>
+            <input type="text" className="form-control" placeholder="Type parent company name..."
+              value={formData.parentCompany}
+              onChange={e => onChange('parentCompany', e.target.value)} />
+            <div className="field-hint">Links this client under a parent for consolidated billing reports.</div>
+          </div>
+        )}
+      </div>
     </>
   );
 }

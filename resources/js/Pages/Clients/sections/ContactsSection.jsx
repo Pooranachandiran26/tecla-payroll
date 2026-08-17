@@ -29,7 +29,7 @@ export default function ContactsSection({ formData, errors, onChange, onPocChang
           </strong>
           <span className="badge" style={{ background: '#E0F2FE', color: '#0369A1', fontSize: '0.7rem', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>Receives All Comms</span>
         </div>
-        <div className="form-row">
+        <div className="form-grid-3col">
           <div className="form-group">
             <label>Full Name <span style={{ color: 'var(--status-danger)' }}>*</span></label>
             <input type="text" className={`form-control ${errors['poc1.name'] ? 'invalid' : ''}`}
@@ -44,17 +44,6 @@ export default function ContactsSection({ formData, errors, onChange, onPocChang
               value={formData.poc1.designation}
               onChange={e => onPocChange('poc1', 'designation', e.target.value)} />
           </div>
-        </div>
-        <div className="form-row">
-          <div className="form-group">
-            <label>Email <span style={{ color: 'var(--status-danger)' }}>*</span></label>
-            <input type="email" className={`form-control ${errors['poc1.email'] ? 'invalid' : ''}`}
-              placeholder="e.g. vikas@mahindra.com"
-              value={formData.poc1.email}
-              onBlur={() => hook.checkLiveUniqueness('email', formData.poc1.email, 'poc1.email')}
-              onChange={e => onPocChange('poc1', 'email', e.target.value)} />
-            {errors['poc1.email'] && <div className={`field-msg ${errors['poc1.email']?.type || 'error'} show`}>{errors['poc1.email']?.msg || errors['poc1.email']}</div>}
-          </div>
           <div className="form-group">
             <label>Phone <span style={{ color: 'var(--status-danger)' }}>*</span></label>
             <input type="tel" className={`form-control ${errors['poc1.phone'] ? 'invalid' : ''}`}
@@ -65,27 +54,36 @@ export default function ContactsSection({ formData, errors, onChange, onPocChang
             {errors['poc1.phone'] && <div className={`field-msg ${errors['poc1.phone']?.type || 'error'} show`}>{errors['poc1.phone']?.msg || errors['poc1.phone']}</div>}
           </div>
         </div>
-        <div className="form-row" style={{ marginTop: '0.75rem', alignItems: 'center', gap: '1.5rem' }}>
-          <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+        <div className="form-grid-3col">
+          <div className="form-group">
+            <label>Email <span style={{ color: 'var(--status-danger)' }}>*</span></label>
+            <input type="email" className={`form-control ${errors['poc1.email'] ? 'invalid' : ''}`}
+              placeholder="e.g. vikas@mahindra.com"
+              value={formData.poc1.email}
+              onBlur={() => hook.checkLiveUniqueness('email', formData.poc1.email, 'poc1.email')}
+              onChange={e => onPocChange('poc1', 'email', e.target.value)} />
+            {errors['poc1.email'] && <div className={`field-msg ${errors['poc1.email']?.type || 'error'} show`}>{errors['poc1.email']?.msg || errors['poc1.email']}</div>}
+          </div>
+          <div className="form-group" style={{ justifyContent: 'center' }}>
             <label className="toggle-container" style={{ margin: 0 }}>
               <input type="checkbox" className="toggle-input"
                 checked={formData.poc1.whatsappSame}
                 onChange={e => onPocChange('poc1', 'whatsappSame', e.target.checked)} />
               <span className="toggle-switch"></span>
             </label>
-            <span style={{ fontSize: '0.8rem' }}>WhatsApp same as Phone</span>
+            <span style={{ fontSize: '0.8rem', marginLeft: '0.5rem' }}>WhatsApp same as Phone</span>
           </div>
-          <div className="form-group" style={{ margin: 0 }}>
-            <label style={{ fontSize: '0.8rem', display: 'block', marginBottom: '0.25rem' }}>Communication Preferences</label>
-            <div style={{ display: 'flex', gap: '0.75rem' }}>
-              <label style={{ fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer', userSelect: 'none' }}>
+          <div className="form-group">
+            <label style={{ fontSize: '0.8rem', display: 'block', marginBottom: '0.25rem' }}>Preferences</label>
+            <div style={{ display: 'flex', gap: '0.65rem' }}>
+              <label style={{ fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer' }}>
                 <input type="checkbox" checked={formData.poc1?.prefs?.email || false} onChange={e => onPocPrefChange('poc1', 'email', e.target.checked)} /> <Mail size={13} /> Email
               </label>
-              <label style={{ fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer', userSelect: 'none' }}>
+              <label style={{ fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer' }}>
                 <input type="checkbox" checked={formData.poc1?.prefs?.sms || false} onChange={e => onPocPrefChange('poc1', 'sms', e.target.checked)} /> <Smartphone size={13} /> SMS
               </label>
-              <label style={{ fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer', userSelect: 'none' }}>
-                <input type="checkbox" checked={formData.poc1?.prefs?.wa || false} onChange={e => onPocPrefChange('poc1', 'wa', e.target.checked)} /> <MessageSquare size={13} /> WhatsApp
+              <label style={{ fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer' }}>
+                <input type="checkbox" checked={formData.poc1?.prefs?.wa || false} onChange={e => onPocPrefChange('poc1', 'wa', e.target.checked)} /> <MessageSquare size={13} /> WA
               </label>
             </div>
           </div>
@@ -103,7 +101,7 @@ export default function ContactsSection({ formData, errors, onChange, onPocChang
           </strong>
           <span className="badge" style={{ background: '#FEF3C7', color: '#B45309', fontSize: '0.7rem', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>Receives Invoices</span>
         </div>
-        <div className="form-row">
+        <div className="form-grid-3col">
           <div className="form-group">
             <label>Full Name</label>
             <input type="text" className="form-control" placeholder="e.g. Ravi Joshi"
@@ -114,42 +112,34 @@ export default function ContactsSection({ formData, errors, onChange, onPocChang
             <input type="text" className="form-control" placeholder="e.g. Accounts Manager"
               value={formData.poc2?.designation || ''} onChange={e => onPocChange('poc2', 'designation', e.target.value)} />
           </div>
-        </div>
-        <div className="form-row">
-          <div className="form-group">
-            <label>Email</label>
-            <input type="email" className="form-control" placeholder="e.g. accounts@mahindra.com"
-              value={formData.poc2?.email || ''} onChange={e => onPocChange('poc2', 'email', e.target.value)} />
-          </div>
           <div className="form-group">
             <label>Phone</label>
             <input type="tel" className="form-control" placeholder="10-digit mobile" maxLength="10"
               value={formData.poc2?.phone || ''} onChange={e => onPocChange('poc2', 'phone', e.target.value)} />
           </div>
         </div>
-        <div className="form-row" style={{ marginTop: '0.75rem', alignItems: 'center', gap: '1.5rem' }}>
-          <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
-            <label className="toggle-container" style={{ margin: 0 }}>
-              <input type="checkbox" className="toggle-input"
-                checked={formData.poc2?.whatsappSame || false} onChange={e => onPocChange('poc2', 'whatsappSame', e.target.checked)} />
-              <span className="toggle-switch"></span>
-            </label>
-            <span style={{ fontSize: '0.8rem' }}>WhatsApp same as Phone</span>
+        <div className="form-grid-3col">
+          <div className="form-group">
+            <label>Email</label>
+            <input type="email" className="form-control" placeholder="e.g. accounts@mahindra.com"
+              value={formData.poc2?.email || ''} onChange={e => onPocChange('poc2', 'email', e.target.value)} />
           </div>
-          <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+          <div className="form-group" style={{ justifyContent: 'center' }}>
             <label className="toggle-container" style={{ margin: 0 }}>
               <input type="checkbox" className="toggle-input"
                 checked={formData.poc2?.ccInvoice || false} onChange={e => onPocChange('poc2', 'ccInvoice', e.target.checked)} />
               <span className="toggle-switch"></span>
             </label>
-            <span style={{ fontSize: '0.8rem', fontWeight: 500 }}>CC on Invoice Email</span>
+            <span style={{ fontSize: '0.8rem', marginLeft: '0.5rem', fontWeight: 500 }}>CC on Invoice Email</span>
           </div>
-        </div>
-        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-          <span>Communication Preferences:</span>
-          <label style={{ fontSize: '0.75rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '3px' }}><input type="checkbox" checked={formData.poc2?.prefs?.email || false} onChange={e => onPocPrefChange('poc2', 'email', e.target.checked)} /> <Mail size={13} /> Email</label>
-          <label style={{ fontSize: '0.75rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '3px' }}><input type="checkbox" checked={formData.poc2?.prefs?.sms || false} onChange={e => onPocPrefChange('poc2', 'sms', e.target.checked)} /> <Smartphone size={13} /> SMS</label>
-          <label style={{ fontSize: '0.75rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '3px' }}><input type="checkbox" checked={formData.poc2?.prefs?.wa || false} onChange={e => onPocPrefChange('poc2', 'wa', e.target.checked)} /> <MessageSquare size={13} /> WhatsApp</label>
+          <div className="form-group">
+            <label style={{ fontSize: '0.8rem', display: 'block', marginBottom: '0.25rem' }}>Preferences</label>
+            <div style={{ display: 'flex', gap: '0.65rem' }}>
+              <label style={{ fontSize: '0.78rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '3px' }}><input type="checkbox" checked={formData.poc2?.prefs?.email || false} onChange={e => onPocPrefChange('poc2', 'email', e.target.checked)} /> <Mail size={13} /> Email</label>
+              <label style={{ fontSize: '0.78rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '3px' }}><input type="checkbox" checked={formData.poc2?.prefs?.sms || false} onChange={e => onPocPrefChange('poc2', 'sms', e.target.checked)} /> <Smartphone size={13} /> SMS</label>
+              <label style={{ fontSize: '0.78rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '3px' }}><input type="checkbox" checked={formData.poc2?.prefs?.wa || false} onChange={e => onPocPrefChange('poc2', 'wa', e.target.checked)} /> <MessageSquare size={13} /> WA</label>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -164,7 +154,7 @@ export default function ContactsSection({ formData, errors, onChange, onPocChang
           </strong>
           <span className="badge" style={{ background: '#DCFCE7', color: '#166534', fontSize: '0.7rem', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>Receives HR Notifications</span>
         </div>
-        <div className="form-row">
+        <div className="form-grid-3col">
           <div className="form-group">
             <label>Full Name</label>
             <input type="text" className="form-control" placeholder="e.g. Priya Nair"
@@ -175,42 +165,34 @@ export default function ContactsSection({ formData, errors, onChange, onPocChang
             <input type="text" className="form-control" placeholder="e.g. HR Manager"
               value={formData.poc3?.designation || ''} onChange={e => onPocChange('poc3', 'designation', e.target.value)} />
           </div>
-        </div>
-        <div className="form-row">
-          <div className="form-group">
-            <label>Email</label>
-            <input type="email" className="form-control" placeholder="e.g. hr@mahindra.com"
-              value={formData.poc3?.email || ''} onChange={e => onPocChange('poc3', 'email', e.target.value)} />
-          </div>
           <div className="form-group">
             <label>Phone</label>
             <input type="tel" className="form-control" placeholder="10-digit mobile" maxLength="10"
               value={formData.poc3?.phone || ''} onChange={e => onPocChange('poc3', 'phone', e.target.value)} />
           </div>
         </div>
-        <div className="form-row" style={{ marginTop: '0.75rem', alignItems: 'center', gap: '1.5rem' }}>
-          <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
-            <label className="toggle-container" style={{ margin: 0 }}>
-              <input type="checkbox" className="toggle-input"
-                checked={formData.poc3?.whatsappSame || false} onChange={e => onPocChange('poc3', 'whatsappSame', e.target.checked)} />
-              <span className="toggle-switch"></span>
-            </label>
-            <span style={{ fontSize: '0.8rem' }}>WhatsApp same as Phone</span>
+        <div className="form-grid-3col">
+          <div className="form-group">
+            <label>Email</label>
+            <input type="email" className="form-control" placeholder="e.g. hr@mahindra.com"
+              value={formData.poc3?.email || ''} onChange={e => onPocChange('poc3', 'email', e.target.value)} />
           </div>
-          <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+          <div className="form-group" style={{ justifyContent: 'center' }}>
             <label className="toggle-container" style={{ margin: 0 }}>
               <input type="checkbox" className="toggle-input"
                 checked={formData.poc3?.onboardingKits || false} onChange={e => onPocChange('poc3', 'onboardingKits', e.target.checked)} />
               <span className="toggle-switch"></span>
             </label>
-            <span style={{ fontSize: '0.8rem', fontWeight: 500 }}>Receives Onboarding Kits</span>
+            <span style={{ fontSize: '0.8rem', marginLeft: '0.5rem', fontWeight: 500 }}>Receives Onboarding Kits</span>
           </div>
-        </div>
-        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-          <span>Communication Preferences:</span>
-          <label style={{ fontSize: '0.75rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '3px' }}><input type="checkbox" checked={formData.poc3?.prefs?.email || false} onChange={e => onPocPrefChange('poc3', 'email', e.target.checked)} /> <Mail size={13} /> Email</label>
-          <label style={{ fontSize: '0.75rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '3px' }}><input type="checkbox" checked={formData.poc3?.prefs?.sms || false} onChange={e => onPocPrefChange('poc3', 'sms', e.target.checked)} /> <Smartphone size={13} /> SMS</label>
-          <label style={{ fontSize: '0.75rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '3px' }}><input type="checkbox" checked={formData.poc3?.prefs?.wa || false} onChange={e => onPocPrefChange('poc3', 'wa', e.target.checked)} /> <MessageSquare size={13} /> WhatsApp</label>
+          <div className="form-group">
+            <label style={{ fontSize: '0.8rem', display: 'block', marginBottom: '0.25rem' }}>Preferences</label>
+            <div style={{ display: 'flex', gap: '0.65rem' }}>
+              <label style={{ fontSize: '0.78rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '3px' }}><input type="checkbox" checked={formData.poc3?.prefs?.email || false} onChange={e => onPocPrefChange('poc3', 'email', e.target.checked)} /> <Mail size={13} /> Email</label>
+              <label style={{ fontSize: '0.78rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '3px' }}><input type="checkbox" checked={formData.poc3?.prefs?.sms || false} onChange={e => onPocPrefChange('poc3', 'sms', e.target.checked)} /> <Smartphone size={13} /> SMS</label>
+              <label style={{ fontSize: '0.78rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '3px' }}><input type="checkbox" checked={formData.poc3?.prefs?.wa || false} onChange={e => onPocPrefChange('poc3', 'wa', e.target.checked)} /> <MessageSquare size={13} /> WA</label>
+            </div>
+          </div>
         </div>
       </div>
 

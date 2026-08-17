@@ -87,8 +87,8 @@ export default function SlaSection({ formData, errors, onChange, hook }) {
         </div>
       )}
 
-      {/* 2 & 3. Payroll Lock Day & Salary Credit Day in a balanced 2-column row */}
-      <div className="form-row" style={{ marginTop: '1rem' }}>
+      {/* Timeline & Lock Days (3 Columns) */}
+      <div className="form-grid-3col" style={{ marginTop: '1rem' }}>
         <div className="form-group">
           <label>Payroll Lock / Processing Day</label>
           <Select2
@@ -98,7 +98,7 @@ export default function SlaSection({ formData, errors, onChange, hook }) {
             searchable={true}
             placeholder="Select Lock Day..."
           />
-          <div className="field-hint">Payroll calculations are locked and finalized by this date.</div>
+          <div className="field-hint">Locked by this date.</div>
         </div>
 
         <div className="form-group">
@@ -110,13 +110,10 @@ export default function SlaSection({ formData, errors, onChange, hook }) {
             searchable={true}
             placeholder="Select Credit Day..."
           />
-          <div className="field-hint">Target day employees receive salary credits in their bank accounts.</div>
+          <div className="field-hint">Bank credit target.</div>
         </div>
-      </div>
 
-      {/* 4. Invoice Raise Day & Invoice Dispute Window — hidden for In-House */}
-      {!isInhouse && (
-        <div className="form-row" style={{ marginTop: '1rem' }}>
+        {!isInhouse && (
           <div className="form-group">
             <label>Invoice Raise Day <span style={{ color: 'var(--status-danger)' }}>*</span></label>
             <Select2
@@ -125,23 +122,21 @@ export default function SlaSection({ formData, errors, onChange, hook }) {
               options={INVOICE_RAISE_DAYS}
               searchable={false}
             />
-            <div className="field-hint">Invoice is generated this many days after payroll is locked.</div>
+            <div className="field-hint">Generated post-lock.</div>
           </div>
+        )}
+      </div>
 
+      {/* AM & Dispute Window (3 Columns) */}
+      {!isInhouse && (
+        <div className="form-grid-3col" style={{ marginTop: '0.5rem' }}>
           <div className="form-group">
             <label>Invoice Dispute Window (days)</label>
             <input type="number" className="form-control" placeholder="e.g. 7" min="1" max="30"
               value={formData.invoiceDisputeDays} onChange={e => onChange('invoiceDisputeDays', e.target.value)} />
-            <div className="field-hint">Days client can raise a dispute after invoice is raised.</div>
           </div>
-        </div>
-      )}
-
-      {/* 5. Account Manager — hidden for In-House */}
-      {!isInhouse && (
-        <div className="form-row" style={{ marginTop: '1rem' }}>
           <div className="form-group">
-            <label>Assigned Account Manager (Internal)</label>
+            <label>Assigned Account Manager (AM)</label>
             <select className="form-control" value={formData.accountManager} onChange={e => onChange('accountManager', e.target.value)}>
               <option value="">-- Assign Account Manager --</option>
               {accountManagers.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
@@ -155,7 +150,6 @@ export default function SlaSection({ formData, errors, onChange, hook }) {
                 <option key={m.value} value={m.value}>{m.label}</option>
               ))}
             </select>
-            <div className="field-hint">Backup CC'd on communications when primary AM is unavailable.</div>
           </div>
         </div>
       )}
