@@ -6,7 +6,6 @@ import './ClientForm.css';
 
 import useClientForm from './hooks/useClientForm';
 import Toast from './components/Toast';
-import FormProgress from './components/FormProgress';
 import OnboardingSectionNav from './components/OnboardingSectionNav';
 
 import IdentitySection from './sections/IdentitySection';
@@ -123,14 +122,6 @@ export default function ClientForm({ client, defaultLopBasis, gstSettings }) {
               </div>
             </div>
           </div>
-
-          {/* Top Horizontal Progress Indicator */}
-          <FormProgress
-            currentStep={currentStep}
-            sectionProgress={sectionProgress}
-            onTabClick={goToStep}
-            isInhouse={hook.isInhouse}
-          />
 
           {/* Main 2-Column Grid Layout (Left Nav + Expanded Form) */}
           <div className="onboarding-grid-container">
