@@ -430,4 +430,299 @@
       opacity: 0.6;
       cursor: not-allowed;
     }
+
+    /* ── Step Header & Section Header (Client Module Design Language) ── */
+    .step-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 2px solid #F1F5F9;
+    }
+
+    .step-header-left {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .step-header-icon-box {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: #EFF6FF;
+      color: #2563EB;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .step-header-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #0F172A;
+      margin: 0 0 0.15rem 0;
+    }
+
+    .step-header-subtitle {
+      font-size: 0.8rem;
+      color: #64748B;
+      margin: 0;
+    }
+
+    .step-badge {
+      background: #EFF6FF;
+      color: #1D4ED8;
+      border: 1px solid #BFDBFE;
+      padding: 0.25rem 0.65rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      border-bottom: 2px solid #F1F5F9;
+      padding-bottom: 0.6rem;
+      margin-top: 1.75rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .section-header:first-of-type {
+      margin-top: 0;
+    }
+
+    .section-icon {
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      background: #1E3A8A;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .section-header h3 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      margin: 0;
+      color: #0F172A;
+    }
+
+    .section-header .section-badge {
+      margin-left: auto;
+      font-size: 0.68rem;
+      background: #EEF2FF;
+      color: #4338CA;
+      padding: 0.15rem 0.5rem;
+      border-radius: 9999px;
+      font-weight: 700;
+    }
+
+    /* ── Draft Button Utilities ── */
+    .btn-save-draft {
+      background-color: #FFFFFF;
+      color: #334155;
+      border: 1.5px solid #CBD5E1;
+      padding: 0.45rem 0.9rem;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .btn-save-draft:hover {
+      background-color: #F8FAFC;
+      border-color: #94A3B8;
+      color: #0F172A;
+    }
+
+    .btn-clear-draft {
+      background-color: #FFF1F2;
+      color: #E11D48;
+      border: 1.5px solid #FECDD3;
+      padding: 0.45rem 0.9rem;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .btn-clear-draft:hover {
+      background-color: #FFE4E6;
+      border-color: #FDA4AF;
+      color: #BE123C;
+    }
+
+    /* ── Left Side Live Salary Preview Card (White Theme) ── */
+    .emp-side-preview-card {
+      background: #FFFFFF;
+      border-radius: 12px;
+      border: 1px solid #E2E8F0;
+      box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+      margin-top: 1rem;
+      overflow: hidden;
+      position: sticky;
+      top: 90px;
+      transition: all 0.2s ease-in-out;
+    }
+
+    .side-preview-header {
+      background: #F8FAFC;
+      border-bottom: 1px solid #E2E8F0;
+      padding: 0.65rem 0.85rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .side-preview-title {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-weight: 700;
+      font-size: 0.82rem;
+      color: #0F172A;
+      letter-spacing: 0.02em;
+    }
+
+    .side-preview-badge {
+      background: #EFF6FF;
+      color: #1D4ED8;
+      border: 1px solid #BFDBFE;
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 0.15rem 0.5rem;
+      border-radius: 9999px;
+      letter-spacing: 0.04em;
+    }
+
+    .side-preview-body {
+      padding: 0.85rem;
+    }
+
+    .side-net-card {
+      background: #F0F9FF;
+      border: 1px solid #BAE6FD;
+      border-radius: 10px;
+      padding: 0.85rem;
+      text-align: center;
+      margin-bottom: 0.85rem;
+    }
+
+    .side-net-label {
+      font-size: 0.68rem;
+      color: #0369A1;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .side-net-amount {
+      font-size: 1.55rem;
+      font-weight: 800;
+      color: #0284C7;
+      margin: 0.2rem 0;
+      line-height: 1.2;
+    }
+
+    .side-net-sub {
+      font-size: 0.68rem;
+      color: #0369A1;
+      opacity: 0.85;
+      font-weight: 500;
+    }
+
+
+    .side-metrics-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+    }
+
+    .side-metric-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.78rem;
+      padding-bottom: 0.35rem;
+      border-bottom: 1px dashed #E2E8F0;
+    }
+
+    .side-metric-item:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    .side-metric-label {
+      color: #64748B;
+      font-weight: 500;
+    }
+
+    .side-metric-val {
+      font-weight: 700;
+    }
+
+    .side-metric-val.gross {
+      color: #0F172A;
+    }
+
+    .side-metric-val.ded {
+      color: #DC2626;
+    }
+
+    .side-metric-val.ctc {
+      color: #1E3A8A;
+      font-size: 0.85rem;
+    }
+
+    .ctc-row {
+      background: #F8FAFC;
+      padding: 0.45rem 0.6rem;
+      border-radius: 6px;
+      border: 1px solid #E2E8F0;
+      margin-top: 0.2rem;
+    }
+
+    .side-pills-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.3rem;
+      margin-top: -0.2rem;
+      margin-bottom: 0.2rem;
+    }
+
+    .side-pill {
+      font-size: 0.65rem;
+      background: #FEF2F2;
+      color: #991B1B;
+      border: 1px solid #FCA5A5;
+      padding: 0.1rem 0.35rem;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+
+    .side-pill.vpf {
+      background: #EFF6FF;
+      color: #1E40AF;
+      border-color: #93C5FD;
+    }
+
+
+
   

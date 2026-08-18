@@ -71,7 +71,9 @@ class Client extends Model
         'hourly_rate' => 'float',
         'onboarding_completed_steps' => 'array',
         'onboarding_current_step' => 'integer',
+        'applicable_statutory_acts' => 'array',
     ];
+
 
     public function getPayslipVisibleSectionsAttribute($value)
     {

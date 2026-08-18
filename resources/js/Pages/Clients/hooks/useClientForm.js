@@ -295,12 +295,34 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
 
   // ═══ HANDLERS ═════════════════════════════════════
 
-  const autoGenerateCode = useCallback(() => {
-    if (!formData.companyName) { showToast('⚠️ Enter company name first'); return; }
-    const prefix = formData.companyName.replace(/[^a-zA-Z]/g, '').substring(0, 3).toUpperCase();
+  const autoGenerateCode = useCallback((overrideName = null) => {
+    const targetName = (typeof overrideName === 'string' && overrideName.length > 0) ? overrideName : formData.companyName;
+    if (!targetName) { 
+      if (!overrideName) showToast('⚠️ Enter company name first'); 
+      return; 
+    }
+    
+    const cleanName = targetName.trim().replace(/\b(Pvt|Ltd|Limited|Private|LLP|Inc|Corp|Corporation)\b/gi, '').trim() || targetName.trim();
+    const words = cleanName.split(/\s+/).filter(w => w.length > 0);
+    
+    let prefix = '';
+    if (words.length >= 3) {
+      prefix = (words[0][0] + words[1][0] + words[2][0]).toUpperCase();
+    } else if (words.length === 2) {
+      prefix = (words[0].substring(0, 2) + words[1][0]).toUpperCase();
+    } else if (words.length === 1) {
+      prefix = words[0].substring(0, 3).toUpperCase();
+    }
+    
+    prefix = prefix.replace(/[^A-Z]/g, '').padEnd(3, 'X');
+    
     const num = Math.floor(Math.random() * 900) + 100;
-    handleInputChange('clientCode', `${prefix}-${num}`);
+    const generated = `${prefix}-${num}`;
+    handleInputChange('clientCode', generated);
+    if (!overrideName) showToast(`✨ Generated Client Code: ${generated}`);
+    return generated;
   }, [formData.companyName, handleInputChange, showToast]);
+
 
   const handleCompanyType = useCallback((value) => {
     handleInputChange('companyType', value);
@@ -1074,6 +1096,10 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
       lwfApplicable: formData.lwfApplicable,
       tdsRegime: formData.tdsRegime,
       tdsApplicable: formData.tdsApplicable,
+      clraLicenseNumber: formData.clraLicenseNumber,
+      clraLicenseExpiry: formData.clraLicenseExpiry,
+      applicableActs: formData.applicableActs || [],
+      applicable_statutory_acts: formData.applicableActs || [],
       gratuityMode: formData.gratuityMode,
       gratuityApplicable: formData.gratuityApplicable,
       bonusPct: parseFloat(formData.bonusPct || '8.33'),
@@ -1375,7 +1401,8 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
       clientCode: client.client_code || '',
       industry: client.industry || '',
       subIndustry: client.sub_industry || '',
-      clientStatus: client.status || 'onboarding',
+      clientStatus: (client.status && client.status !== 'draft') ? client.status : 'active',
+
       workLocationsCount: client.branches ? Math.max(1, client.branches.length) : 1,
       isGroupCompany: client.is_group_company || false,
       parentCompany: client.parent_company || '',
@@ -1454,6 +1481,13 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
       bonusPct: client.bonus_rate_percentage || 8.33,
       bonusType: client.statutory_bonus_type || 'ctc_accrual',
       bonusApplicable: client.statutory_bonus_applicable !== undefined ? client.statutory_bonus_applicable : false,
+      clraLicenseNumber: client.clra_license_number || '',
+      clraLicenseExpiry: client.clra_license_expiry || '',
+      applicableActs: Array.isArray(client.applicable_statutory_acts)
+        ? client.applicable_statutory_acts
+        : (typeof client.applicable_statutory_acts === 'string'
+            ? (() => { try { return JSON.parse(client.applicable_statutory_acts); } catch(e) { return []; } })()
+            : []),
       healthInsuranceEnabled: client.health_insurance_enabled !== undefined ? Boolean(client.health_insurance_enabled) : true,
       weeklyOffPattern: client.weekly_off_pattern || client.weeklyOffPattern || 'sat,sun',
       lopBasis: '30',
@@ -1720,7 +1754,8 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
     validateEmail, validatePhone, validateContractDates, validateStep,
 
     // Field-specific handlers
-    autoGenerateCode, handleCompanyType, handleCountryChange,
+    autoGenerateCode, generateClientCode: autoGenerateCode, handleCompanyType, handleCountryChange,
+
     handleIndustryChange, handleBillingModelChange, handleContractTypeChange,
     handleGSTRateChange, handleTDSChange, getTDSPreview,
     handlePFCeiling, getPFCeilingHint, handleESILimit, getESILimitHint,

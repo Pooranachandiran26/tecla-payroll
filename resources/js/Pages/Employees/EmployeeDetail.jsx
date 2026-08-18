@@ -400,10 +400,11 @@ const renderDocumentRows = () => {
                 </div>
                 {employee.marital_status === 'married' || employee.spouse_name ? (
                   <div>
-                    <h4 className="data-label">Wife / Spouse Name</h4>
+                    <h4 className="data-label">Husband / Wife / Spouse Name</h4>
                     <span className="data-value">{employee.spouse_name || 'N/A'}</span>
                   </div>
                 ) : (
+
                   <div>
                     <h4 className="data-label">Mother's Name</h4>
                     <span className="data-value">{employee.mother_name || 'N/A'}</span>

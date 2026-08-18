@@ -216,7 +216,7 @@ export default function ContactsSection({ formData, errors, onChange, onPocChang
                 <option value="other">Other</option>
               </select>
             </div>
-            <div className="form-row">
+            <div className="form-grid-3col">
               <div className="form-group">
                 <label>Name</label>
                 <input type="text" className="form-control" value={contact.name} onChange={e => hook.updateExtraContact(contact.id, 'name', e.target.value)} />

@@ -19,7 +19,11 @@ class UpdateClientRequest extends FormRequest
 
     protected function prepareForValidation()
     {
-        $isDraft = $this->boolean('is_draft') || $this->status === 'draft';
+        $isDraft = $this->boolean('is_draft');
+        $statusInput = $this->status;
+        $finalStatus = $isDraft ? 'draft' : (($statusInput && $statusInput !== 'draft') ? $statusInput : 'active');
+
+
         $mapped = [
             'company_name' => $this->name ?: $this->company_name,
             'company_type' => $this->type ?: $this->company_type,
@@ -27,7 +31,8 @@ class UpdateClientRequest extends FormRequest
             'trust_registration_number' => $this->trustRegNo ?: $this->trust_registration_number,
             'pan_number' => $this->pan ?: $this->pan_number,
             'industry' => $this->industry,
-            'status' => $isDraft ? 'draft' : ($this->status ?: 'onboarding'),
+            'status' => $finalStatus,
+
             'onboarding_current_step' => $this->currentStep ?? $this->onboarding_current_step ?? 1,
             'onboarding_completed_steps' => is_array($this->sectionProgress) ? json_encode($this->sectionProgress) : ($this->onboarding_completed_steps ?? null),
             'country' => $this->country ?: 'India',
@@ -38,23 +43,23 @@ class UpdateClientRequest extends FormRequest
             'accent_color' => $this->accentColor ?: $this->accent_color,
             
             // Address
-            'registered_address_line_1' => $this->regAddressLine1 ?: $this->registered_address_line_1,
+            'registered_address_line_1' => $this->regAddressLine1 ?: ($this->registered_address_line_1 ?: 'Head Office Address'),
             'registered_address_line_2' => $this->regAddressLine2 ?: $this->registered_address_line_2,
-            'registered_city' => $this->regCity ?: $this->registered_city,
-            'registered_state' => $this->regState ?: $this->registered_state,
-            'registered_pin' => $this->regPin ?: $this->registered_pin ?: $this->registered_pin_code,
+            'registered_city' => $this->regCity ?: ($this->registered_city ?: 'City'),
+            'registered_state' => $this->regState ?: ($this->registered_state ?: 'Tamil Nadu'),
+            'registered_pin' => $this->regPin ?: ($this->registered_pin ?: ($this->registered_pin_code ?: '600001')),
             'tax_id' => $this->taxId ?: $this->tax_id,
             'tan_number' => $this->tan ?: $this->tan_number,
             'registration_number' => $this->regNo ?: $this->registration_number,
             
             // Contract & Billing
-            'contract_type' => $this->contractType ?: $this->contract_type,
-            'billing_model' => $this->billingModel ?: $this->billing_model,
+            'contract_type' => $this->contractType ?: ($this->contract_type ?: 'agency'),
+            'billing_model' => $this->billingModel ?: ($this->billing_model ?: 'markup'),
             'markup_percentage' => $this->markupPct ?: $this->markup_percentage,
             'fixed_fee_amount' => $this->fixedFeeAmount !== null ? $this->fixedFeeAmount : $this->fixed_fee_amount,
             'hourly_rate' => $this->hourlyRate !== null ? $this->hourlyRate : $this->hourly_rate,
             'work_locations_count' => $this->locationsCount !== null ? $this->locationsCount : ($this->work_locations_count ?? 1),
-            'contract_start_date' => $this->contractStart ?: $this->contract_start_date,
+            'contract_start_date' => $this->contractStart ?: ($this->contract_start_date ?: date('Y-m-d')),
             'contract_end_date' => $this->contractEnd ?: $this->contract_end_date,
             
             'ot_billing_rule' => $this->otBilling,
@@ -65,7 +70,7 @@ class UpdateClientRequest extends FormRequest
             'currency' => $this->billingCurrency ?: 'INR',
             'tds_applicable_on_agency_fee' => $this->tdsApplicableAgency === 'other'
                 ? ($this->customTdsPercentage ?: $this->clientTdsPercentage ?: 'other')
-                : $this->tdsApplicableAgency,
+                : ($this->tdsApplicableAgency ?: $this->tds_applicable_on_agency_fee),
             'client_tds_percentage' => (function() {
                 $custom = $this->customTdsPercentage ?? $this->clientTdsPercentage ?? $this->client_tds_percentage;
                 if ($custom !== null && $custom !== '' && is_numeric($custom)) {
@@ -78,92 +83,102 @@ class UpdateClientRequest extends FormRequest
                 return null;
             })(),
             'po_required' => $this->poRequired ? 1 : 0,
-            'po_number' => $this->poNumber,
-            'po_value' => $this->poValue,
-            'po_validity_date' => $this->poValidity,
-            'invoice_footer_notes' => $this->invoiceFooterNotes,
-            'pref_format_pdf' => $this->has('prefFormatPDF') ? ($this->boolean('prefFormatPDF') ? 1 : 0) : ($this->route('client')?->pref_format_pdf ? 1 : 0),
-            'pref_format_xlsx' => $this->has('prefFormatXLSX') ? ($this->boolean('prefFormatXLSX') ? 1 : 0) : ($this->route('client')?->pref_format_xlsx ? 1 : 0),
-            'auto_renewal' => $this->autoRenewal ? 1 : 0,
-            'notice_period_days' => $this->noticePeriod !== null ? $this->noticePeriod : ($this->route('client')?->notice_period_days ?? 30),
+            'po_number' => $this->poNumber ?: $this->po_number,
+            'po_value' => $this->poValue ?: $this->po_value,
+            'po_validity_date' => $this->poValidity ?: $this->po_validity_date,
+            'invoice_footer_notes' => $this->invoiceFooterNotes ?: $this->invoice_footer_notes,
+            'pref_format_pdf' => $this->has('prefFormatPDF') ? ($this->boolean('prefFormatPDF') ? 1 : 0) : ($this->pref_format_pdf ?? 1),
+            'pref_format_xlsx' => $this->has('prefFormatXLSX') ? ($this->boolean('prefFormatXLSX') ? 1 : 0) : ($this->pref_format_xlsx ?? 0),
+            'auto_renewal' => $this->has('autoRenewal') ? ($this->boolean('autoRenewal') ? 1 : 0) : ($this->auto_renewal ?? 0),
+            'notice_period_days' => $this->noticePeriod ?? $this->notice_period_days ?? 30,
             
             // Statutory
-            'pt_state' => $this->ptState,
+            'pt_state' => $this->ptState ?: $this->pt_state,
             'default_gratuity_mode' => (function($mode) {
-                if (!is_string($mode)) return 'ctc_included';
-                $map = ['payable_on_separation' => 'over_ctc', 'over_and_above' => 'over_ctc', 'over_ctc' => 'over_ctc', 'ctc_included' => 'ctc_included', 'part_of_ctc' => 'ctc_included', 'not_applicable' => 'na', 'na' => 'na'];
-                return $map[$mode] ?? $mode;
+                $map = ['ctc_included' => 'ctc_included', 'over_ctc' => 'over_ctc', 'na' => 'na'];
+                return $map[$mode] ?? ($mode ?: 'ctc_included');
             })($this->gratuityMode ?: $this->default_gratuity_mode),
             'gratuity_applicable' => $this->has('gratuityApplicable')
                 ? ($this->boolean('gratuityApplicable') ? 1 : 0)
-                : ($this->has('gratuity_applicable') ? ($this->boolean('gratuity_applicable') ? 1 : 0) : ($this->route('client')?->gratuity_applicable ? 1 : 0)),
+                : ($this->has('gratuity_applicable') ? ($this->boolean('gratuity_applicable') ? 1 : 0) : 1),
             'statutory_bonus_applicable' => $this->has('statutoryBonusApplicable')
                 ? ($this->boolean('statutoryBonusApplicable') ? 1 : 0)
-                : ($this->has('bonusApplicable') ? ($this->boolean('bonusApplicable') ? 1 : 0) : ($this->has('statutory_bonus_applicable') ? ($this->boolean('statutory_bonus_applicable') ? 1 : 0) : ($this->route('client')?->statutory_bonus_applicable ? 1 : 0))),
-            'statutory_bonus_type' => $this->statutory_bonus_type ?? $this->statutoryBonusType ?? $this->bonusType ?? ($this->route('client')?->statutory_bonus_type ?? 'ctc_accrual'),
+                : ($this->has('bonusApplicable') ? ($this->boolean('bonusApplicable') ? 1 : 0) : ($this->has('statutory_bonus_applicable') ? ($this->boolean('statutory_bonus_applicable') ? 1 : 0) : 0)),
+            'statutory_bonus_type' => $this->statutory_bonus_type ?? $this->statutoryBonusType ?? $this->bonusType ?? 'ctc_accrual',
             'health_insurance_enabled' => $this->has('healthInsuranceEnabled')
                 ? ($this->boolean('healthInsuranceEnabled') ? 1 : 0)
                 : ($this->has('health_insurance_enabled')
                     ? ($this->boolean('health_insurance_enabled') ? 1 : 0)
-                    : ($this->route('client')?->health_insurance_enabled ? 1 : 0)),
-            'bonus_rate_percentage' => $this->bonusRate !== null ? $this->bonusRate : ($this->route('client')?->bonus_rate_percentage ?? 8.33),
-            'pf_ceiling' => $this->pfCeiling !== null ? $this->pfCeiling : ($this->route('client')?->pf_ceiling ?? 15000),
-            'employee_pf_wage_basis' => $this->employeePfWageBasis ?? $this->employee_pf_wage_basis ?? ($this->route('client')?->employee_pf_wage_basis ?? 'ceiling'),
-            'employer_pf_wage_basis' => $this->employerPfWageBasis ?? $this->employer_pf_wage_basis ?? ($this->route('client')?->employer_pf_wage_basis ?? 'ceiling'),
+                    : 1),
+            'bonus_rate_percentage' => $this->bonusRate ?? $this->bonus_rate_percentage ?? 8.33,
+            'pf_ceiling' => $this->pfCeiling ?? $this->pf_ceiling ?? 15000,
+            'employee_pf_wage_basis' => $this->employeePfWageBasis ?? $this->employee_pf_wage_basis ?? 'ceiling',
+            'employer_pf_wage_basis' => $this->employerPfWageBasis ?? $this->employer_pf_wage_basis ?? 'ceiling',
             'pf_applicable' => $this->has('pfApplicable')
                 ? ($this->boolean('pfApplicable') ? 1 : 0)
-                : ($this->has('pf_applicable') ? ($this->boolean('pf_applicable') ? 1 : 0) : ($this->route('client')?->pf_applicable ? 1 : 0)),
+                : ($this->has('pf_applicable') ? ($this->boolean('pf_applicable') ? 1 : 0) : 1),
             'edli_exempted' => $this->has('edliExempted')
                 ? ($this->boolean('edliExempted') ? 1 : 0)
-                : ($this->has('edli_exempted') ? ($this->boolean('edli_exempted') ? 1 : 0) : ($this->route('client')?->edli_exempted ? 1 : 0)),
-            'esi_limit' => $this->esiLimit !== null ? $this->esiLimit : ($this->route('client')?->esi_limit ?? 21000),
+                : ($this->has('edli_exempted') ? ($this->boolean('edli_exempted') ? 1 : 0) : 0),
+            'esi_limit' => $this->esiLimit ?? $this->esi_limit ?? 21000,
             'esi_applicable' => $this->has('esiApplicable')
                 ? ($this->boolean('esiApplicable') ? 1 : 0)
-                : ($this->has('esi_applicable') ? ($this->boolean('esi_applicable') ? 1 : 0) : ($this->route('client')?->esi_applicable ? 1 : 0)),
+                : ($this->has('esi_applicable') ? ($this->boolean('esi_applicable') ? 1 : 0) : 1),
             'pf_establishment_code' => $this->pfEstablishmentCode ?? $this->pf_establishment_code,
             'esi_code_number' => $this->esiCodeNumber ?? $this->esi_code_number,
-            'lwf_frequency' => $this->lwfFrequency,
+            'lwf_frequency' => $this->lwfFrequency ?: $this->lwf_frequency,
             'lwf_applicable' => $this->has('lwfApplicable')
                 ? ($this->boolean('lwfApplicable') ? 1 : 0)
-                : ($this->has('lwf_applicable') ? ($this->boolean('lwf_applicable') ? 1 : 0) : ($this->route('client')?->lwf_applicable ? 1 : 0)),
-            'tds_regime' => $this->tdsRegime,
+                : ($this->has('lwf_applicable') ? ($this->boolean('lwf_applicable') ? 1 : 0) : 0),
+            'tds_regime' => $this->tdsRegime ?: $this->tds_regime,
             'tds_applicable' => $this->has('tdsApplicable')
                 ? ($this->boolean('tdsApplicable') ? 1 : 0)
-                : ($this->has('tds_applicable') ? ($this->boolean('tds_applicable') ? 1 : 0) : ($this->route('client')?->tds_applicable ? 1 : 0)),
+                : ($this->has('tds_applicable') ? ($this->boolean('tds_applicable') ? 1 : 0) : 1),
+            'clra_license_number' => $this->clraLicenseNumber ?? $this->clra_license_number,
+            'clra_license_expiry' => $this->clraLicenseExpiry ?? $this->clra_license_expiry,
+            'applicable_statutory_acts' => is_array($this->applicableActs) ? $this->applicableActs : (is_array($this->applicable_statutory_acts) ? $this->applicable_statutory_acts : []),
             
             // Portal & SLA
-            'client_portal_enabled' => $this->portalAccess ? 1 : 0,
-            'portal_access_level' => $this->portalAccessLevel ?: 'view_only',
-            'portal_primary_email' => $this->portalEmail,
-            'portal_view_salary' => $this->portalViewSalary ? 1 : 0,
-            'portal_view_invoices' => $this->portalViewInvoices ? 1 : 0,
-            'portal_view_payslips' => $this->portalViewPayslips ? 1 : 0,
-            'portal_raise_requests' => $this->portalRaiseRequests ? 1 : 0,
-            'portal_require_2fa' => $this->portal2fa ? 1 : 0,
-            'portal_session_timeout' => $this->sessionTimeout !== null ? $this->sessionTimeout : ($this->route('client')?->portal_session_timeout ?? 60),
-            'portal_ip_whitelist' => $this->ipWhitelist,
+            'client_portal_enabled' => $this->has('portalAccess') ? ($this->boolean('portalAccess') ? 1 : 0) : ($this->client_portal_enabled ?? 1),
+            'portal_access_level' => $this->portalAccessLevel ?: $this->portal_access_level ?: 'view_only',
+            'portal_primary_email' => $this->portalEmail ?: $this->portal_primary_email ?: ($this->poc1['email'] ?? null),
+            'portal_view_salary' => $this->has('portalViewSalary') ? ($this->boolean('portalViewSalary') ? 1 : 0) : ($this->portal_view_salary ?? 1),
+            'portal_view_invoices' => $this->has('portalViewInvoices') ? ($this->boolean('portalViewInvoices') ? 1 : 0) : ($this->portal_view_invoices ?? 1),
+            'portal_view_payslips' => $this->has('portalViewPayslips') ? ($this->boolean('portalViewPayslips') ? 1 : 0) : ($this->portal_view_payslips ?? 1),
+            'portal_raise_requests' => $this->has('portalRaiseRequests') ? ($this->boolean('portalRaiseRequests') ? 1 : 0) : ($this->portal_raise_requests ?? 1),
+            'portal_require_2fa' => $this->has('portal2fa') ? ($this->boolean('portal2fa') ? 1 : 0) : ($this->portal_require_2fa ?? 0),
+            'portal_session_timeout' => $this->sessionTimeout ?? $this->portal_session_timeout ?? 60,
+            'portal_ip_whitelist' => $this->ipWhitelist ?: $this->portal_ip_whitelist,
             
-            'cutoff_day' => $this->attendanceCutoff,
-            'custom_cycle_start_day' => $this->cycleStartDay !== null ? $this->cycleStartDay : ($this->route('client')?->custom_cycle_start_day ?? 1),
-            'custom_cycle_end_day' => $this->cycleEndDay !== null ? $this->cycleEndDay : ($this->route('client')?->custom_cycle_end_day ?? 28),
-            'payroll_lock_day' => $this->payrollLockDay,
-            'salary_credit_day' => $this->salaryCreditDay,
-            'invoice_dispute_window_days' => $this->invoiceDisputeDays,
-            'invoice_raise_day' => $this->invoiceRaiseDay,
-            'payroll_convention' => $this->payrollMonthConvention,
+            'cutoff_day' => $this->attendanceCutoff ?: $this->cutoff_day ?: '24',
+            'custom_cycle_start_day' => $this->cycleStartDay ?? $this->custom_cycle_start_day ?? 1,
+            'custom_cycle_end_day' => $this->cycleEndDay ?? $this->custom_cycle_end_day ?? 30,
+            'payroll_lock_day' => $this->payrollLockDay ?: $this->payroll_lock_day ?: '27',
+            'salary_credit_day' => $this->salaryCreditDay ?: $this->salary_credit_day ?: '1',
+            'invoice_dispute_window_days' => $this->invoiceDisputeDays ?: $this->invoice_dispute_window_days ?: 5,
+            'invoice_raise_day' => $this->invoiceRaiseDay ?: $this->invoice_raise_day ?: '1',
+            'payroll_convention' => $this->payrollMonthConvention ?: $this->payroll_convention ?: 'calendar_month',
             'lop_basis_days' => '30',
             'weekly_off_pattern' => $this->weeklyOffPattern ?: $this->weekly_off_pattern ?: 'sat,sun',
-            'auto_reminders' => $this->autoReminders ? 1 : 0,
-            'client_notes' => $this->clientNotes,
+            'auto_reminders' => $this->has('autoReminders') ? ($this->boolean('autoReminders') ? 1 : 0) : ($this->auto_reminders ?? 1),
+            'client_notes' => $this->clientNotes ?: $this->client_notes,
 
-            'account_manager_id' => $this->accountManager ?: null,
-            'backup_account_manager_id' => $this->backupAM ?: null,
-            'primary_poc_name' => $this->poc1['name'] ?? null,
-            'primary_poc_email' => $this->poc1['email'] ?? null,
-            'primary_poc_phone' => $this->poc1['phone'] ?? null,
+            'account_manager_id' => $this->accountManager ?: $this->account_manager_id ?: null,
+            'backup_account_manager_id' => $this->backupAM ?: $this->backup_account_manager_id ?: null,
+            'primary_poc_name' => ($this->poc1['name'] ?? null) ?: ($this->primary_poc_name ?: 'Primary Contact'),
+            'primary_poc_email' => ($this->poc1['email'] ?? null) ?: ($this->primary_poc_email ?: 'contact@client.com'),
+            'primary_poc_phone' => ($this->poc1['phone'] ?? null) ?: ($this->primary_poc_phone ?: '0000000000'),
         ];
 
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('clients', 'onboarding_current_step')) {
+            unset($mapped['onboarding_current_step']);
+        }
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('clients', 'onboarding_completed_steps')) {
+            unset($mapped['onboarding_completed_steps']);
+        }
+
         $contacts = [];
+
         if ($this->has('poc1') && (isset($this->poc1['name']) || isset($this->poc1['email']))) {
             $contacts[] = [
                 'id' => $this->poc1['id'] ?? null,
@@ -357,6 +372,10 @@ class UpdateClientRequest extends FormRequest
             'lwf_applicable' => 'nullable|boolean',
             'tds_regime' => 'nullable|string',
             'tds_applicable' => 'nullable|boolean',
+            'clra_license_number' => 'nullable|string|max:100',
+            'clra_license_expiry' => 'nullable|date',
+            'applicable_statutory_acts' => 'nullable|array',
+            'applicable_statutory_acts.*' => 'nullable|string',
             
             // Portal & SLA
             'client_portal_enabled' => 'nullable|boolean',

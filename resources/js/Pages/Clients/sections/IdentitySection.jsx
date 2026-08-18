@@ -1,6 +1,6 @@
 import React from 'react';
 import { COMPANY_TYPES, INDUSTRIES, COUNTRIES } from '../constants/clientFormData';
-import { Building2, Zap, Info } from 'lucide-react';
+import { Building2 } from 'lucide-react';
 
 export default function IdentitySection({ formData, errors, hints, onChange, onValidate, hook }) {
   const isIndia = formData.country === 'India';
@@ -22,7 +22,13 @@ export default function IdentitySection({ formData, errors, hints, onChange, onV
           <input type="text" className={`form-control ${errors.companyName ? 'invalid' : ''}`}
             placeholder="e.g. Mahindra & Mahindra Limited"
             value={formData.companyName}
-            onChange={e => { onChange('companyName', e.target.value); hook.markProgress(1); }} />
+            onChange={e => { onChange('companyName', e.target.value); hook.markProgress(1); }}
+            onBlur={e => {
+              if (e.target.value.trim() && !formData.clientCode && !hook.isEditMode && hook.autoGenerateCode) {
+                hook.autoGenerateCode(e.target.value);
+              }
+            }} />
+
           {errors.companyName && <div className={`field-msg ${errors.companyName?.type || 'error'} show`}>{errors.companyName?.msg || errors.companyName}</div>}
           <div className="field-hint">Enter the exact legal name as per MCA registration.</div>
         </div>
@@ -79,8 +85,8 @@ export default function IdentitySection({ formData, errors, hints, onChange, onV
                     onChange('gstin', val);
                   }} />
                 {errors.gstin && <div className={`field-msg ${errors.gstin?.type || 'error'} show`}>{errors.gstin?.msg || errors.gstin}</div>}
-                <div className={`field-hint ${hints.gstin?.type || ''}`}>
-                  {hints.gstin?.text || '15-character GST Registration No.'}
+                <div className={`field-hint ${hints?.gstin?.type || ''}`}>
+                  {hints?.gstin?.text || '15-character GST Registration No.'}
                 </div>
               </div>
             )}
@@ -105,8 +111,8 @@ export default function IdentitySection({ formData, errors, hints, onChange, onV
                   onChange('pan', val);
                 }} />
               {errors.pan && <div className={`field-msg ${errors.pan?.type || 'error'} show`}>{errors.pan?.msg || errors.pan}</div>}
-              <div className={`field-hint ${hints.pan?.type || ''}`}>
-                {hints.pan?.text || '10-character PAN number.'}
+              <div className={`field-hint ${hints?.pan?.type || ''}`}>
+                {hints?.pan?.text || '10-character PAN number.'}
               </div>
             </div>
           </div>
@@ -126,8 +132,8 @@ export default function IdentitySection({ formData, errors, hints, onChange, onV
                   onChange('tan', val);
                 }} />
               {errors.tan && <div className={`field-msg ${errors.tan?.type || 'error'} show`}>{errors.tan?.msg || errors.tan}</div>}
-              <div className={`field-hint ${hints.tan?.type || ''}`}>
-                {hints.tan?.text || 'Required for TDS filing.'}
+              <div className={`field-hint ${hints?.tan?.type || ''}`}>
+                {hints?.tan?.text || 'Required for TDS filing.'}
               </div>
             </div>
             <div className="form-group">
@@ -139,8 +145,8 @@ export default function IdentitySection({ formData, errors, hints, onChange, onV
                   const val = hook.validateCIN(e.target.value);
                   onChange('cin', val);
                 }} />
-              <div className={`field-hint ${hints.cin?.type || ''}`}>
-                {hints.cin?.text || '21-char Corporate ID Number.'}
+              <div className={`field-hint ${hints?.cin?.type || ''}`}>
+                {hints?.cin?.text || '21-char Corporate ID Number.'}
               </div>
             </div>
             <div className="form-group">
@@ -179,62 +185,39 @@ export default function IdentitySection({ formData, errors, hints, onChange, onV
             <input type="text" className={`form-control ${errors.clientCode ? 'invalid' : ''}`}
               placeholder="e.g. MAH-012"
               value={formData.clientCode}
-              onBlur={async (e) => {
-                const val = e.target.value.trim();
-                if (!val) return;
-                try {
-                  const ignoreId = hook.editId ? `&ignore_id=${hook.editId}` : '';
-                  const res = await fetch(`/clients/check-unique?field=client_code&value=${encodeURIComponent(val)}${ignoreId}`);
-                  const data = await res.json();
-                  if (!data.available) {
-                    hook.setErrors(prev => ({ ...prev, clientCode: { msg: data.message, type: 'error' } }));
-                  }
-                } catch (err) {}
-              }}
-              onChange={e => onChange('clientCode', e.target.value)} />
-            <button type="button" className="btn btn-secondary" onClick={hook.autoGenerateCode}
-              style={{ whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '0.45rem 0.6rem', fontSize: '0.78rem' }}>
-              <Zap size={13} /> Gen
+              onBlur={() => hook.checkLiveUniqueness('client_code', formData.clientCode, 'clientCode')}
+              onChange={e => onChange('clientCode', e.target.value.toUpperCase())} />
+            <button type="button" className="btn btn-secondary btn-sm" onClick={hook.generateClientCode} title="Auto-generate from company name" style={{ whiteSpace: 'nowrap' }}>
+              ⚡ Auto
             </button>
           </div>
           {errors.clientCode && <div className={`field-msg ${errors.clientCode?.type || 'error'} show`}>{errors.clientCode?.msg || errors.clientCode}</div>}
         </div>
       </div>
 
-      {/* Row 5: Industry, Status, Work Locations (3 Columns) */}
       <div className="form-grid-3col">
         <div className="form-group">
-          <label>Industry / Sector</label>
-          <select className="form-control" value={formData.industry}
-            onChange={e => hook.handleIndustryChange(e.target.value)}>
-            <option value="">-- Select Industry --</option>
-            {INDUSTRIES.map(ind => <option key={ind} value={ind}>{ind}</option>)}
+          <label>Industry / Sector <span style={{ color: 'var(--status-danger)' }}>*</span></label>
+          <select className={`form-control ${errors.industry ? 'invalid' : ''}`}
+            value={formData.industry} onChange={e => onChange('industry', e.target.value)}>
+            <option value="">-- Select --</option>
+            {INDUSTRIES.map(i => <option key={i} value={i}>{i}</option>)}
           </select>
-          {formData.industry === 'Other' && (
-            <div className="form-group" style={{ marginTop: '0.5rem' }}>
-              <label>Sub-Industry / Specialization</label>
-              <input type="text" className="form-control" placeholder="e.g. IT Staffing"
-                value={formData.subIndustry}
-                onChange={e => onChange('subIndustry', e.target.value)} />
-            </div>
-          )}
+          {errors.industry && <div className={`field-msg ${errors.industry?.type || 'error'} show`}>{errors.industry?.msg || errors.industry}</div>}
         </div>
         <div className="form-group">
           <label>Client Status</label>
-          <select className="form-control" value={formData.clientStatus}
-            onChange={e => onChange('clientStatus', e.target.value)}>
-            <option value="onboarding">Onboarding (Draft)</option>
+          <select className="form-control" value={formData.clientStatus} onChange={e => onChange('clientStatus', e.target.value)}>
             <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
+            <option value="onboarding">In Onboarding</option>
             <option value="suspended">Suspended</option>
+            <option value="inactive">Inactive</option>
           </select>
         </div>
         <div className="form-group">
-          <label>Work Locations Count</label>
-          <input type="number" className="form-control" min="1"
-            value={formData.workLocationsCount}
-            onChange={e => hook.handleWorkLocationsCountChange(e.target.value)} />
-          <div className="field-hint">PT computed per state if &gt; 1.</div>
+          <label>Number of Work Locations</label>
+          <input type="number" className="form-control" placeholder="1" min="1" max="100"
+            value={formData.workLocationsCount || '1'} onChange={e => onChange('workLocationsCount', e.target.value)} />
         </div>
       </div>
 
