@@ -1423,6 +1423,8 @@ class SupplementaryPayrollRunTest extends TestCase
         DB::table('payroll_run_items')->insert($this->makePayrollRunItemData([
             'payroll_run_id' => $parentRun->id,
             'employee_id' => $this->employeeA->id,
+            'gross_total' => 10000,
+            'net_pay' => 9000,
         ]));
 
         $childRun = PayrollRun::create([
@@ -1442,6 +1444,8 @@ class SupplementaryPayrollRunTest extends TestCase
         DB::table('payroll_run_items')->insert($this->makePayrollRunItemData([
             'payroll_run_id' => $childRun->id,
             'employee_id' => $this->employeeB->id,
+            'gross_total' => 15000,
+            'net_pay' => 13000,
         ]));
 
         $response = $this->actingAs($this->admin)->get(route('payroll.processing', [

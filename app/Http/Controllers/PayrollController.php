@@ -734,6 +734,7 @@ class PayrollController extends Controller
 
             $run = PayrollRun::where('client_id', $selectedClientId)
                 ->where('payroll_month', $selectedMonth)
+                ->where('is_supplementary_run', false)
                 ->latest('id')
                 ->first();
 
@@ -933,6 +934,7 @@ class PayrollController extends Controller
 
             $run = PayrollRun::where('client_id', $selectedClientId)
                 ->where('payroll_month', $selectedMonth)
+                ->where('is_supplementary_run', false)
                 ->latest('id')
                 ->first();
 
