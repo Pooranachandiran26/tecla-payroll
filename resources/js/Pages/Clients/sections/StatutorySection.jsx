@@ -1,7 +1,8 @@
 import React, { useEffect } from 'react';
 import { usePage } from '@inertiajs/react';
-import { PT_STATES, STATE_REG_OPTIONS } from '../constants/clientFormData';
-import { ShieldCheck, Shield, AlertTriangle, Zap, CheckCircle2, Scale, Lock } from 'lucide-react';
+import { PT_STATES, STATE_REG_OPTIONS, APPLICABLE_ACTS_OPTIONS } from '../constants/clientFormData';
+import { ShieldCheck, Shield, AlertTriangle, Zap, CheckCircle2, Scale, Lock, FileText } from 'lucide-react';
+
 
 const resolveStateName = (st, defaultState = 'Tamil Nadu') => {
   if (!st || st === 'auto') return defaultState;
@@ -544,6 +545,93 @@ export default function StatutorySection({ formData, onChange, hook }) {
             </label>
           </div>
         </div>
+
+
+        {/* Applicable Statutory Acts (Classification Multi-Select) */}
+        <div className="stat-row" style={{ flexWrap: 'wrap', flexDirection: 'column', alignItems: 'stretch', gap: '0.75rem', background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '1rem', borderRadius: '8px' }}>
+          <div className="stat-info">
+            <strong style={{ color: 'var(--primary-navy)', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <FileText size={16} /> Applicable Statutory Acts (Classification for Compliance Records)
+            </strong>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              Select all statutory acts governing this client entity. This classification determines applicable statutory registers, forms, and compliance returns.
+            </span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '0.75rem', marginTop: '0.25rem' }}>
+            {APPLICABLE_ACTS_OPTIONS.map((act) => {
+              const currentActs = Array.isArray(formData.applicableActs) ? formData.applicableActs : [];
+              const isChecked = currentActs.includes(act.id);
+              return (
+                <label key={act.id} style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '0.6rem',
+                  padding: '0.6rem 0.75rem',
+                  background: isChecked ? '#EFF6FF' : '#FFFFFF',
+                  border: isChecked ? '1.5px solid #3B82F6' : '1px solid #CBD5E1',
+                  borderRadius: '6px',
+                  cursor: lockProps.disabled ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.15s ease'
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={isChecked}
+                    style={{ marginTop: '3px', cursor: lockProps.disabled ? 'not-allowed' : 'pointer' }}
+                    onChange={(e) => {
+                      const updated = e.target.checked
+                        ? [...currentActs, act.id]
+                        : currentActs.filter(id => id !== act.id);
+                      onChange('applicableActs', updated);
+                    }}
+                    {...lockProps}
+                  />
+                  <div>
+                    <div style={{ fontSize: '0.8rem', fontWeight: '600', color: isChecked ? '#1E40AF' : '#1E293B' }}>
+                      {act.label}
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: '#64748B', marginTop: '1px' }}>
+                      {act.desc}
+                    </div>
+                  </div>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* CLRA License & Registration */}
+        <div className="stat-row" style={{
+          flexWrap: 'wrap',
+          background: (Array.isArray(formData.applicableActs) && formData.applicableActs.includes('contract_labour_act')) ? '#F0F9FF' : 'transparent',
+          border: (Array.isArray(formData.applicableActs) && formData.applicableActs.includes('contract_labour_act')) ? '1.5px solid #0284C7' : '1px solid var(--border-color)',
+          borderRadius: '8px',
+          padding: '0.85rem 1rem',
+          transition: 'all 0.2s ease'
+        }}>
+          <div className="stat-info">
+            <strong>CLRA License & Registration — Contract Labour (R&A) Act 1970</strong>
+            <span>Contract Labour License number and validity period for contractor deployment compliance.</span>
+            {(Array.isArray(formData.applicableActs) && formData.applicableActs.includes('contract_labour_act')) && (
+              <small style={{ color: '#0284C7', display: 'block', marginTop: '4px', fontWeight: '600' }}>
+                <Shield size={13} style={{ display: 'inline', marginRight: '4px', verticalAlign: '-1px' }} /> Contract Labour Act selected: CLRA license details recommended for full compliance audit pack.
+              </small>
+            )}
+          </div>
+          <div className="stat-rate" style={{ display: 'flex', gap: '0.75rem', minWidth: '320px', flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: '150px' }}>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>CLRA License Number</div>
+              <input type="text" className="stat-rate-input" placeholder="e.g. CLRA-TN-2025-001"
+                value={formData.clraLicenseNumber || ''} onChange={e => onChange('clraLicenseNumber', e.target.value)} {...lockProps} />
+            </div>
+            <div style={{ flex: 1, minWidth: '140px' }}>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>License Expiry Date</div>
+              <input type="date" className="stat-rate-input"
+                value={formData.clraLicenseExpiry || ''} onChange={e => onChange('clraLicenseExpiry', e.target.value)} {...lockProps} />
+            </div>
+          </div>
+        </div>
+
+
 
         {/* Group Health Insurance Default */}
         <div className="stat-row">

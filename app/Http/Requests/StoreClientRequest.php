@@ -21,7 +21,10 @@ class StoreClientRequest extends FormRequest
     {
         \Illuminate\Support\Facades\Log::info('StoreClientRequest payload received', $this->all());
 
-        $isDraft = $this->boolean('is_draft') || $this->status === 'draft';
+        $isDraft = $this->boolean('is_draft');
+        $statusInput = $this->status;
+        $finalStatus = $isDraft ? 'draft' : (($statusInput && $statusInput !== 'draft') ? $statusInput : 'active');
+
         $companyName = $this->name ?: $this->company_name;
         if (!$companyName && $isDraft) {
             $companyName = 'Draft Client ' . date('d M Y H:i');
@@ -34,12 +37,13 @@ class StoreClientRequest extends FormRequest
 
         $mapped = [
             'company_name' => $companyName,
-            'company_type' => ($this->type ?: $this->company_type) ?: ($isDraft ? 'pvt_ltd' : null),
+            'company_type' => ($this->type ?: $this->company_type) ?: 'pvt_ltd',
             'client_code' => $clientCode,
             'trust_registration_number' => $this->trustRegNo,
             'pan_number' => $this->pan,
             'industry' => $this->industry,
-            'status' => $isDraft ? 'draft' : ($this->status ?: 'onboarding'),
+            'status' => $finalStatus,
+
             'onboarding_current_step' => $this->currentStep ?? $this->onboarding_current_step ?? 1,
             'onboarding_completed_steps' => is_array($this->sectionProgress) ? json_encode($this->sectionProgress) : ($this->onboarding_completed_steps ?? null),
             'country' => $this->country ?: 'India',
@@ -50,23 +54,23 @@ class StoreClientRequest extends FormRequest
             'accent_color' => $this->accentColor,
             
             // Address
-            'registered_address_line_1' => $this->regAddressLine1 ?: ($isDraft ? 'Draft Address' : null),
+            'registered_address_line_1' => $this->regAddressLine1 ?: ($this->registered_address_line_1 ?: 'Head Office Address'),
             'registered_address_line_2' => $this->regAddressLine2,
-            'registered_city' => $this->regCity ?: ($isDraft ? 'Draft City' : null),
-            'registered_state' => $this->regState ?: ($isDraft ? 'Tamil Nadu' : null),
-            'registered_pin' => $this->regPin ?: ($isDraft ? '600001' : null),
+            'registered_city' => $this->regCity ?: ($this->registered_city ?: 'City'),
+            'registered_state' => $this->regState ?: ($this->registered_state ?: 'Tamil Nadu'),
+            'registered_pin' => $this->regPin ?: ($this->registered_pin ?: '600001'),
             'tax_id' => $this->taxId,
             'tan_number' => $this->tan,
             'registration_number' => $this->regNo,
             
             // Contract & Billing
-            'contract_type' => $this->contractType ?: ($isDraft ? 'agency' : null),
-            'billing_model' => $this->billingModel ?: ($isDraft ? 'markup' : null),
+            'contract_type' => $this->contractType ?: ($this->contract_type ?: 'agency'),
+            'billing_model' => $this->billingModel ?: ($this->billing_model ?: 'markup'),
             'markup_percentage' => $this->markupPct,
             'fixed_fee_amount' => $this->fixedFeeAmount,
             'hourly_rate' => $this->hourlyRate,
             'work_locations_count' => $this->locationsCount ?: 1,
-            'contract_start_date' => $this->contractStart ?: ($isDraft ? date('Y-m-d') : null),
+            'contract_start_date' => $this->contractStart ?: ($this->contract_start_date ?: date('Y-m-d')),
             'contract_end_date' => $this->contractEnd,
             
             'ot_billing_rule' => $this->otBilling,
@@ -94,15 +98,15 @@ class StoreClientRequest extends FormRequest
             'po_value' => $this->poValue,
             'po_validity_date' => $this->poValidity,
             'invoice_footer_notes' => $this->invoiceFooterNotes,
-            'pref_format_pdf' => $this->has('prefFormatPDF') ? ($this->boolean('prefFormatPDF') ? 1 : 0) : 1,
-            'pref_format_xlsx' => $this->has('prefFormatXLSX') ? ($this->boolean('prefFormatXLSX') ? 1 : 0) : 0,
+            'pref_format_pdf' => $this->prefPdf ? 1 : 0,
+            'pref_format_xlsx' => $this->prefXlsx ? 1 : 0,
             'auto_renewal' => $this->autoRenewal ? 1 : 0,
-            'notice_period_days' => $this->noticePeriod ?? 30,
+            'notice_period_days' => $this->noticePeriodDays ?: 30,
             
             // Statutory
             'pt_state' => $this->ptState,
             'default_gratuity_mode' => (function($mode) {
-                $map = ['payable_on_separation' => 'over_ctc', 'over_and_above' => 'over_ctc', 'over_ctc' => 'over_ctc', 'ctc_included' => 'ctc_included', 'part_of_ctc' => 'ctc_included', 'not_applicable' => 'na', 'na' => 'na'];
+                $map = ['ctc_included' => 'ctc_included', 'over_ctc' => 'over_ctc', 'na' => 'na'];
                 return $map[$mode] ?? ($mode ?: 'ctc_included');
             })($this->gratuityMode),
             'gratuity_applicable' => $this->has('gratuityApplicable')
@@ -141,40 +145,51 @@ class StoreClientRequest extends FormRequest
             'tds_applicable' => $this->has('tdsApplicable')
                 ? ($this->boolean('tdsApplicable') ? 1 : 0)
                 : ($this->has('tds_applicable') ? ($this->boolean('tds_applicable') ? 1 : 0) : 1),
+            'clra_license_number' => $this->clraLicenseNumber ?? $this->clra_license_number,
+            'clra_license_expiry' => $this->clraLicenseExpiry ?? $this->clra_license_expiry,
+            'applicable_statutory_acts' => is_array($this->applicableActs) ? $this->applicableActs : (is_array($this->applicable_statutory_acts) ? $this->applicable_statutory_acts : []),
             
             // Portal & SLA
             'client_portal_enabled' => $this->portalAccess ? 1 : 0,
             'portal_access_level' => $this->portalAccessLevel ?: 'view_only',
-            'portal_primary_email' => $this->portalEmail,
+            'portal_primary_email' => $this->portalPrimaryEmail ?: ($this->poc1['email'] ?? null),
             'portal_view_salary' => $this->portalViewSalary ? 1 : 0,
             'portal_view_invoices' => $this->portalViewInvoices ? 1 : 0,
             'portal_view_payslips' => $this->portalViewPayslips ? 1 : 0,
             'portal_raise_requests' => $this->portalRaiseRequests ? 1 : 0,
-            'portal_require_2fa' => $this->portal2fa ? 1 : 0,
-            'portal_session_timeout' => $this->sessionTimeout ?? 60,
-            'portal_ip_whitelist' => $this->ipWhitelist,
+            'portal_require_2fa' => $this->portalRequire2fa ? 1 : 0,
+            'portal_session_timeout' => $this->portalTimeout ?: 30,
+            'portal_ip_whitelist' => $this->portalIpWhitelist,
             
-            'cutoff_day' => $this->attendanceCutoff,
-            'custom_cycle_start_day' => $this->cycleStartDay ?? 1,
-            'custom_cycle_end_day' => $this->cycleEndDay ?? 28,
-            'payroll_lock_day' => $this->payrollLockDay,
-            'salary_credit_day' => $this->salaryCreditDay,
-            'invoice_dispute_window_days' => $this->invoiceDisputeDays,
-            'invoice_raise_day' => $this->invoiceRaiseDay,
-            'payroll_convention' => $this->payrollMonthConvention,
-            'lop_basis_days' => '30',
+            'cutoff_day' => $this->cutoffDay ?: '24',
+            'custom_cycle_start_day' => $this->customCycleStartDay ?: 1,
+            'custom_cycle_end_day' => $this->customCycleEndDay ?: 30,
+            'payroll_lock_day' => $this->payrollLockDay ?: '27',
+            'salary_credit_day' => $this->salaryCreditDay ?: '1',
+            'invoice_dispute_window_days' => $this->invoiceDisputeDays ?: 5,
+            'invoice_raise_day' => $this->invoiceRaiseDay ?: '1',
+            'payroll_convention' => $this->payrollConvention ?: 'calendar_month',
+            'lop_basis_days' => $this->lopBasisDays ?: '30',
             'weekly_off_pattern' => $this->weeklyOffPattern ?: $this->weekly_off_pattern ?: 'sat,sun',
             'auto_reminders' => $this->autoReminders ? 1 : 0,
             'client_notes' => $this->clientNotes,
 
             'account_manager_id' => $this->accountManager ?: null,
             'backup_account_manager_id' => $this->backupAM ?: null,
-            'primary_poc_name' => ($this->poc1['name'] ?? null) ?: ($isDraft ? 'Draft Primary Contact' : null),
-            'primary_poc_email' => ($this->poc1['email'] ?? null) ?: ($isDraft ? 'draft@example.com' : null),
-            'primary_poc_phone' => ($this->poc1['phone'] ?? null) ?: ($isDraft ? '9999999999' : null),
+            'primary_poc_name' => ($this->poc1['name'] ?? null) ?: ($this->primary_poc_name ?: 'Primary Contact'),
+            'primary_poc_email' => ($this->poc1['email'] ?? null) ?: ($this->primary_poc_email ?: 'contact@client.com'),
+            'primary_poc_phone' => ($this->poc1['phone'] ?? null) ?: ($this->primary_poc_phone ?: '0000000000'),
         ];
 
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('clients', 'onboarding_current_step')) {
+            unset($mapped['onboarding_current_step']);
+        }
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('clients', 'onboarding_completed_steps')) {
+            unset($mapped['onboarding_completed_steps']);
+        }
+
         $contacts = [];
+
         if ($this->has('poc1') && (isset($this->poc1['name']) || isset($this->poc1['email']))) {
             $contacts[] = [
                 'id' => $this->poc1['id'] ?? null,
@@ -363,6 +378,10 @@ class StoreClientRequest extends FormRequest
             'lwf_applicable' => 'nullable|boolean',
             'tds_regime' => 'nullable|string',
             'tds_applicable' => 'nullable|boolean',
+            'clra_license_number' => 'nullable|string|max:100',
+            'clra_license_expiry' => 'nullable|date',
+            'applicable_statutory_acts' => 'nullable|array',
+            'applicable_statutory_acts.*' => 'nullable|string',
             
             // Portal & SLA
             'client_portal_enabled' => 'nullable|boolean',

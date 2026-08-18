@@ -131,7 +131,7 @@ export default function AddressSection({ formData, errors, onChange, hook }) {
 
       {/* Non-India: Tax ID & Registration Number */}
       {!isIndia && (
-        <div className="form-row" style={{ marginTop: '1rem' }}>
+        <div className="form-grid-3col" style={{ marginTop: '1rem' }}>
           <div className="form-group">
             <label>Tax ID (Generic) <span style={{ color: 'var(--status-danger)' }}>*</span></label>
             <input type="text" className={`form-control ${errors.taxId ? 'invalid' : ''}`}
@@ -171,13 +171,13 @@ export default function AddressSection({ formData, errors, onChange, hook }) {
           <h4 style={{ fontSize: '0.9rem', color: 'var(--primary-navy)', marginBottom: '1rem' }}>
             Billing Address (for Invoice)
           </h4>
-          <div className="form-group">
+          <div className="form-group" style={{ marginBottom: '1.15rem' }}>
             <label>Billing Address Line 1</label>
             <textarea rows="2" className="form-control" placeholder="Building Name, Street"
               value={formData.billAddressLine1}
               onChange={e => onChange('billAddressLine1', e.target.value)} />
           </div>
-          <div className="form-row">
+          <div className="form-grid-3col">
             <div className="form-group">
               <label>City</label>
               <input type="text" className="form-control" value={formData.billCity}
@@ -335,8 +335,8 @@ function BranchCard({ branch, idx, errors = {}, totalBranches, onUpdate, onRemov
         )}
       </div>
 
-      <div className="form-row">
-        <div className="form-group">
+      <div className="form-grid-3col">
+        <div className="form-group col-span-2">
           <label>Branch Name <span style={{ color: 'var(--status-danger)' }}>*</span></label>
           <input type="text" className={`form-control ${errors.branchName ? 'invalid' : ''}`}
             placeholder="e.g. Chennai Office / South Zone"
@@ -354,7 +354,7 @@ function BranchCard({ branch, idx, errors = {}, totalBranches, onUpdate, onRemov
         </div>
       </div>
 
-      <div className="form-group">
+      <div className="form-group" style={{ marginBottom: '1.15rem' }}>
         <label>Address Line 1 <span style={{ color: 'var(--status-danger)' }}>*</span></label>
         <textarea rows="2" className={`form-control ${errors.branchAddr1 ? 'invalid' : ''}`}
           placeholder="Building, Street Name"
@@ -363,7 +363,7 @@ function BranchCard({ branch, idx, errors = {}, totalBranches, onUpdate, onRemov
         {errors.branchAddr1 && <div className="field-msg error show">{errors.branchAddr1}</div>}
       </div>
 
-      <div className="form-row">
+      <div className="form-grid-3col">
         <div className="form-group">
           <label>City <span style={{ color: 'var(--status-danger)' }}>*</span></label>
           <input type="text" className={`form-control ${errors.branchCity ? 'invalid' : ''}`}
@@ -392,8 +392,8 @@ function BranchCard({ branch, idx, errors = {}, totalBranches, onUpdate, onRemov
         </div>
       </div>
 
-      <div className="form-row">
-        <div className="form-group">
+      <div className="form-grid-3col">
+        <div className="form-group col-span-2">
           <label>GSTIN <span style={{ color: 'var(--status-danger)' }}>*</span></label>
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
             <input type="text" className={`form-control ${branch.gstinError ? 'invalid' : branch.gstinValid ? 'valid' : ''}`}
@@ -430,7 +430,7 @@ function BranchCard({ branch, idx, errors = {}, totalBranches, onUpdate, onRemov
         <strong style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'block', marginBottom: '0.75rem' }}>
           Branch Finance POC
         </strong>
-        <div className="form-row">
+        <div className="form-grid-3col">
           <div className="form-group">
             <label>Name <span style={{ color: 'var(--status-danger)' }}>*</span></label>
             <input type="text" className="form-control" value={branch.pocName}
