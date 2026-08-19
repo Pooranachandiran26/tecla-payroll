@@ -116,6 +116,7 @@ export default function UserManagement({ users = {}, unlinkedEmployees = [], unl
         { key: 'admin_users', label: 'User Management' },
         { key: 'admin_sessions', label: 'Active Sessions' },
         { key: 'admin_payslip_templates', label: 'Payslip Templates Customizer' },
+        { key: 'admin_masters', label: 'Master Data Management' },
         { key: 'admin_settings', label: 'System Settings' },
       ]
     },

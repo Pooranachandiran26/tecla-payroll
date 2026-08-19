@@ -32,6 +32,7 @@ class StoreSalaryRevisionRequest extends FormRequest
             'effective_date' => 'required|date|before_or_equal:today',
             'reason_for_revision' => 'required|string|max:255',
             'is_promotion' => 'nullable|boolean',
+            'new_designation_id' => 'nullable|integer|exists:mas_designations,id',
             'new_designation' => [
                 'required_if:is_promotion,true,1',
                 'nullable',

@@ -105,7 +105,7 @@ function EmployeeSectionNav({ currentStep, sectionProgress, onTabClick }) {
 }
 
 
-export default function EmployeeForm({ clients = [], errors: serverErrors, employee = null }) {
+export default function EmployeeForm({ clients = [], errors: serverErrors, employee = null, masterDesignations = [] }) {
   const { activeClientId } = usePage().props;
   const [formMode, setFormMode] = useState('add');
   const [empId, setEmpId] = useState(employee ? employee.data?.id || employee.id : null);
@@ -153,6 +153,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
       emergencyContact: emp?.emergency_contact_phone || '',
       clientPartner: emp?.client_id || clientIdParam || defaultClient || '',
       branchPartner: emp?.branch_id || emp?.branchId || '',
+      designation_id: emp?.designation_id || '',
       designation: emp?.designation || '',
       doj: emp?.date_of_joining || '',
       attendanceTrackingStartDate: emp?.attendance_tracking_start_date || '',
@@ -463,8 +464,8 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
         setActiveClientDefaults(d);
 
         const clientLop = d.lopBasisDays !== undefined && d.lopBasisDays !== null && d.lopBasisDays !== '' 
-          ? String(d.lopBasisDays).replace(/\D/g, '') 
-          : '26';
+          ? String(d.lopBasisDays) 
+          : '30';
         const clientNotice = d.noticePeriodDays !== undefined && d.noticePeriodDays !== null && d.noticePeriodDays !== ''
           ? String(d.noticePeriodDays)
           : '30';
@@ -506,7 +507,7 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
         } else {
           // In edit mode: dynamically evaluate if saved LOP / notice period / ESI differ from client defaults
           setOverrides(prev => {
-            const currentLop = formData.lopBasis ? String(formData.lopBasis).replace(/\D/g, '') : '';
+            const currentLop = formData.lopBasis ? String(formData.lopBasis) : '';
             const currentNotice = formData.noticePeriodDays !== undefined && formData.noticePeriodDays !== null && formData.noticePeriodDays !== '' ? String(formData.noticePeriodDays) : '';
             
             const isLopOverridden = currentLop !== '' && currentLop !== clientLop;
@@ -1848,8 +1849,44 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
 
                       <div className="form-group">
                         <label>Designation <span style={{ color: "var(--status-danger)" }}>*</span></label>
-                        <input type="text" className={`form-control ${errors.designation ? `is-${errors.designation.type || 'error'}` : ''}`} value={formData.designation} onChange={e => handleInputChange('designation', e.target.value)} onBlur={e => validateDesignation(e.target.value)} required />
-                        {errors.designation && <div className={`field-msg ${errors.designation.type || 'error'} show`}>{errors.designation.msg}</div>}
+                        <select 
+                          className={`form-control ${errors.designation_id || errors.designation ? `is-${(errors.designation_id?.type || errors.designation?.type) || 'error'}` : ''}`} 
+                          value={formData.designation_id || ''} 
+                          onChange={e => {
+                            const val = e.target.value;
+                            const matched = masterDesignations.find(d => String(d.id) === String(val));
+                            handleInputChange('designation_id', val);
+                            if (matched) {
+                              handleInputChange('designation', matched.name);
+                            }
+                          }} 
+                          onBlur={e => validateDesignation(e.target.value)} 
+                          required
+                        >
+                          <option value="">-- Select Designation --</option>
+                          {masterDesignations && masterDesignations.length > 0 ? (
+                            masterDesignations.map(d => (
+                              <option key={d.id} value={d.id}>
+                                {d.name} {d.department_name ? `(${d.department_name})` : ''}
+                              </option>
+                            ))
+                          ) : (
+                            <>
+                              <option value="1">Software Engineer</option>
+                              <option value="2">Senior Software Engineer</option>
+                              <option value="3">Tech Lead / Engineering Manager</option>
+                              <option value="4">Quality Assurance (QA) Engineer</option>
+                              <option value="5">HR Executive / Recruiter</option>
+                              <option value="6">HR Operations Manager</option>
+                              <option value="7">Payroll & Compliance Specialist</option>
+                              <option value="8">Accountant / Finance Executive</option>
+                            </>
+                          )}
+                          {formData.designation && masterDesignations && masterDesignations.length > 0 && !masterDesignations.some(d => d.name === formData.designation || String(d.id) === String(formData.designation_id)) && (
+                            <option value={formData.designation_id || formData.designation}>{formData.designation}</option>
+                          )}
+                        </select>
+                        {(errors.designation_id || errors.designation) && <div className={`field-msg ${errors.designation_id?.type || errors.designation?.type || 'error'} show`}>{errors.designation_id?.msg || errors.designation_id || errors.designation?.msg || errors.designation}</div>}
                       </div>
 
                       <div className="form-group">

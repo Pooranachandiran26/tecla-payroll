@@ -123,6 +123,11 @@ class Client extends Model
         return implode(', ', $parts);
     }
 
+    public function industryMaster()
+    {
+        return $this->belongsTo(\App\Models\Masters\MasIndustry::class, 'industry_id');
+    }
+
     public function contacts()
     {
         return $this->hasMany(ClientContact::class);

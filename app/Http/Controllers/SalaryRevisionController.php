@@ -32,9 +32,12 @@ class SalaryRevisionController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
+        $masterDesignations = \App\Models\Masters\MasDesignation::where('is_active', true)->orderBy('sort_order', 'asc')->get(['id', 'name', 'department_name']);
+
         return inertia('Employees/SalaryRevision', [
             'employee' => (new \App\Http\Resources\EmployeeResource($employee))->resolve(),
             'revisions' => $revisions,
+            'masterDesignations' => $masterDesignations,
         ]);
     }
 
@@ -69,8 +72,12 @@ class SalaryRevisionController extends Controller
         $calculations = $calculator->calculateStructuralSalary($calculationParams);
         
         $isPromotion = (bool)($validated['is_promotion'] ?? false);
-        $oldDesignation = $isPromotion ? $employee->designation : null;
-        $newDesignation = $isPromotion ? ($validated['new_designation'] ?? null) : null;
+        $oldDesignation = $isPromotion ? ($employee->designationMaster?->name ?? $employee->designation) : null;
+        $newDesignationId = $isPromotion ? ($validated['new_designation_id'] ?? null) : null;
+        $newDesignation = $isPromotion ? ($validated['new_designation'] ?? ($newDesignationId ? \App\Models\Masters\MasDesignation::find($newDesignationId)?->name : null)) : null;
+        if ($isPromotion && !$newDesignationId && $newDesignation) {
+            $newDesignationId = \App\Models\Masters\MasDesignation::where('name', $newDesignation)->first()?->id;
+        }
         
         SalaryRevision::create([
             'employee_id' => $employee->id,
@@ -99,6 +106,7 @@ class SalaryRevisionController extends Controller
             'is_promotion' => $isPromotion,
             'old_designation' => $oldDesignation,
             'new_designation' => $newDesignation,
+            'new_designation_id' => $newDesignationId,
             'status' => 'pending_approval',
             'created_by' => Auth::id(),
             'updated_by' => Auth::id(),
@@ -148,8 +156,18 @@ class SalaryRevisionController extends Controller
                     'other_additions' => $revision->new_other_additions,
                 ];
 
-                if ($revision->is_promotion && !empty($revision->new_designation)) {
-                    $employeeData['designation'] = $revision->new_designation;
+                if ($revision->is_promotion) {
+                    if (!empty($revision->new_designation)) {
+                        $employeeData['designation'] = $revision->new_designation;
+                    }
+                    if (!empty($revision->new_designation_id)) {
+                        $employeeData['designation_id'] = $revision->new_designation_id;
+                    } elseif (!empty($revision->new_designation)) {
+                        $desigMatch = \App\Models\Masters\MasDesignation::where('name', $revision->new_designation)->first();
+                        if ($desigMatch) {
+                            $employeeData['designation_id'] = $desigMatch->id;
+                        }
+                    }
                 }
 
                 $employee->update($employeeData);

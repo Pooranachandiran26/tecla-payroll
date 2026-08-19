@@ -17,7 +17,7 @@ class EmployeeController extends Controller
     {
         $q = trim($request->get('q', ''));
 
-        $query = \App\Models\Employee::with('client:id,company_name')
+        $query = \App\Models\Employee::with(['client:id,company_name', 'designationMaster'])
             ->select('id', 'employee_code', 'first_name', 'last_name', 'full_name', 'client_id', 'designation', 'uan_number');
 
         $user = $request->user();
@@ -59,7 +59,7 @@ class EmployeeController extends Controller
 
     public function index(Request $request)
     {
-        $query = \App\Models\Employee::with(['client', 'documents', 'salaryRevisions', 'creator']);
+        $query = \App\Models\Employee::with(['client', 'documents', 'salaryRevisions', 'creator', 'designationMaster']);
         
         $user = $request->user();
 
@@ -272,15 +272,20 @@ class EmployeeController extends Controller
         $this->authorizeEmployeeAccess(request()->user(), $employee);
 
         $clients = \App\Models\Client::where('status', 'active')->select('id', 'company_name', 'weekly_off_pattern', 'employee_pf_wage_basis', 'employer_pf_wage_basis')->get();
+        $masterDesignations = \App\Models\Masters\MasDesignation::where('is_active', true)->orderBy('sort_order', 'asc')->get(['id', 'name', 'department_name']);
+        $masterDocumentTypes = \App\Models\Masters\MasDocumentType::where('is_active', true)->orderBy('sort_order', 'asc')->get(['id', 'name', 'code', 'target_entity']);
+
         return \Inertia\Inertia::render('Employees/EmployeeForm', [
             'clients' => $clients,
-            'employee' => $employee
+            'employee' => $employee,
+            'masterDesignations' => $masterDesignations,
+            'masterDocumentTypes' => $masterDocumentTypes,
         ]);
     }
 
     public function show(\Illuminate\Http\Request $request, $id)
     {
-        $employee = \App\Models\Employee::with(['salaryRevisions.approver', 'client', 'exitRequest', 'documents', 'user'])->findOrFail($id);
+        $employee = \App\Models\Employee::with(['salaryRevisions.approver', 'client', 'exitRequest', 'documents', 'user', 'designationMaster'])->findOrFail($id);
         $this->authorizeEmployeeAccess($request->user(), $employee);
         
         $targetDate = $request->query('month') ? \Carbon\Carbon::parse($request->query('month').'-01') : now();

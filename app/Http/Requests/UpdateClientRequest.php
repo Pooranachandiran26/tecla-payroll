@@ -30,7 +30,8 @@ class UpdateClientRequest extends FormRequest
             'client_code' => $this->code ?: $this->client_code,
             'trust_registration_number' => $this->trustRegNo ?: $this->trust_registration_number,
             'pan_number' => $this->pan ?: $this->pan_number,
-            'industry' => $this->industry,
+            'industry_id' => $this->industry_id ?: $this->industryId ?: null,
+            'industry' => $this->industry ?: (\App\Models\Masters\MasIndustry::find($this->industry_id ?: $this->industryId)?->name),
             'status' => $finalStatus,
 
             'onboarding_current_step' => $this->currentStep ?? $this->onboarding_current_step ?? 1,
@@ -158,7 +159,7 @@ class UpdateClientRequest extends FormRequest
             'invoice_dispute_window_days' => $this->invoiceDisputeDays ?: $this->invoice_dispute_window_days ?: 5,
             'invoice_raise_day' => $this->invoiceRaiseDay ?: $this->invoice_raise_day ?: '1',
             'payroll_convention' => $this->payrollMonthConvention ?: $this->payroll_convention ?: 'calendar_month',
-            'lop_basis_days' => '30',
+            'lop_basis_days' => $this->lopBasis ?: $this->lopBasisDays ?: $this->lop_basis_days ?: '30',
             'weekly_off_pattern' => $this->weeklyOffPattern ?: $this->weekly_off_pattern ?: 'sat,sun',
             'auto_reminders' => $this->has('autoReminders') ? ($this->boolean('autoReminders') ? 1 : 0) : ($this->auto_reminders ?? 1),
             'client_notes' => $this->clientNotes ?: $this->client_notes,
@@ -303,6 +304,7 @@ class UpdateClientRequest extends FormRequest
             'pan_number' => ['nullable', 'regex:/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/'],
             'gstin' => ['nullable', 'string', 'size:15', 'regex:/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/'],
             'work_locations_count' => 'required|integer|min:1',
+            'industry_id' => 'nullable|integer|exists:mas_industries,id',
             'industry' => 'nullable|string|max:255',
             'status' => 'required|string|in:draft,onboarding,active,inactive,suspended',
             'onboarding_current_step' => 'nullable|integer',
@@ -397,7 +399,11 @@ class UpdateClientRequest extends FormRequest
             'invoice_dispute_window_days' => 'nullable|integer|min:0|max:180',
             'invoice_raise_day' => 'nullable|string',
             'payroll_convention' => 'nullable|string',
-            'lop_basis_days' => 'nullable|integer|min:15|max:31',
+            'lop_basis_days' => ['nullable', function($attribute, $value, $fail) {
+                if ($value === 'calendar_days' || $value === '30' || $value === 30 || $value === '26' || $value === 26) return;
+                if (is_numeric($value) && (int)$value >= 15 && (int)$value <= 31) return;
+                $fail('The LOP basis days must be 30, calendar_days, or a valid number between 15 and 31.');
+            }],
             'weekly_off_pattern' => ['nullable', 'string', 'regex:/^(mon|tue|wed|thu|fri|sat|sun)(,(mon|tue|wed|thu|fri|sat|sun)){0,6}$/i'],
             'auto_reminders' => 'nullable|boolean',
             'client_notes' => 'nullable|string',

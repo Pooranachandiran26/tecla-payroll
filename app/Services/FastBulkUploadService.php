@@ -404,9 +404,26 @@ class FastBulkUploadService
         $attendanceTrackingStartDate = $this->formatExcelDate($normalizedRow['attendance_tracking_start_date'] ?? null) ?: $doj;
         $esiPeriodEnd = $this->formatExcelDate($normalizedRow['esi_contribution_period_end'] ?? null);
 
+        $rawDesigStr = trim((string)($normalizedRow['designation'] ?? ''));
+        $desigMaster = null;
+        if (!empty($rawDesigStr)) {
+            $desigMaster = \App\Models\Masters\MasDesignation::where('name', $rawDesigStr)->first();
+            if (!$desigMaster) {
+                $maxSort = (int)(\App\Models\Masters\MasDesignation::max('sort_order') ?? 0) + 1;
+                $desigMaster = \App\Models\Masters\MasDesignation::create([
+                    'name' => $rawDesigStr,
+                    'department_name' => 'General',
+                    'is_active' => true,
+                    'sort_order' => $maxSort,
+                ]);
+            }
+        }
+
         $validationData = array_merge($normalizedRow, [
             'client_id' => $client ? $client->id : null,
             'branch_id' => $branchId ?: ($client && $client->branches->first() ? $client->branches->first()->id : 1),
+            'designation_id' => $desigMaster ? $desigMaster->id : null,
+            'designation' => $rawDesigStr,
             'date_of_birth' => $dob,
             'date_of_joining' => $doj,
             'employment_model' => $employmentModel,

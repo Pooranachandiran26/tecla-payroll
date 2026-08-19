@@ -24,6 +24,7 @@ use App\Http\Controllers\EmployeeLoanController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PfEcrController;
 use App\Http\Controllers\EsiMonthlyController;
+use App\Http\Controllers\Admin\MasterDataController;
 
 // -----------------------------------------------------------------------
 // GUEST ROUTES (Unauthenticated)
@@ -126,7 +127,13 @@ Route::middleware(['auth', 'active'])->group(function () {
                 Route::post('/employees', [EmployeeController::class, 'store'])->name('employees.store');
                 Route::get('/employees/create', function() {
                     $clients = \App\Models\Client::where('status', 'active')->select('id', 'company_name', 'weekly_off_pattern', 'employee_pf_wage_basis', 'employer_pf_wage_basis')->get();
-                    return Inertia::render('Employees/EmployeeForm', ['clients' => $clients]);
+                    $masterDesignations = \App\Models\Masters\MasDesignation::where('is_active', true)->orderBy('sort_order', 'asc')->get(['id', 'name', 'department_name']);
+                    $masterDocumentTypes = \App\Models\Masters\MasDocumentType::where('is_active', true)->orderBy('sort_order', 'asc')->get(['id', 'name', 'code', 'target_entity']);
+                    return Inertia::render('Employees/EmployeeForm', [
+                        'clients' => $clients,
+                        'masterDesignations' => $masterDesignations,
+                        'masterDocumentTypes' => $masterDocumentTypes,
+                    ]);
                 })->middleware('module:candidates,emp_create')->name('employees.create');
                 Route::get('/employees/bulk-upload', [BulkUploadController::class, 'showUploadForm'])->middleware('module:candidates,emp_bulk_upload')->name('employees.bulk-upload');
                 Route::get('/employees/bulk-upload/history', [BulkUploadController::class, 'history'])->name('employees.bulk-upload.history');
@@ -423,6 +430,13 @@ Route::middleware(['auth', 'active'])->group(function () {
 
             Route::get('/admin/settings/gst', [SettingsController::class, 'getGstSettings'])->name('admin.settings.gst.show');
             Route::put('/admin/settings/gst', [SettingsController::class, 'updateGstSettings'])->name('admin.settings.gst.update');
+
+            // Master Data Management Routes (mas_ tables)
+            Route::get('/admin/masters', [MasterDataController::class, 'index'])->name('admin.masters.index');
+            Route::get('/admin/masters/api/{key}', [MasterDataController::class, 'getApiData'])->name('admin.masters.api');
+            Route::post('/admin/masters/{key}', [MasterDataController::class, 'store'])->name('admin.masters.store');
+            Route::put('/admin/masters/{key}/{id}', [MasterDataController::class, 'update'])->name('admin.masters.update');
+            Route::post('/admin/masters/{key}/{id}/toggle', [MasterDataController::class, 'toggleActive'])->name('admin.masters.toggle');
 
             Route::get('/admin/sessions', [SessionController::class, 'allSessions'])->name('admin.sessions');
             Route::delete('/admin/sessions/{id}', [SessionController::class, 'revokeAny'])->name('admin.sessions.destroy');

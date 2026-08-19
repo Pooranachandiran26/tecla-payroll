@@ -43,6 +43,11 @@ class SalaryRevision extends Model
         return $this->belongsTo(Employee::class);
     }
 
+    public function newDesignation()
+    {
+        return $this->belongsTo(\App\Models\Masters\MasDesignation::class, 'new_designation_id');
+    }
+
     public function approver()
     {
         return $this->belongsTo(User::class, 'approved_by');

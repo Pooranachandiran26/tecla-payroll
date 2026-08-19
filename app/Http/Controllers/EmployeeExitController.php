@@ -16,9 +16,12 @@ class EmployeeExitController extends Controller
         $employee = Employee::with('client')->findOrFail($id);
         $exitData = $employee->exitRequest;
 
+        $masterExitReasons = \App\Models\Masters\MasExitReason::where('is_active', true)->orderBy('sort_order')->get();
+
         return \Inertia\Inertia::render('Employees/EmployeeExit', [
             'employee' => new \App\Http\Resources\EmployeeResource($employee),
-            'initialExitData' => $exitData
+            'initialExitData' => $exitData,
+            'masterExitReasons' => $masterExitReasons,
         ]);
     }
 
@@ -49,6 +52,7 @@ class EmployeeExitController extends Controller
             case 1: // Initiate
                 $validated = $request->validate([
                     'exit_type' => 'required|string',
+                    'exit_reason_id' => 'nullable|integer|exists:mas_exit_reasons,id',
                     'reason_category' => 'required|string',
                     'submission_date' => 'required|date',
                     'discussed_with_employee' => 'boolean',

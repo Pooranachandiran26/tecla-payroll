@@ -60,7 +60,11 @@ class ClientController extends Controller
         }
 
         if ($industry = $request->input('industry')) {
-            $query->where('industry', $industry);
+            if (is_numeric($industry)) {
+                $query->where('industry_id', (int)$industry);
+            } else {
+                $query->where('industry', $industry);
+            }
         }
 
         if ($am = $request->input('am')) {
@@ -156,10 +160,13 @@ class ClientController extends Controller
         // Fetch the global default LOP calculation basis to pre-fill the form
         $defaultLopBasis = \App\Services\SettingsService::get('payroll_configuration.default_lop_basis', '30');
             
+        $masterIndustries = \App\Models\Masters\MasIndustry::where('is_active', true)->orderBy('sort_order', 'asc')->get(['id', 'name', 'slug']);
+
         return Inertia::render('Clients/ClientForm', [
             'accountManagers' => $accountManagers,
             'defaultLopBasis' => $defaultLopBasis,
-            'gstSettings'     => $this->getGstMasterSettings()
+            'gstSettings'     => $this->getGstMasterSettings(),
+            'masterIndustries' => $masterIndustries,
         ]);
     }
 
@@ -177,12 +184,14 @@ class ClientController extends Controller
             ->map(fn($u) => ['value' => $u->id, 'label' => $u->name]);
             
         $defaultLopBasis = \App\Services\SettingsService::get('payroll_configuration.default_lop_basis', '30');
+        $masterIndustries = \App\Models\Masters\MasIndustry::where('is_active', true)->orderBy('sort_order', 'asc')->get(['id', 'name', 'slug']);
             
         return Inertia::render('Clients/ClientForm', [
-            'client'          => $client,
+            'client'          => new ClientResource($client),
             'accountManagers' => $accountManagers,
             'defaultLopBasis' => $defaultLopBasis,
-            'gstSettings'     => $this->getGstMasterSettings()
+            'gstSettings'     => $this->getGstMasterSettings(),
+            'masterIndustries' => $masterIndustries,
         ]);
     }
 

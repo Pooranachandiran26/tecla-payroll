@@ -54,7 +54,8 @@ const INHOUSE_STEP_HEADER_META = {
   8: { icon: Clock, title: 'Calendar', desc: 'Payroll processing dates' },
 };
 
-export default function ClientForm({ client, defaultLopBasis, gstSettings }) {
+export default function ClientForm({ client: rawClient, defaultLopBasis, gstSettings, masterIndustries = [] }) {
+  const client = rawClient?.data || rawClient;
   const hook = useClientForm(defaultLopBasis, client);
   const {
     formData, errors, hints, currentStep,
@@ -159,7 +160,7 @@ export default function ClientForm({ client, defaultLopBasis, gstSettings }) {
                 {/* Form Inputs Container */}
                 <form onSubmit={(e) => e.preventDefault()} id="client-form">
                   <div className={`form-step-section ${currentStep === 1 ? 'active' : ''}`} style={{ display: currentStep === 1 ? 'block' : 'none' }}>
-                    <IdentitySection formData={formData} errors={errors} hints={hints} onChange={handleChange} hook={hook} />
+                    <IdentitySection formData={formData} errors={errors} hints={hints} onChange={handleChange} hook={hook} masterIndustries={masterIndustries} />
                   </div>
 
                   <div className={`form-step-section ${currentStep === 2 ? 'active' : ''}`} style={{ display: currentStep === 2 ? 'block' : 'none' }}>

@@ -978,6 +978,7 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
       cin: formData.cin,
       incorporationDate: formData.incorporationDate,
       code: formData.clientCode,
+      industry_id: formData.industry_id,
       industry: formData.industry,
       subIndustry: formData.subIndustry,
       status: formData.clientStatus,
@@ -1382,8 +1383,9 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
     return true;
   }, [getFormPayload, showToast, isEditMode, editId, errorKeyMap]);
 
-  const loadClientData = useCallback((client) => {
-    if (!client) return;
+  const loadClientData = useCallback((rawClient) => {
+    if (!rawClient) return;
+    const client = rawClient.data || rawClient;
 
     setIsEditMode(true);
     setEditId(client.id);
@@ -1399,6 +1401,7 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
       cin: client.cin_number || '',
       incorporationDate: client.incorporation_date || '',
       clientCode: client.client_code || '',
+      industry_id: client.industry_id || '',
       industry: client.industry || '',
       subIndustry: client.sub_industry || '',
       clientStatus: (client.status && client.status !== 'draft') ? client.status : 'active',
@@ -1490,7 +1493,7 @@ export default function useClientForm(defaultLopBasis = 'inherit', initialClient
             : []),
       healthInsuranceEnabled: client.health_insurance_enabled !== undefined ? Boolean(client.health_insurance_enabled) : true,
       weeklyOffPattern: client.weekly_off_pattern || client.weeklyOffPattern || 'sat,sun',
-      lopBasis: '30',
+      lopBasis: (client.lop_basis_days || client.lopBasis || '30') === 'calendar_days' ? 'calendar_days' : '30',
       portalAccess: client.client_portal_enabled || false,
       portalEmail: client.primary_poc_email || '',
       portalAccessLevel: client.portal_access_level || 'view_only',

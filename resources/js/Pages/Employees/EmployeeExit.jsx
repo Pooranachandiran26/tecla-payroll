@@ -22,7 +22,7 @@ const STEPS = [
   { id: 7, label: 'Documents' },
 ];
 
-export default function EmployeeExit({ employee: rawEmployee, initialExitData }) {
+export default function EmployeeExit({ employee: rawEmployee, initialExitData, masterExitReasons = [] }) {
   const employee = rawEmployee?.data || rawEmployee || {};
   const { showToast } = useToast();
   
@@ -35,6 +35,7 @@ export default function EmployeeExit({ employee: rawEmployee, initialExitData })
   // Form states based on API fields
   // Stage 1
   const [exitType, setExitType] = useState(initialExitData?.exit_type || 'Resignation');
+  const [exitReasonId, setExitReasonId] = useState(initialExitData?.exit_reason_id || '');
   const [reasonCategory, setReasonCategory] = useState(initialExitData?.reason_category || '');
   const [submissionDate, setSubmissionDate] = useState(initialExitData?.submission_date || '');
   const [discussed, setDiscussed] = useState(initialExitData?.discussed_with_employee ? 'yes' : 'no');
@@ -149,7 +150,7 @@ export default function EmployeeExit({ employee: rawEmployee, initialExitData })
       let payload = {};
       switch (stageNum) {
         case 1:
-          payload = { exit_type: exitType, reason_category: reasonCategory, submission_date: submissionDate, discussed_with_employee: discussed === 'yes', discussion_summary: discussionSummary };
+          payload = { exit_type: exitType, exit_reason_id: exitReasonId, reason_category: reasonCategory, submission_date: submissionDate, discussed_with_employee: discussed === 'yes', discussion_summary: discussionSummary };
           break;
         case 2:
           payload = { last_working_day: lwd, notice_shortfall_days: noticeShortfallDays, notice_amount_type: noticeAmountType };
@@ -310,34 +311,48 @@ export default function EmployeeExit({ employee: rawEmployee, initialExitData })
               </div>
               <div className="form-group flex-1">
                 <label>Reason Category <span className="text-red-500">*</span></label>
-                <Select value={reasonCategory} onChange={e => setReasonCategory(e.target.value)}>
+                <Select 
+                  value={exitReasonId || reasonCategory} 
+                  onChange={e => {
+                    const val = e.target.value;
+                    const matched = masterExitReasons.find(r => String(r.id) === String(val) || r.name === val);
+                    if (matched) {
+                      setExitReasonId(matched.id);
+                      setReasonCategory(matched.name);
+                    } else {
+                      setExitReasonId('');
+                      setReasonCategory(val);
+                    }
+                  }}
+                >
                   <option value="">Select Reason...</option>
-                  {exitType === 'Resignation' && <>
-                    <option value="Better Opportunity">Better Opportunity</option>
-                    <option value="Personal Reasons">Personal Reasons</option>
-                    <option value="Relocation">Relocation</option>
-                    <option value="Other">Other</option>
-                  </>}
-                  {exitType === 'Termination' && <>
-                    <option value="Performance">Performance</option>
-                    <option value="Conduct / Policy Violation">Conduct / Policy Violation</option>
-                    <option value="Redundancy">Redundancy / Position Elimination</option>
-                  </>}
-                  {exitType === 'End of Contract' && <>
-                    <option value="Project Completed">Project Completed</option>
-                    <option value="Fixed Term Expired">Fixed Term Expired</option>
-                    <option value="Non-Renewal">Non-Renewal</option>
-                  </>}
-                  {exitType === 'Retirement' && <>
-                    <option value="Superannuation">Superannuation</option>
-                    <option value="Voluntary Retirement">Voluntary Retirement</option>
-                    <option value="Health Reasons">Health Reasons</option>
-                  </>}
-                  {exitType === 'Client-Initiated' && <>
-                    <option value="Project Roll-off">Project Roll-off</option>
-                    <option value="Cost Reduction">Cost Reduction</option>
-                    <option value="Replaced by Client">Replaced by Client</option>
-                  </>}
+                  {masterExitReasons && masterExitReasons.length > 0 ? (
+                    masterExitReasons
+                      .filter(r => !exitType || r.exit_type_category === exitType || r.exit_type_category === 'Resignation')
+                      .map(r => (
+                        <option key={r.id} value={r.id}>
+                          {r.name}
+                        </option>
+                      ))
+                  ) : (
+                    <>
+                      {exitType === 'Resignation' && <>
+                        <option value="Better Opportunity">Better Opportunity</option>
+                        <option value="Personal Reasons">Personal Reasons</option>
+                        <option value="Relocation">Relocation</option>
+                        <option value="Other">Other</option>
+                      </>}
+                      {exitType === 'Termination' && <>
+                        <option value="Performance">Performance</option>
+                        <option value="Conduct / Policy Violation">Conduct / Policy Violation</option>
+                        <option value="Redundancy">Redundancy / Position Elimination</option>
+                      </>}
+                      {exitType === 'End of Contract' && <>
+                        <option value="Project Completed">Project Completed</option>
+                        <option value="Fixed Term Expired">Fixed Term Expired</option>
+                      </>}
+                    </>
+                  )}
                 </Select>
                 <p className="field-note">Secondary classification for attrition analytics and HR compliance records. Options auto-filter based on the Exit Type selected above.</p>
               </div>

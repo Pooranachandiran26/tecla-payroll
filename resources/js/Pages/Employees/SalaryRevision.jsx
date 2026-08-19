@@ -6,7 +6,7 @@ import axios from 'axios';
 import ConfirmDialog from '../../Components/ui/ConfirmDialog';
 import { ArrowLeft, History, CheckCircle2, XCircle, Clock, TrendingUp, Calendar, FileText, Sparkles, Award, Mail, Send, AlertTriangle } from 'lucide-react';
 
-export default function SalaryRevision({ employee, revisions }) {
+export default function SalaryRevision({ employee, revisions, masterDesignations = [] }) {
     const { auth } = usePage().props;
     const emp = employee?.data || employee || {};
 
@@ -690,14 +690,36 @@ export default function SalaryRevision({ employee, revisions }) {
                                             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                                                 New Designation <span className="text-rose-500">*</span>
                                             </label>
-                                            <input 
-                                                type="text" 
-                                                className={`w-full px-3.5 py-2 text-sm font-semibold rounded-lg border ${errors.new_designation ? 'border-rose-400 focus:ring-rose-200' : 'border-slate-300 focus:border-[#1F3864] focus:ring-[#1F3864]/20'} bg-white transition-all shadow-sm`} 
-                                                placeholder="e.g. Senior Software Engineer"
-                                                value={data.new_designation} 
-                                                onChange={e => setData('new_designation', e.target.value)} 
+                                            <select 
+                                                className={`w-full px-3.5 py-2 text-sm font-semibold rounded-lg border ${errors.new_designation_id || errors.new_designation ? 'border-rose-400 focus:ring-rose-200' : 'border-slate-300 focus:border-[#1F3864] focus:ring-[#1F3864]/20'} bg-white transition-all shadow-sm`} 
+                                                value={data.new_designation_id || ''} 
+                                                onChange={e => {
+                                                    const val = e.target.value;
+                                                    const matched = masterDesignations.find(d => String(d.id) === String(val));
+                                                    setData(prev => ({
+                                                        ...prev,
+                                                        new_designation_id: val,
+                                                        new_designation: matched ? matched.name : prev.new_designation
+                                                    }));
+                                                }} 
                                                 required={data.is_promotion}
-                                            />
+                                            >
+                                                <option value="">-- Select New Designation --</option>
+                                                {masterDesignations && masterDesignations.length > 0 ? (
+                                                    masterDesignations.map(d => (
+                                                        <option key={d.id} value={d.id}>
+                                                            {d.name} {d.department_name ? `(${d.department_name})` : ''}
+                                                        </option>
+                                                    ))
+                                                ) : (
+                                                    <>
+                                                        <option value="1">Senior Software Engineer</option>
+                                                        <option value="2">Tech Lead / Engineering Manager</option>
+                                                        <option value="3">Quality Assurance (QA) Engineer</option>
+                                                        <option value="4">HR Operations Manager</option>
+                                                    </>
+                                                )}
+                                            </select>
                                             {errors.new_designation && <div className="text-xs text-rose-500 mt-1 font-semibold">{errors.new_designation}</div>}
                                         </div>
                                     </div>
