@@ -62,7 +62,7 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
     const totals = React.useMemo(() => {
         if (!items || items.length === 0) return null;
         let t = {
-            basic: 0, hra: 0, conv: 0, da: 0, med: 0, special: 0, other: 0, gross: 0,
+            basic: 0, hra: 0, conv: 0, da: 0, med: 0, special: 0, other: 0, bonus: 0, gross: 0,
             pf: 0, vpf: 0, esi: 0, pt: 0, lop: 0, tds: 0, loan: 0, totalDeduct: 0, net: 0, ctc: 0
         };
         items.forEach(item => {
@@ -74,6 +74,7 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
             t.med += parseFloat(item.medical_allowance || 0);
             t.special += parseFloat(item.special_allowance || 0);
             t.other += parseFloat(item.other_additions || 0);
+            t.bonus += parseFloat(item.statutory_bonus || 0);
             t.gross += parseFloat(item.gross_total || 0);
             t.pf += parseFloat(item.employee_pf || 0);
             t.vpf += parseFloat(item.employee_vpf || 0);
@@ -360,7 +361,7 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
                                     <th rowSpan="2">Emp Code</th>
                                     <th rowSpan="2">Employee Name</th>
                                     <th rowSpan="2">Paid Days</th>
-                                    {earnVisible && <th colSpan="7" className="col-group-earn">Earnings</th>}
+                                    {earnVisible && <th colSpan="8" className="col-group-earn">Earnings</th>}
                                     <th rowSpan="2" className="col-group-total">Gross Total</th>
                                     <th rowSpan="2" className="col-group-total" style={{ background: "#F8FAFC", color: "#475569" }}>Unpaid LOP <span style={{ fontWeight: "normal", fontSize: "0.75em", display: "block" }}>(Already Subtracted)</span></th>
                                     {deductVisible && <th colSpan="7" className="col-group-deduct">Deductions</th>}
@@ -379,6 +380,7 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
                                             <th className="col-group-earn">Med.</th>
                                             <th className="col-group-earn">Special</th>
                                             <th className="col-group-earn">Other Add.</th>
+                                            <th className="col-group-earn" style={{ color: "#047857" }}>Bonus</th>
                                         </>
                                     )}
                                     {deductVisible && (
@@ -402,7 +404,7 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
                                                 <tr key={`ex-${row.id}`} style={{ opacity: 0.6, background: "#F8FAFC" }}>
                                                     <td>{row.employee_code}</td>
                                                     <td><strong>{row.full_name}</strong></td>
-                                                    <td colSpan={earnVisible ? (deductVisible ? 21 : 13) : (deductVisible ? 13 : 5)} style={{ color: "var(--status-danger)", paddingLeft: "1.5rem" }}>
+                                                    <td colSpan={earnVisible ? (deductVisible ? 22 : 14) : (deductVisible ? 14 : 5)} style={{ color: "var(--status-danger)", paddingLeft: "1.5rem" }}>
                                                         Excluded: {row.exclusion_reason}
                                                     </td>
                                                     <td><span className="badge badge-danger">Excluded</span></td>
@@ -429,35 +431,38 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
                                                             <td>₹{parseFloat(row.medical_allowance).toLocaleString()}</td>
                                                             <td>₹{parseFloat(row.special_allowance).toLocaleString()}</td>
                                                             <td>₹{parseFloat(row.other_additions).toLocaleString()}</td>
+                                                            <td style={{ color: parseFloat(row.statutory_bonus || 0) > 0 ? "#047857" : "inherit", fontWeight: parseFloat(row.statutory_bonus || 0) > 0 ? "600" : "normal" }}>
+                                                                ₹{parseFloat(row.statutory_bonus || 0).toLocaleString()}
+                                                            </td>
                                                         </>
                                                     )}
                                                     
-                                                    <td className="col-group-total">₹{parseFloat(row.gross_total).toLocaleString()}</td>
-                                                    <td className="col-group-total" style={{ background: "#F8FAFC" }}>₹{parseFloat(row.lop_deduction).toLocaleString()}</td>
+                                                    <td className="col-group-total">₹{Math.round(parseFloat(row.gross_total)).toLocaleString()}</td>
+                                                    <td className="col-group-total" style={{ background: "#F8FAFC" }}>₹{Math.round(parseFloat(row.lop_deduction)).toLocaleString()}</td>
                                                     
                                                     {deductVisible && (
                                                         <>
-                                                            <td>₹{parseFloat(row.employee_pf || 0).toLocaleString()}</td>
-                                                            <td>₹{parseFloat(row.employee_vpf || 0).toLocaleString()}</td>
-                                                            <td>₹{parseFloat(row.employee_esi || 0).toLocaleString()}</td>
+                                                            <td>₹{Math.round(parseFloat(row.employee_pf || 0)).toLocaleString()}</td>
+                                                            <td>₹{Math.round(parseFloat(row.employee_vpf || 0)).toLocaleString()}</td>
+                                                            <td>₹{Math.round(parseFloat(row.employee_esi || 0)).toLocaleString()}</td>
                                                             <td>
-                                                                ₹{parseFloat(row.professional_tax || 0).toLocaleString()}
+                                                                ₹{Math.round(parseFloat(row.professional_tax || 0)).toLocaleString()}
                                                                 {parseFloat(row.pt_shortfall_recovery || 0) > 0 && (
                                                                     <span style={{ display: 'block', fontSize: '0.72rem', color: '#D97706', fontWeight: 600 }}>
-                                                                        +₹{parseFloat(row.pt_shortfall_recovery).toLocaleString()} Shortfall
+                                                                        +₹{Math.round(parseFloat(row.pt_shortfall_recovery)).toLocaleString()} Shortfall
                                                                     </span>
                                                                 )}
                                                             </td>
-                                                            <td>₹{parseFloat(row.lwf_deduction || 0).toLocaleString()}</td>
-                                                            <td>₹{parseFloat(row.tds_deduction || 0).toLocaleString()}</td>
-                                                            <td>₹{parseFloat(row.loan_emi_deduction || 0).toLocaleString()}</td>
+                                                            <td>₹{Math.round(parseFloat(row.lwf_deduction || 0)).toLocaleString()}</td>
+                                                            <td>₹{Math.round(parseFloat(row.tds_deduction || 0)).toLocaleString()}</td>
+                                                            <td>₹{Math.round(parseFloat(row.loan_emi_deduction || 0)).toLocaleString()}</td>
                                                         </>
                                                     )}
                                                     
-                                                    <td className="col-group-total">₹{itemDeductions.toLocaleString()}</td>
-                                                    <td className="col-group-total" style={{ color: "var(--primary-navy)", fontSize: "1.1em" }}>₹{parseFloat(row.net_pay).toLocaleString()}</td>
+                                                    <td className="col-group-total">₹{Math.round(itemDeductions).toLocaleString()}</td>
+                                                    <td className="col-group-total" style={{ color: "var(--primary-navy)", fontSize: "1.1em" }}>₹{Math.round(parseFloat(row.net_pay)).toLocaleString()}</td>
                                                     <td className="col-group-total" style={{ color: ctcVal < 0 ? "#DC2626" : "#047857", background: ctcVal < 0 ? "#FEF2F2" : "#ECFDF5", fontWeight: "bold" }}>
-                                                        {ctcVal < 0 ? `-₹${Math.abs(ctcVal).toLocaleString()}` : `₹${ctcVal.toLocaleString()}`}
+                                                        {ctcVal < 0 ? `-₹${Math.round(Math.abs(ctcVal)).toLocaleString()}` : `₹${Math.round(ctcVal).toLocaleString()}`}
                                                         {ctcVal < 0 && <span style={{ fontSize: "0.7em", display: "block", color: "#DC2626", fontWeight: "normal" }}>(Delta Reduction)</span>}
                                                     </td>
                                                     <td>
@@ -470,7 +475,7 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
                                                 {Boolean(row.salary_revision_applied) && (
                                                     <tr className="split-row">
                                                         <td colSpan="3"></td>
-                                                        <td colSpan={earnVisible ? (deductVisible ? 21 : 13) : (deductVisible ? 13 : 5)}>
+                                                        <td colSpan={earnVisible ? (deductVisible ? 22 : 14) : (deductVisible ? 14 : 5)}>
                                                             ↳ <em>{row.mid_cycle_note || row.warning_notes || 'Mid-Cycle Split Applied'}</em>
                                                         </td>
                                                     </tr>
@@ -479,7 +484,7 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
                                         );
                                     })
                                 ) : (
-                                    <tr><td colSpan="24" style={{ textAlign: "center", padding: "3rem", color: "var(--text-muted)" }}>No payroll calculations run yet for this month. Choose client and click "Calculate & Process".</td></tr>
+                                    <tr><td colSpan="25" style={{ textAlign: "center", padding: "3rem", color: "var(--text-muted)" }}>No payroll calculations run yet for this month. Choose client and click "Calculate & Process".</td></tr>
                                 )}
                             </tbody>
                             {totals && (
@@ -495,6 +500,7 @@ export default function PayrollProcessing({ clients, selectedClientId, selectedM
                                                 <td>₹{totals.med.toLocaleString()}</td>
                                                 <td>₹{totals.special.toLocaleString()}</td>
                                                 <td>₹{totals.other.toLocaleString()}</td>
+                                                <td style={{ color: totals.bonus > 0 ? "#047857" : "inherit" }}>₹{totals.bonus.toLocaleString()}</td>
                                             </>
                                         )}
                                         <td className="col-group-total">₹{totals.gross.toLocaleString()}</td>

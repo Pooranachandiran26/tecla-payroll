@@ -12,10 +12,18 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('employees', function (Blueprint $table) {
-            $table->boolean('is_disabled')->default(false)->after('gender')->index();
-            $table->string('disability_type', 50)->nullable()->after('is_disabled');
-            $table->unsignedTinyInteger('disability_percentage')->nullable()->after('disability_type');
-            $table->string('udid_card_number', 50)->nullable()->after('disability_percentage');
+            if (!Schema::hasColumn('employees', 'is_disabled')) {
+                $table->boolean('is_disabled')->default(false)->after('gender')->index();
+            }
+            if (!Schema::hasColumn('employees', 'disability_type')) {
+                $table->string('disability_type', 50)->nullable()->after('is_disabled');
+            }
+            if (!Schema::hasColumn('employees', 'disability_percentage')) {
+                $table->unsignedTinyInteger('disability_percentage')->nullable()->after('disability_type');
+            }
+            if (!Schema::hasColumn('employees', 'udid_card_number')) {
+                $table->string('udid_card_number', 50)->nullable()->after('disability_percentage');
+            }
         });
     }
 

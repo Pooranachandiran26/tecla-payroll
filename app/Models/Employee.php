@@ -65,6 +65,11 @@ class Employee extends Model
         return $this->belongsTo(Client::class, 'client_id');
     }
 
+    public function designationMaster()
+    {
+        return $this->belongsTo(\App\Models\Masters\MasDesignation::class, 'designation_id');
+    }
+
     public function branch()
     {
         return $this->belongsTo(ClientBranch::class, 'branch_id');

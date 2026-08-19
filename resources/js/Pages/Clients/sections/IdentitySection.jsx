@@ -2,10 +2,15 @@ import React from 'react';
 import { COMPANY_TYPES, INDUSTRIES, COUNTRIES } from '../constants/clientFormData';
 import { Building2 } from 'lucide-react';
 
-export default function IdentitySection({ formData, errors, hints, onChange, onValidate, hook }) {
+export default function IdentitySection({ formData, errors, hints, onChange, onValidate, hook, masterIndustries = [] }) {
   const isIndia = formData.country === 'India';
   const isTrust = formData.companyType === 'trust';
   const isGovt = formData.companyType === 'govt';
+
+  // Use masterIndustries from DB if available, fallback to static INDUSTRIES constant
+  const industryOptions = masterIndustries && masterIndustries.length > 0
+    ? masterIndustries.map(item => ({ id: item.id, label: item.name, value: item.id }))
+    : INDUSTRIES.map(i => ({ id: i, label: i, value: i }));
 
   return (
     <>
@@ -198,12 +203,20 @@ export default function IdentitySection({ formData, errors, hints, onChange, onV
       <div className="form-grid-3col">
         <div className="form-group">
           <label>Industry / Sector <span style={{ color: 'var(--status-danger)' }}>*</span></label>
-          <select className={`form-control ${errors.industry ? 'invalid' : ''}`}
-            value={formData.industry} onChange={e => onChange('industry', e.target.value)}>
-            <option value="">-- Select --</option>
-            {INDUSTRIES.map(i => <option key={i} value={i}>{i}</option>)}
+          <select className={`form-control ${errors.industry_id || errors.industry ? 'invalid' : ''}`}
+            value={formData.industry_id || ''} 
+            onChange={e => {
+              const val = e.target.value;
+              const selectedItem = masterIndustries.find(item => String(item.id) === String(val));
+              onChange('industry_id', val);
+              if (selectedItem) {
+                onChange('industry', selectedItem.name);
+              }
+            }}>
+            <option value="">-- Select Industry --</option>
+            {industryOptions.map(opt => <option key={opt.id} value={opt.value}>{opt.label}</option>)}
           </select>
-          {errors.industry && <div className={`field-msg ${errors.industry?.type || 'error'} show`}>{errors.industry?.msg || errors.industry}</div>}
+          {(errors.industry_id || errors.industry) && <div className={`field-msg ${errors.industry_id?.type || errors.industry?.type || 'error'} show`}>{errors.industry_id?.msg || errors.industry_id || errors.industry?.msg || errors.industry}</div>}
         </div>
         <div className="form-group">
           <label>Client Status</label>

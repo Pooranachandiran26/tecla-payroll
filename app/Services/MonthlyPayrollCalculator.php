@@ -33,8 +33,20 @@ class MonthlyPayrollCalculator
         $monthEnd = Carbon::parse($payrollRun->payroll_month)->endOfMonth()->startOfDay();
         $monthStartStr = $monthStart->toDateString();
         $monthEndStr = $monthEnd->toDateString();
+        $calendarDays = $monthStart->daysInMonth;
 
-        $lopBasisDays = (int)$employee->lop_basis_days ?: 30;
+        $clientLopBasis = (string)($employee->client?->lop_basis_days ?: '');
+        $empLopBasis = (string)($employee->lop_basis_days ?: '');
+
+        $rawLopBasis = ($clientLopBasis === 'calendar_days' || $empLopBasis === 'calendar_days') 
+            ? 'calendar_days' 
+            : ($empLopBasis ?: $clientLopBasis ?: '30');
+
+        if ($rawLopBasis === 'calendar_days') {
+            $lopBasisDays = $calendarDays;
+        } else {
+            $lopBasisDays = is_numeric($rawLopBasis) ? (int)$rawLopBasis : 30;
+        }
 
         // b. Check for mid-month salary revision
         $revision = DB::table('salary_revisions')
@@ -152,6 +164,32 @@ class MonthlyPayrollCalculator
                 }
             }
             $salaryRevisionApplied = false;
+
+            // Balance cumulative component rounding against un-truncated gross proration
+            if ($lopDays > 0 || $isMidMonthHire) {
+                $fullGrossBase = 0.00;
+                foreach ($components as $column) {
+                    $fullGrossBase += (float)($employee->$column ?? 0);
+                }
+                if ((bool)$employee->bonus_toggle) {
+                    $bonusRate = (float)($employee->client?->bonus_rate_percentage ?? 8.33) / 100;
+                    $fullGrossBase += round((float)$employee->basic_pay * $bonusRate, 2);
+                }
+                $denom = $isMidMonthHire ? $calendarDays : $lopBasisDays;
+                $targetBaseGross = round($fullGrossBase * ($paidDays / $denom), 2);
+
+                // Compute current prorated components + estimated prorated bonus
+                $estimatedBonus = (bool)$employee->bonus_toggle ? round(round((float)$employee->basic_pay * ((float)($employee->client?->bonus_rate_percentage ?? 8.33) / 100), 2) * ($paidDays / $denom), 2) : 0.00;
+                $compSum = array_sum($proRatedComponents) + $estimatedBonus;
+                $diff = round($targetBaseGross - $compSum, 2);
+
+                if (abs($diff) > 0 && abs($diff) < 2.00) {
+                    $adjustKey = isset($proRatedComponents['other_additions']) && (float)$employee->other_additions > 0
+                        ? 'other_additions'
+                        : (isset($proRatedComponents['special_allowance']) && (float)$employee->special_allowance > 0 ? 'special_allowance' : 'basic_pay');
+                    $proRatedComponents[$adjustKey] = round($proRatedComponents[$adjustKey] + $diff, 2);
+                }
+            }
         }
 
         // Calculate gross total first from prorated components
@@ -185,6 +223,20 @@ class MonthlyPayrollCalculator
         ]);
 
         $calc = $this->salaryService->calculateStructuralSalary($employeeData);
+
+        // If Statutory Bonus is configured as 'part_of_gross', assign statutory bonus to its own dedicated earning column
+        $statutoryBonus = 0.00;
+        if (($calc['statutory_bonus_type'] ?? '') === 'part_of_gross' && ($calc['statutory_bonus_monthly'] ?? 0) > 0) {
+            $statutoryBonus = (float)$calc['statutory_bonus_monthly'];
+        }
+        $proRatedComponents['statutory_bonus'] = $statutoryBonus;
+        $grossTotal = round((float)array_sum($proRatedComponents), 2);
+
+        // Re-invoke SalaryCalculationService with true gross so ESI/PF/CTC match full gross
+        $employeeData['other_additions'] = round($proRatedComponents['other_additions'] + $statutoryBonus, 2);
+        $employeeData['esi_limit'] = ($isEsiActive && $grossTotal > $esiCeiling) ? 99999999.00 : $esiCeiling;
+        $calc = $this->salaryService->calculateStructuralSalary($employeeData);
+
         $employeePf = (float)$calc['employee_pf_monthly'];
         $employeeVpf = (float)($calc['employee_vpf_monthly'] ?? 0.00);
         $totalEmployeePf = (float)($calc['total_employee_pf_monthly'] ?? ($employeePf + $employeeVpf));
@@ -245,7 +297,7 @@ class MonthlyPayrollCalculator
                             ->first();
 
                         if ($ptSlab) {
-                            $pt = (float)$ptSlab->deduction_amount;
+                            $pt = round((float)$ptSlab->deduction_amount);
                         } else {
                             $ptWarning = "PT slab missing for state: " . ($ptState ?: 'Unknown');
                         }
@@ -380,6 +432,7 @@ class MonthlyPayrollCalculator
             'medical_allowance' => $proRatedComponents['medical_allowance'],
             'special_allowance' => $proRatedComponents['special_allowance'],
             'other_additions' => $proRatedComponents['other_additions'],
+            'statutory_bonus' => $statutoryBonus,
             'gross_total' => $grossTotal,
             'employee_pf' => $employeePf,
             'employee_vpf' => $employeeVpf,

@@ -34,6 +34,11 @@ class EmployeeExit extends Model
         return $this->belongsTo(Employee::class);
     }
 
+    public function exitReason()
+    {
+        return $this->belongsTo(\App\Models\Masters\MasExitReason::class, 'exit_reason_id');
+    }
+
     public function confirmedBy()
     {
         return $this->belongsTo(User::class, 'confirmed_by');

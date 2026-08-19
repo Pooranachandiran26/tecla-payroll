@@ -169,6 +169,7 @@ export default function QuickAccess() {
     (canAccess('reports_catalog', 'reports') || canAccess('reports_register', 'reports')) && renderBtn('qa-analytics', safeRoute('reports.index', '/reports'), <Activity strokeWidth={1.6} />, 'Analytics Dashboard'),
     canAccess('admin_activity_log', 'admin') && renderBtn('qa-activity-log', safeRoute('admin.activity-log', '/admin/activity-log'), <History strokeWidth={1.6} />, 'Activity Log'),
     canAccess('admin_users', 'admin') && renderBtn('qa-user-mgmt', safeRoute('admin.users', '/admin/users'), <Users strokeWidth={1.6} />, 'User Management'),
+    canAccess('admin_settings', 'admin') && renderBtn('qa-masters', safeRoute('admin.masters.index', '/admin/masters'), <Activity strokeWidth={1.6} />, 'Master Data'),
     canAccess('admin_settings', 'admin') && renderBtn('qa-settings', safeRoute('admin.settings', '/admin/settings'), <Settings strokeWidth={1.6} />, 'Settings'),
   ].filter(Boolean);
 

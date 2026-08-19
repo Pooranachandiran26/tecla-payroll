@@ -85,14 +85,33 @@ class FullAndFinalCalculationService
 
             // Sec 4(6) Gratuity Forfeiture Advisory — NEVER auto-zero; requires admin confirmation
             // Forfeiture is legally permissible ONLY for riotous/violent conduct or offenses involving moral turpitude.
-            // We surface a warning banner when exit_type = Termination + reason = Conduct / Policy Violation.
+            // Evaluated dynamically via triggers_forfeiture_review boolean flag in mas_exit_reasons master table.
             $exitType       = $inputs['exit_type']       ?? '';
             $reasonCategory = $inputs['reason_category'] ?? '';
-            if (
-                strtolower($exitType) === 'termination' &&
-                strtolower($reasonCategory) === 'conduct / policy violation'
-            ) {
-                $calculations['gratuity_forfeiture_risk'] = true;
+            $exitReasonId   = $inputs['exit_reason_id']   ?? null;
+
+            if (strtolower($exitType) === 'termination') {
+                $isForfeitureTriggered = \Illuminate\Support\Facades\DB::table('mas_exit_reasons')
+                    ->where('exit_type_category', 'Termination')
+                    ->where(function ($q) use ($reasonCategory, $exitReasonId) {
+                        if (!empty($exitReasonId)) {
+                            $q->where('id', (int)$exitReasonId);
+                        } else {
+                            $q->where('name', $reasonCategory)
+                              ->orWhere('id', is_numeric($reasonCategory) ? (int)$reasonCategory : 0);
+                        }
+                    })
+                    ->where('triggers_forfeiture_review', true)
+                    ->exists();
+
+                // Fallback string match for legacy records
+                if (!$isForfeitureTriggered && strtolower($reasonCategory) === 'conduct / policy violation') {
+                    $isForfeitureTriggered = true;
+                }
+
+                if ($isForfeitureTriggered) {
+                    $calculations['gratuity_forfeiture_risk'] = true;
+                }
             }
         }
 

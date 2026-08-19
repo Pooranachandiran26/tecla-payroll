@@ -726,13 +726,23 @@ export default function StatutorySection({ formData, onChange, hook, applicableA
 
         {/* LOP Calculation */}
         <div className="stat-row" style={{ border: 'none', background: 'none', padding: 0 }}>
-          <div className="stat-info" style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '1rem' }}>
+          <div className="stat-info" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', marginTop: '1rem' }}>
             <div>
               <strong style={{ fontSize: '0.85rem' }}>Loss of Pay (LOP) Divisor Basis</strong>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Denominator used for daily wage calculation (Basic / 30). Standard fixed monthly divisor base.</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Denominator used for daily wage calculation and LOP deductions during payroll processing.</div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#F1F5F9', border: '1px solid #CBD5E1', padding: '0.4rem 0.85rem', borderRadius: '6px', fontWeight: 'bold', color: 'var(--primary-navy)', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
-              <Lock size={14} /> Strictly 30 Days
+            <div style={{ minWidth: '220px' }}>
+              <select
+                id="lopBasis"
+                className="form-control"
+                style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--primary-navy)' }}
+                value={formData.lopBasis || '30'}
+                onChange={e => onChange('lopBasis', e.target.value)}
+                {...lockProps}
+              >
+                <option value="30">Strictly 30 Days (Fixed 30)</option>
+                <option value="calendar_days">Actual Calendar Days (Aug=31, Sep=30...)</option>
+              </select>
             </div>
           </div>
         </div>

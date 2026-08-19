@@ -12,13 +12,21 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('employees', function (Blueprint $table) {
-            $table->boolean('vpf_enabled')->default(false)->after('pf_applicable');
-            $table->string('vpf_type', 20)->nullable()->after('vpf_enabled'); // 'percentage' or 'fixed_amount'
-            $table->decimal('vpf_value', 12, 2)->nullable()->after('vpf_type');
+            if (!Schema::hasColumn('employees', 'vpf_enabled')) {
+                $table->boolean('vpf_enabled')->default(false)->after('pf_applicable');
+            }
+            if (!Schema::hasColumn('employees', 'vpf_type')) {
+                $table->string('vpf_type', 20)->nullable()->after('vpf_enabled');
+            }
+            if (!Schema::hasColumn('employees', 'vpf_value')) {
+                $table->decimal('vpf_value', 12, 2)->nullable()->after('vpf_type');
+            }
         });
 
         Schema::table('payroll_run_items', function (Blueprint $table) {
-            $table->decimal('employee_vpf', 12, 2)->default(0.00)->after('employee_pf');
+            if (!Schema::hasColumn('payroll_run_items', 'employee_vpf')) {
+                $table->decimal('employee_vpf', 12, 2)->default(0.00)->after('employee_pf');
+            }
         });
     }
 

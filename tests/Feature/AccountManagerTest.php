@@ -64,7 +64,10 @@ class AccountManagerTest extends TestCase
         // Also ensure another filter doesn't return it
         $emptyFilterResponse = $this->actingAs($admin)->get('/clients?am=Nobody');
         $emptyFilterResponse->assertStatus(200);
-        $emptyFilterResponse->assertDontSee('AM Test Client');
+        $emptyFilterResponse->assertInertia(fn ($page) => 
+            $page->component('Clients/ClientsList')
+                 ->where('clients.data', [])
+        );
     }
 
     public function test_create_page_receives_account_manager_options()

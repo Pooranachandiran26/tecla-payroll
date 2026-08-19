@@ -85,6 +85,8 @@ class StoreEmployeeRequest extends FormRequest
             'date_of_birth' => $this->dob ?? $this->date_of_birth,
             'date_of_joining' => $this->doj ?? $this->date_of_joining,
             'attendance_tracking_start_date' => $this->attendanceTrackingStartDate ?: $this->attendance_tracking_start_date,
+            'designation_id' => $this->designation_id ?: $this->designationId ?: null,
+            'designation' => $this->designation ?: (\App\Models\Masters\MasDesignation::find($this->designation_id ?: $this->designationId)?->name),
             'employment_model' => $this->empType ?? $this->employment_model,
             'prior_employment_flag' => ($this->priorEmploymentFlag !== null || $this->prior_employment_flag !== null) ? (filter_var($this->priorEmploymentFlag ?? $this->prior_employment_flag, FILTER_VALIDATE_BOOLEAN) ? 1 : 0) : 1,
             'residential_address' => $this->address ?? $this->residential_address,
@@ -164,7 +166,8 @@ class StoreEmployeeRequest extends FormRequest
             'date_of_birth' => 'required|date|date_format:Y-m-d|before:-18 years',
             'date_of_joining' => 'required|date|date_format:Y-m-d',
             'attendance_tracking_start_date' => 'nullable|date|date_format:Y-m-d|after_or_equal:date_of_joining',
-            'designation' => 'required|string|max:255',
+            'designation_id' => 'nullable|integer|exists:mas_designations,id',
+            'designation' => 'nullable|string|max:255',
             'gender' => 'nullable|in:male,female,other',
             'is_disabled' => 'nullable|boolean',
             'disability_type' => 'nullable|string|max:50',
@@ -258,7 +261,11 @@ class StoreEmployeeRequest extends FormRequest
             'bonus_toggle' => 'boolean',
             'tds_regime' => 'required|in:old,new',
             'gratuity_mode' => 'required|in:part_of_ctc,over_and_above',
-            'lop_basis_days' => 'required|integer|min:15|max:31',
+            'lop_basis_days' => ['required', function($attribute, $value, $fail) {
+                if ($value === 'calendar_days' || $value === '30' || $value === 30 || $value === '26' || $value === 26) return;
+                if (is_numeric($value) && (int)$value >= 15 && (int)$value <= 31) return;
+                $fail('The LOP basis days must be 30, calendar_days, or a valid number between 15 and 31.');
+            }],
             'weekly_off_pattern' => 'nullable|string',
             
             // Salary
