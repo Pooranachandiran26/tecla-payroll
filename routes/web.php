@@ -110,7 +110,7 @@ Route::middleware(['auth', 'active'])->group(function () {
                 Route::post('/clients/{client}/deactivate', [ClientController::class,'deactivate'])->middleware('can:update,client')->name('clients.deactivate');
                 Route::post('/clients/{id}/restore', [ClientController::class,'restore'])->name('clients.restore');
                 Route::post('/clients/{client}/documents', [ClientController::class, 'uploadDocument'])->middleware('can:update,client')->name('clients.documents.store');
-                Route::put('/clients/{client}/documents/{document}/verify', [ClientController::class, 'verifyDocument'])->name('clients.documents.verify');
+                Route::put('/clients/{client}/documents/{document}/verify', [ClientController::class, 'verifyDocument'])->middleware('can:verifyDocuments,client')->name('clients.documents.verify');
                 Route::get('/clients/{client}/documents/{document}/download', [ClientController::class, 'downloadDocument'])->name('clients.documents.download');
 
                 Route::post('/clients/{clientId}/holidays', [ClientHolidayController::class, 'store'])->name('clients.holidays.store');
@@ -348,6 +348,16 @@ Route::middleware(['auth', 'active'])->group(function () {
                 Route::get('/compliance/audit-pack/clients', [\App\Http\Controllers\ClientAuditPackController::class, 'getClients'])->name('compliance.audit_pack.clients');
                 Route::post('/compliance/audit-pack/generate', [\App\Http\Controllers\ClientAuditPackController::class, 'generate'])->name('compliance.audit_pack.generate');
                 Route::get('/compliance/audit-pack/download/{id}', [\App\Http\Controllers\ClientAuditPackController::class, 'download'])->name('compliance.audit_pack.download');
+
+                // Form B - Register of Wages (Tamil Nadu LWF Rules 1973, Rule 29)
+                Route::get('/compliance/form-b', [\App\Http\Controllers\FormBController::class, 'index'])->name('compliance.form_b.index');
+                Route::post('/compliance/form-b/period-summary', [\App\Http\Controllers\FormBController::class, 'periodSummary'])->name('compliance.form_b.period_summary');
+                Route::post('/compliance/form-b/payroll-runs', [\App\Http\Controllers\FormBController::class, 'payrollRuns'])->name('compliance.form_b.payroll_runs');
+                Route::post('/compliance/form-b/review', [\App\Http\Controllers\FormBController::class, 'reviewData'])->name('compliance.form_b.review');
+                Route::post('/compliance/form-b/generate', [\App\Http\Controllers\FormBController::class, 'generate'])->name('compliance.form_b.generate');
+                Route::get('/compliance/form-b/download/{id}', [\App\Http\Controllers\FormBController::class, 'download'])->name('compliance.form_b.download');
+                Route::get('/compliance/form-b/history', [\App\Http\Controllers\FormBController::class, 'history'])->name('compliance.form_b.history');
+                Route::delete('/compliance/form-b/{id}', [\App\Http\Controllers\FormBController::class, 'destroy'])->name('compliance.form_b.destroy');
             });
 
             // Reports Module (Gated by module:reports)

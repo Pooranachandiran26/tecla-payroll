@@ -30,6 +30,9 @@ class TaxDeclarationController extends Controller
         if ($user && !in_array($user->role, ['admin', 'manager']) && (int)$user->employee_id !== (int)$employee->id) {
             abort(403, 'Unauthorized action.');
         }
+        if ($user && in_array($user->role, ['admin', 'manager']) && !$user->isManagerForClient($employee->client_id)) {
+            abort(403, 'Unauthorized access to this client\'s data.');
+        }
 
         $targetDate = $request->query('date', now()->toDateString());
         $fy = $this->tdsService->determineFinancialYear($targetDate);
@@ -68,6 +71,9 @@ class TaxDeclarationController extends Controller
         $user = Auth::user();
         if (!in_array($user->role, ['admin', 'manager']) && (int)$user->employee_id !== (int)$employee->id) {
             abort(403, 'Unauthorized action.');
+        }
+        if (in_array($user->role, ['admin', 'manager']) && !$user->isManagerForClient($employee->client_id)) {
+            abort(403, 'Unauthorized access to this client\'s data.');
         }
 
         $fy = $this->tdsService->determineFinancialYear(now()->toDateString());
@@ -140,6 +146,12 @@ class TaxDeclarationController extends Controller
     public function verify(Request $request, $id, $declarationId)
     {
         $employee = Employee::findOrFail($id);
+        
+        $user = Auth::user();
+        if (!$user->isManagerForClient($employee->client_id)) {
+            abort(403, 'Unauthorized access to this client\'s data.');
+        }
+
         $declaration = EmployeeTaxDeclaration::where('employee_id', $employee->id)
             ->where('id', $declarationId)
             ->firstOrFail();

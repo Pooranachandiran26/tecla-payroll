@@ -9,14 +9,19 @@ use Illuminate\Http\Request;
 
 class ClientHolidayController extends Controller
 {
+    private function authorizeClientAccess(int $clientId): void
+    {
+        if (!auth()->user()->isManagerForClient($clientId)) {
+            abort(403, 'Unauthorized access to this client\'s data.');
+        }
+    }
+
     /**
      * Store a new holiday for a client.
      */
     public function store(Request $request, $clientId)
     {
-        if (!in_array(auth()->user()->role, ['admin', 'manager'])) {
-            abort(403, 'Unauthorized access to client holiday management.');
-        }
+        $this->authorizeClientAccess((int)$clientId);
 
         $client = Client::findOrFail($clientId);
 
@@ -56,9 +61,7 @@ class ClientHolidayController extends Controller
      */
     public function destroy(Request $request, $clientId, $id)
     {
-        if (!in_array(auth()->user()->role, ['admin', 'manager'])) {
-            abort(403, 'Unauthorized access to client holiday management.');
-        }
+        $this->authorizeClientAccess((int)$clientId);
 
         $holiday = Holiday::where('client_id', $clientId)->findOrFail($id);
         $holidayName = $holiday->name;

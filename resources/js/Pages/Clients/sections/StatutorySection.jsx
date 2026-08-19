@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { usePage } from '@inertiajs/react';
-import { PT_STATES, STATE_REG_OPTIONS, APPLICABLE_ACTS_OPTIONS } from '../constants/clientFormData';
+import { PT_STATES, STATE_REG_OPTIONS } from '../constants/clientFormData';
 import { ShieldCheck, Shield, AlertTriangle, Zap, CheckCircle2, Scale, Lock, FileText } from 'lucide-react';
 
 
@@ -129,7 +129,8 @@ const getLwfPreview = (lwfFrequency, regState, ptState) => {
   };
 };
 
-export default function StatutorySection({ formData, onChange, hook }) {
+export default function StatutorySection({ formData, onChange, hook, applicableActsOptions }) {
+  const actsOptions = Array.isArray(applicableActsOptions) ? applicableActsOptions : [];
   const { auth } = usePage().props;
   const canEdit = auth.user.role === 'admin';
   const lockProps = !canEdit ? { disabled: true, readOnly: true, title: "Statutory defaults can only be changed by an Agency Admin" } : {};
@@ -556,9 +557,12 @@ export default function StatutorySection({ formData, onChange, hook }) {
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
               Select all statutory acts governing this client entity. This classification determines applicable statutory registers, forms, and compliance returns.
             </span>
+            <span style={{ fontSize: '0.72rem', color: '#94A3B8', fontStyle: 'italic' }}>
+              Note: Applicable Statutory Acts are general compliance classifications. Form B applicability is determined separately based on the establishment's state and applicable Labour Welfare Fund rules.
+            </span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '0.75rem', marginTop: '0.25rem' }}>
-            {APPLICABLE_ACTS_OPTIONS.map((act) => {
+            {actsOptions.map((act) => {
               const currentActs = Array.isArray(formData.applicableActs) ? formData.applicableActs : [];
               const isChecked = currentActs.includes(act.id);
               return (

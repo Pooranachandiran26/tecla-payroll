@@ -13,7 +13,19 @@ class StoreEmployeeRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user() && in_array($this->user()->role, ['admin', 'manager']);
+        $user = $this->user();
+        if (!$user || !in_array($user->role, ['admin', 'manager'])) {
+            return false;
+        }
+
+        if ($user->role === 'manager') {
+            $clientId = $this->clientPartner ?: $this->client_id;
+            if ($clientId && !$user->isManagerForClient($clientId)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     protected function prepareForValidation()
@@ -132,7 +144,13 @@ class StoreEmployeeRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'client_id' => 'required|exists:clients,id',
+            // Draft/incomplete clients are setup records, not operational clients — an employee
+            // must never be created against a client whose onboarding isn't complete, even via a
+            // direct API request that bypasses the (already-filtered) client dropdown.
+            'client_id' => [
+                'required',
+                Rule::exists('clients', 'id')->where(fn($q) => $q->where('status', 'active')),
+            ],
             'branch_id' => 'nullable|exists:client_branches,id',
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
@@ -311,6 +329,7 @@ class StoreEmployeeRequest extends FormRequest
         return [
             'disability_percentage.min' => 'Disability percentage must be at least 40% to qualify as a Person with Benchmark Disability (PwD) under the RPwD Act, 2016 for the ₹25,000 ESI ceiling.',
             'disability_percentage.max' => 'Disability percentage cannot exceed 100%.',
+            'client_id.exists' => 'This client has not completed onboarding and is not available for adding employees.',
         ];
     }
 }

@@ -54,7 +54,7 @@ const INHOUSE_STEP_HEADER_META = {
   8: { icon: Clock, title: 'Calendar', desc: 'Payroll processing dates' },
 };
 
-export default function ClientForm({ client, defaultLopBasis, gstSettings }) {
+export default function ClientForm({ client, defaultLopBasis, gstSettings, applicableActs }) {
   const hook = useClientForm(defaultLopBasis, client);
   const {
     formData, errors, hints, currentStep,
@@ -175,7 +175,7 @@ export default function ClientForm({ client, defaultLopBasis, gstSettings }) {
                   </div>
 
                   <div className={`form-step-section ${currentStep === 5 ? 'active' : ''}`} style={{ display: currentStep === 5 ? 'block' : 'none' }}>
-                    <StatutorySection formData={formData} onChange={handleChange} hook={hook} />
+                    <StatutorySection formData={formData} onChange={handleChange} hook={hook} applicableActsOptions={applicableActs} />
                   </div>
 
                   {!hook.isInhouse && (

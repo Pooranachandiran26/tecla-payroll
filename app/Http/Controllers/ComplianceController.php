@@ -46,7 +46,9 @@ class ComplianceController extends Controller
             $selectedClientId = null;
         }
 
-        $clientsQuery = Client::with('branches')->orderBy('company_name');
+        // Draft/incomplete clients are setup records, not operational clients — they must never
+        // appear in the Compliance register. See Client::scopeOperational().
+        $clientsQuery = Client::operational()->with('branches')->orderBy('company_name');
 
         if ($request->user()->role === 'manager') {
             $clientsQuery->whereIn('id', $request->user()->getManagedClientIds());
@@ -177,6 +179,12 @@ class ComplianceController extends Controller
             'status' => 'required|in:pending,filed'
         ]);
 
+        $client = Client::findOrFail($request->client_id);
+        $user = $request->user();
+        if ($user->role === 'manager' && !$user->isManagerForClient($client->id)) {
+            abort(403, 'Unauthorized access to this client\'s compliance filing.');
+        }
+
         $periodDate = Carbon::parse($request->period)->startOfMonth()->format('Y-m-d');
 
         ComplianceFiling::updateOrCreate(
@@ -253,6 +261,13 @@ class ComplianceController extends Controller
         $client = Client::with(['branches', 'employees' => function($q) {
             $q->where('status', 'active');
         }])->findOrFail($clientId);
+
+        // Draft/incomplete clients are setup records, not operational clients — block direct-URL
+        // access to compliance details even though the record itself exists. See
+        // Client::scopeOperational().
+        if (!$client->isOperational()) {
+            abort(404, 'This client has not completed onboarding and is not available in Compliance.');
+        }
 
         $monthParam = $request->query('month', Carbon::now()->startOfMonth()->format('Y-m'));
         $period = Carbon::parse($monthParam)->startOfMonth();

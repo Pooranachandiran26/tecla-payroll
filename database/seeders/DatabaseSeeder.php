@@ -32,6 +32,7 @@ class DatabaseSeeder extends Seeder
             GstSettingsSeeder::class,
             TestUsersSeeder::class,
             EsiReasonCodeSeeder::class,
+            StatutoryActSeeder::class,
         ]);
 
         if (app()->environment() !== 'testing') {

@@ -38,6 +38,8 @@ class EmployeeDeletionTest extends TestCase
             'employee_id' => $this->employee->id,
             'status' => 'active'
         ]);
+
+        $this->manager->managedClients()->attach($this->client->id);
     }
 
     public function test_delete_blocked_when_exit_in_progress()

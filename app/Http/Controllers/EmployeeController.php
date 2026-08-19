@@ -350,6 +350,10 @@ class EmployeeController extends Controller
         
         $data = $request->validated();
 
+        if (isset($data['client_id']) && (int)$data['client_id'] !== (int)$employee->client_id) {
+            $this->authorizeEmployeeAccess($request->user(), new \App\Models\Employee(['client_id' => $data['client_id']]));
+        }
+
         if (empty($data['branch_id'])) {
             $clientId = $data['client_id'] ?? $employee->client_id;
             $clientBranch = \App\Models\ClientBranch::where('client_id', $clientId)->first();
@@ -382,7 +386,8 @@ class EmployeeController extends Controller
     public function storeDocument(\App\Http\Requests\StoreEmployeeDocumentRequest $request, $id)
     {
         $employee = \App\Models\Employee::findOrFail($id);
-        
+        $this->authorizeEmployeeAccess($request->user(), $employee);
+
         // Find existing document of the same type and delete it (including file)
         $existing = \App\Models\EmployeeDocument::where('employee_id', $employee->id)
             ->where('document_type', $request->document_type)
@@ -535,6 +540,8 @@ class EmployeeController extends Controller
     public function deactivate(Request $request, $id)
     {
         $employee = \App\Models\Employee::findOrFail($id);
+        $this->authorizeEmployeeAccess($request->user(), $employee);
+
         \Illuminate\Support\Facades\DB::transaction(function () use ($employee) {
             $employee->update(['status' => 'suspended']);
 
@@ -562,6 +569,7 @@ class EmployeeController extends Controller
     public function activate(Request $request, $id)
     {
         $employee = \App\Models\Employee::findOrFail($id);
+        $this->authorizeEmployeeAccess($request->user(), $employee);
 
         if ($employee->status === 'onboarding') {
             $employee->load('documents');

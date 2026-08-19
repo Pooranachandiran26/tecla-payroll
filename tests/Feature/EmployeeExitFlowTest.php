@@ -52,6 +52,10 @@ class EmployeeExitFlowTest extends TestCase
 
         $client = Client::find($this->employee->client_id);
         $client->update(['default_notice_period_days' => 30]);
+
+        if (!$this->manager->managedClients()->where('clients.id', $this->employee->client_id)->exists()) {
+            $this->manager->managedClients()->attach($this->employee->client_id);
+        }
     }
 
     // ---------------------------------------------------------------

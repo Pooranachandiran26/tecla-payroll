@@ -23,72 +23,34 @@ class EmployeePortalController extends Controller
             $employee = Employee::with(['client', 'documents'])->find($user->employee_id);
         }
 
-        // Auto-match employee by email or full_name if user->employee_id is null
-        if (!$employee) {
-            $matchedEmp = null;
-            if (!empty($user->email)) {
-                $matchedEmp = Employee::where('personal_email', $user->email)->first();
-            }
-
-            if (!$matchedEmp && !empty($user->name)) {
-                $matchedEmp = Employee::where('full_name', 'like', "%{$user->name}%")->first();
-            }
-
-            // Fallback: if unlinked employees exist in DB, take the first one
-            if (!$matchedEmp) {
-                $matchedEmp = Employee::whereNotIn('id', \App\Models\User::whereNotNull('employee_id')->pluck('employee_id'))->first();
-            }
-
-            // If still no employee record exists at all, auto-create one for this user
-            if (!$matchedEmp) {
-                $clientId = $user->client_id ?: (\App\Models\Client::where('status', 'active')->value('id') ?: \App\Models\Client::value('id') ?: 1);
-                $branchId = \App\Models\ClientBranch::where('client_id', $clientId)->value('id') ?: 1;
-                $nameParts = explode(' ', trim($user->name ?: 'Employee User'), 2);
-                $firstName = $nameParts[0] ?: 'Employee';
-                $lastName = $nameParts[1] ?? 'User';
-
-                $matchedEmp = Employee::create([
-                    'client_id' => $clientId,
-                    'branch_id' => $branchId,
-                    'first_name' => $firstName,
-                    'last_name' => $lastName,
-                    'full_name' => trim("$firstName $lastName"),
-                    'personal_email' => $user->email ?: 'emp_' . $user->id . '@system.local',
-                    'phone_number' => '9' . str_pad($user->id, 9, '0', STR_PAD_LEFT),
-                    'employee_code' => 'EMP-' . str_pad($user->id, 4, '0', STR_PAD_LEFT),
-                    'designation' => 'Employee',
-                    'employment_model' => 'eor',
-                    'status' => 'active',
-                    'date_of_birth' => '1995-01-01',
-                    'date_of_joining' => now()->toDateString(),
-                    'basic_pay' => 0,
-                    'hra' => 0,
-                    'conveyance' => 0,
-                    'da' => 0,
-                    'medical_allowance' => 0,
-                    'special_allowance' => 0,
-                    'gross_monthly_salary' => 0,
-                    'net_take_home_monthly' => 0,
-                    'employer_pf_monthly' => 0,
-                    'employer_esi_monthly' => 0,
-                    'ctc_monthly' => 0,
-                    'bank_account_number' => '0000000000',
-                    'account_holder_name' => trim("$firstName $lastName"),
-                    'bank_ifsc' => 'BANK0000000',
-                    'bank_name' => 'Default Bank',
-                    'bank_branch' => 'Main Branch',
-                    'uan_mode' => 'new',
-                    'pan_number' => 'ABCDE1234F',
-                    'entry_source' => 'manual',
-                ]);
-            }
+        // Auto-match employee by exact email only if user->employee_id is null. This is the
+        // one identity signal strong enough to trust here: personal_email is unique at the DB
+        // level (2026_07_06_104638_add_dynamic_fields_and_indexes_to_employees_table.php), so
+        // an exact match uniquely and correctly identifies this user's own employee record.
+        //
+        // Never fall back to a fuzzy name match, an arbitrary unlinked employee row, or an
+        // auto-created record with a guessed client_id — every one of those could silently
+        // bind this login to a stranger's (possibly another company's) employee data. If the
+        // identity can't be established this way, fail closed rather than guess.
+        if (!$employee && !empty($user->email)) {
+            $matchedEmp = Employee::where('personal_email', $user->email)->first();
 
             if ($matchedEmp) {
                 $employee = $matchedEmp;
                 try {
                     $user->update(['employee_id' => $matchedEmp->id]);
-                } catch (\Throwable $e) {}
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning('EmployeePortalController: failed to persist employee_id link', [
+                        'user_id' => $user->id,
+                        'employee_id' => $matchedEmp->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
             }
+        }
+
+        if (!$employee) {
+            abort(403, 'Your account is not linked to an employee record. Please contact your administrator.');
         }
 
         $employee->loadMissing(['client', 'documents']);

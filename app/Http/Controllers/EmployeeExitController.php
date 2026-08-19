@@ -11,9 +11,25 @@ use Carbon\Carbon;
 
 class EmployeeExitController extends Controller
 {
-    public function show($id)
+    /**
+     * Tenant-boundary gate, same pattern already used by approve()/confirm() in this class —
+     * must always be called with an Employee resolved from the database, never a client_id
+     * trusted from the request, so a manager can never act on another company's employee.
+     */
+    private function authorizeEmployeeAccess($user, Employee $employee)
+    {
+        if ($user->role === 'manager' && !$user->isManagerForClient($employee->client_id)) {
+            abort(403, 'Unauthorized access to this employee record.');
+        } elseif ($user->role === 'client' && (int)$employee->client_id !== (int)$user->client_id) {
+            abort(403, 'Unauthorized access to this employee record.');
+        }
+    }
+
+    public function show(Request $request, $id)
     {
         $employee = Employee::with('client')->findOrFail($id);
+        $this->authorizeEmployeeAccess($request->user(), $employee);
+
         $exitData = $employee->exitRequest;
 
         return \Inertia\Inertia::render('Employees/EmployeeExit', [
@@ -25,6 +41,8 @@ class EmployeeExitController extends Controller
     public function previewSettlement(Request $request, $id, FullAndFinalCalculationService $calculator)
     {
         $employee = Employee::findOrFail($id);
+        $this->authorizeEmployeeAccess($request->user(), $employee);
+
         $calculations = $calculator->calculatePreview($employee, $request->all());
         return response()->json($calculations);
     }
@@ -32,6 +50,8 @@ class EmployeeExitController extends Controller
     public function storeStage(Request $request, $id, $stage, FullAndFinalCalculationService $calcService)
     {
         $employee = Employee::findOrFail($id);
+        $this->authorizeEmployeeAccess($request->user(), $employee);
+
         $exitRequest = EmployeeExit::where('employee_id', $id)->latest('id')->first();
         if (!$exitRequest) {
             $exitRequest = EmployeeExit::create([

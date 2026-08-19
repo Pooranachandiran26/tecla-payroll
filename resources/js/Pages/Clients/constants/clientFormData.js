@@ -268,14 +268,6 @@ export const PATTERNS = {
   PIN: /^[1-9][0-9]{5}$/,
 };
 
-// Applicable Statutory Acts Options
-export const APPLICABLE_ACTS_OPTIONS = [
-  { id: 'factories_act', label: 'Factories Act, 1948', desc: 'Operates a manufacturing factory / industrial plant' },
-  { id: 'shops_establishment_act', label: 'Shops & Establishments Act', desc: 'Registered commercial establishment, shop, or corporate office' },
-  { id: 'contract_labour_act', label: 'Contract Labour (R&A) Act, 1970', desc: 'Engages or deploys contract labour through contractors' },
-  { id: 'catering_canteen_rules', label: 'Catering / Canteen Rules (if applicable)', desc: 'Maintains an establishment canteen or catering facility' },
-];
-
 // Wizard step labels
 
 export const WIZARD_STEPS = [

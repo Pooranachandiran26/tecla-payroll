@@ -594,6 +594,71 @@
   .badge-neutral { background-color: #ECEFF1; color: #455A64; }
   .badge-gold { background-color: #FEF9C3; color: #854D0E; border: 1px solid #FEF08A; }
 
+  /* Vertical Stepper */
+  .stepper-vertical {
+    display: flex;
+    flex-direction: column;
+  }
+  .stepper-item {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding-bottom: 1.75rem;
+  }
+  .stepper-item-clickable {
+    cursor: pointer;
+  }
+  .stepper-marker {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 700;
+    background-color: #F1F5F9;
+    color: var(--text-muted);
+    border: 2px solid var(--border-color);
+    z-index: 1;
+  }
+  .stepper-item-current .stepper-marker {
+    background-color: var(--primary-navy);
+    border-color: var(--primary-navy);
+    color: #fff;
+  }
+  .stepper-item-completed .stepper-marker {
+    background-color: var(--status-success-bg);
+    border-color: var(--status-success);
+    color: var(--status-success);
+  }
+  .stepper-label-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-main);
+  }
+  .stepper-item-current .stepper-label-title {
+    color: var(--primary-navy);
+  }
+  .stepper-label-desc {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-top: 0.1rem;
+  }
+  .stepper-connector {
+    position: absolute;
+    left: 13px;
+    top: 28px;
+    bottom: 0;
+    width: 2px;
+    background-color: var(--border-color);
+  }
+  .stepper-item-completed .stepper-connector {
+    background-color: var(--status-success);
+  }
+
   /* Custom Toggle Switches */
   .toggle-container {
     display: inline-flex;

@@ -700,7 +700,8 @@ export default function ComplianceReports() {
     { id: 'pt', title: 'PT Challan Summary', badge: 'State-wise', color: 'success', desc: 'Aggregates Professional Tax deductions across state slabs (Maharashtra, Karnataka, Tamil Nadu) from locked payroll. Generates 2-sheet return helper report (.xlsx).', action: 'PT State-wise Challans', btnText: 'Generate PT Report (.xlsx)', isFunctional: true },
     { id: 'tds', title: 'TDS Form 24Q', badge: 'Quarterly', color: 'success', desc: 'Quarterly return of TDS on salaries u/s 200(3). Generates official e-TDS caret-delimited return (.txt) and 4-sheet Excel reconciliation helper.', action: 'TDS Form 24Q Return', btnText: 'Generate Form 24Q (.txt)', isFunctional: true },
     { id: 'gstr1', title: 'GSTR-1 Summary', badge: 'Internal Only', color: 'success', desc: 'Extracts B2B agency service invoices (Table 4A) into an internal reconciliation JSON/Excel export. Not an official GSTN upload file — verify before use.', action: 'GSTR-1 Export', btnText: 'Export GSTR-1 (.json)', isFunctional: true },
-    { id: 'audit', title: 'Client Audit Pack', badge: 'Consolidated', color: 'neutral', desc: 'Collects already-generated PF/ESI/PT/TDS files for one client + period into a single .zip. GSTR-1 not included (not client-scoped).', action: 'Consolidated Client Audit Pack', btnText: 'Generate Audit Pack (.zip)', isFunctional: true }
+    { id: 'audit', title: 'Client Audit Pack', badge: 'Consolidated', color: 'neutral', desc: 'Collects already-generated PF/ESI/PT/TDS files for one client + period into a single .zip. GSTR-1 not included (not client-scoped).', action: 'Consolidated Client Audit Pack', btnText: 'Generate Audit Pack (.zip)', isFunctional: true },
+    { id: 'form_b', title: 'Form B - Register of Wages', badge: 'Tamil Nadu LWF', color: 'success', desc: 'Establishment-level monthly wage register (Rule 29, TN Labour Welfare Fund Rules 1973) generated from a locked payroll run.', action: 'Form B Register of Wages', btnText: 'Generate Form B', isFunctional: true, isPage: true }
   ];
 
   const renderStatus = (clientId, statute, statusVal) => {
@@ -818,7 +819,8 @@ export default function ComplianceReports() {
                     variant="navy"
                     className="w-full justify-center bg-blue-900 hover:bg-blue-800 text-white font-bold"
                     onClick={() => {
-                      if (report.id === 'esi') setIsEsiModalOpen(true);
+                      if (report.isPage) router.visit(route('compliance.form_b.index'));
+                      else if (report.id === 'esi') setIsEsiModalOpen(true);
                       else if (report.id === 'pt') setIsPtModalOpen(true);
                       else if (report.id === 'gstr1') setIsGstr1ModalOpen(true);
                       else if (report.id === 'tds') setIsTdsModalOpen(true);
