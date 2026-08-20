@@ -19,6 +19,35 @@ class BulkUploadController extends Controller
         $this->fastBulkService = $fastBulkService;
     }
 
+    /**
+     * Every client_id referenced by the batch's staged rows must be inside the acting
+     * manager's managed-client set. A batch that touches even one unmanaged client is
+     * rejected outright, since executeBatchImport() imports all rows in the batch.
+     */
+    private function authorizeBatchAccess($user, $batchId)
+    {
+        if ($user->role !== 'manager') {
+            return;
+        }
+
+        $managedClientIds = array_map('intval', $user->getManagedClientIds());
+        $batchClientIds = \Illuminate\Support\Facades\DB::table('bulk_upload_staging_rows')
+            ->where('batch_id', $batchId)
+            ->pluck('client_id')
+            ->filter()
+            ->unique();
+
+        if ($batchClientIds->isEmpty()) {
+            abort(403, 'Unauthorized access to this bulk upload batch.');
+        }
+
+        foreach ($batchClientIds as $clientId) {
+            if (!in_array((int)$clientId, $managedClientIds)) {
+                abort(403, 'Unauthorized access to this bulk upload batch.');
+            }
+        }
+    }
+
     public function showUploadForm(Request $request)
     {
         $user = $request->user();
@@ -28,7 +57,11 @@ class BulkUploadController extends Controller
         if ($user->role === 'manager' && !$user->hasModulePermission('emp_bulk_upload', 'candidates')) {
             abort(403, 'You do not have permission to access Bulk Upload Employees.');
         }
-        $clients = \App\Models\Client::where('status', 'active')->select('id', 'company_name', 'client_code')->orderBy('id', 'desc')->get();
+        $clientsQuery = \App\Models\Client::where('status', 'active');
+        if ($user->role === 'manager') {
+            $clientsQuery->whereIn('id', $user->getManagedClientIds());
+        }
+        $clients = $clientsQuery->select('id', 'company_name', 'client_code')->orderBy('id', 'desc')->get();
 
         $activeSession = \Illuminate\Support\Facades\Cache::get('bulk_upload_session_' . $user->id);
         $activeSessionBatch = null;
@@ -115,6 +148,9 @@ class BulkUploadController extends Controller
         ]);
 
         $client = \App\Models\Client::with('branches')->findOrFail($request->client_id);
+        if ($request->user()->role === 'manager' && !$request->user()->isManagerForClient($client->id)) {
+            abort(403, 'Unauthorized access to this client\'s bulk upload template.');
+        }
         
         $filename = 'Bulk_Upload_Template_' . $client->client_code . '_' . date('Ymd_His') . '.xlsx';
         $tempPath = storage_path('app/temp_bulk_uploads/' . $filename);
@@ -724,6 +760,7 @@ class BulkUploadController extends Controller
 
         if ($request->filled('batch_id') && \Illuminate\Support\Facades\DB::table('bulk_upload_staging_rows')->where('batch_id', $request->input('batch_id'))->exists()) {
             $batchId = $request->input('batch_id');
+            $this->authorizeBatchAccess($request->user(), $batchId);
             $fastBulkService = app(\App\Services\FastBulkUploadService::class);
             $importRes = $fastBulkService->executeBatchImport($batchId, $request->user()->id);
 
@@ -983,6 +1020,7 @@ class BulkUploadController extends Controller
 
         // Fast-Path 1: File was already validated and staged (Instant 0.3s Import)
         if ($request->has('batch_id') && \Illuminate\Support\Facades\DB::table('bulk_upload_staging_rows')->where('batch_id', $batchId)->exists()) {
+            $this->authorizeBatchAccess($request->user(), $batchId);
             $totalStagingRows = \Illuminate\Support\Facades\DB::table('bulk_upload_staging_rows')->where('batch_id', $batchId)->count();
             $validStagingRows = \Illuminate\Support\Facades\DB::table('bulk_upload_staging_rows')->where('batch_id', $batchId)->where('status', 'ready')->count();
             $errorStagingRows = \Illuminate\Support\Facades\DB::table('bulk_upload_staging_rows')->where('batch_id', $batchId)->where('status', 'error')->count();
@@ -1088,7 +1126,7 @@ class BulkUploadController extends Controller
             abort(403, 'Unauthorized');
         }
 
-        $batch = \App\Models\BulkUploadBatch::where('id', $batchId)->firstOrFail();
+        $batch = \App\Models\BulkUploadBatch::forUser($request->user())->where('id', $batchId)->firstOrFail();
 
         $progressPercentage = 0;
         if ($batch->total_rows > 0) {

@@ -21,7 +21,13 @@ class EmployeePolicy
 
     public function viewDocuments(User $user, \App\Models\Employee $employee)
     {
-        return in_array($user->role, ['admin', 'manager']);
+        if ($user->role === 'admin') {
+            return true;
+        }
+        if ($user->role === 'manager') {
+            return $user->isManagerForClient($employee->client_id);
+        }
+        return false;
     }
 
     public function viewOwnProfile(User $user, \App\Models\Employee $employee)

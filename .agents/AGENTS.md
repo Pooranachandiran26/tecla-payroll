@@ -14,3 +14,9 @@
 - **Single Draft Record Guarantee**: Saving draft creates or updates exactly one record per client onboarding flow using Inertia `router.post` / `router.put`.
 - **Quick Fix Cross-Section Navigation**: `jumpToField(targetStep, fieldId)` navigates to the target section, scrolls and focuses the target field with glowing `.field-highlight-pulse` styling, stores `returnStep`, and automatically returns the user to their originating section when corrected.
 - **Billing Model ENUM**: `clients.billing_model` MySQL enum contains `['markup', 'fixed_per_candidate', 'fixed_per_month', 'lumpsum', 'hourly', 'inhouse']`.
+
+## Security Audit Findings & Fix Patterns (Phase 1)
+- **Status**: Codebase is currently **NOT SAFE TO PROCEED** to DB schema review due to widespread IDOR vulnerabilities.
+- **Affected Controllers**: `SalaryRevisionController`, `EmployeeController`, `BulkUploadController`, `ComplianceController`, `BankChangeRequestController`, `EmployeeExitController`, and `ExportController`.
+- **Vulnerability**: Methods like `activate()`, `approve()`, `storeDocument()`, and `markFiled()` are trusting `findOrFail($id)` or `client_id` payloads without verifying if the manager is actually authorized for that specific client/employee.
+- **Required Fix Pattern**: Every controller method performing read, write, or delete must enforce tenant isolation by strictly validating `$user->isManagerForClient($clientId)`. Do not rely solely on the `['admin', 'manager']` role middleware.

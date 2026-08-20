@@ -174,13 +174,11 @@ class User extends Authenticatable
                 ->where('user_id', $this->id)
                 ->pluck('client_id');
 
-            $ids = $amClientIds->merge($pivotClientIds)->unique()->filter()->values()->toArray();
-
-            if (empty($ids)) {
-                return Client::where('status', 'active')->pluck('id')->toArray();
-            }
-
-            return $ids;
+            // A manager with no explicit assignment (account manager, backup, creator, or
+            // client_user pivot) must see nothing, never every active client. An empty
+            // assignment is the normal state for a newly-invited manager before an admin
+            // finishes assigning clients — treating it as "all" was a live security defect.
+            return $amClientIds->merge($pivotClientIds)->unique()->filter()->values()->toArray();
         }
 
         if ($this->role === 'client' && $this->client_id) {

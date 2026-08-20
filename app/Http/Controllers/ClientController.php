@@ -122,6 +122,18 @@ class ClientController extends Controller
         ]);
     }
 
+    private function getApplicableActsOptions()
+    {
+        return \App\Models\StatutoryAct::active()
+            ->orderBy('sort_order')
+            ->get(['code', 'name', 'description'])
+            ->map(fn($act) => [
+                'id' => $act->code,
+                'label' => $act->name,
+                'desc' => $act->description,
+            ]);
+    }
+
     private function getGstMasterSettings()
     {
         $gstSettings = \App\Services\SettingsService::group('gst');
@@ -166,6 +178,7 @@ class ClientController extends Controller
             'accountManagers' => $accountManagers,
             'defaultLopBasis' => $defaultLopBasis,
             'gstSettings'     => $this->getGstMasterSettings(),
+            'applicableActs'  => $this->getApplicableActsOptions(),
             'masterIndustries' => $masterIndustries,
         ]);
     }
@@ -191,6 +204,7 @@ class ClientController extends Controller
             'accountManagers' => $accountManagers,
             'defaultLopBasis' => $defaultLopBasis,
             'gstSettings'     => $this->getGstMasterSettings(),
+            'applicableActs'  => $this->getApplicableActsOptions(),
             'masterIndustries' => $masterIndustries,
         ]);
     }
@@ -623,7 +637,11 @@ class ClientController extends Controller
 
     public function verifyDocument(Request $request, Client $client, ClientDocument $document)
     {
-        $this->authorize('verifyDocuments', Client::class);
+        $this->authorize('verifyDocuments', $client);
+
+        if ((int)$document->client_id !== (int)$client->id) {
+            abort(404);
+        }
 
         $request->validate([
             'status' => 'required|in:verified,rejected',

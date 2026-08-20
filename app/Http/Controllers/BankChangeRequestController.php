@@ -165,6 +165,9 @@ class BankChangeRequestController extends Controller
         }
 
         $req = BankChangeRequest::with('employee')->findOrFail($id);
+        if (auth()->user()->role === 'manager' && (!$req->employee || !auth()->user()->isManagerForClient($req->employee->client_id))) {
+            abort(403, 'Unauthorized access to this bank change request.');
+        }
 
         if ($req->status !== 'pending') {
             return redirect()->back()->with('error', 'Only pending requests can be approved.');
@@ -229,6 +232,9 @@ class BankChangeRequestController extends Controller
         ]);
 
         $req = BankChangeRequest::with('employee')->findOrFail($id);
+        if (auth()->user()->role === 'manager' && (!$req->employee || !auth()->user()->isManagerForClient($req->employee->client_id))) {
+            abort(403, 'Unauthorized access to this bank change request.');
+        }
 
         if ($req->status !== 'pending') {
             return redirect()->back()->with('error', 'Only pending requests can be rejected.');

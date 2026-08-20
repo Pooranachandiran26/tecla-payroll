@@ -9,11 +9,24 @@ use Illuminate\Support\Facades\Auth;
 class PayrollController extends Controller
 {
     /**
+     * Tenant-boundary gate for every payroll-run lifecycle action. Must always be called with a
+     * client_id resolved from the payroll run record actually being accessed — never a client_id
+     * taken at face value from the request — so a manager can never act on another company's run.
+     */
+    private function authorizeClientAccess(int $clientId): void
+    {
+        if (!Auth::user()->isManagerForClient($clientId)) {
+            abort(403, 'You do not have access to this client\'s payroll data.');
+        }
+    }
+
+    /**
      * Approve a payroll run.
      */
     public function approve($id)
     {
         $run = PayrollRun::findOrFail($id);
+        $this->authorizeClientAccess($run->client_id);
 
         if (in_array($run->status, ['approved', 'locked'])) {
             return redirect()->back()->with('error', 'This payroll run is already approved or locked.');
@@ -49,6 +62,7 @@ class PayrollController extends Controller
     public function lock($id)
     {
         $run = PayrollRun::findOrFail($id);
+        $this->authorizeClientAccess($run->client_id);
 
         if ($run->status === 'locked') {
             return redirect()->back()->with('error', 'This payroll run is already locked.');
@@ -361,6 +375,7 @@ class PayrollController extends Controller
     public function runSupplementary($id)
     {
         $parent = PayrollRun::findOrFail($id);
+        $this->authorizeClientAccess($parent->client_id);
 
         if (!in_array($parent->status, ['approved', 'locked'])) {
             return redirect()->back()->with('error', 'Supplementary runs can only be triggered on approved or locked parent runs.');
@@ -553,8 +568,16 @@ class PayrollController extends Controller
         $clientId = $validated['client_id'];
         $payrollMonth = \Carbon\Carbon::parse($validated['payroll_month'])->startOfMonth()->toDateString();
         $client = \App\Models\Client::findOrFail($clientId);
+        $this->authorizeClientAccess($client->id);
 
         try {
+            // Draft/incomplete clients are setup records, not operational clients — block direct
+            // API submission of a client_id that bypasses the (already-filtered) dropdown. See
+            // Client::scopeOperational().
+            if (!$client->isOperational()) {
+                throw new \Exception('This client has not completed onboarding and is not available for payroll processing.');
+            }
+
             app(\App\Services\PayrollCycleWarningService::class)->ensureCycleEnded($client, $payrollMonth);
 
             $run = \Illuminate\Support\Facades\DB::transaction(function () use ($clientId, $payrollMonth) {
@@ -696,24 +719,36 @@ class PayrollController extends Controller
      */
     public function indexProcessing(Request $request)
     {
-        $clients = \App\Models\Client::where('status', 'active')
+        $user = $request->user();
+
+        $clientsQuery = \App\Models\Client::where('status', 'active');
+        if ($user && $user->role === 'manager') {
+            $clientsQuery->whereIn('id', $user->getManagedClientIds());
+        }
+        $clients = $clientsQuery
             ->select('id', 'company_name')
             ->orderBy('id', 'desc')
             ->get();
-        
+
         $activeSessionClientId = $request->session()->get('active_client_id', 'all');
-        $defaultClientId = ($activeSessionClientId && $activeSessionClientId !== 'all') 
-            ? (int)$activeSessionClientId 
+        $defaultClientId = ($activeSessionClientId && $activeSessionClientId !== 'all')
+            ? (int)$activeSessionClientId
             : $clients->first()?->id;
 
-        $selectedClientId = $request->has('client_id') 
-            ? $request->query('client_id') 
+        $selectedClientId = $request->has('client_id')
+            ? $request->query('client_id')
             : $defaultClientId;
 
         if ($selectedClientId === 'all' || $selectedClientId === '') {
             $selectedClientId = $defaultClientId;
         }
-        
+
+        // A manager may only ever land on a client within their managed scope, even if the
+        // query string is crafted to name another company's client_id directly.
+        if ($selectedClientId && $user && $user->role === 'manager' && !$user->isManagerForClient($selectedClientId)) {
+            abort(403, 'You do not have access to this client\'s payroll data.');
+        }
+
         $defaultMonth = now()->subMonth()->startOfMonth()->toDateString();
         $selectedMonth = $request->query('payroll_month', $defaultMonth);
 
@@ -896,24 +931,36 @@ class PayrollController extends Controller
      */
     public function indexApproval(Request $request)
     {
-        $clients = \App\Models\Client::where('status', 'active')
+        $user = $request->user();
+
+        $clientsQuery = \App\Models\Client::where('status', 'active');
+        if ($user && $user->role === 'manager') {
+            $clientsQuery->whereIn('id', $user->getManagedClientIds());
+        }
+        $clients = $clientsQuery
             ->select('id', 'company_name')
             ->orderBy('id', 'desc')
             ->get();
 
         $activeSessionClientId = $request->session()->get('active_client_id', 'all');
-        $defaultClientId = ($activeSessionClientId && $activeSessionClientId !== 'all') 
-            ? (int)$activeSessionClientId 
+        $defaultClientId = ($activeSessionClientId && $activeSessionClientId !== 'all')
+            ? (int)$activeSessionClientId
             : $clients->first()?->id;
 
-        $selectedClientId = $request->has('client_id') 
-            ? $request->query('client_id') 
+        $selectedClientId = $request->has('client_id')
+            ? $request->query('client_id')
             : $defaultClientId;
 
         if ($selectedClientId === 'all' || $selectedClientId === '') {
             $selectedClientId = $defaultClientId;
         }
-        
+
+        // A manager may only ever land on a client within their managed scope, even if the
+        // query string is crafted to name another company's client_id directly.
+        if ($selectedClientId && $user && $user->role === 'manager' && !$user->isManagerForClient($selectedClientId)) {
+            abort(403, 'You do not have access to this client\'s payroll data.');
+        }
+
         $defaultMonth = now()->subMonth()->startOfMonth()->toDateString();
         $selectedMonth = $request->query('payroll_month', $defaultMonth);
 
@@ -1114,7 +1161,13 @@ class PayrollController extends Controller
      */
     public function indexPayslips(Request $request)
     {
-        $clients = \App\Models\Client::where('status', 'active')
+        $user = $request->user();
+
+        $clientsQuery = \App\Models\Client::where('status', 'active');
+        if ($user && $user->role === 'manager') {
+            $clientsQuery->whereIn('id', $user->getManagedClientIds());
+        }
+        $clients = $clientsQuery
             ->select('id', 'company_name')
             ->orderBy('id', 'desc')
             ->get();
@@ -1126,6 +1179,12 @@ class PayrollController extends Controller
 
         if (!$selectedClientId && $clients->isNotEmpty()) {
             $selectedClientId = $clients->first()->id;
+        }
+
+        // A manager may only ever land on a client within their managed scope, even if the
+        // query string is crafted to name another company's client_id directly.
+        if ($selectedClientId && $user && $user->role === 'manager' && !$user->isManagerForClient($selectedClientId)) {
+            abort(403, 'You do not have access to this client\'s payroll data.');
         }
 
         if ($selectedClientId) {
@@ -1375,6 +1434,7 @@ class PayrollController extends Controller
         ]);
 
         $parentRun = PayrollRun::findOrFail($request->parent_run_id);
+        $this->authorizeClientAccess($parentRun->client_id);
         $employee = \App\Models\Employee::findOrFail($request->employee_id);
 
         $service = app(\App\Services\PayrollCorrectionService::class);
@@ -1403,6 +1463,7 @@ class PayrollController extends Controller
         ]);
 
         $parentRun = PayrollRun::findOrFail($request->parent_run_id);
+        $this->authorizeClientAccess($parentRun->client_id);
         $employee = \App\Models\Employee::findOrFail($request->employee_id);
 
         $service = app(\App\Services\PayrollCorrectionService::class);
@@ -1437,6 +1498,8 @@ class PayrollController extends Controller
         if ($parentRunId) {
             $parentRun = PayrollRun::find($parentRunId);
             if ($parentRun) {
+                $this->authorizeClientAccess($parentRun->client_id);
+
                 $context = app(\App\Services\AttendanceUploadValidationService::class)->calculateWorkingDaysContext(
                     $parentRun->client_id,
                     $parentRun->payroll_month
@@ -1667,6 +1730,7 @@ class PayrollController extends Controller
         ]);
 
         $parentRun = PayrollRun::findOrFail($request->parent_run_id);
+        $this->authorizeClientAccess($parentRun->client_id);
         $file = $request->file('file');
 
         $service = app(\App\Services\PayrollCorrectionService::class);
@@ -1691,6 +1755,7 @@ class PayrollController extends Controller
         ]);
 
         $parentRun = PayrollRun::findOrFail($request->parent_run_id);
+        $this->authorizeClientAccess($parentRun->client_id);
 
         $service = app(\App\Services\PayrollCorrectionService::class);
         $preview = $service->calculateBatchPreview(
@@ -1719,6 +1784,7 @@ class PayrollController extends Controller
         ]);
 
         $parentRun = PayrollRun::findOrFail($request->parent_run_id);
+        $this->authorizeClientAccess($parentRun->client_id);
 
         $service = app(\App\Services\PayrollCorrectionService::class);
         $service->applyBatchCorrection($parentRun, $request->items, $request->reason ?? 'Batch payroll correction');

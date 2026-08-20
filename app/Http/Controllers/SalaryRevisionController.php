@@ -19,6 +19,24 @@ use App\Services\NotificationService;
 
 class SalaryRevisionController extends Controller
 {
+    /**
+     * Tenant-boundary gate, mirrored from EmployeeController::authorizeEmployeeAccess() — must
+     * always be called with an Employee resolved from the database, never a client_id trusted
+     * from the request, so a manager can never act on another company's employee.
+     */
+    private function authorizeEmployeeAccess($user, $employee)
+    {
+        if ($user && $user->role === 'manager') {
+            if (!$user->isManagerForClient($employee->client_id)) {
+                abort(403, 'Unauthorized access to this employee record.');
+            }
+        } elseif ($user && $user->role === 'client') {
+            if ((int)$employee->client_id !== (int)$user->client_id) {
+                abort(403, 'Unauthorized access to this employee record.');
+            }
+        }
+    }
+
     public function create($employeeId)
     {
         $user = request()->user();
@@ -27,6 +45,8 @@ class SalaryRevisionController extends Controller
         }
 
         $employee = Employee::with('client')->findOrFail($employeeId);
+        $this->authorizeEmployeeAccess($user, $employee);
+
         $revisions = SalaryRevision::where('employee_id', $employeeId)
             ->with('approver')
             ->orderBy('created_at', 'desc')
@@ -44,7 +64,8 @@ class SalaryRevisionController extends Controller
     public function store(StoreSalaryRevisionRequest $request, $employeeId, SalaryCalculationService $calculator)
     {
         $employee = Employee::findOrFail($employeeId);
-        
+        $this->authorizeEmployeeAccess($request->user(), $employee);
+
         $validated = $request->validated();
         
         // Recompute net_take_home and ctc on backend
@@ -126,8 +147,11 @@ class SalaryRevisionController extends Controller
 
     public function approve(ApproveSalaryRevisionRequest $request, $employeeId, $revisionId)
     {
+        $employee = Employee::findOrFail($employeeId);
+        $this->authorizeEmployeeAccess($request->user(), $employee);
+
         $revision = SalaryRevision::where('employee_id', $employeeId)->findOrFail($revisionId);
-        
+
         if ($revision->status !== 'pending_approval') {
             return redirect()->back()->with('error', 'This revision has already been processed.');
         }
@@ -213,6 +237,8 @@ class SalaryRevisionController extends Controller
     public function sendEmail(Request $request, $employeeId, $revisionId)
     {
         $employee = Employee::with('client', 'user')->findOrFail($employeeId);
+        $this->authorizeEmployeeAccess($request->user(), $employee);
+
         $revision = SalaryRevision::where('employee_id', $employeeId)->findOrFail($revisionId);
 
         $recipientEmail = trim($request->input('recipient_email')) ?: ($employee->personal_email ?? optional($employee->user)->email);

@@ -49,6 +49,10 @@ class SalaryRevisionTest extends TestCase
                 'ctc_monthly' => 15000,
             ]);
         }
+
+        if (!$this->manager->managedClients()->where('clients.id', $this->employee->client_id)->exists()) {
+            $this->manager->managedClients()->attach($this->employee->client_id);
+        }
     }
 
     public function test_manager_can_submit_revision_which_is_pending()

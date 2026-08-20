@@ -698,7 +698,8 @@ export default function ComplianceReports() {
     },
     { id: 'esi', title: 'ESI Monthly File', badge: 'ESIC Portal', color: 'success', desc: 'Monthly contribution file for ESI-eligible employees from locked payroll data. Standard 6-column ESIC bulk upload sheet (Excel 97-2003, no header).', action: 'ESI Contribution Excel', btnText: 'Generate ESI (.xls)', isFunctional: true },
     { id: 'pt', title: 'PT Challan Summary', badge: 'State-wise', color: 'success', desc: 'Aggregates Professional Tax deductions across state slabs (Maharashtra, Karnataka, Tamil Nadu) from locked payroll. Generates 2-sheet return helper report (.xlsx).', action: 'PT State-wise Challans', btnText: 'Generate PT Report (.xlsx)', isFunctional: true },
-    { id: 'tds', title: 'TDS Form 24Q', badge: 'Quarterly', color: 'success', desc: 'Quarterly return of TDS on salaries u/s 200(3). Generates official e-TDS caret-delimited return (.txt) and 4-sheet Excel reconciliation helper.', action: 'TDS Form 24Q Return', btnText: 'Generate Form 24Q (.txt)', isFunctional: true }
+    { id: 'tds', title: 'TDS Form 24Q', badge: 'Quarterly', color: 'success', desc: 'Quarterly return of TDS on salaries u/s 200(3). Generates official e-TDS caret-delimited return (.txt) and 4-sheet Excel reconciliation helper.', action: 'TDS Form 24Q Return', btnText: 'Generate Form 24Q (.txt)', isFunctional: true },
+    { id: 'form_b', title: 'Form B - Register of Wages', badge: 'Tamil Nadu LWF', color: 'success', desc: 'Establishment-level monthly wage register (Rule 29, TN Labour Welfare Fund Rules 1973) generated from a locked payroll run.', action: 'Form B Register of Wages', btnText: 'Generate Form B', isFunctional: true, isPage: true }
   ];
 
   const renderStatus = (clientId, statute, statusVal) => {
@@ -816,7 +817,8 @@ export default function ComplianceReports() {
                     variant="navy"
                     className="w-full justify-center bg-blue-900 hover:bg-blue-800 text-white font-bold"
                     onClick={() => {
-                      if (report.id === 'esi') setIsEsiModalOpen(true);
+                      if (report.isPage) router.visit(route('compliance.form_b.index'));
+                      else if (report.id === 'esi') setIsEsiModalOpen(true);
                       else if (report.id === 'pt') setIsPtModalOpen(true);
                       else if (report.id === 'tds') setIsTdsModalOpen(true);
                       else setIsEcrModalOpen(true);

@@ -9,8 +9,16 @@ use Illuminate\Support\Str;
 
 class EmployeeLoanController extends Controller
 {
+    private function authorizeClientAccess(int $clientId): void
+    {
+        if (!auth()->user()->isManagerForClient($clientId)) {
+            abort(403, 'Unauthorized access to this client\'s data.');
+        }
+    }
+
     public function index(Employee $employee)
     {
+        $this->authorizeClientAccess($employee->client_id);
         $loans = EmployeeLoan::with('repayments')
             ->where('employee_id', $employee->id)
             ->orderBy('created_at', 'desc')
@@ -30,6 +38,8 @@ class EmployeeLoanController extends Controller
 
     public function store(Request $request, Employee $employee)
     {
+        $this->authorizeClientAccess($employee->client_id);
+
         $validated = $request->validate([
             'loan_type' => 'required|in:salary_advance,company_loan,external_garnishment',
             'principal_amount' => 'required|numeric|min:1',
@@ -70,6 +80,9 @@ class EmployeeLoanController extends Controller
 
     public function updateStatus(Request $request, EmployeeLoan $loan)
     {
+        $loan->loadMissing('employee');
+        $this->authorizeClientAccess($loan->employee->client_id);
+
         $validated = $request->validate([
             'status' => 'required|in:active,paused,cancelled,completed',
         ]);

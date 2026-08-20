@@ -18,6 +18,18 @@ class PtChallanController extends Controller
     }
 
     /**
+     * Tenant-boundary gate for every PT Challan action. Must always be called with a client_id
+     * resolved from the payroll run/batch record actually being accessed — never a client_id
+     * taken at face value from the request — so a manager can never act on another company's data.
+     */
+    private function authorizeClientAccess(int $clientId): void
+    {
+        if (!Auth::user()->isManagerForClient($clientId)) {
+            abort(403, 'You do not have access to this client\'s PT Challan data.');
+        }
+    }
+
+    /**
      * Get available locked payroll runs and PT batch history.
      */
     public function getRuns(Request $request)
@@ -31,6 +43,8 @@ class PtChallanController extends Controller
 
         if ($user->role === 'client' && $user->client_id) {
             $query->where('client_id', $user->client_id);
+        } elseif ($user->role === 'manager') {
+            $query->whereIn('client_id', $user->getManagedClientIds());
         }
 
         if ($month && $month !== 'all') {
@@ -50,6 +64,8 @@ class PtChallanController extends Controller
 
         if ($user->role === 'client' && $user->client_id) {
             $batchesQuery->where('client_id', $user->client_id);
+        } elseif ($user->role === 'manager') {
+            $batchesQuery->whereIn('client_id', $user->getManagedClientIds());
         }
 
         if ($month && $month !== 'all') {
@@ -84,7 +100,10 @@ class PtChallanController extends Controller
     {
         $request->validate(['payroll_run_id' => 'required|integer']);
 
-        $res = $this->service->preview((int)$request->payroll_run_id);
+        $run = PayrollRun::findOrFail((int)$request->payroll_run_id);
+        $this->authorizeClientAccess($run->client_id);
+
+        $res = $this->service->preview($run->id);
         return response()->json($res);
     }
 
@@ -95,7 +114,10 @@ class PtChallanController extends Controller
     {
         $request->validate(['payroll_run_id' => 'required|integer']);
 
-        $res = $this->service->generate((int)$request->payroll_run_id, Auth::id());
+        $run = PayrollRun::findOrFail((int)$request->payroll_run_id);
+        $this->authorizeClientAccess($run->client_id);
+
+        $res = $this->service->generate($run->id, Auth::id());
         return response()->json($res);
     }
 
@@ -104,6 +126,9 @@ class PtChallanController extends Controller
      */
     public function download(int $id)
     {
+        $batch = PtChallanBatch::findOrFail($id);
+        $this->authorizeClientAccess($batch->client_id);
+
         return $this->service->download($id, Auth::id());
     }
 
@@ -119,6 +144,8 @@ class PtChallanController extends Controller
         ]);
 
         $batch = PtChallanBatch::findOrFail($id);
+        $this->authorizeClientAccess($batch->client_id);
+
         $batch->update([
             'status' => $request->status,
             'trrn_number' => $request->trrn_number,
@@ -135,6 +162,8 @@ class PtChallanController extends Controller
     public function destroy(int $id)
     {
         $batch = PtChallanBatch::findOrFail($id);
+        $this->authorizeClientAccess($batch->client_id);
+
         $batch->delete();
 
         return response()->json(['success' => true]);

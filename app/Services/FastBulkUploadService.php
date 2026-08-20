@@ -51,8 +51,11 @@ class FastBulkUploadService
         $existingPanHashes = array_fill_keys(Employee::whereNotNull('pan_number_hash')->pluck('pan_number_hash')->filter()->all(), true);
         $existingAadhaarHashes = array_fill_keys(Employee::whereNotNull('aadhaar_number_hash')->pluck('aadhaar_number_hash')->filter()->all(), true);
 
-        // Pre-fetch all clients and managers
-        $allClients = Client::with('branches')->get()->keyBy('client_code');
+        // Pre-fetch all clients and managers. Draft/incomplete clients are setup records, not
+        // operational clients — a bulk upload must not be able to attach employees to one by
+        // client_code, even though this bypasses the (already-filtered) Employees dropdown. See
+        // Client::scopeOperational().
+        $allClients = Client::operational()->with('branches')->get()->keyBy('client_code');
         $allManagers = Employee::select('id', 'employee_code', 'client_id')->get()->keyBy('employee_code');
 
         $seenEmpCodes = [];

@@ -75,6 +75,24 @@ class Client extends Model
     ];
 
 
+    /**
+     * The single source of truth for "is this client operationally eligible" — i.e. onboarding
+     * is fully complete and the client is not draft/inactive/suspended. This mirrors the
+     * `status = 'active'` condition already used by ~20 existing dropdown queries app-wide
+     * (Dashboard, Payroll, Employees, HandleInertiaRequests' shared client switcher, etc.) — it
+     * does not introduce a new status concept, it just gives that existing condition one name so
+     * new/fixed call sites stay consistent with it instead of re-deriving it ad hoc.
+     */
+    public function scopeOperational($query)
+    {
+        return $query->where('status', 'active');
+    }
+
+    public function isOperational(): bool
+    {
+        return $this->status === 'active';
+    }
+
     public function getPayslipVisibleSectionsAttribute($value)
     {
         $defaults = [

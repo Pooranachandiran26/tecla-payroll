@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Client;
+use App\Models\Tds24qBatch;
 use App\Services\Tds24qGeneratorService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -16,11 +18,30 @@ class Tds24qController extends Controller
     }
 
     /**
+     * Tenant-boundary gate for every TDS 24Q action. Must always be called with a client_id
+     * resolved from the client/batch record actually being accessed — never a client_id taken
+     * at face value from the request — so a manager can never act on another company's data.
+     */
+    private function authorizeClientAccess(int $clientId): void
+    {
+        if (!Auth::user()->isManagerForClient($clientId)) {
+            abort(403, 'You do not have access to this client\'s TDS 24Q data.');
+        }
+    }
+
+    /**
      * Get Form 24Q metadata (clients list, history batches, FVU disclaimer).
      */
     public function getMetadata()
     {
         $data = $this->service->getForm24qMetadata();
+
+        $user = Auth::user();
+        if ($user->role === 'manager') {
+            $managedIds = $user->getManagedClientIds();
+            $data['clients'] = $data['clients']->whereIn('id', $managedIds)->values();
+            $data['batches'] = $data['batches']->whereIn('client_id', $managedIds)->values();
+        }
 
         $batches = collect($data['batches'])->map(function ($b) {
             return [
@@ -59,8 +80,11 @@ class Tds24qController extends Controller
             'quarter' => 'required|string|in:Q1,Q2,Q3,Q4',
         ]);
 
+        $client = Client::findOrFail((int)$request->input('client_id'));
+        $this->authorizeClientAccess($client->id);
+
         $data = $this->service->preview24q(
-            (int)$request->input('client_id'),
+            $client->id,
             $request->input('financial_year'),
             $request->input('quarter')
         );
@@ -87,6 +111,9 @@ class Tds24qController extends Controller
             'fee_234e' => 'nullable|numeric|min:0',
         ]);
 
+        $client = Client::findOrFail((int)$request->input('client_id'));
+        $this->authorizeClientAccess($client->id);
+
         $challan = $this->service->saveChallan($request->all(), Auth::id());
 
         return response()->json([
@@ -108,6 +135,9 @@ class Tds24qController extends Controller
             'challan' => 'nullable|array',
         ]);
 
+        $client = Client::findOrFail((int)$request->input('client_id'));
+        $this->authorizeClientAccess($client->id);
+
         $result = $this->service->generate24q($request->all(), Auth::id());
 
         return response()->json($result);
@@ -118,7 +148,10 @@ class Tds24qController extends Controller
      */
     public function download($id)
     {
-        return $this->service->download((int)$id, 'txt', Auth::id());
+        $batch = Tds24qBatch::findOrFail((int)$id);
+        $this->authorizeClientAccess($batch->client_id);
+
+        return $this->service->download($batch->id, 'txt', Auth::id());
     }
 
     /**
@@ -126,6 +159,9 @@ class Tds24qController extends Controller
      */
     public function downloadXlsx($id)
     {
-        return $this->service->download((int)$id, 'xlsx', Auth::id());
+        $batch = Tds24qBatch::findOrFail((int)$id);
+        $this->authorizeClientAccess($batch->client_id);
+
+        return $this->service->download($batch->id, 'xlsx', Auth::id());
     }
 }
