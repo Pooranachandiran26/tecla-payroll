@@ -723,6 +723,103 @@
       border-color: #93C5FD;
     }
 
+    /* ── Top Horizontal Stepper Bar ── */
+    .top-horizontal-stepper {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #FFFFFF;
+      border: 1px solid #E2E8F0;
+      border-radius: 12px;
+      padding: 0.75rem 1.25rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    }
+
+    .stepper-item {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.15s ease;
+      padding: 0.25rem 0.35rem;
+      border-radius: 6px;
+    }
+
+    .stepper-item:hover {
+      background-color: #F8FAFC;
+    }
+
+    .stepper-circle {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      flex-shrink: 0;
+      transition: all 0.2s ease;
+    }
+
+    .stepper-item.completed .stepper-circle {
+      background-color: #10B981;
+      color: #FFFFFF;
+    }
+
+    .stepper-item.active .stepper-circle {
+      background-color: #2563EB;
+      color: #FFFFFF;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+    }
+
+    .stepper-item.pending .stepper-circle {
+      background-color: #F1F5F9;
+      color: #64748B;
+      border: 1.5px solid #CBD5E1;
+    }
+
+    .stepper-label {
+      font-size: 0.78rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .stepper-item.completed .stepper-label {
+      color: #059669;
+    }
+
+    .stepper-item.active .stepper-label {
+      color: #1D4ED8;
+      font-weight: 700;
+    }
+
+    .stepper-item.pending .stepper-label {
+      color: #64748B;
+    }
+
+    .stepper-line {
+      flex: 1;
+      height: 2px;
+      margin: 0 0.4rem;
+      border-radius: 2px;
+      transition: background-color 0.3s ease;
+    }
+
+    .stepper-line.line-completed {
+      background-color: #10B981;
+    }
+
+    .stepper-line.line-active {
+      background: linear-gradient(90deg, #10B981 0%, #2563EB 100%);
+    }
+
+    .stepper-line.line-pending {
+      background-color: #E2E8F0;
+    }
+
 
 
   

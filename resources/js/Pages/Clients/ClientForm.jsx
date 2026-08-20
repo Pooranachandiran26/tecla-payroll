@@ -124,6 +124,52 @@ export default function ClientForm({ client: rawClient, defaultLopBasis, gstSett
             </div>
           </div>
 
+          {/* ═══════════════ TOP HORIZONTAL STEP PROGRESS BAR ═══════════════ */}
+          <div className="top-horizontal-stepper">
+            {activeSteps.map((stepNum, idx) => {
+              const isCurrent = stepNum === currentStep;
+              const isCompleted = sectionProgress[stepNum] || stepNum < currentStep;
+
+              const stepTitles = {
+                1: 'Identity',
+                2: 'Address',
+                3: 'Contacts',
+                4: 'Contract',
+                5: 'Statutory',
+                6: 'Documents',
+                7: 'Portal',
+                8: 'SLA'
+              };
+
+              let itemCls = 'stepper-item';
+              if (isCurrent) itemCls += ' active';
+              else if (isCompleted) itemCls += ' completed';
+              else itemCls += ' pending';
+
+              let lineCls = 'stepper-line';
+              if (stepNum < currentStep) lineCls += ' line-completed';
+              else if (stepNum === currentStep) lineCls += ' line-active';
+              else lineCls += ' line-pending';
+
+              return (
+                <React.Fragment key={stepNum}>
+                  <div
+                    className={itemCls}
+                    onClick={() => goToStep(stepNum)}
+                    title={`Step ${stepNum}: ${stepTitles[stepNum]}`}
+                  >
+                    <div className="stepper-circle">
+                      {isCompleted && !isCurrent ? <Check size={14} /> : stepNum}
+                    </div>
+                    <span className="stepper-label">{stepTitles[stepNum]}</span>
+                  </div>
+
+                  {idx < activeSteps.length - 1 && <div className={lineCls} />}
+                </React.Fragment>
+              );
+            })}
+          </div>
+
           {/* Main 2-Column Grid Layout (Left Nav + Expanded Form) */}
           <div className="onboarding-grid-container">
             {/* ═══════════════ LEFT COLUMN: VERTICAL STEPPER NAV ═══════════════ */}

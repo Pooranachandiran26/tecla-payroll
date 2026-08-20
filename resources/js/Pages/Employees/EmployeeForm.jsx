@@ -1414,6 +1414,41 @@ export default function EmployeeForm({ clients = [], errors: serverErrors, emplo
             </div>
           </div>
 
+          {/* ═══════════════ TOP HORIZONTAL STEP PROGRESS BAR ═══════════════ */}
+          <div className="top-horizontal-stepper">
+            {EMP_STEP_META.map((step, idx) => {
+              const isCurrent = step.id === currentStep;
+              const isCompleted = sectionProgress[step.id] || step.id < currentStep;
+
+              let itemCls = 'stepper-item';
+              if (isCurrent) itemCls += ' active';
+              else if (isCompleted) itemCls += ' completed';
+              else itemCls += ' pending';
+
+              let lineCls = 'stepper-line';
+              if (step.id < currentStep) lineCls += ' line-completed';
+              else if (step.id === currentStep) lineCls += ' line-active';
+              else lineCls += ' line-pending';
+
+              return (
+                <React.Fragment key={step.id}>
+                  <div
+                    className={itemCls}
+                    onClick={() => goToStep(step.id)}
+                    title={`Step ${step.id}: ${step.title}`}
+                  >
+                    <div className="stepper-circle">
+                      {isCompleted && !isCurrent ? <Check size={14} /> : step.id}
+                    </div>
+                    <span className="stepper-label">{step.title}</span>
+                  </div>
+
+                  {idx < EMP_STEP_META.length - 1 && <div className={lineCls} />}
+                </React.Fragment>
+              );
+            })}
+          </div>
+
           {draftNotice && (
             <div style={{
               backgroundColor: '#EFF6FF',

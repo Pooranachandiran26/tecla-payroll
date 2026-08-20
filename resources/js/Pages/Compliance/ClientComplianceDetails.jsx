@@ -79,8 +79,6 @@ const TABS = [
   { key: 'pt',      label: 'PT' },
   { key: 'tds_24q', label: 'TDS 24Q' },
   { key: 'clra',    label: 'CLRA' },
-  { key: 'gstr1',   label: 'GSTR-1' },
-  { key: 'audit',   label: 'Audit Pack' },
 ];
 
 /* ─── Statutory summary row with clean non-contradictory status ─── */
@@ -325,7 +323,6 @@ export default function ClientComplianceDetails({
             <StatRow abbr="PT"         status={ss.pt?.status}    dueDate={ss.pt?.due_date}    filedOn={ss.pt?.filed_on} />
             <StatRow abbr="TDS (24Q)"  status={ss.tds?.status}   dueDate={ss.tds?.due_date}   filedOn={ss.tds?.filed_on} />
             <StatRow abbr="CLRA"       status={ss.clra?.status}  dueDate={ss.clra?.due_date}  filedOn={ss.clra?.filed_on} />
-            <StatRow abbr="GSTR-1"     status="not_generated"    dueDate={ss.gstr1?.due_date || '—'} filedOn={null} />
           </div>
         </div>
 
